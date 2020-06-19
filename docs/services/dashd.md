@@ -1,14 +1,14 @@
 # Dash Service
 
-The Dash Service is a Node.js interface to [Dash Core](https://github.com/dashpay/dash) for querying information about the Dash block chain. It will connect to a running `dashd` process. It uses additional, optional indexes in Dash Core for querying information about addresses and blocks. Results are cached for performance and there are several additional API methods added for common queries.
+The Dash Service is a Node.js interface to [Dash Core](https://github.com/dashpay/dash) for querying information about the Dash block chain. It will connect to a running `bitgreend` process. It uses additional, optional indexes in Dash Core for querying information about addresses and blocks. Results are cached for performance and there are several additional API methods added for common queries.
 
 ## Configuration
 
-The configuration should include a "connect" configuration in "dashd". This defines the JSONRPC connection information for separately managed `dashd` processes. It's also possible to connect to several separately managed `dashd` processes with round-robin querying, for example:
+The configuration should include a "connect" configuration in "bitgreend". This defines the JSONRPC connection information for separately managed `bitgreend` processes. It's also possible to connect to several separately managed `bitgreend` processes with round-robin querying, for example:
 
 ```json
   "servicesConfig": {
-    "dashd": {
+    "bitgreend": {
       "connect": [
         {
           "rpchost": "127.0.0.1",
@@ -43,7 +43,7 @@ The configuration should include a "connect" configuration in "dashd". This defi
 Methods are available by directly interfacing with the service:
 
 ```js
-node.services.dashd.<methodName>
+node.services.bitgreend.<methodName>
 ```
 
 ### Chain
@@ -54,12 +54,12 @@ node.services.dashd.<methodName>
 // gives the block hashes sorted from low to high within a range of timestamps
 var high = 1460393372; // Mon Apr 11 2016 12:49:25 GMT-0400 (EDT)
 var low = 1460306965; // Mon Apr 10 2016 12:49:25 GMT-0400 (EDT)
-node.services.dashd.getBlockHashesByTimestamp(high, low, function(err, blockHashes) {
+node.services.bitgreend.getBlockHashesByTimestamp(high, low, function(err, blockHashes) {
   //...
 });
 
 // get the current tip of the chain
-node.services.dashd.getBestBlockHash(function(err, blockHash) {
+node.services.bitgreend.getBestBlockHash(function(err, blockHash) {
   //...
 })
 ```
@@ -68,17 +68,17 @@ node.services.dashd.getBestBlockHash(function(err, blockHash) {
 
 ```js
 // gives a boolean if the daemon is fully synced (not the initial block download)
-node.services.dashd.isSynced(function(err, synced) {
+node.services.bitgreend.isSynced(function(err, synced) {
   //...
 })
 
 // gives the current estimate of blockchain download as a percentage
-node.services.dashd.syncPercentage(function(err, percent) {
+node.services.bitgreend.syncPercentage(function(err, percent) {
   //...
 });
 
 // gives information about the chain including total number of blocks
-node.services.dashd.getInfo(function(err, info) {
+node.services.bitgreend.getInfo(function(err, info) {
   //...
 });
 ```
@@ -88,7 +88,7 @@ node.services.dashd.getInfo(function(err, info) {
 ```js
 // will generate a block for the "regtest" network (development purposes)
 var numberOfBlocks = 10;
-node.services.dashd.generateBlock(numberOfBlocks, function(err, blockHashes) {
+node.services.bitgreend.generateBlock(numberOfBlocks, function(err, blockHashes) {
   //...
 });
 ```
@@ -101,7 +101,7 @@ It's possible to query blocks by both block hash and by height. Blocks are given
 
 ```js
 var blockHeight = 0;
-node.services.dashd.getRawBlock(blockHeight, function(err, blockBuffer) {
+node.services.bitgreend.getRawBlock(blockHeight, function(err, blockBuffer) {
   if (err) {
     throw err;
   }
@@ -110,17 +110,17 @@ node.services.dashd.getRawBlock(blockHeight, function(err, blockBuffer) {
 };
 
 // get a bitcore object of the block (as above)
-node.services.dashd.getBlock(blockHash, function(err, block) {
+node.services.bitgreend.getBlock(blockHash, function(err, block) {
   //...
 };
 
 // get only the block header and index (including chain work, height, and previous hash)
-node.services.dashd.getBlockHeader(blockHeight, function(err, blockHeader) {
+node.services.bitgreend.getBlockHeader(blockHeight, function(err, blockHeader) {
   //...
 });
 
 // get the block with a list of txids
-node.services.dashd.getBlockOverview(blockHash, function(err, blockOverview) {
+node.services.bitgreend.getBlockOverview(blockHash, function(err, blockOverview) {
   //...
 };
 ```
@@ -131,7 +131,7 @@ Get a transaction asynchronously by reading it from disk:
 
 ```js
 var txid = '3dba349df7225e071179256eea2195083cd89985124be3b05e48de509cf1e268';
-node.services.dashd.getRawTransaction(txid, function(err, transactionBuffer) {
+node.services.bitgreend.getRawTransaction(txid, function(err, transactionBuffer) {
   if (err) {
     throw err;
   }
@@ -139,12 +139,12 @@ node.services.dashd.getRawTransaction(txid, function(err, transactionBuffer) {
 });
 
 // get a bitcore object of the transaction (as above)
-node.services.dashd.getTransaction(txid, function(err, transaction) {
+node.services.bitgreend.getTransaction(txid, function(err, transaction) {
   //...
 });
 
 // retrieve the transaction with input values, fees, spent and block info
-node.services.dashd.getDetailedTransaction(txid, function(err, transaction) {
+node.services.bitgreend.getDetailedTransaction(txid, function(err, transaction) {
   //...
 });
 ```
@@ -153,11 +153,11 @@ Send a transaction to the network:
 
 ```js
 var numberOfBlocks = 3;
-node.services.dashd.estimateFee(numberOfBlocks, function(err, feesPerKilobyte) {
+node.services.bitgreend.estimateFee(numberOfBlocks, function(err, feesPerKilobyte) {
   //...
 });
 
-node.services.dashd.sendTransaction(transaction.serialize(), function(err, hash) {
+node.services.bitgreend.sendTransaction(transaction.serialize(), function(err, hash) {
   //...
 });
 ```
@@ -170,7 +170,7 @@ One of the most common uses will be to retrieve unspent outputs necessary to cre
 
 ```js
 var address = 'yegvhonA7HaRvBqp57RVncFAuuqRbMQNXk';
-node.services.dashd.getAddressUnspentOutputs(address, options, function(err, unspentOutputs) {
+node.services.bitgreend.getAddressUnspentOutputs(address, options, function(err, unspentOutputs) {
   // see below
 });
 ```
@@ -195,7 +195,7 @@ The `unspentOutputs` will have the format:
 
 ```js
 var address = 'yTyBtDZp16HtS1jpNd1vD11y6LSyvm1XzX';
-node.services.dashd.getAddressBalance(address, options, function(err, balance) {
+node.services.bitgreend.getAddressBalance(address, options, function(err, balance) {
   // balance will be in satoshis with "received" and "balance"
 });
 ```
@@ -211,7 +211,7 @@ var options = {
   end: 344000,
   queryMempool: true
 };
-node.services.dashd.getAddressHistory(addresses, options, function(err, history) {
+node.services.bitgreend.getAddressHistory(addresses, options, function(err, history) {
   // see below
 });
 ```
@@ -244,7 +244,7 @@ var options = {
   noTxList: false
 };
 
-node.services.dashd.getAddressSummary(address, options, function(err, summary) {
+node.services.bitgreend.getAddressSummary(address, options, function(err, summary) {
   // see below
 });
 ```
@@ -276,40 +276,40 @@ The `summary` will have the format (values are in satoshis):
 The Dash Service exposes two events via the Bus, and there are a few events that can be directly registered:
 
 ```js
-node.services.dashd.on('tip', function(blockHash) {
+node.services.bitgreend.on('tip', function(blockHash) {
   // a new block tip has been added, if there is a rapid update (with a second) this will not emit every tip update
 });
 
-node.services.dashd.on('tx', function(transactionBuffer) {
+node.services.bitgreend.on('tx', function(transactionBuffer) {
   // a new transaction has entered the mempool
 });
 
-node.services.dashd.on('block', function(blockHash) {
+node.services.bitgreend.on('block', function(blockHash) {
   // a new block has been added
 });
 ```
 
 For details on instantiating a bus for a node, see the [Bus Documentation](../bus.md).
-- Name: `dashd/rawtransaction`
-- Name: `dashd/hashblock`
-- Name: `dashd/addresstxid`, Arguments: [address, address...]
+- Name: `bitgreend/rawtransaction`
+- Name: `bitgreend/hashblock`
+- Name: `bitgreend/addresstxid`, Arguments: [address, address...]
 
 **Examples:**
 
 ```js
-bus.subscribe('dashd/rawtransaction');
-bus.subscribe('dashd/hashblock');
-bus.subscribe('dashd/addresstxid', ['XxoNntPX7RNFKHUhuGNUthb1UQpYnKuCsk']);
+bus.subscribe('bitgreend/rawtransaction');
+bus.subscribe('bitgreend/hashblock');
+bus.subscribe('bitgreend/addresstxid', ['XxoNntPX7RNFKHUhuGNUthb1UQpYnKuCsk']);
 
-bus.on('dashd/rawtransaction', function(transactionHex) {
+bus.on('bitgreend/rawtransaction', function(transactionHex) {
   //...
 });
 
-bus.on('dashd/hashblock', function(blockhashHex) {
+bus.on('bitgreend/hashblock', function(blockhashHex) {
   //...
 });
 
-bus.on('dashd/addresstxid', function(data) {
+bus.on('bitgreend/addresstxid', function(data) {
   // data.address;
   // data.txid;
 });

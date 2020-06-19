@@ -15,7 +15,7 @@ var Transaction = bitgreen.Transaction;
 var BN = bitgreen.crypto.BN;
 var async = require('async');
 var rimraf = require('rimraf');
-var dashd;
+var bitgreend;
 
 /* jshint unused: false */
 var should = chai.should();
@@ -49,23 +49,23 @@ describe('P2P Functionality', function() {
         throw err;
       }
 
-      dashd = require('../').services.Dash({
+      bitgreend = require('../').services.Dash({
         spawn: {
           datadir: datadir,
-          exec: path.resolve(__dirname, process.env.HOME, './.bitgreen/data/dashd')
+          exec: path.resolve(__dirname, process.env.HOME, './.bitgreen/data/bitgreend')
         },
         node: {
           network: bitgreen.Networks.testnet
         }
       });
 
-      dashd.on('error', function(err) {
+      bitgreend.on('error', function(err) {
         log.error('error="%s"', err.message);
       });
 
       log.info('Waiting for Dash Core to initialize...');
 
-      dashd.start(function(err) {
+      bitgreend.start(function(err) {
         if (err) {
           throw err;
         }
@@ -163,8 +163,8 @@ describe('P2P Functionality', function() {
     this.timeout(20000);
     peer.on('disconnect', function() {
       log.info('Peer disconnected');
-      dashd.node.stopping = true;
-      dashd.stop(function(err, result) {
+      bitgreend.node.stopping = true;
+      bitgreend.stop(function(err, result) {
         done();
       });
     });
@@ -176,7 +176,7 @@ describe('P2P Functionality', function() {
 
     var usedTxs = {};
 
-    dashd.on('tx', function(buffer) {
+    bitgreend.on('tx', function(buffer) {
       var txFromResult = new Transaction().fromBuffer(buffer);
       var tx = usedTxs[txFromResult.id];
       should.exist(tx);

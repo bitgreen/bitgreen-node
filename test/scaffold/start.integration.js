@@ -23,7 +23,7 @@ describe('#start', function() {
       var node;
       var TestNode = function(options) {
         options.services[0].should.deep.equal({
-          name: 'dashd',
+          name: 'bitgreend',
           module: DashService,
           config: {
             spawn: {
@@ -48,10 +48,10 @@ describe('#start', function() {
         path: __dirname,
         config: {
           services: [
-            'dashd'
+            'bitgreend'
           ],
           servicesConfig: {
-            dashd: {
+            bitgreend: {
               spawn: {
                 datadir: './data'
               }
@@ -91,7 +91,7 @@ describe('#start', function() {
       var node;
       var TestNode = function(options) {
         options.services[0].should.deep.equal({
-          name: 'dashd',
+          name: 'bitgreend',
           module: DashService,
           config: {
             param: 'test',
@@ -116,10 +116,10 @@ describe('#start', function() {
         path: __dirname,
         config: {
           services: [
-            'dashd'
+            'bitgreend'
           ],
           servicesConfig: {
-            'dashd': {
+            'bitgreend': {
               param: 'test',
               spawn: {
                 datadir: './data'

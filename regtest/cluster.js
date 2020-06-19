@@ -19,7 +19,7 @@ var DashService = index.services.Dash;
 describe('Dash Cluster', function() {
   var node;
   var daemons = [];
-  var execPath = path.resolve(__dirname, process.env.HOME, './.bitgreen/data/dashd')
+  var execPath = path.resolve(__dirname, process.env.HOME, './.bitgreen/data/bitgreend')
   var nodesConf = [
     {
       datadir: path.resolve(__dirname, './data/node1'),
@@ -51,7 +51,7 @@ describe('Dash Cluster', function() {
   ];
 
   before(function(done) {
-    log.info('Starting 3 dashd daemons');
+    log.info('Starting 3 bitgreend daemons');
     this.timeout(200000);
     async.each(nodesConf, function(nodeConf, next) {
       var opts = [
@@ -96,13 +96,13 @@ describe('Dash Cluster', function() {
     }, 1000);
   });
 
-  it('step 1: will connect to three dashd daemons', function(done) {
+  it('step 1: will connect to three bitgreend daemons', function(done) {
     this.timeout(20000);
     var configuration = {
       network: 'regtest',
       services: [
         {
-          name: 'dashd',
+          name: 'bitgreend',
           module: DashService,
           config: {
             connect: [
@@ -156,7 +156,7 @@ describe('Dash Cluster', function() {
 
   it('step 2: receive block events', function(done) {
     this.timeout(10000);
-    node.services.dashd.once('tip', function(height) {
+    node.services.bitgreend.once('tip', function(height) {
       height.should.equal(1);
       done();
     });

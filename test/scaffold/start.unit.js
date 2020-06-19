@@ -118,7 +118,7 @@ describe('#start', function() {
         return internal;
       };
       var config = {
-        services: ['dashd']
+        services: ['bitgreend']
       };
       (function() {
         setupServices(testRequire, cwd, config);

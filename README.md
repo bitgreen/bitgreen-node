@@ -1,7 +1,7 @@
 Dashcore Node
 ============
 
-A Dash full node for building applications and services with Node.js. A node is extensible and can be configured to run additional services. At the minimum a node has an interface to [Dash Core (dashd) v0.13.0](https://github.com/dashpay/dash/tree/v0.13.0.x) for more advanced address queries. Additional services can be enabled to make a node more useful such as exposing new APIs, running a block explorer and wallet service.
+A Dash full node for building applications and services with Node.js. A node is extensible and can be configured to run additional services. At the minimum a node has an interface to [Dash Core (bitgreend) v0.13.0](https://github.com/dashpay/dash/tree/v0.13.0.x) for more advanced address queries. Additional services can be enabled to make a node more useful such as exposing new APIs, running a block explorer and wallet service.
 
 ## Usages
 
@@ -15,7 +15,7 @@ npm install
 ```
 
 When running the start command, it will seek for a .bitgreen folder with a bitgreen-node.json conf file.
-If it doesn't exist, it will create it, with basic task to connect to dashd.
+If it doesn't exist, it will create it, with basic task to connect to bitgreend.
 
 Some plugins are available :
 
@@ -42,7 +42,7 @@ const config = require('./bitgreen-node.json');
 let node = bitgreen.scaffold.start({ path: "", config: config });
 node.on('ready', function() {
     //Dash core started
-    dashd.on('tx', function(txData) {
+    bitgreend.on('tx', function(txData) {
         let tx = new bitgreen.lib.Transaction(txData);
     });
 });
@@ -50,7 +50,7 @@ node.on('ready', function() {
 
 ## Prerequisites
 
-- Dash Core (dashd) (v0.13.0) with support for additional indexing *(see above)*
+- Dash Core (bitgreend) (v0.13.0) with support for additional indexing *(see above)*
 - Node.js v8+
 - ZeroMQ *(libzmq3-dev for Ubuntu/Debian or zeromq on OSX)*
 - ~20GB of disk storage
@@ -86,7 +86,7 @@ There are several add-on services available to extend the functionality of Bitco
 
 - [Upgrade Notes](docs/upgrade.md)
 - [Services](docs/services.md)
-  - [Dashd](docs/services/dashd.md) - Interface to Dash Core
+  - [Dashd](docs/services/bitgreend.md) - Interface to Dash Core
   - [Web](docs/services/web.md) - Creates an express application over which services can expose their web/API content
 - [Development Environment](docs/development.md) - Guide for setting up a development environment
 - [Node](docs/node.md) - Details on the node constructor
@@ -96,7 +96,7 @@ There are several add-on services available to extend the functionality of Bitco
 
 ## Setting up dev environment (with Insight)
 
-Prerequisite : Having a dashd node already runing `dashd --daemon`.
+Prerequisite : Having a bitgreend node already runing `bitgreend --daemon`.
 
 Dashcore-node : `git clone https://github.com/bitgreen/bitgreen-node -b develop`
 Insight-api (optional) : `git clone https://github.com/bitgreen/insight-api -b develop`

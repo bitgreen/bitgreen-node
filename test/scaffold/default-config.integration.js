@@ -6,18 +6,18 @@ var sinon = require('sinon');
 var proxyquire = require('proxyquire');
 
 describe('#defaultConfig', function() {
-  var expectedExecPath = path.resolve(__dirname, process.env.HOME, './.bitgreen/data/dashd');
+  var expectedExecPath = path.resolve(__dirname, process.env.HOME, './.bitgreen/data/bitgreend');
 
   it('will return expected configuration', function() {
     var config = JSON.stringify({
       network: 'livenet',
       port: 3001,
       services: [
-        'dashd',
+        'bitgreend',
         'web'
       ],
       servicesConfig: {
-        dashd: {
+        bitgreend: {
           connect: [{
             rpchost: '127.0.0.1',
             rpcport: 9998,
@@ -48,22 +48,22 @@ describe('#defaultConfig', function() {
     info.path.should.equal(home + '/.bitgreen');
     info.config.network.should.equal('livenet');
     info.config.port.should.equal(3001);
-    info.config.services.should.deep.equal(['dashd', 'web']);
-    var dashd = info.config.servicesConfig.dashd;
-    should.exist(dashd);
+    info.config.services.should.deep.equal(['bitgreend', 'web']);
+    var bitgreend = info.config.servicesConfig.bitgreend;
+    should.exist(bitgreend);
   });
   it('will include additional services', function() {
     var config = JSON.stringify({
       network: 'livenet',
       port: 3001,
       services: [
-        'dashd',
+        'bitgreend',
         'web',
         'insight-api',
         'insight-ui'
       ],
       servicesConfig: {
-        dashd: {
+        bitgreend: {
           connect: [{
             rpchost: '127.0.0.1',
             rpcport: 9998,
@@ -97,12 +97,12 @@ describe('#defaultConfig', function() {
     info.config.network.should.equal('livenet');
     info.config.port.should.equal(3001);
     info.config.services.should.deep.equal([
-      'dashd',
+      'bitgreend',
       'web',
       'insight-api',
       'insight-ui'
     ]);
-    var dashd = info.config.servicesConfig.dashd;
-    should.exist(dashd);
+    var bitgreend = info.config.servicesConfig.bitgreend;
+    should.exist(bitgreend);
   });
 });

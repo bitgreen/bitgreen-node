@@ -26,7 +26,7 @@ var fixtureData = {
   ]
 };
 
-var dashd = require('../').services.Dash({
+var bitgreend = require('../').services.Dash({
   node: {
     datadir: process.env.HOME + '/.dash',
     network: {
@@ -35,18 +35,18 @@ var dashd = require('../').services.Dash({
   }
 });
 
-dashd.on('error', function(err) {
+bitgreend.on('error', function(err) {
   console.error(err.message);
 });
 
-dashd.start(function(err) {
+bitgreend.start(function(err) {
   if (err) {
     throw err;
   }
   console.log('Dash Core started');
 });
 
-dashd.on('ready', function() {
+bitgreend.on('ready', function() {
 
   console.log('Dash Core ready');
 
@@ -69,7 +69,7 @@ dashd.on('ready', function() {
           c = 0;
         }
         var hash = fixtureData.blockHashes[c];
-        dashd.getBlock(hash, function(err, block) {
+        bitgreend.getBlock(hash, function(err, block) {
           if (err) {
             throw err;
           }
@@ -97,7 +97,7 @@ dashd.on('ready', function() {
           c = 0;
         }
         var hash = fixtureData.txHashes[c];
-        dashd.getTransaction(hash, true, function(err, tx) {
+        bitgreend.getTransaction(hash, true, function(err, tx) {
           if (err) {
             throw err;
           }
@@ -122,22 +122,22 @@ dashd.on('ready', function() {
 
       var suite = new benchmark.Suite();
 
-      suite.add('dashd getblock (native)', dashdGetBlockNative, {
+      suite.add('bitgreend getblock (native)', dashdGetBlockNative, {
         defer: true,
         maxTime: maxTime
       });
 
-      suite.add('dashd getblock (json rpc)', dashdGetBlockJsonRpc, {
+      suite.add('bitgreend getblock (json rpc)', dashdGetBlockJsonRpc, {
         defer: true,
         maxTime: maxTime
       });
 
-      suite.add('dashd gettransaction (native)', dashGetTransactionNative, {
+      suite.add('bitgreend gettransaction (native)', dashGetTransactionNative, {
         defer: true,
         maxTime: maxTime
       });
 
-      suite.add('dashd gettransaction (json rpc)', dashGetTransactionJsonRpc, {
+      suite.add('bitgreend gettransaction (json rpc)', dashGetTransactionJsonRpc, {
         defer: true,
         maxTime: maxTime
       });
@@ -158,7 +158,7 @@ dashd.on('ready', function() {
       throw err;
     }
     console.log('Finished');
-    dashd.stop(function(err) {
+    bitgreend.stop(function(err) {
       if (err) {
         console.error('Fail to stop services: ' + err);
         process.exit(1);

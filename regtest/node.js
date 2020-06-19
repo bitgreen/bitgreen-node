@@ -48,12 +48,12 @@ describe('Node Functionality', function() {
         network: 'regtest',
         services: [
           {
-            name: 'dashd',
+            name: 'bitgreend',
             module: DashService,
             config: {
               spawn: {
                 datadir: datadir,
-                exec: path.resolve(__dirname, process.env.HOME, './.bitgreen/data/dashd')
+                exec: path.resolve(__dirname, process.env.HOME, './.bitgreen/data/bitgreend')
               }
             }
           }
@@ -84,13 +84,13 @@ describe('Node Functionality', function() {
         });
 
         var syncedHandler = function() {
-          if (node.services.dashd.height === 150) {
-            node.services.dashd.removeListener('synced', syncedHandler);
+          if (node.services.bitgreend.height === 150) {
+            node.services.bitgreend.removeListener('synced', syncedHandler);
             done();
           }
         };
 
-        node.services.dashd.on('synced', syncedHandler);
+        node.services.bitgreend.on('synced', syncedHandler);
 
         client.generate(150, function(err) {
           if (err) {
@@ -119,9 +119,9 @@ describe('Node Functionality', function() {
       var bus = node.openBus();
       var blockExpected;
       var blockReceived;
-      bus.subscribe('dashd/hashblock');
-      bus.on('dashd/hashblock', function(data) {
-        bus.unsubscribe('dashd/hashblock');
+      bus.subscribe('bitgreend/hashblock');
+      bus.on('bitgreend/hashblock', function(data) {
+        bus.unsubscribe('bitgreend/hashblock');
         if (blockExpected) {
           data.should.be.equal(blockExpected);
           done();
@@ -149,8 +149,8 @@ describe('Node Functionality', function() {
     before(function(done) {
       this.timeout(300000);
       address = testKey.toAddress(regtest).toString();
-      var startHeight = node.services.dashd.height;
-      node.services.dashd.on('tip', function(height) {
+      var startHeight = node.services.bitgreend.height;
+      node.services.bitgreend.on('tip', function(height) {
         if (height === startHeight + 3) {
           done();
         }
@@ -248,8 +248,8 @@ describe('Node Functionality', function() {
         /* jshint maxstatements: 50 */
 
         // Finished once all blocks have been mined
-        var startHeight = node.services.dashd.height;
-        node.services.dashd.on('tip', function(height) {
+        var startHeight = node.services.bitgreend.height;
+        node.services.bitgreend.on('tip', function(height) {
           if (height === startHeight + 5) {
             done();
           }
@@ -667,7 +667,7 @@ describe('Node Functionality', function() {
         tx.fee(2000);
         tx.sign(testKey);
 
-        node.services.dashd.sendTransaction(tx.serialize(), function(err, hash) {
+        node.services.bitgreend.sendTransaction(tx.serialize(), function(err, hash) {
           node.getAddressTxids(memAddress, {}, function(err, txids) {
             if (err) {
               return done(err);
