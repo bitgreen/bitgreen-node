@@ -1,6 +1,6 @@
 # Bitg
 
-Implementation of a https://bitg.io node in Rust based on the Substrate framework.
+Implementation of a https://bitg.org node in Rust based on the Substrate framework.
 
 
 ## Installation
