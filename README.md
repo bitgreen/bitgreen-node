@@ -1,23 +1,60 @@
-# Bitg
+# BITGREEN Node
 
-Implementation of a https://bitg.org node in Rust based on the Substrate framework.
+This is the BitGreen Node based on Substrate Framework 3.x
+
+## New Features
+- Smart Contract Support in native [!Ink language](https://substrate.dev/docs/en/knowledgebase/smart-contracts/ink-development) a Rust based embedded domain specific language. 
 
 
 ## Installation
 
-If you just wish to run a Bitg node without compiling it yourself, you may
-either run the latest binary from our
-[releases](https://github.com/bitgreen/bitg-node/releases) page, or install
-Bitg from one of our package repositories.
+Follow these steps to get started with the BitGreen Node:  
 
-### Connect to Bitg network
+- First, complete the [basic Rust setup instructions](./doc/rust-setup.md).
 
-Connect to the global network by running:
+- Use Rust's native `cargo` command to build and launch the BitGreen Node:
 
-```bash
-./target/release/bitg --chain=bitg
+```sh
+cargo run --release -- --dev --tmp
+```
+You can build without launching:
+
+```sh
+cargo build --release
 ```
 
-You can see your node on [telemetry] (set a custom name with `--name "my custom name"`).
 
-[telemetry]: https://telemetry.polkadot.io/#list/Bitg
+### Embedded Docs
+
+Once the project has been built, the following command can be used to explore all parameters and
+subcommands:
+
+```sh
+./target/release/bitg-node -h
+```
+
+## Run
+
+The provided `cargo run` command will launch a temporary node and its state will be discarded after
+you terminate the process. After the project has been built, there are other ways to launch the
+node.
+
+### Single-Node Development Chain
+
+This command will start the single-node development chain with persistent state:
+
+```bash
+./target/release/bitg-node --dev
+```
+
+Purge the development chain's state:
+
+```bash
+./target/release/bitg-node purge-chain --dev
+```
+
+Start the development chain with detailed logging:
+
+```bash
+RUST_LOG=debug RUST_BACKTRACE=1 ./target/release/bitg-node -lruntime=debug --dev
+```
