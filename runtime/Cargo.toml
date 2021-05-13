@@ -56,6 +56,12 @@ sp-version = { default-features = false, version = '3.0.0' }
 pallet-contracts = { default-features = false, version = '3.0.0' }
 pallet-contracts-primitives = { default-features = false, version = '3.0.0' }
 pallet-contracts-rpc-runtime-api = { default-features = false, version = '3.0.0' }
+# democracy pallet
+pallet-democracy = { default-features = false, version = '3.0.0' }
+pallet-collective = { default-features = false, version = '3.0.0' }
+pallet-scheduler = { default-features = false, version = '3.0.0' }
+
+
 
 
 [features]
@@ -99,4 +105,7 @@ std = [
     'pallet-contracts/std',
     'pallet-contracts-primitives/std',
     'pallet-contracts-rpc-runtime-api/std',
+    'pallet-democracy/std',
+    'pallet-collective/std',
+    'pallet-scheduler/std',
 ]
