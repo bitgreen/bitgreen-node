@@ -62,3 +62,6 @@ RUST_LOG=debug RUST_BACKTRACE=1 ./target/release/bitg-node -lruntime=debug --dev
 ## Decentralized Autonomous Organization
 BitGreen blockchain has specific support for the [Decentralized Autonoumous Organization.](doc/dao.md)  
  
+## Smart Contracts
+BitGreen blockchain has now a strong support for [smart contracts written in RUST language](doc/smartcontracts.md)  
+ 
