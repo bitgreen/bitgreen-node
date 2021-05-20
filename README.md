@@ -64,4 +64,12 @@ BitGreen blockchain has specific support for the [Decentralized Autonoumous Orga
  
 ## Smart Contracts
 BitGreen blockchain has now a strong support for [smart contracts written in RUST language](doc/smartcontracts.md)  
+
+## Staking (for Validators)
+A specific module is available to stake and un-stake funds to qualify as validator of the blockchain.  
+A validator gains BITG for every new block written. The block writing allow to the top 250 validators for stakes locked. 
+[Here is the documentation.](doc/staking.md)  
+  
+
+
  
