@@ -8,28 +8,41 @@ include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 
 use sp_std::prelude::*;
 use sp_core::{crypto::KeyTypeId, OpaqueMetadata};
+//use sp_core::u32_trait::{ _3, _4,};
 use sp_runtime::{
 	ApplyExtrinsicResult, generic, create_runtime_str, impl_opaque_keys, MultiSignature,
-	transaction_validity::{TransactionValidity, TransactionSource},
+	Perbill, curve::PiecewiseLinear,
+	transaction_validity::{TransactionValidity, TransactionSource,TransactionPriority},
 };
 use sp_runtime::traits::{
-	AccountIdLookup, BlakeTwo256, Block as BlockT, Verify, IdentifyAccount, NumberFor,
+	AccountIdLookup, OpaqueKeys, BlakeTwo256, Block as BlockT, Verify, IdentifyAccount, NumberFor,
 };
 use sp_api::impl_runtime_apis;
 use sp_consensus_aura::sr25519::AuthorityId as AuraId;
 use pallet_grandpa::{AuthorityId as GrandpaId, AuthorityList as GrandpaAuthorityList};
 use pallet_grandpa::fg_primitives;
 use sp_version::RuntimeVersion;
+//use frame_system::{EnsureRoot, EnsureOneOf};
 use frame_system::{EnsureRoot};
+use pallet_session::historical as session_historical;
+use pallet_im_online::sr25519::AuthorityId as ImOnlineId;
+
 #[cfg(feature = "std")]
 use sp_version::NativeVersion;
+
+// staking pallets
+use sp_staking::SessionIndex;
+
+
+
+#[cfg(feature = "std")]
+pub use pallet_staking::StakerStatus;
 
 // A few exports that help ease life for downstream crates.
 #[cfg(any(feature = "std", test))]
 pub use sp_runtime::BuildStorage;
 pub use pallet_timestamp::Call as TimestampCall;
 pub use pallet_balances::Call as BalancesCall;
-pub use sp_runtime::{Permill, Perbill};
 pub use frame_support::{
 	construct_runtime, parameter_types, StorageValue,
 	traits::{KeyOwnerProofSystem, Randomness},
@@ -40,8 +53,15 @@ pub use frame_support::{
 };
 use pallet_transaction_payment::CurrencyAdapter;
 
+
+
 /// import pallet contracts (!Ink Native language)
 use pallet_contracts::weights::WeightInfo;
+
+/// Constant values used within the runtime.
+//pub mod constants;
+//use constants::{time::*, currency::*, fee::*};
+//use frame_support::traits::InstanceFilter;
 
 /// weights definition for gas fees charge in the runtime 
 mod weights;
@@ -75,6 +95,9 @@ pub type DigestItem = generic::DigestItem<Hash>;
 type CouncilCollective = pallet_collective::Instance1;
 type TechnicalCollective = pallet_collective::Instance2;
 
+// Election Session
+pub const EPOCH_DURATION_IN_BLOCKS: BlockNumber = 10 * MINUTES;
+//pub const ElectionLookahead: BlockNumber = EPOCH_DURATION_IN_BLOCKS / 4;
 
 /// Opaque types. These are used by the CLI to instantiate machinery that don't need to know
 /// the specifics of the runtime. They can then be made to be agnostic over specific formats
@@ -95,7 +118,9 @@ pub mod opaque {
 	impl_opaque_keys! {
 		pub struct SessionKeys {
 			pub aura: Aura,
+			pub babe: Babe,
 			pub grandpa: Grandpa,
+			pub im_online: ImOnline,
 		}
 	}
 }
@@ -110,6 +135,18 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	transaction_version: 1,
 };
 
+/// The BABE epoch configuration at genesis.
+pub const PRIMARY_PROBABILITY: (u64, u64) = (1, 4);
+pub const BABE_GENESIS_EPOCH_CONFIG: babe_primitives::BabeEpochConfiguration =
+	babe_primitives::BabeEpochConfiguration {
+		c: PRIMARY_PROBABILITY,
+		allowed_slots: babe_primitives::AllowedSlots::PrimaryAndSecondaryVRFSlots
+	};
+
+
+/// An instant or duration in time.
+pub type Moment = u64;
+
 
 /// This determines the average expected block time that we are targeting.
 /// Blocks will be produced at a minimum duration defined by `SLOT_DURATION`.
@@ -118,8 +155,8 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 ///
 /// Change this to adjust the block time.
 pub const MILLISECS_PER_BLOCK: u64 = 6000;
-
 pub const SLOT_DURATION: u64 = MILLISECS_PER_BLOCK;
+pub const EPOCH_DURATION_IN_SLOTS: BlockNumber = 4 * HOURS;
 
 // Time is measured by number of blocks.
 pub const MINUTES: BlockNumber = 60_000 / (MILLISECS_PER_BLOCK as BlockNumber);
@@ -234,7 +271,24 @@ impl pallet_grandpa::Config for Runtime {
 
 	type WeightInfo = ();
 }
+// pallet iam-online
+parameter_types! {
+	pub NposSolutionPriority: TransactionPriority =
+		Perbill::from_percent(90) * TransactionPriority::max_value();
+	pub const ImOnlineUnsignedPriority: TransactionPriority = TransactionPriority::max_value();
+}
 
+impl pallet_im_online::Config for Runtime {
+	type AuthorityId = ImOnlineId;
+	type Event = Event;
+	type ValidatorSet = Historical;
+	//type NextSessionRotation = Babe;
+	type SessionDuration= ();
+	type ReportUnresponsiveness = Offences;
+	type UnsignedPriority = ImOnlineUnsignedPriority;
+	type WeightInfo = weights::pallet_im_online::WeightInfo<Runtime>;
+}
+// pallet timestamp
 parameter_types! {
 	pub const MinimumPeriod: u64 = SLOT_DURATION / 2;
 }
@@ -295,7 +349,17 @@ impl pallet_contracts::Config for Runtime {
     type MaxCodeSize = MaxCodeSize;
 }
 // End implementation for Contracts Pallet
-
+// Authorship Pallet
+parameter_types! {
+	pub const UncleGenerations: u32 = 0;
+}
+impl pallet_authorship::Config for Runtime {
+	type FindAuthor = pallet_session::FindAccountFromAuthorIndex<Self, Babe>;
+	type UncleGenerations = UncleGenerations;
+	type FilterUncle = ();
+	type EventHandler = (Staking, ImOnline);
+}
+// end Authorship Pallet
 parameter_types! {
 	pub const ExistentialDeposit: u128 = 500;
 	pub const MaxLocks: u32 = 50;
@@ -328,6 +392,17 @@ impl pallet_sudo::Config for Runtime {
 	type Event = Event;
 	type Call = Call;
 }
+parameter_types! {
+	pub OffencesWeightSoftLimit: Weight = Perbill::from_percent(60) * 100_000;
+}
+// pallet offences (used to slash funds of bad validators)
+impl pallet_offences::Config for Runtime {
+	type Event = Event;
+	type IdentificationTuple = pallet_session::historical::IdentificationTuple<Self>;
+	type OnOffenceHandler = Staking;
+	type WeightSoftLimit = OffencesWeightSoftLimit;
+}
+
 // pallet collective 
 parameter_types! {
 	pub const CouncilCollectiveMotionDuration: BlockNumber = 5 * DAYS;
@@ -418,7 +493,137 @@ impl pallet_scheduler::Config for Runtime {
 	type MaxScheduledPerBlock = MaxScheduledPerBlock;
 	type WeightInfo = weights::pallet_scheduler::WeightInfo<Runtime>;
 }
+// end pallet scheduler
 
+
+// pallet staking (used for validators and nominators)
+// reward curve configuration
+pallet_staking_reward_curve::build! {
+	const REWARD_CURVE: PiecewiseLinear<'static> = curve!(
+		min_inflation: 0_025_000,
+		max_inflation: 0_100_000,
+		ideal_stake: 0_750_000,
+		falloff: 0_050_000,
+		max_piece_count: 40,
+		test_precision: 0_005_000,
+	);
+}
+
+parameter_types! {
+	// Six sessions in an era (24 hours).
+	pub const SessionsPerEra: SessionIndex = 6;
+	// 28 eras for unbonding (28 days).
+	pub const BondingDuration: pallet_staking::EraIndex = 28;
+	pub const SlashDeferDuration: pallet_staking::EraIndex = 27;
+	pub const RewardCurve: &'static PiecewiseLinear<'static> = &REWARD_CURVE;
+	pub const MaxNominatorRewardedPerValidator: u32 = 256;
+}
+// set the accounts allowed to cancel a slash of funds
+/*type SlashCancelOrigin = EnsureOneOf<
+	AccountId,
+	EnsureRoot<AccountId>,
+	pallet_collective::EnsureProportionAtLeast<_3, _4, AccountId, CouncilCollective>
+>;*/
+// implementation types
+impl pallet_staking::Config for Runtime {
+	//const MAX_NOMINATIONS: u32 = 16;
+	type Currency = Balances;
+	type UnixTime = Timestamp;
+	type CurrencyToVote = frame_support::traits::U128CurrencyToVote;
+	type RewardRemainder = ();
+	type Event = Event;
+	type Slash = ();
+	type Reward = ();
+	type SessionsPerEra = SessionsPerEra;
+	type BondingDuration = BondingDuration;
+	type SlashDeferDuration = SlashDeferDuration;
+	// A majority of the council can cancel the slash.
+	type SlashCancelOrigin = frame_system::EnsureNever<()>;
+	type SessionInterface = Self;
+	//type EraPayout = pallet_staking::ConvertCurve<RewardCurve>;
+	type RewardCurve =  RewardCurve;
+	type ElectionLookahead = ();
+	type MinSolutionScoreBump = ();
+	type OffchainSolutionWeightLimit = ();
+	type Call = Call;
+	type MaxIterations = ();
+	type UnsignedPriority = ();
+	type MaxNominatorRewardedPerValidator = MaxNominatorRewardedPerValidator;
+	type NextNewSession = Session;
+	//type ElectionProvider = frame_election_provider_support::onchain::OnChainSequentialPhragmen<Self>;
+	type WeightInfo = (); //pallet_staking::weights::SubstrateWeight<Runtime>;
+}
+//end staking pallet
+
+// session pallet
+impl_opaque_keys! {
+	pub struct SessionKeys {
+		pub grandpa: Grandpa,
+		pub babe: Babe,
+	}
+}
+parameter_types! {
+	pub const DisabledValidatorsThreshold: Perbill = Perbill::from_percent(17);
+}
+
+impl pallet_session::Config for Runtime {
+	type Event = Event;
+	type ValidatorId = AccountId;
+	type ValidatorIdOf = pallet_staking::StashOf<Self>;
+	type ShouldEndSession = Babe;
+	type NextSessionRotation = Babe;
+	type SessionManager = pallet_session::historical::NoteHistoricalRoot<Self, Staking>;
+	type SessionHandler = <SessionKeys as OpaqueKeys>::KeyTypeIdProviders;
+	type Keys = SessionKeys;
+	type DisabledValidatorsThreshold = DisabledValidatorsThreshold;
+	type WeightInfo = weights::pallet_session::WeightInfo<Runtime>;
+}
+
+impl pallet_session::historical::Config for Runtime {
+	type FullIdentification = pallet_staking::Exposure<AccountId, Balance>;
+	type FullIdentificationOf = pallet_staking::ExposureOf<Runtime>;
+}
+// end session pallet
+// babe pallet for consensus
+parameter_types! {
+	pub const EpochDuration: u64 = EPOCH_DURATION_IN_SLOTS as u64;
+	pub const ExpectedBlockTime: Moment = MILLISECS_PER_BLOCK;
+	pub const ReportLongevity: u64 =
+		BondingDuration::get() as u64 * SessionsPerEra::get() as u64 * EpochDuration::get();
+}
+
+impl pallet_babe::Config for Runtime {
+	type EpochDuration = EpochDuration;
+	type ExpectedBlockTime = ExpectedBlockTime;
+
+	// session module is the trigger
+	type EpochChangeTrigger = pallet_babe::ExternalTrigger;
+
+	type KeyOwnerProofSystem = Historical;
+
+	type KeyOwnerProof = <Self::KeyOwnerProofSystem as KeyOwnerProofSystem<(
+		KeyTypeId,
+		pallet_babe::AuthorityId,
+	)>>::Proof;
+
+	type KeyOwnerIdentification = <Self::KeyOwnerProofSystem as KeyOwnerProofSystem<(
+		KeyTypeId,
+		pallet_babe::AuthorityId,
+	)>>::IdentificationTuple;
+
+	type HandleEquivocation =
+		pallet_babe::EquivocationHandler<Self::KeyOwnerIdentification, Offences, ReportLongevity>;
+
+	type WeightInfo = ();
+}
+// end pallet babe
+
+// SendtransactionType Implementation
+impl<C> frame_system::offchain::SendTransactionTypes<C> for Runtime where Call: From<C> {
+	type Extrinsic = UncheckedExtrinsic;
+	type OverarchingCall = Call;
+}
+// end SendtransactionType Implementation
 
 // Create the runtime by composing the FRAME pallets that were previously configured.
 construct_runtime!(
@@ -428,6 +633,7 @@ construct_runtime!(
 		UncheckedExtrinsic = UncheckedExtrinsic
 	{
 		System: frame_system::{Module, Call, Config, Storage, Event<T>},
+		Babe: pallet_babe::{Module, Call, Storage, Config, ValidateUnsigned},
 		RandomnessCollectiveFlip: pallet_randomness_collective_flip::{Module, Call, Storage},
 		Timestamp: pallet_timestamp::{Module, Call, Storage, Inherent},
 		Aura: pallet_aura::{Module, Config<T>},
@@ -435,14 +641,20 @@ construct_runtime!(
 		Balances: pallet_balances::{Module, Call, Storage, Config<T>, Event<T>},
 		TransactionPayment: pallet_transaction_payment::{Module, Storage},
 		Sudo: pallet_sudo::{Module, Call, Config<T>, Storage, Event<T>},
-		// custom logic for contracts pallet
+		// custom logic for smartc contracts pallet (!ink)
 		Contracts: pallet_contracts::{Module, Call, Config<T>, Storage, Event<T>},
 		// custom logic for democracy pallets
 		Democracy: pallet_democracy::{Module, Call, Storage, Config, Event<T>},
 		Council: pallet_collective::<Instance1>::{Module, Call, Storage, Origin<T>, Event<T>, Config<T>},
         TechnicalCommittee: pallet_collective::<Instance2>::{Module, Call, Storage, Origin<T>, Event<T>, Config<T>},
 		Scheduler: pallet_scheduler::{Module, Call, Storage, Event<T>},
-
+		// custom logic for staking pallets
+		Staking: pallet_staking::{Module, Call, Storage, Config<T>, Event<T>},
+		Session: pallet_session::{Module, Call, Storage, Event, Config<T>},
+		Historical: session_historical::{Module},
+		Offences: pallet_offences::{Module, Call, Storage, Event},
+		Authorship: pallet_authorship::{Module, Call, Storage},
+		ImOnline: pallet_im_online::{Module, Call, Storage, Event<T>, ValidateUnsigned, Config<T>},
 	}
 );
 

@@ -56,13 +56,23 @@ sp-version = { default-features = false, version = '3.0.0' }
 pallet-contracts = { default-features = false, version = '3.0.0' }
 pallet-contracts-primitives = { default-features = false, version = '3.0.0' }
 pallet-contracts-rpc-runtime-api = { default-features = false, version = '3.0.0' }
-# democracy pallet
+# democracy pallets
 pallet-democracy = { default-features = false, version = '3.0.0' }
 pallet-collective = { default-features = false, version = '3.0.0' }
 pallet-scheduler = { default-features = false, version = '3.0.0' }
-
-
-
+# staking pallets
+pallet-session = { default-features = false, version = '3.0.0' }
+pallet-staking = { default-features = false, version = '3.0.0' }
+pallet-staking-reward-curve = { version = '3.0.0' }
+sp-npos-elections  = { default-features = false, version = '3.0.0' }
+sp-staking = { default-features = false, version = '3.0.0' }
+# POS pallets
+babe-primitives = { package = "sp-consensus-babe", default-features = false, version = '0.9' }
+pallet-babe = { default-features = false, version = '3.0.0' }
+pallet-offences = { default-features = false, version = '3.0.0' }
+pallet-authorship  = { default-features = false, version = '3.0.0' }
+pallet-im-online = { default-features = false, version = '3.0.0' }
+#pallet-election-provider-multi-phase = { path = '../pallets/election-provider-multi-phase', default-features = false, version = '3.0.0' }
 
 [features]
 default = ['std']
@@ -108,4 +118,14 @@ std = [
     'pallet-democracy/std',
     'pallet-collective/std',
     'pallet-scheduler/std',
+    'pallet-session/std',
+    'pallet-staking/std', 
+    'sp-npos-elections/std',
+    'sp-staking/std',
+    'pallet-babe/std',
+    'babe-primitives/std',
+    'pallet-offences/std',
+    'pallet-authorship/std',
+    'pallet-im-online/std',
+    #'pallet-election-provider-multi-phase/std',
 ]

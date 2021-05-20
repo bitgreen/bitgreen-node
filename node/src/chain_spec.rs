@@ -161,6 +161,11 @@ fn testnet_genesis(
                     ..Default::default()
             },
         }),
+		// Im Online Pallet
+		pallet_im_online: Default::default(),
+		pallet_session: Default::default(),
+		pallet_babe: Default::default(),
+		pallet_staking: Default::default(),
 		pallet_democracy: Default::default(),
 		pallet_collective_Instance1: Some(CouncilConfig::default()),
 		pallet_collective_Instance2: Some(TechnicalCommitteeConfig::default()),
