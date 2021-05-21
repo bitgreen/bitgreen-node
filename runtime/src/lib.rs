@@ -618,6 +618,29 @@ impl pallet_babe::Config for Runtime {
 }
 // end pallet babe
 
+// Asset pallet
+parameter_types! {
+	pub const ASSETDEPOSITBASE: Balance = 1 * DOLLARS;
+	pub const ASSETDEPOSITPERZOMBIE: Balance = 1 * DOLLARS;
+	pub const STRINGLIMIT: u32 = 8192;	// max metadata size in bytes
+	pub const METADATADEPOSITBASE: Balance= 1 * DOLLARS; 
+	pub const METADATADEPOSITPERBYTE: Balance = 1 * CENTS;
+}
+impl pallet_assets::Config for Runtime {
+	type Event = Event;
+	type Balance = u128;
+	type AssetId = u32;
+	type Currency = Balances;
+	type ForceOrigin = EnsureRoot<AccountId>;
+	type AssetDepositBase = ASSETDEPOSITBASE;
+	type AssetDepositPerZombie = ASSETDEPOSITPERZOMBIE;
+	type StringLimit= STRINGLIMIT;
+	type MetadataDepositBase = METADATADEPOSITBASE;
+	type MetadataDepositPerByte = METADATADEPOSITPERBYTE;
+	type WeightInfo = (); //pallet_assets::weights::SubstrateWeight<Self>;
+}
+//end asset pallet
+
 // SendtransactionType Implementation
 impl<C> frame_system::offchain::SendTransactionTypes<C> for Runtime where Call: From<C> {
 	type Extrinsic = UncheckedExtrinsic;
@@ -641,6 +664,8 @@ construct_runtime!(
 		Balances: pallet_balances::{Module, Call, Storage, Config<T>, Event<T>},
 		TransactionPayment: pallet_transaction_payment::{Module, Storage},
 		Sudo: pallet_sudo::{Module, Call, Config<T>, Storage, Event<T>},
+		//custom logic for assets
+		Assets: pallet_assets::{Module, Call, Storage, Event<T>},
 		// custom logic for smartc contracts pallet (!ink)
 		Contracts: pallet_contracts::{Module, Call, Config<T>, Storage, Event<T>},
 		// custom logic for democracy pallets

@@ -58,18 +58,21 @@ Start the development chain with detailed logging:
 ```bash
 RUST_LOG=debug RUST_BACKTRACE=1 ./target/release/bitg-node -lruntime=debug --dev
 ```
-
-## Decentralized Autonomous Organization
-BitGreen blockchain has specific support for the [Decentralized Autonoumous Organization.](doc/dao.md)  
  
 ## Smart Contracts
-BitGreen blockchain has now a strong support for [smart contracts written in RUST language](doc/smartcontracts.md)  
+BitGreen has now a strong support for [smart contracts written in RUST language](doc/smartcontracts.md)  
+
+## Assets (Fungible Tokens)
+A specific module for [fungible tokens (ERC20)](doc/assets.md) is included in the blockchain node.
 
 ## Staking (for Validators)
 A specific module is available to stake and un-stake funds to qualify as validator of the blockchain.  
-A validator gains BITG for every new block written. The block writing allow to the top 250 validators for stakes locked. 
+A validator gains BITG for every new block written. The block writing allow to the top 250 validators for stakes locked.  
 [Here is the documentation.](doc/staking.md)  
-  
+
+## Decentralized Autonomous Organization
+BitGreen blockchain has specific support for the [Decentralized Autonoumous Organization.](doc/dao.md)  
+
 
 
  

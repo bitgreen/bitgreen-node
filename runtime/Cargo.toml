@@ -73,6 +73,8 @@ pallet-offences = { default-features = false, version = '3.0.0' }
 pallet-authorship  = { default-features = false, version = '3.0.0' }
 pallet-im-online = { default-features = false, version = '3.0.0' }
 #pallet-election-provider-multi-phase = { path = '../pallets/election-provider-multi-phase', default-features = false, version = '3.0.0' }
+# Assets (ERC20 Token)
+pallet-assets = { default-features = false, version = '3.0.0' }
 
 [features]
 default = ['std']
@@ -127,5 +129,6 @@ std = [
     'pallet-offences/std',
     'pallet-authorship/std',
     'pallet-im-online/std',
+    'pallet-assets/std',
     #'pallet-election-provider-multi-phase/std',
 ]
