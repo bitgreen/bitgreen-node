@@ -33,8 +33,6 @@ use sp_version::NativeVersion;
 // staking pallets
 use sp_staking::SessionIndex;
 
-
-
 #[cfg(feature = "std")]
 pub use pallet_staking::StakerStatus;
 
@@ -53,16 +51,10 @@ pub use frame_support::{
 };
 use pallet_transaction_payment::CurrencyAdapter;
 
-
-
 /// import pallet contracts (!Ink Native language)
 use pallet_contracts::weights::WeightInfo;
 
 /// Constant values used within the runtime.
-//pub mod constants;
-//use constants::{time::*, currency::*, fee::*};
-//use frame_support::traits::InstanceFilter;
-
 /// weights definition for gas fees charge in the runtime 
 mod weights;
 
@@ -143,10 +135,8 @@ pub const BABE_GENESIS_EPOCH_CONFIG: babe_primitives::BabeEpochConfiguration =
 		allowed_slots: babe_primitives::AllowedSlots::PrimaryAndSecondaryVRFSlots
 	};
 
-
 /// An instant or duration in time.
 pub type Moment = u64;
-
 
 /// This determines the average expected block time that we are targeting.
 /// Blocks will be produced at a minimum duration defined by `SLOT_DURATION`.
@@ -157,7 +147,6 @@ pub type Moment = u64;
 pub const MILLISECS_PER_BLOCK: u64 = 6000;
 pub const SLOT_DURATION: u64 = MILLISECS_PER_BLOCK;
 pub const EPOCH_DURATION_IN_SLOTS: BlockNumber = 4 * HOURS;
-
 // Time is measured by number of blocks.
 pub const MINUTES: BlockNumber = 60_000 / (MILLISECS_PER_BLOCK as BlockNumber);
 pub const HOURS: BlockNumber = MINUTES * 60;
@@ -171,7 +160,7 @@ pub const DOLLARS: Balance = 100 * CENTS;
 const fn deposit(items: u32, bytes: u32) -> Balance {
     items as Balance * 15 * CENTS + (bytes as Balance) * 6 * CENTS
 }
-/// We assume that ~10% of the block weight is consumed by `on_initalize` handlers.
+/// We assume that ~10% of the block weight is consumed by `on_initialize` handlers.
 /// This is used to limit the maximal weight of a single extrinsic.
 const AVERAGE_ON_INITIALIZE_RATIO: Perbill = Perbill::from_percent(10);
 /// end definitions for Contracts pallet
@@ -198,7 +187,7 @@ parameter_types! {
 	pub const SS58Prefix: u8 = 42;
 }
 
-// Configure FRAME pallets to include in runtime.
+// Configure the modules (pallets) to be included in runtime.
 
 impl frame_system::Config for Runtime {
 	/// The basic call filter to use in dispatchable.
@@ -248,51 +237,80 @@ impl frame_system::Config for Runtime {
 	/// This is used as an identifier of the chain. 42 is the generic substrate prefix.
 	type SS58Prefix = SS58Prefix;
 }
-
+//Aura pallet - POA Consensus (to be remove before lauching)
 impl pallet_aura::Config for Runtime {
 	type AuthorityId = AuraId;
 }
-
+// This manages the GRANDPA authority set ready for the native code. These authorities are only for GRANDPA finality, not for consensus overall.
 impl pallet_grandpa::Config for Runtime {
+	//The event type of this module.
 	type Event = Event;
+	//The function call.
 	type Call = Call;
-
-	type KeyOwnerProofSystem = ();
-
+	// A system for proving ownership of keys, i.e. that a given key was part of a validator set, needed for validating equivocation reports.
+	type KeyOwnerProofSystem = Historical;
+	// The proof of key ownership, used for validating equivocation reports. The proof must include the session index and validator count of the session at which the equivocation occurred.
 	type KeyOwnerProof =
 		<Self::KeyOwnerProofSystem as KeyOwnerProofSystem<(KeyTypeId, GrandpaId)>>::Proof;
-
+    // The identification of a key owner, used when reporting equivocations.
 	type KeyOwnerIdentification = <Self::KeyOwnerProofSystem as KeyOwnerProofSystem<(
 		KeyTypeId,
 		GrandpaId,
 	)>>::IdentificationTuple;
-
-	type HandleEquivocation = ();
-
+	// The equivocation handling subsystem, defines methods to report an offence (after the equivocation has been validated) and 
+	// for submitting a transaction to report an equivocation (from an offchain context). 
+	// When enabling equivocation handling (i.e. this type isn't set to ()) you must use this pallet's ValidateUnsigned in the runtime definition.
+	type HandleEquivocation = pallet_grandpa::EquivocationHandler<Self::KeyOwnerIdentification, Offences, ReportLongevity>;
+	//Weights for this pallet.
 	type WeightInfo = ();
 }
-// pallet iam-online
+// Pallet iam-online
+// if the local node is a validator (i.e. contains an authority key), this module gossips a heartbeat transaction with each new session. 
+// The heartbeat functions as a simple mechanism to signal that the node is online in the current era.
+// Received heartbeats are tracked for one era and reset with each new era. 
+// The module exposes two public functions to query if a heartbeat has been received in the current era or session.
+// The heartbeat is a signed transaction, which was signed using the session key and includes the recent best block number of the local validators chain as well as the NetworkState. 
+// It is submitted as an Unsigned Transaction via off-chain workers.
 parameter_types! {
 	pub NposSolutionPriority: TransactionPriority =
 		Perbill::from_percent(90) * TransactionPriority::max_value();
+	// we set the pallet at the maximum prioriryt fo unsigned trasactions
 	pub const ImOnlineUnsignedPriority: TransactionPriority = TransactionPriority::max_value();
+	// set session duration in blocks number
+	pub SessionDuration: BlockNumber = 10;
 }
-
 impl pallet_im_online::Config for Runtime {
+	// The identifier type for an authority.
 	type AuthorityId = ImOnlineId;
+	// The overarching event type.
 	type Event = Event;
+	// A type for retrieving the validators supposed to be online in a session.
 	type ValidatorSet = Historical;
-	//type NextSessionRotation = Babe;
-	type SessionDuration= ();
+	// An expected duration of the session.
+    // This parameter is used to determine the longevity of heartbeat transaction and 
+	// a rough time when we should start considering sending heartbeats, since the workers avoids sending them at the very beginning of the session, 
+	// assuming there is a chance the authority will produce a block and they won't be necessary.
+	type SessionDuration= SessionDuration;
+	// It gives us the ability to submit unresponsiveness offence reports.
 	type ReportUnresponsiveness = Offences;
+	// A configuration for base priority of unsigned transactions.
+    // It can be tuned when multiple pallets send unsigned transactions.
 	type UnsignedPriority = ImOnlineUnsignedPriority;
+	// Weight information for gas fees on extrinsics of this pallet.
 	type WeightInfo = weights::pallet_im_online::WeightInfo<Runtime>;
 }
-// pallet timestamp
+// end Pallet iam-online
+
+// Pallet timestamp
+// The Timestamp pallet allows the validators to set and validate a timestamp with each block.
+// It uses inherents for timestamp data, which is provided by the block author and validated/verified by other validators. 
+// The timestamp can be set only once per block and must be set each block. 
+// There could be a constraint on how much time must pass before setting the new timestamp.
+// The Timestamp pallet is the recommended way to query the on-chain time instead of using an approach based on block numbers. 
+// The block number based time measurement can cause issues because of cumulative calculation errors and hence should be avoided.
 parameter_types! {
 	pub const MinimumPeriod: u64 = SLOT_DURATION / 2;
 }
-
 impl pallet_timestamp::Config for Runtime {
 	/// A timestamp: milliseconds since the unix epoch.
 	type Moment = u64;
@@ -300,6 +318,8 @@ impl pallet_timestamp::Config for Runtime {
 	type MinimumPeriod = MinimumPeriod;
 	type WeightInfo = ();
 }
+// end timestampp pallet
+
 // Implementation for Contracts Pallet
 parameter_types! {
     pub const TombstoneDeposit: Balance = deposit(
@@ -360,24 +380,51 @@ impl pallet_authorship::Config for Runtime {
 	type EventHandler = (Staking, ImOnline);
 }
 // end Authorship Pallet
+// Balances Pallet
+// The Balances module provides functionality for handling accounts and balances.
+// The Balances module provides functions for:
+// - Getting and setting free balances.
+// - Retrieving total, reserved and unreserved balances.
+// - Repatriating a reserved balance to a beneficiary account that exists.
+// - Transferring a balance between accounts (when not reserved).
+// - Slashing an account balance.
+// - Account creation and removal.
+// - Managing total issuance.
+// - Setting and managing locks.
+
 parameter_types! {
 	pub const ExistentialDeposit: u128 = 500;
 	pub const MaxLocks: u32 = 50;
 }
-
-
 impl pallet_balances::Config for Runtime {
-	type MaxLocks = MaxLocks;
 	/// The type for recording an account's balance.
 	type Balance = Balance;
 	/// The ubiquitous event type.
 	type Event = Event;
+	//Handler for the unbalanced reduction when removing a dust account. (not set for now)
 	type DustRemoval = ();
+	//The minimum amount required to keep an account open.
 	type ExistentialDeposit = ExistentialDeposit;
+	//The means of storing the balances of an account.
 	type AccountStore = System;
+	// weight info for gas fees
 	type WeightInfo = pallet_balances::weights::SubstrateWeight<Runtime>;
+	//The maximum number of locks that should exist on an account. Not strictly enforced, but used for weight estimation.
+	type MaxLocks = MaxLocks;
+	
 }
-// transactions payment
+// End Balances Pallet
+
+// Transactions fees payment Pallet
+// This module provides the basic logic needed to pay the absolute minimum amount needed for a transaction to be included. This includes:
+// - base fee: This is the minimum amount a user pays for a transaction. It is declared as a base weight in the runtime and converted to a fee using WeightToFee.
+// - weight fee: A fee proportional to amount of weight a transaction consumes.
+// - length fee: A fee proportional to the encoded length of the transaction.
+// - tip: An optional tip. Tip increases the priority of the transaction, giving it a higher chance to be included by the transaction queue.
+// - The base fee and adjusted weight and length fees constitute the inclusion fee, which is the minimum fee for a transaction to be included in a block.
+// The formula of final fee:
+//   inclusion_fee = base_fee + length_fee + [targeted_fee_adjustment * weight_fee];
+//   final_fee = inclusion_fee + tip;
 parameter_types! {
 	pub const TransactionByteFee: Balance = 1;
 }
@@ -387,22 +434,33 @@ impl pallet_transaction_payment::Config for Runtime {
 	type WeightToFee = IdentityFee<Balance>;
 	type FeeMultiplierUpdate = ();
 }
-// super user (sudo)
+// Super User (sudo) Pallet
+// The Sudo module allows for a single account (called the "sudo key") to execute dispatchable functions that require 
+// a Root call or designate a new account to replace them as the sudo key. Only one account can be the sudo key at a time.
 impl pallet_sudo::Config for Runtime {
+	// The overarching event type.
 	type Event = Event;
+	// A sudo-able call.
 	type Call = Call;
 }
+//end sudo pallet
+
+// pallet offences (used to slash funds of bad validators)
 parameter_types! {
 	pub OffencesWeightSoftLimit: Weight = Perbill::from_percent(60) * 100_000;
 }
-// pallet offences (used to slash funds of bad validators)
 impl pallet_offences::Config for Runtime {
+	// The overarching event type
 	type Event = Event;
+	//Full identification of the validator.
 	type IdentificationTuple = pallet_session::historical::IdentificationTuple<Self>;
+	// the  handler called for every offence report.
 	type OnOffenceHandler = Staking;
+	// The a soft limit on maximum weight that may be consumed while dispatching deferred offences in on_initialize. 
+	// Note it's going to be exceeded before we stop adding to it, so it has to be set conservatively.
 	type WeightSoftLimit = OffencesWeightSoftLimit;
 }
-
+// end pallet offences 
 // pallet collective 
 parameter_types! {
 	pub const CouncilCollectiveMotionDuration: BlockNumber = 5 * DAYS;
@@ -556,6 +614,32 @@ impl pallet_staking::Config for Runtime {
 //end staking pallet
 
 // session pallet
+// The Session module allows validators to manage their session keys, provides a function for changing the session length, and handles session rotation.
+// Terminology:
+// - Session: A session is a period of time that has a constant set of validators. 
+//   Validators can only join or exit the validator set at a session change. It is measured in block numbers. 
+//   The block where a session is ended is determined by the ShouldEndSession trait. 
+//   When the session is ending, a new validator set can be chosen by OnSessionEnding implementations.
+// - Session key: A session key is actually several keys kept together that provide the various signing functions 
+//   required by network authorities/validators in pursuit of their duties.
+// - Validator ID: Every account has an associated validator ID. For some simple staking systems, this may just be the same as the account ID. 
+//   For staking systems using a stash/controller model, the validator ID would be the stash account ID of the controller.
+// - Session key configuration process: Session keys are set using set_keys for use not in the next session, but the session after next. 
+//   They are stored in NextKeys, a mapping between the caller's ValidatorId and the session keys provided. 
+//   set_keys allows users to set their session key prior to being selected as validator. 
+//   It is a public call since it uses ensure_signed, which checks that the origin is a signed account. 
+//   As such, the account ID of the origin stored in NextKeys may not necessarily be associated with a block author or a validator. 
+//   The session keys of accounts are removed once their account balance is zero.
+// - Session length: This pallet does not assume anything about the length of each session. 
+//   Rather, it relies on an implementation of ShouldEndSession to dictate a new session's start. 
+//   This pallet provides the PeriodicSessions struct for simple periodic sessions.
+// - Session rotation configuration: Configure as either a 'normal' (rewardable session where rewards are applied) 
+//	 or 'exceptional' (slashable) session rotation.
+// - Session rotation process: At the beginning of each block, the on_initialize function queries the provided 
+//   implementation of ShouldEndSession. If the session is to end the newly activated validator IDs and session 
+//   keys are taken from storage and passed to the SessionHandler. The validator set supplied by SessionManager::new_session
+//   and the corresponding session keys, which may have been registered via set_keys during the previous session, 
+//   are written to storage where they will wait one session before being passed to the SessionHandler themselves.
 impl_opaque_keys! {
 	pub struct SessionKeys {
 		pub grandpa: Grandpa,
@@ -565,55 +649,77 @@ impl_opaque_keys! {
 parameter_types! {
 	pub const DisabledValidatorsThreshold: Perbill = Perbill::from_percent(17);
 }
-
 impl pallet_session::Config for Runtime {
+	// The overarching event type.
 	type Event = Event;
+	// A stable ID for a validator.
 	type ValidatorId = AccountId;
+	//A conversion from account ID to validator ID. Its cost must be at most one storage read.
 	type ValidatorIdOf = pallet_staking::StashOf<Self>;
+	//Indicator for when to end the session.
 	type ShouldEndSession = Babe;
+	//Something that can predict the next session rotation. This should typically come from the same logical unit that provides ShouldEndSession, 
+	// yet, it gives a best effort estimate. It is helpful to implement EstimateNextNewSession. We delegate Babe.
 	type NextSessionRotation = Babe;
+	// Handler for managing new session.
 	type SessionManager = pallet_session::historical::NoteHistoricalRoot<Self, Staking>;
+	// Handler when a session has changed.
 	type SessionHandler = <SessionKeys as OpaqueKeys>::KeyTypeIdProviders;
+	// The keys type
 	type Keys = SessionKeys;
+	// The fraction of validators set that is safe to be disabled.
+   // After the threshold is reached disabled method starts to return true, which in combination with pallet_staking forces a new era.
 	type DisabledValidatorsThreshold = DisabledValidatorsThreshold;
+	// Weight information for gas fees on extrinsics for this pallet.
 	type WeightInfo = weights::pallet_session::WeightInfo<Runtime>;
 }
-
+// This is used when implementing blockchains that require accountable safety where validators from some amount f prior sessions must remain slashable.
+// Rather than store the full session data for any given session, we instead commit to the roots of merkle tries containing the session data.
+// These roots and proofs of inclusion can be generated at any time during the current session. Afterwards, the proofs can be fed to a consensus module when reporting misbehavior.
 impl pallet_session::historical::Config for Runtime {
 	type FullIdentification = pallet_staking::Exposure<AccountId, Balance>;
 	type FullIdentificationOf = pallet_staking::ExposureOf<Runtime>;
 }
 // end session pallet
-// babe pallet for consensus
+
+// babe pallet for NPOS consensus
 parameter_types! {
 	pub const EpochDuration: u64 = EPOCH_DURATION_IN_SLOTS as u64;
 	pub const ExpectedBlockTime: Moment = MILLISECS_PER_BLOCK;
 	pub const ReportLongevity: u64 =
 		BondingDuration::get() as u64 * SessionsPerEra::get() as u64 * EpochDuration::get();
 }
-
 impl pallet_babe::Config for Runtime {
-	type EpochDuration = EpochDuration;
+	//The amount of time, in slots, that each epoch should last. 
+	//Currently it is not possible to change the epoch duration after the chain has started. Attempting to do so will brick block production.
+	type EpochDuration = EpochDuration; 
+	// The expected average block time at which BABE should be creating blocks. 
+	// Since BABE is probabilistic it is not trivial to figure out what the expected average block time should be based on the slot duration 
+	// and the security parameter c (where 1 - c represents the probability of a slot being empty).
 	type ExpectedBlockTime = ExpectedBlockTime;
-
-	// session module is the trigger
+	// BABE requires some logic to be triggered on every block to query for whether an epoch has ended and to perform the transition to the next epoch.
+	// Typically, the ExternalTrigger type should be used. An internal trigger should only be used when no other module is responsible for changing authority set.
+	// Session module is the trigger for epoch change
 	type EpochChangeTrigger = pallet_babe::ExternalTrigger;
-
+	// The proof of key ownership, used for validating equivocation reports. 
+	// The proof must include the session index and validator count of the session at which the equivocation occurred.
+	// We use the historical session
 	type KeyOwnerProofSystem = Historical;
-
+	// A system for proving ownership of keys, i.e. that a given key was part of a validator set, needed for validating equivocation reports.
 	type KeyOwnerProof = <Self::KeyOwnerProofSystem as KeyOwnerProofSystem<(
 		KeyTypeId,
 		pallet_babe::AuthorityId,
 	)>>::Proof;
-
+	// The identification of a key owner, used when reporting equivocations.
 	type KeyOwnerIdentification = <Self::KeyOwnerProofSystem as KeyOwnerProofSystem<(
 		KeyTypeId,
 		pallet_babe::AuthorityId,
 	)>>::IdentificationTuple;
-
+	//The equivocation handling subsystem, defines methods to report an offence (after the equivocation has been validated) 
+	// and for submitting a transaction to report an equivocation (from an offchain context). 
+	// When enabling equivocation handling (i.e. this type isn't set to ()) you must use this pallet's ValidateUnsigned in the runtime definition.
 	type HandleEquivocation =
 		pallet_babe::EquivocationHandler<Self::KeyOwnerIdentification, Offences, ReportLongevity>;
-
 	type WeightInfo = ();
 }
 // end pallet babe
