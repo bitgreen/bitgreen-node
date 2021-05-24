@@ -391,7 +391,6 @@ impl pallet_authorship::Config for Runtime {
 // - Account creation and removal.
 // - Managing total issuance.
 // - Setting and managing locks.
-
 parameter_types! {
 	pub const ExistentialDeposit: u128 = 500;
 	pub const MaxLocks: u32 = 50;
@@ -461,7 +460,19 @@ impl pallet_offences::Config for Runtime {
 	type WeightSoftLimit = OffencesWeightSoftLimit;
 }
 // end pallet offences 
-// pallet collective 
+
+// Pallet collective 
+// Collective system: Members of a set of account IDs can make their collective feelings known through dispatched calls from one of two specialized origins.
+// The membership can be provided in one of two ways: either directly, using the Root-dispatchable function set_members, or indirectly, through implementing the ChangeMembers. 
+// The pallet assumes that the amount of members stays at or below MaxMembers for its weight calculations, but enforces this neither in set_members nor in change_members_sorted.
+// A "prime" member may be set to help determine the default vote behavior based on chain config. If PreimDefaultVote is used, the prime vote acts as the default vote in case 
+// of any abstentions after the voting period. If MoreThanMajorityThenPrimeDefaultVote is used, then abstentations will first follow the majority of the collective voting, and then the prime member.
+// Voting happens through motions comprising a proposal (i.e. a curried dispatchable) plus a number of approvals required for it to pass and be called. 
+// Motions are open for members to vote on for a minimum period given by MotionDuration. 
+// As soon as the needed number of approvals is given, the motion is closed and executed. 
+// If the number of approvals is not reached during the voting period, then close may be called by any account in order to force the end the motion explicitly. 
+// If a prime member is defined then their vote is used in place of any abstentions and the proposal is executed if there are enough approvals counting the new votes.
+// If there are not, or if no prime is set, then the motion is dropped without being executed.
 parameter_types! {
 	pub const CouncilCollectiveMotionDuration: BlockNumber = 5 * DAYS;
 	pub const CouncilCollectiveMaxProposals: u32 = 100;
@@ -471,27 +482,50 @@ parameter_types! {
     pub const TechnicalCollectiveMaxMembers: u32 = 100;
 }
 impl pallet_collective::Config<CouncilCollective> for Runtime {
+	// The outer origin type.
     type Origin = Origin;
+	// The outer call dispatch type.
     type Proposal = Call;
+	//The overachy event type
     type Event = Event;
+	// The time-out for council motions.
     type MotionDuration = CouncilCollectiveMotionDuration;
+	// Maximum number of proposals allowed to be active in parallel.
     type MaxProposals = CouncilCollectiveMaxProposals;
+	// The maximum number of members supported by the pallet. Used for weight estimation.
     type MaxMembers = CouncilCollectiveMaxMembers;
+	// Default vote strategy of this collective.
     type DefaultVote = pallet_collective::PrimeDefaultVote;
-    type WeightInfo = ();
+	// Weight information for extrinsics in this pallet.
+    type WeightInfo = (); // no gas fees 
 }
-
 impl pallet_collective::Config<TechnicalCollective> for Runtime {
+	// The outer origin type.
     type Origin = Origin;
+	// The outer call dispatch type.
     type Proposal = Call;
+	//The overachy event type
     type Event = Event;
+	// The time-out for council motions.
     type MotionDuration = TechnicalCollectiveMotionDuration;
+	// Maximum number of proposals allowed to be active in parallel.
     type MaxProposals = TechnicalCollectiveMaxProposals;
+	// The maximum number of members supported by the pallet. Used for weight estimation.
     type MaxMembers = TechnicalCollectiveMaxMembers;
+	
     type DefaultVote = pallet_collective::PrimeDefaultVote;
     type WeightInfo = ();
 }
-// democracy module
+// Democracy module
+// The Democracy pallet handles the administration of general stakeholder voting.
+// There are two different queues that a proposal can be added to before it becomes a referendum, 
+// 1) the proposal queue consisting of all public proposals and 
+// 2) the external queue consisting of a single proposal that originates from one of the external origins (such as a collective group).
+// Every launch period - a length defined in the runtime - the Democracy pallet launches a referendum 
+// from a proposal that it takes from either the proposal queue or the external queue in turn. 
+// Any token holder in the system can vote on referenda. 
+// The voting system uses time-lock voting by allowing the token holder to set their conviction behind a vote. 
+// The conviction will dictate the length of time the tokens will be locked, as well as the multiplier that scales the vote power.
 parameter_types! {
 	pub const LaunchPeriod: BlockNumber = 28 * DAYS;
 	pub const VotingPeriod: BlockNumber = 28 * DAYS;
@@ -506,32 +540,65 @@ parameter_types! {
 	pub const MaxProposals: u32 = 100;
 }
 impl pallet_democracy::Config for Runtime {
+
 	type Proposal = Call;
+	// the event type like everywhere
 	type Event = Event;
+	// Currency type for this module.
 	type Currency = Balances;
+	// The minimum period of locking and the period between a proposal being approved and enacted.
+	// It should generally be a little more than the unstake period to ensure that voting stakers have an opportunity to remove themselves from the system in the case where they are on the losing side of a vote.
 	type EnactmentPeriod = EnactmentPeriod;
+	// How often (in blocks) new public referenda are launched.
 	type LaunchPeriod = LaunchPeriod;
+	// How often (in blocks) to check for new votes.
 	type VotingPeriod = VotingPeriod;
+	// The minimum amount to be used as a deposit for a public referendum proposal.
 	type MinimumDeposit = MinimumDeposit;
+	// Origin from which the next tabled referendum may be forced. This is a normal "super-majority-required" referendum.
 	type ExternalOrigin = EnsureRoot<AccountId>;
+	// Origin from which the next tabled referendum may be forced; this allows for the tabling of a majority-carries referendum.
 	type ExternalMajorityOrigin = EnsureRoot<AccountId>;
+	// Origin from which the next tabled referendum may be forced; this allows for the tabling of a negative-turnout-bias (default-carries) referendum.
 	type ExternalDefaultOrigin = EnsureRoot<AccountId>;
+	// Origin from which the next majority-carries (or more permissive) referendum may be tabled to vote according to the FastTrackVotingPeriod asynchronously 
+	// in a similar manner to the emergency origin. It retains its threshold method.
 	type FastTrackOrigin = EnsureRoot<AccountId>;
+	// Origin from which the next majority-carries (or more permissive) referendum may be tabled to vote immediately and 
+	// asynchronously in a similar manner to the emergency origin. It retains its threshold method.
 	type InstantOrigin = EnsureRoot<AccountId>;
+	// Indicator for whether an emergency origin is even allowed to happen. 
+	// We may want to set this permanently to false, others may want to condition it on things such as an upgrade having happened recently.
 	type InstantAllowed = InstantAllowed;
+	// Minimum voting period allowed for a fast-track referendum.
 	type FastTrackVotingPeriod = FastTrackVotingPeriod;
+	// Origin from which any referendum may be cancelled in an emergency.
 	type CancellationOrigin = EnsureRoot<AccountId>;
+	// Origin from which any referendum may be cancelled in an emergency.
 	type CancelProposalOrigin = EnsureRoot<AccountId>;
+	// Origin from which proposals may be blacklisted.
 	type BlacklistOrigin = EnsureRoot<AccountId>;
+	// Origin for anyone able to veto proposals.
+	// The number of Vetoers for a proposal must be small, extrinsics are weighted according to MAX_VETOERS
 	type VetoOrigin = pallet_collective::EnsureMember<AccountId, CouncilCollective>; 
+	// Period in blocks where an external proposal may not be re-submitted after being vetoed.
 	type CooloffPeriod = CooloffPeriod;
+	// The amount of balance that must be deposited per byte of preimage stored.
 	type PreimageByteDeposit = PreimageByteDeposit;
+	// An origin that can provide a preimage using operational extrinsics.
 	type OperationalPreimageOrigin = pallet_collective::EnsureMember<AccountId, CouncilCollective>;
+	// Handler for the unbalanced reduction when slashing a preimage deposit.
 	type Slash = ();
+	// The Scheduler handler.
 	type Scheduler = Scheduler;
+	// Overarching type of all pallets origins.
 	type PalletsOrigin = OriginCaller;
+	// The maximum number of votes for an account.
+    // Also used to compute weight, an overly big value can lead to extrinsic with very big weight: see delegate for instance.
 	type MaxVotes = MaxVotes;
+	// Weight information for extrinsics in this pallet used for gas fees calculation
 	type WeightInfo = weights::pallet_democracy::WeightInfo<Runtime>;
+	// The maximum number of public proposals that can exist at any time.
 	type MaxProposals = MaxProposals;
 }
 // scheduler pallet
