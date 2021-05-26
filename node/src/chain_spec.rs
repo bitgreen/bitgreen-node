@@ -166,7 +166,10 @@ fn testnet_genesis(
 		pallet_session: Default::default(),
 		pallet_babe: Default::default(),
 		pallet_staking: Default::default(),
+		// Democracy pallet
 		pallet_democracy: Default::default(),
+		// Nft pallet
+		orml_nft: Default::default(),
 		pallet_collective_Instance1: Some(CouncilConfig::default()),
 		pallet_collective_Instance2: Some(TechnicalCommitteeConfig::default()),
 

@@ -813,6 +813,13 @@ impl pallet_assets::Config for Runtime {
 	type WeightInfo = (); //pallet_assets::weights::SubstrateWeight<Self>;
 }
 //end asset pallet
+// pallet orml-nft
+impl orml_nft::Config for Runtime {
+	type ClassId = u32;
+	type TokenId =u32;
+	type ClassData = Vec<u8>;
+	type TokenData = Vec<u8>;
+}
 
 // SendtransactionType Implementation
 impl<C> frame_system::offchain::SendTransactionTypes<C> for Runtime where Call: From<C> {
@@ -853,6 +860,8 @@ construct_runtime!(
 		Offences: pallet_offences::{Module, Call, Storage, Event},
 		Authorship: pallet_authorship::{Module, Call, Storage},
 		ImOnline: pallet_im_online::{Module, Call, Storage, Event<T>, ValidateUnsigned, Config<T>},
+		// Nft Pallet
+		Nft: orml_nft::{Module, Call, Storage, Config<T>},
 	}
 );
 
