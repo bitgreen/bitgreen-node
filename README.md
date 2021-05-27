@@ -125,5 +125,48 @@ A validator gains BITG for every new block written. The block writing allow to t
 BitGreen blockchain has specific support for the [Decentralized Autonoumous Organization.](doc/dao.md)  
 
 
+## Development Tools
+
+You can interact with our testing node:
+``` 
+testnode.bitg.org 
+```
+using the web app hosted here:    
+[https://polkadot.js.org/apps](https://polkadot.js.org/apps)  
+To configure, click on the top left menu option and set the "Custom Node" field with 'wss://testnode.bitg.org'  
+(Attention: Safari browser does not work with this app)
+
+## Development Libraries
+
+[JavaScript - Polkadot-JS API](https://polkadot.js.org/docs/api/)  
+The Polkadot-JS API is a javascript library of interfaces for communicating with Substrate nodes like BitGreen node.  
+The API provides application developers the ability to query a node and submit signed transaction using Javascript.  
+
+[JavaScript Polkadot-JS Extension](https://github.com/polkadot-js/apps)    
+The Polkadot-JS Extension is a simple extension for managing accounts in a browser extension and allowing the signing of extrinsics using these accounts.  
+It also provides simple interface for interacting with extension-compliant dApps.  
+
+[Python - py-substrate-interface](https://github.com/polkascan/py-substrate-interface)   
+py-substrate-interface is a Python library for interacting with the BitGreen RPC.   
+It supports a wide range of capabilities and powers the Polkascan multi-chain block explorer. This library is maintained by Polkascan Foundation.  
+
+[Rust - Substrate-subtxt](https://github.com/paritytech/substrate-subxt)
+A Rust library to submit extrinsics to BitGreen node via RPC.  
+
+[Kotlin - Substrate-client-Kotlin](https://github.com/NodleCode/substrate-client-kotlin)
+Substrate-client-kotlin is client library to interact with a substrate-based chain like BitGreen. 
+It uses the API available from the RPC endpoint only (no sidecar). As of today it provides the following functionality:
+- compatible with substrate 3.0 
+- ed25519 wallet creation
+- get account info (balance)
+- sign extrinsic and send (immortal era)
+- estimate fee
+
+
+
+
+
+
+
 
  
