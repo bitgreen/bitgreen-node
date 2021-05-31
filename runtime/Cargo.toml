@@ -25,6 +25,7 @@ hex-literal = { optional = true, version = '0.3.1' }
 serde = { features = ['derive'], optional = true, version = '1.0.119' }
 
 # local dependencies
+pallet-claim ={ default-features = false, version = '0.1.0', path = "../pallets/claim" }
 
 # Substrate dependencies
 frame-benchmarking = { default-features = false, optional = true, version = '3.0.0' }
@@ -77,7 +78,8 @@ pallet-im-online = { default-features = false, version = '3.0.0' }
 pallet-assets = { default-features = false, version = '3.0.0' }
 # NFT
 orml-nft = { default-features = false, version = '0.4.0' }
-
+# secp256k1 Elliptic Curve Library used for "Claim" pallet
+k256 = { default-features = false, version = '0.8.1' }
 
 [features]
 default = ['std']
@@ -134,5 +136,5 @@ std = [
     'pallet-im-online/std',
     'pallet-assets/std',
     'orml-nft/std',
-    #'pallet-election-provider-multi-phase/std',
+    'k256/std',
 ]

@@ -820,6 +820,11 @@ impl orml_nft::Config for Runtime {
 	type ClassData = Vec<u8>;
 	type TokenData = Vec<u8>;
 }
+// Claim pallet, to claim deposits from previous blockchain
+impl pallet_claim::Config for Runtime {
+	type Event = Event;
+}
+// end Claim pallet
 
 // SendtransactionType Implementation
 impl<C> frame_system::offchain::SendTransactionTypes<C> for Runtime where Call: From<C> {
@@ -862,6 +867,8 @@ construct_runtime!(
 		ImOnline: pallet_im_online::{Module, Call, Storage, Event<T>, ValidateUnsigned, Config<T>},
 		// Nft Pallet
 		Nft: orml_nft::{Module, Call, Storage, Config<T>},
+		// Claim Pallet
+		Claim: pallet_claim::{Module, Call, Storage, Event<T>},
 	}
 );
 
