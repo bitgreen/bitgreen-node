@@ -79,7 +79,7 @@ pallet-assets = { default-features = false, version = '3.0.0' }
 # NFT
 orml-nft = { default-features = false, version = '0.4.0' }
 # secp256k1 Elliptic Curve Library used for "Claim" pallet
-k256 = { default-features = false, version = '0.8.1' }
+k256 = { default-features = false, version = '0.8.1', features= ["ecdsa-core","sha256"] }
 
 [features]
 default = ['std']
