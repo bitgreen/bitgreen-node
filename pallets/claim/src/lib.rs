@@ -11,7 +11,6 @@ use base64::decode;
 //use secp256k1::{PublicKey,Message,Signature};
 
 
-
 #[cfg(test)]
 mod mock;
 
