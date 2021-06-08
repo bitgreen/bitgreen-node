@@ -1,17 +1,23 @@
 # BitGreen - Example to sign and verify a message using a SECP256K1 private key
 # to install the required libraries:
-# pip install starkbank-ecdsa
 # pip install substrate-interface
-# further reference an documentation is here:
+# the "ellipticcurve package is a fork of:"
 # https://github.com/starkbank/ecdsa-python
+# with a few changes for Bitgreen usage
 # https://github.com/polkascan/py-substrate-interface
 
+# system packages
+import sys
+#add local path for packages
+sys.path.append(".")
 # Ecsda module
 from ellipticcurve.ecdsa import Ecdsa
 from ellipticcurve.privateKey import PrivateKey
 # Substrate module
 from substrateinterface import SubstrateInterface, Keypair
 from substrateinterface.exceptions import SubstrateRequestException
+# base64 encoder/decoder
+import base64
 
 
 # Generate privateKey from PEM string
@@ -42,9 +48,19 @@ publicKey = privateKey.publicKey()
 # show results on console
 print("Signature: "+signature.toBase64())
 print("Message Signed: "+bitgreenaccount)
-print("Public Key: ")
-print(publicKey.toPem())
+pk =publicKey.toString()
 
+print("public key as string:",pk)
+print (len(pk))
+ba=bytearray()
+for c in pk:
+#    print(ord(c))
+    ba.append(ord(c))
+print(" public key as bytearray",ba)    
+print (len(ba))
+pkbase64=base64.b64encode(ba)
+print("Public Key: ",pkbase64)
+exit()
 # you should post to the blockchain the following fields:
 #bitgreenaccount, bitgreensubstrateaccount, signature.toBase64(),publicKey.toPem()
 
@@ -68,7 +84,7 @@ call = substrate.compose_call(
     call_function='claim_deposit',
     call_params={
         'oldaddress': bitgreenaccount,
-        'oldpublickey': publicKey.toPem(),
+        'oldpublickey': pkbase64,
         'signature': signature.toBase64()
     }
 )

@@ -30,7 +30,9 @@ rand =  { default-features = false, version = '0.7.3'}
 hex = { default-features = false, version = '0.4'}
 sha2 = { default-features = false, version = '0.9.5'}
 libsecp256k1 = { default-features = false, version = '0.3.5'}
+#libsecp256k1 = { default-features = false, version = '0.5.0'}
 base64 = {version= "0.13.0", default-features=false,features=['alloc']}
+
 
 
 [dev-dependencies]
