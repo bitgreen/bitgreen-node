@@ -3880,6 +3880,7 @@ name = "pallet-claim"
 version = "0.1.0"
 dependencies = [
  "base64 0.13.0",
+ "bs58",
  "frame-support",
  "frame-system",
  "hex",
@@ -3887,6 +3888,7 @@ dependencies = [
  "parity-scale-codec",
  "primitive-types 0.7.3",
  "rand 0.7.3",
+ "ripemd160",
  "serde",
  "sha2 0.9.5",
  "sp-core",
@@ -5217,6 +5219,17 @@ dependencies = [
  "untrusted",
  "web-sys",
  "winapi 0.3.9",
+]
+
+[[package]]
+name = "ripemd160"
+version = "0.9.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2eca4ecc81b7f313189bf73ce724400a07da2a6dac19588b03c8bd76a2dcc251"
+dependencies = [
+ "block-buffer 0.9.0",
+ "digest 0.9.0",
+ "opaque-debug 0.3.0",
 ]
 
 [[package]]

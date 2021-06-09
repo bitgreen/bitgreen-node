@@ -8,6 +8,7 @@ use sp_std::prelude::*;
 use core::str;
 use sha2::{Sha256, Digest};
 use base64::decode;
+use ripemd160::{Ripemd160};
 
 #[cfg(test)]
 mod mock;
@@ -89,7 +90,7 @@ decl_module! {
 			// check that the old address is already present in the chain
 			ensure!(Balance::contains_key(&oldaddress)==true, Error::<T>::OldAddressNotfound);
 			// check signature from oldchain
-			ensure!(verify_signature_ecdsa_message(oldaddress.clone(),signature.clone(),oldpublickey.clone())==true,Error::<T>::WrongSignature);
+			ensure!(verify_signature_ecdsa_address(oldaddress.clone(),signature.clone(),oldpublickey.clone())==true,Error::<T>::WrongSignature);
 			// Burn old chain deposit
 			Balance::remove(&oldaddress);
 			// TODO: Mint deposit in the new chain
@@ -101,15 +102,15 @@ decl_module! {
 		}
 	}
 }
-// Function to verify signature on a message
-// the "message" should the clear message signed (can be ascii data or binary)
+// Function to verify signature on an old address
+// the "oldaddress" should the address that has been signed and matching the deposit claim
 // signature should encoded in DER binary format and then encoded in base64
 // public key should be the raw public key of 64 bytes encoded in base64
-fn verify_signature_ecdsa_message(message:Vec<u8>,signature:Vec<u8>,publickey:Vec<u8>) -> bool {   
+fn verify_signature_ecdsa_address(oldaddress:Vec<u8>,signature:Vec<u8>,publickey:Vec<u8>) -> bool {   
     // compute sha256 of the message
     let mut hasher = Sha256::new();
     // write the vector message to sha256 object
-    hasher.update(message);
+    hasher.update(oldaddress.clone());
     // get sha256 result
     let hash = hasher.finalize().to_vec();
     // convert to a static bytes array of 32 bytes
@@ -135,7 +136,7 @@ fn verify_signature_ecdsa_message(message:Vec<u8>,signature:Vec<u8>,publickey:Ve
             break;
         }
     }
-    let ctx_publickey=secp256k1::PublicKey::parse_slice(&publickeybin, Some(secp256k1::PublicKeyFormat::Raw)).unwrap();
+    let ctx_publickey=secp256k1::PublicKey::parse_slice(&publickeybin.clone(), Some(secp256k1::PublicKeyFormat::Raw)).unwrap();
     // end encoding public key  */
     // encoding signature in secp256k1::Signature
     // decode signature from base64
@@ -143,8 +144,49 @@ fn verify_signature_ecdsa_message(message:Vec<u8>,signature:Vec<u8>,publickey:Ve
     // load signature from "der" encoding
     let ctx_signature = secp256k1::Signature::parse_der(&signatureb).unwrap();
     // verify the signature
-    secp256k1::verify(&ctx_message,&ctx_signature,&ctx_publickey)
-
+    let result = secp256k1::verify(&ctx_message,&ctx_signature,&ctx_publickey);
+	if result == false {
+		return false;
+	}
+	// verify that the address matches the public key
+	let mut hashera = Sha256::new();
+    // write the vector message to sha256 object
+    hashera.update(publickeybin);
+    // get sha256 result
+    let hasha = hashera.finalize().to_vec();    
+    // apply RIPEMD160 to the previous hash
+    let mut hasherb = Ripemd160::new();
+    hasherb.update(hasha);
+    let hashdouble = hasherb.finalize().to_vec();
+    // compute checksum with first 4 bytes of sha256(sha256(version+hashdouble))
+    // set version type to G and add the double hash in a vector
+    // reference: https://github.com/bitgreenarchive/bitgreen/blob/26419cafe4556ca1e60f966a928280881b5db533/src/chainparams.cpp#L231
+    let mut buffer=Vec::<u8>::new();
+    buffer.push(38);
+    for b in hashdouble.clone(){
+        buffer.push(b);
+    }
+    // compute the first sha256 on (version+hashdouble)
+    let mut hasher1=Sha256::new();
+    hasher1.update(buffer.clone());
+    let hash1 = hasher1.finalize().to_vec();
+    // compute the second sha256 on the previous hash sha256
+    let mut hasher2=Sha256::new();
+    hasher2.update(hash1);
+    let hash2 = hasher2.finalize().to_vec();
+    //add first 4 bytes of the second hash to the buffer
+    buffer.push(hash2[0]);
+    buffer.push(hash2[1]);
+    buffer.push(hash2[3]);
+    buffer.push(hash2[4]);
+	// check if equal to signed address
+	let bs58 = bs58::encode(buffer).into_vec();
+	if bs58 == oldaddress {
+		return true;
+	} else {
+		return false;
+	}
+	
 }
 
 
