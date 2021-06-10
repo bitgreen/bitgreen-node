@@ -59,4 +59,6 @@ The assets system in BitGreen  is designed to make the following possible:
 - total_supply - Get the total supply of an asset id.  
   
 ## Additional Documentation  
-Please refer to the [module technical documentation for further information.](https://substrate.dev/rustdocs/v3.0.0/pallet_assets/index.html)  
+Please refer to the [module technical documentation for further information.](https://docs.rs/pallet-sudo/3.0.0/pallet_sudo/)    
+
+

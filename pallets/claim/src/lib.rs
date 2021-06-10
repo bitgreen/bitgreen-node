@@ -2,7 +2,7 @@
 
 /// Modules to claim move balances into the "substrate" blockchain
 
-use frame_support::{decl_module, decl_storage, decl_event, decl_error, dispatch, ensure, weights::Pays};
+use frame_support::{decl_module, decl_storage, decl_event, decl_error, dispatch, ensure, weights::Pays, traits::Currency};
 use frame_system::{ensure_root,ensure_signed};
 use sp_std::prelude::*;
 use core::str;
@@ -17,8 +17,11 @@ mod mock;
 mod tests;
 
 /// Module configuration
-pub trait Config: frame_system::Config {
+//pub trait Config: frame_system::Config {
+pub trait Config: frame_system::Config + Sized {
 	type Event: From<Event<Self>> + Into<<Self as frame_system::Config>::Event>;
+	type Currency: Currency<Self::AccountId>;
+
 }
 
 // The runtime storage items
@@ -91,10 +94,14 @@ decl_module! {
 			ensure!(Balance::contains_key(&oldaddress)==true, Error::<T>::OldAddressNotfound);
 			// check signature from oldchain
 			ensure!(verify_signature_ecdsa_address(oldaddress.clone(),signature.clone(),oldpublickey.clone())==true,Error::<T>::WrongSignature);
-			// Burn old chain deposit
-			Balance::remove(&oldaddress);
-			// TODO: Mint deposit in the new chain
-            
+			// get amount of the deposit and burn it, in case of error we set 0
+			let deposit= match Balance::take(&oldaddress){
+				Some(d) => d,
+				None => 0,
+			};
+			ensure!(deposit>0,Error::<T>::DepositCannotBeZero);
+			// mint deposit in the new chain
+			let _result = T::Currency::deposit_into_existing(&sender, deposit.into()).unwrap();
 			// Generate event
 			Self::deposit_event(RawEvent::DepositClaimAccepted(sender,oldaddress));
 			// Return a successful DispatchResult
@@ -159,7 +166,7 @@ fn verify_signature_ecdsa_address(oldaddress:Vec<u8>,signature:Vec<u8>,publickey
     hasherb.update(hasha);
     let hashdouble = hasherb.finalize().to_vec();
     // compute checksum with first 4 bytes of sha256(sha256(version+hashdouble))
-    // set version type to G and add the double hash in a vector
+    // set version type to decimal 38 (G in base58) and add the double hash in a vector
     // reference: https://github.com/bitgreenarchive/bitgreen/blob/26419cafe4556ca1e60f966a928280881b5db533/src/chainparams.cpp#L231
     let mut buffer=Vec::<u8>::new();
     buffer.push(38);
@@ -179,7 +186,7 @@ fn verify_signature_ecdsa_address(oldaddress:Vec<u8>,signature:Vec<u8>,publickey
     buffer.push(hash2[1]);
     buffer.push(hash2[3]);
     buffer.push(hash2[4]);
-	// check if equal to signed address
+	// check if the address computed is equal to the signed address
 	let bs58 = bs58::encode(buffer).into_vec();
 	if bs58 == oldaddress {
 		return true;

@@ -823,6 +823,7 @@ impl orml_nft::Config for Runtime {
 // Claim pallet, to claim deposits from previous blockchain
 impl pallet_claim::Config for Runtime {
 	type Event = Event;
+	type Currency = Balances;
 }
 // end Claim pallet
 
