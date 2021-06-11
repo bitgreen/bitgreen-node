@@ -26,7 +26,7 @@ The Assets module provides functionality for asset management of fungible asset 
 
 ## Goals  
 
-The assets system in BitGreen  is designed to make the following possible:  
+The assets system in BitGreen is designed to make the following possible:  
   
 - Issue a new assets in a permissioned or permissionless way, if permissionless, then with a deposit required.  
 - Allow accounts to hold these assets without otherwise existing on-chain (zombies).  
@@ -59,6 +59,6 @@ The assets system in BitGreen  is designed to make the following possible:
 - total_supply - Get the total supply of an asset id.  
   
 ## Additional Documentation  
-Please refer to the [module technical documentation for further information.](https://docs.rs/pallet-sudo/3.0.0/pallet_sudo/)    
+Please refer to the [module technical documentation for further information.](https://docs.rs/pallet-sudo/3.0.0/pallet_assets/)    
 
 
