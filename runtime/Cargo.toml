@@ -80,6 +80,14 @@ pallet-assets = { default-features = false, version = '3.0.0' }
 orml-nft = { default-features = false, version = '0.4.0' }
 # secp256k1 Elliptic Curve Library used for "Claim" pallet
 k256 = { default-features = false, version = '0.8.1', features= ["ecdsa-core","sha256"] }
+# Solidity Smart Contracts - Ethereum Compatible
+evm-runtime = { version = "0.21.0", default-features = false }
+pallet-evm = { default-features = false, version = '3.0.0' }
+pallet-ethereum = { default-features = false, version = '1.0' }
+fp-rpc ={ default-features = false, version = '1.0' }
+fp-evm = { default-features = false, version = '2.0' }
+evm = { default-features = false, version = '0.27' }
+
 
 [features]
 default = ['std']
@@ -137,4 +145,8 @@ std = [
     'pallet-assets/std',
     'orml-nft/std',
     'k256/std',
+    'pallet-evm/std',
+    'pallet-ethereum/std',
+    'fp-rpc/std',
+    'fp-evm/std',
 ]
