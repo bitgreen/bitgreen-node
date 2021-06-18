@@ -3,8 +3,14 @@
 This is the BitGreen Node based on Substrate Framework 3.x
 
 ## New Features
-- Smart Contract Support in native [!Ink language](https://substrate.dev/docs/en/knowledgebase/smart-contracts/ink-development) a Rust based embedded domain specific language. 
-
+- Smart Contract Support in native [!Ink language](https://substrate.dev/docs/en/knowledgebase/smart-contracts/ink-development) a Rust based embedded domain specific language.  
+- ERC20 - Fungible Tokens.  
+- NFT - Non Fungible Tokens.  
+- DAO - Decentralized Autonomous Organization.  
+  
+## Hardware Requirements
+- Ram: The Rust compiler uses a lot of ram to build the node, please use machine with at the least 8 GB RAM.  
+- Disk: Disk space grows day by day, 100 GB disk is a good choice for now.  
 
 ## Installation
 
