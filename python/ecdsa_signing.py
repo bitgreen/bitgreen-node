@@ -22,21 +22,24 @@ import base64
 
 # Generate privateKey from PEM string
 # You should get it in 
-privateKey = PrivateKey.fromPem("""
-    -----BEGIN EC PARAMETERS-----
-    BgUrgQQACg==
-    -----END EC PARAMETERS-----
-    -----BEGIN EC PRIVATE KEY-----
-    MHQCAQEEIIXwyeh90OW9VJbuHiE4gPckxP+Sl1xgCOeJuLGb0YHYoAcGBSuBBAAK
-    oUQDQgAEM6fLbHdW9qo945SKbOhJLU9lJwwJaK33AgaVHOKbuo8SWPr8ryerBj6g
-    zs/cTNCa7+aNTI8Fc8DrWHXeUFfeYg==
-    -----END EC PRIVATE KEY-----
-""")
+#privateKey = PrivateKey.fromPem("""
+#    -----BEGIN EC PARAMETERS-----
+#    BgUrgQQACg==
+#    -----END EC PARAMETERS-----
+#    -----BEGIN EC PRIVATE KEY-----
+#    MHQCAQEEIIXwyeh90OW9VJbuHiE4gPckxP+Sl1xgCOeJuLGb0YHYoAcGBSuBBAAK
+#    oUQDQgAEM6fLbHdW9qo945SKbOhJLU9lJwwJaK33AgaVHOKbuo8SWPr8ryerBj6g
+#    zs/cTNCa7+aNTI8Fc8DrWHXeUFfeYg==
+#    -----END EC PRIVATE KEY-----
+#""")
 # you can create the private key object from a DER encoded key, by calling"PrivateKey.fromDer()"
 # you can create the private key from and encoded key in Base64, by calling "PrivateKey.fromBase64()"
 # define example accounts that will be the body of the message
-bitgreenaccount="GHqy2W8N4NYLtEVSVdKTtPPT4oPc8GXLbM"
 
+bytesPrivatekey=base64.b64decode("7qdnjLy7dcESfsLgdNMm26vtueVZX4Q9Y7AkDBJ5Gvm3z8bgpa7k")
+privateKey = PrivateKey.fromString(bytesPrivatekey)
+
+bitgreenaccount="GQ2htcEUSahvYp49vWwfnrgTDk8dbQ724d"
 print("[INFO] Signing a message")
 # generate the signature
 signature = Ecdsa.sign(bitgreenaccount, privateKey)
@@ -50,7 +53,6 @@ print("Signature: "+signature.toBase64())
 print("Message Signed: "+bitgreenaccount)
 pk =publicKey.toString()
 
-print("public key as string:",pk)
 print (len(pk))
 ba=bytearray()
 for c in pk:
