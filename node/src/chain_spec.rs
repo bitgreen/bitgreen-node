@@ -172,8 +172,6 @@ fn testnet_genesis(
 		orml_nft: Default::default(),
 		// Evm Pallet (Ethereum Virtual Machine)
 		pallet_evm: Default::default(),
-		// Pallet Ethereum (part of EVM)
-		pallet_ethereum: Default::default(),
 		// Democracy Modules
 		pallet_collective_Instance1: Some(CouncilConfig::default()),
 		pallet_collective_Instance2: Some(TechnicalCommitteeConfig::default()),

@@ -3,7 +3,8 @@
 This is the BitGreen Node based on Substrate Framework 3.x
 
 ## New Features
-- Smart Contract Support in native [!Ink language](https://substrate.dev/docs/en/knowledgebase/smart-contracts/ink-development) a Rust based embedded domain specific language.  
+- Smart Contracts Support in native [!Ink language](https://substrate.dev/docs/en/knowledgebase/smart-contracts/ink-development) a Rust based embedded domain specific language.  
+- Smart Contracts in [Solidity language](https://docs.soliditylang.org/),compatible with Ethereum Dapps. You can create and execute a smart contract written for Ethereum without changes.
 - ERC20 - Fungible Tokens.  
 - NFT - Non Fungible Tokens.  
 - DAO - Decentralized Autonomous Organization.  
@@ -116,8 +117,12 @@ The Balances module provides functions for:
 [Further details are available here](https://substrate.dev/rustdocs/v3.0.0/pallet_balances/index.html)  
 
 
-## Smart Contracts
-BitGreen has now a strong support for [smart contracts written in RUST language](doc/smartcontracts.md)  
+## Smart Contracts (Web Assembly)
+BitGreen has a strong support for [smart contracts written in RUST language](doc/smartcontracts.md)  
+
+## Smart Contracts (Ethereum Virtual Machine)
+BitGreen has a great support for [smart contracts written in Solidity language](doc/evm.md)  
+
 
 ## Assets (Fungible Tokens)
 A specific module for [fungible tokens (ERC20)](doc/assets.md) is included in the blockchain node.

@@ -6,10 +6,9 @@
 #[cfg(feature = "std")]
 include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 
-//use sp_std::prelude::*;
-use sp_std::{convert::TryFrom, prelude::*,marker::PhantomData};
-use sp_core::{crypto::KeyTypeId, OpaqueMetadata,U256,H160,H256,crypto::Public};
-//use sp_core::u32_trait::{ _3, _4,};
+// declares crates used
+use sp_std::{convert::TryFrom, prelude::*};
+use sp_core::{crypto::KeyTypeId, OpaqueMetadata,U256,H160};
 use sp_runtime::{
 	ApplyExtrinsicResult, generic, create_runtime_str, impl_opaque_keys, MultiSignature,
 	Perbill, curve::PiecewiseLinear,
@@ -24,13 +23,9 @@ use sp_consensus_aura::sr25519::AuthorityId as AuraId;
 use pallet_grandpa::{AuthorityId as GrandpaId, AuthorityList as GrandpaAuthorityList};
 use pallet_grandpa::fg_primitives;
 use sp_version::RuntimeVersion;
-//use frame_system::{EnsureRoot, EnsureOneOf};
 use frame_system::{EnsureRoot};
 use pallet_session::historical as session_historical;
 use pallet_im_online::sr25519::AuthorityId as ImOnlineId;
-use fp_rpc::TransactionStatus;
-use codec::{Encode, Decode};
-
 
 
 #[cfg(feature = "std")]
@@ -881,28 +876,7 @@ impl pallet_evm::Config for Runtime {
 
 }
 // end EVM Pallet
-// Ethereum Pallet, presents a compatible RPC api with Ethereum, it's the natural companion for pallet-evm
-pub struct EthereumFindAuthor<F>(PhantomData<F>);
-impl<F: FindAuthor<u32>> FindAuthor<H160> for EthereumFindAuthor<F>
-{
-	fn find_author<'a, I>(digests: I) -> Option<H160> where
-		I: 'a + IntoIterator<Item=(ConsensusEngineId, &'a [u8])>
-	{
-		if let Some(author_index) = F::find_author(digests) {
-			let authority_id = Aura::authorities()[author_index as usize].clone();
-			
-			return Some(H160::from_slice(&authority_id.to_raw_vec()[4..24]));
-		}
-		None
-	}
-}
 
-impl pallet_ethereum::Config for Runtime {
-	type Event = Event;
-	type FindAuthor = EthereumFindAuthor<Aura>;
-	type StateRoot = pallet_ethereum::IntermediateStateRoot;
-}
-// end Ethereum Pallet
 // Asset pallet
 parameter_types! {
 	pub const ASSETDEPOSITBASE: Balance = 1 * DOLLARS;
@@ -984,26 +958,8 @@ construct_runtime!(
 		Claim: pallet_claim::{Module, Call, Storage, Event<T>},
 		// Evm Pallet
 		EVM: pallet_evm::{Module, Call, Storage, Event<T>, Config},
-		// Ethereum Pallet
-		Ethereum: pallet_ethereum::{Module, Call, Storage, Event, Config, ValidateUnsigned},
 	}
 );
-// Structure definition for Ethereum
-pub struct TransactionConverter;
-impl fp_rpc::ConvertTransaction<UncheckedExtrinsic> for TransactionConverter {
-	fn convert_transaction(&self, transaction: pallet_ethereum::Transaction) -> UncheckedExtrinsic {
-		UncheckedExtrinsic::new_unsigned(pallet_ethereum::Call::<Runtime>::transact(transaction).into())
-	}
-}
-
-impl fp_rpc::ConvertTransaction<opaque::UncheckedExtrinsic> for TransactionConverter {
-	fn convert_transaction(&self, transaction: pallet_ethereum::Transaction) -> opaque::UncheckedExtrinsic {
-		let extrinsic = UncheckedExtrinsic::new_unsigned(pallet_ethereum::Call::<Runtime>::transact(transaction).into());
-		let encoded = extrinsic.encode();
-		opaque::UncheckedExtrinsic::decode(&mut &encoded[..]).expect("Encoded extrinsic is always valid")
-	}
-}
-// END structure definition for Ethereum
 
 /// The address format for describing accounts.
 pub type Address = sp_runtime::MultiAddress<AccountId, ()>;
@@ -1149,251 +1105,7 @@ impl_runtime_apis! {
         }
     }
 	//end implementation for contracts pallet
-// Implementation API for EVM/Ethereum pallets
-impl fp_rpc::EthereumRuntimeRPCApi<Block> for Runtime {
-	fn chain_id() -> u64 {
-		<Runtime as pallet_evm::Config>::ChainId::get()
-	}
 
-	fn account_basic(address: H160) ->  pallet_evm::Account {
-		EVM::account_basic(&address)
-		/*let a = EVM::account_basic(&address);
-		let r = evm::backend::Basic{
-			balance: a.balance,
-			nonce: a.nonce,
-		};
-		return r;*/
-	}
-
-	fn gas_price() -> U256 {
-		<Runtime as pallet_evm::Config>::FeeCalculator::min_gas_price()
-	}
-
-	fn account_code_at(address: H160) -> Vec<u8> {
-		EVM::account_codes(address)
-	}
-
-	fn author() -> H160 {
-		<pallet_ethereum::Module<Runtime>>::find_author()
-	}
-
-	fn storage_at(address: H160, index: U256) -> H256 {
-		let mut tmp = [0u8; 32];
-		index.to_big_endian(&mut tmp);
-		EVM::account_storages(address, H256::from_slice(&tmp[..]))
-	}
-	/*
-	fn call(
-		from: H160,
-		to: H160,
-		data: Vec<u8>,
-		value: U256,
-		gas_limit: U256,
-		gas_price: Option<U256>,
-		nonce: Option<U256>,
-		estimate: bool,
-	) -> Result<pallet_evm::CallInfo, sp_runtime::DispatchError> {
-	//) -> Result<fp_evm::ExecutionInfo<sp_std::prelude::Vec<u8>>, sp_runtime::DispatchError> {
-		let config = if estimate {
-			let mut config = <Runtime as pallet_evm::Config>::config().clone();
-			config.estimate = true;
-			Some(config)
-		} else {
-			None
-		};
-
-		let a = <Runtime as pallet_evm::Config>::Runner::call(
-			from,
-			to,
-			data,
-			value,
-			gas_limit.low_u64(),
-			gas_price,
-			nonce,
-			config.as_ref().unwrap_or(<Runtime as pallet_evm::Config>::config()),
-		); 
-		let ab = match a {
-			Ok(a) => a,
-			Err(_) => return Err(sp_runtime::DispatchError::Other("Unpredicted error in call")),
-		};
-		let r= fp_evm::ExecutionInfo {
-			exit_reason: evm::ExitReason::Succeed(evm::ExitSucceed::Returned),
-			value: ab.value,
-			used_gas: ab.used_gas,
-			logs: ab.logs,
-		};
-		// return result
-		Ok(r)
-	}*/
-	fn call(
-		from: H160,
-		to: H160,
-		data: Vec<u8>,
-		value: U256,
-		gas_limit: U256,
-		gas_price: Option<U256>,
-		nonce: Option<U256>,
-		estimate: bool,
-	) -> Result<pallet_evm::CallInfo, sp_runtime::DispatchError> {
-		let config = if estimate {
-			let mut config = <Runtime as pallet_evm::Config>::config().clone();
-			config.estimate = true;
-			Some(config)
-		} else {
-			None
-		};
-
-		<Runtime as pallet_evm::Config>::Runner::call(
-			from,
-			to,
-			data,
-			value,
-			gas_limit.low_u32().into(),
-			gas_price,
-			nonce,
-			config.as_ref().unwrap_or(<Runtime as pallet_evm::Config>::config()),
-		).map_err(|err| err.into())
-	}
-	/*
-	fn create(
-		from: H160,
-		data: Vec<u8>,
-		value: U256,
-		gas_limit: U256,
-		gas_price: Option<U256>,
-		nonce: Option<U256>,
-		estimate: bool,
-	) -> Result<pallet_evm::ExecutionInfo<sp_core::H160>, sp_runtime::DispatchError> {
-
-		let config = if estimate {
-			let mut config = <Runtime as pallet_evm::Config>::config().clone();
-			config.estimate = true;
-			Some(config)
-		} else {
-			None
-		};
-
-		let a = <Runtime as pallet_evm::Config>::Runner::create(
-			from,
-			data,
-			value,
-			gas_limit.low_u64(),
-			gas_price,
-			nonce,
-			config.as_ref().unwrap_or(<Runtime as pallet_evm::Config>::config()),
-		); 
-		let ab = match a {
-			Ok(a) => a,
-			Err(_) => return Err(sp_runtime::DispatchError::Other("Unpredicted error in create")),
-		};
-		let r= fp_evm::ExecutionInfo {
-			exit_reason: evm::ExitReason::Succeed(evm::ExitSucceed::Returned),
-			value: ab.value,
-			used_gas: ab.used_gas,
-			logs: ab.logs,
-		};
-		// return result
-		Ok(r)
-	}*/
-	fn create(
-		from: H160,
-		data: Vec<u8>,
-		value: U256,
-		gas_limit: U256,
-		gas_price: Option<U256>,
-		nonce: Option<U256>,
-		estimate: bool,
-	) -> Result<pallet_evm::CreateInfo, sp_runtime::DispatchError> {
-		let config = if estimate {
-			let mut config = <Runtime as pallet_evm::Config>::config().clone();
-			config.estimate = true;
-			Some(config)
-		} else {
-			None
-		};
-
-		<Runtime as pallet_evm::Config>::Runner::create(
-			from,
-			data,
-			value,
-			gas_limit.low_u32().into(),
-			gas_price,
-			nonce,
-			config.as_ref().unwrap_or(<Runtime as pallet_evm::Config>::config()),
-		).map_err(|err| err.into())
-	}
-
-	fn current_transaction_statuses() -> Option<Vec<TransactionStatus>> {
-		 let a = match Ethereum::current_transaction_statuses(){
-			 Some(t) => t,
-			 None => return None,
-		 };
-		 // convert to fp_rpc::TransactionStatus
-		 let mut r: Vec<fp_rpc::TransactionStatus>=Vec::new();
-		 for x in a {
-			let e=fp_rpc::TransactionStatus {
-				transaction_hash: x.transaction_hash,
-				transaction_index: x.transaction_index,
-				from: x.from,
-				to: x.to,
-				contract_address: x.contract_address,
-				logs: x.logs,
-				logs_bloom: x.logs_bloom,	
-			};
-			r.push(e);
-		 }
-		 //return the converted array
-		 Some(r)
-	}
-
-	fn current_block() -> Option<pallet_ethereum::Block> {
-		Ethereum::current_block()
-	}
-
-	fn current_receipts() -> Option<Vec<pallet_ethereum::Receipt>> {
-		Ethereum::current_receipts()
-	}
-
-	fn current_all() -> (
-		Option<pallet_ethereum::Block>,
-		Option<Vec<pallet_ethereum::Receipt>>,
-		Option<Vec<TransactionStatus>>
-	) {
-		let a = match Ethereum::current_transaction_statuses(){
-			Some(t) => t,
-			None => sp_std::prelude::Vec::new(),
-		};
-		let mut r: Vec<fp_rpc::TransactionStatus>=Vec::new();
-		if a.len()>0 {
-			// convert to fp_rpc::TransactionStatus
-			for x in a.clone() {
-			   let e=fp_rpc::TransactionStatus {
-				   transaction_hash: x.transaction_hash,
-				   transaction_index: x.transaction_index,
-				   from: x.from,
-				   to: x.to,
-					  contract_address: x.contract_address,
-					  logs: x.logs,
-				   logs_bloom: x.logs_bloom,	
-				   };
-				   r.push(e);
-			}
-		}
-		let cts;
-		if a.len()>0{
-			cts=None;
-		}else {
-			cts=Some(r);
-		}
-		//return the converted array
-		(
-			Ethereum::current_block(),
-			Ethereum::current_receipts(),
-			cts,
-		)
-	}
-}
-// END Implementation API for EVM/Ethereum pallets
 	impl fg_primitives::GrandpaApi<Block> for Runtime {
 		fn grandpa_authorities() -> GrandpaAuthorityList {
 			Grandpa::grandpa_authorities()
