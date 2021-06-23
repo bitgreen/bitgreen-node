@@ -52,6 +52,7 @@ publicKey = privateKey.publicKey()
 print("Signature: "+signature.toBase64())
 print("Message Signed: "+bitgreenaccount)
 pk =publicKey.toString()
+sigb64=signature.toBase64()
 
 print (len(pk))
 ba=bytearray()
@@ -62,7 +63,6 @@ print(" public key as bytearray",ba)
 print (len(ba))
 pkbase64=base64.b64encode(ba)
 print("Public Key: ",pkbase64)
-exit()
 # you should post to the blockchain the following fields:
 #bitgreenaccount, bitgreensubstrateaccount, signature.toBase64(),publicKey.toPem()
 
@@ -71,14 +71,16 @@ print("[INFO] Signature verification result: ",Ecdsa.verify(bitgreenaccount, sig
 
 # define connection parameters
 substrate = SubstrateInterface(
-    #url="wss://testnode.bitg.org",
-    url="ws://127.0.0.1:9944",
+    url="wss://testnode.bitg.org",
+    #url="ws://127.0.0.1:9944",
     ss58_format=42,
     type_registry_preset='substrate-node-template'
 )
 # create Substrate Key pair from secret seed
 secretseed='episode together nose spoon dose oil faculty zoo ankle evoke admit walnut';  # better to use 24 words!
 keypair = Keypair.create_from_mnemonic(secretseed)
+#keypair = Keypair.create_from_uri('//Alice')
+
 # create call object
 print("[INFO] Creating Extrinsic call")
 call = substrate.compose_call(
@@ -86,8 +88,8 @@ call = substrate.compose_call(
     call_function='claim_deposit',
     call_params={
         'oldaddress': bitgreenaccount,
-        'oldpublickey': pkbase64,
-        'signature': signature.toBase64()
+        'oldpublickey': str(pkbase64),
+        'signature': sigb64,
     }
 )
 # execute exstrisic
