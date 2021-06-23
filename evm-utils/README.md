@@ -33,6 +33,31 @@ Computed Balance Address for EVM deposit Base58:  5FRmUWiFLmqz9PM5TKk3JUNiYW7k2V
 Computed Balance Address for EVM deposit Hex:  0x94c5087c11bb8dc193cfba7e9e7303e759881702c57e5438b196c7d6f31b32d9
 ```
 
+## Transfer Funds to EVM Address
+For each EVM address we can compute a "Substrate" address to receive funds using the "Balance" module.
+  
+The utility:  
+```bash
+evmAddress2SubstrateAddress.js 
+```
+computes the EVM address required.  
+For example a valid EVM Address is: 0x8E8b284E2a582cA3B49eCcfC7B548436cE9bccCa  
+you can launch the utility by: 
+```bash
+node evmAddress2substrateAddress.js 0x8E8b284E2a582cA3B49eCcfC7B548436cE9bccCa
+```
+and obtain the followin result:  
+```bash
+Utility to convert an EVM Address to Substrate to receive funds
+Converting Evm Address: 0x8E8b284E2a582cA3B49eCcfC7B548436cE9bccCa
+You can use this substrate address, to transfer funds to the EVM address above using the Pallet "Balances".
+Computed Balance Address for EVM deposit Base58:  5F8K5uYqkMJLjcw1doimf8rmE5fnxhcVPpSKwuJh52sSn1vx
+```
+## Withdraw funds from EVM Address
+
+You can withdraw funds from the EVM balance to the "matching" Substrate Address using the module "evm","withdraw".  
+The transaction must be signed from the Substrate address used to compute the address by substrateAddress2EvmAddress.js. 
+
 ## Technical Information:
 
 In order to use Ethereum contracts on a Substrate chain using EVM pallet, there are the following assumptions:  
