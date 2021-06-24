@@ -54,17 +54,12 @@ print("Message Signed: "+bitgreenaccount)
 pk =publicKey.toString()
 sigb64=signature.toBase64()
 
-print (len(pk))
 ba=bytearray()
 for c in pk:
-#    print(ord(c))
     ba.append(ord(c))
-print(" public key as bytearray",ba)    
-print (len(ba))
-pkbase64=base64.b64encode(ba)
+pkbase64b=base64.b64encode(ba)
+pkbase64=pkbase64b.decode("ascii")
 print("Public Key: ",pkbase64)
-# you should post to the blockchain the following fields:
-#bitgreenaccount, bitgreensubstrateaccount, signature.toBase64(),publicKey.toPem()
 
 # verify the signature
 print("[INFO] Signature verification result: ",Ecdsa.verify(bitgreenaccount, signature, publicKey))
@@ -78,8 +73,9 @@ substrate = SubstrateInterface(
 )
 # create Substrate Key pair from secret seed
 secretseed='episode together nose spoon dose oil faculty zoo ankle evoke admit walnut';  # better to use 24 words!
-keypair = Keypair.create_from_mnemonic(secretseed)
-#keypair = Keypair.create_from_uri('//Alice')
+#keypair = Keypair.create_from_mnemonic(secretseed)
+#print("Address of BitGreen Account: ",keypair.ss58_address)
+keypair = Keypair.create_from_uri('//Alice')
 
 # create call object
 print("[INFO] Creating Extrinsic call")
@@ -88,7 +84,7 @@ call = substrate.compose_call(
     call_function='claim_deposit',
     call_params={
         'oldaddress': bitgreenaccount,
-        'oldpublickey': str(pkbase64),
+        'oldpublickey': pkbase64,
         'signature': sigb64,
     }
 )
@@ -97,7 +93,7 @@ print("[INFO] Executing Extrinsic call")
 extrinsic = substrate.create_signed_extrinsic(call=call, keypair=keypair)
 try:
     receipt = substrate.submit_extrinsic(extrinsic, wait_for_inclusion=True)
-    print("[INFO] Extrinsic '{}' sent and included in block '{}'".format(receipt.extrinsic_hash, receipt.block_hash))
+    print("[INFO] Extrinsic '{}' sent and finalized in block '{}'".format(receipt.extrinsic_hash, receipt.block_hash))
 except SubstrateRequestException as e:
     print("[INFO] Failed to send: {}".format(e))
 
