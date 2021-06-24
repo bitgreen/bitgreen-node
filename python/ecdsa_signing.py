@@ -73,9 +73,9 @@ substrate = SubstrateInterface(
 )
 # create Substrate Key pair from secret seed
 secretseed='episode together nose spoon dose oil faculty zoo ankle evoke admit walnut';  # better to use 24 words!
-#keypair = Keypair.create_from_mnemonic(secretseed)
-#print("Address of BitGreen Account: ",keypair.ss58_address)
-keypair = Keypair.create_from_uri('//Alice')
+keypair = Keypair.create_from_mnemonic(secretseed)
+print("Address of BitGreen Account: ",keypair.ss58_address)
+#keypair = Keypair.create_from_uri('//Alice')
 
 # create call object
 print("[INFO] Creating Extrinsic call")
