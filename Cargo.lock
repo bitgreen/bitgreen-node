@@ -423,7 +423,7 @@ checksum = "cf1de2fe8c75bc145a2f577add951f8134889b4795d47466a54a5c846d691693"
 
 [[package]]
 name = "bitg-node"
-version = "0.0.1"
+version = "0.1.0"
 dependencies = [
  "bitg-node-runtime",
  "frame-benchmarking",
@@ -443,6 +443,7 @@ dependencies = [
  "sc-rpc",
  "sc-rpc-api",
  "sc-service",
+ "sc-telemetry",
  "sc-transaction-pool",
  "sp-api",
  "sp-block-builder",
@@ -461,7 +462,7 @@ dependencies = [
 
 [[package]]
 name = "bitg-node-runtime"
-version = "0.0.1"
+version = "0.1.0"
 dependencies = [
  "frame-benchmarking",
  "frame-executive",

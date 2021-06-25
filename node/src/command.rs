@@ -1,4 +1,4 @@
-// This file is part of Substrate.
+// This file is part of Substrate framework, modified for BitGreen.
 
 // Copyright (C) 2017-2021 Parity Technologies (UK) Ltd.
 // SPDX-License-Identifier: Apache-2.0
@@ -20,10 +20,10 @@ use crate::cli::{Cli, Subcommand};
 use sc_cli::{SubstrateCli, RuntimeVersion, Role, ChainSpec};
 use sc_service::PartialComponents;
 use bitg_node_runtime::Block;
-
+// implementation of the client interface
 impl SubstrateCli for Cli {
 	fn impl_name() -> String {
-		"Substrate Node".into()
+		"BitGreen Node".into()
 	}
 
 	fn impl_version() -> String {
@@ -39,17 +39,24 @@ impl SubstrateCli for Cli {
 	}
 
 	fn support_url() -> String {
-		"support.anonymous.an".into()
+		"support.bitg.org".into()
 	}
 
 	fn copyright_start_year() -> i32 {
-		2017
+		2021
 	}
-
+	// we load the different possible chain configurations as specified in chain_specs.rs
 	fn load_spec(&self, id: &str) -> Result<Box<dyn sc_service::ChainSpec>, String> {
 		Ok(match id {
-			"dev" => Box::new(chain_spec::development_config()?),
+			// load configuration for developement chain, used to test a single node.
+			"dev" => Box::new(chain_spec::development_config()?),			
+			// load configuration for a local testnet with a the least 2 validators (ALICE/BOB)
 			"" | "local" => Box::new(chain_spec::local_testnet_config()?),
+			// load configuration for the public test net
+			"testnet" => Box::new(chain_spec::testnet_config()?),			
+			// load configuration for the main net
+			//"mainnet" => Box::new(chain_spec::testnet_config()?),			
+			// any other chain specified in the command line, we load the received json file path/name
 			path => Box::new(chain_spec::ChainSpec::from_json_file(
 				std::path::PathBuf::from(path),
 			)?),

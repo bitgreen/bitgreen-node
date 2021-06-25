@@ -6,11 +6,14 @@ use bitg_node_runtime::{
 use sp_consensus_aura::sr25519::AuthorityId as AuraId;
 use sp_finality_grandpa::AuthorityId as GrandpaId;
 use sp_runtime::traits::{Verify, IdentifyAccount};
-use sc_service::ChainType;
+use sc_service::{ChainType, Properties};
 use bitg_node_runtime::ContractsConfig;  // used for Contracts pallet
+use sc_telemetry::TelemetryEndpoints;
 
-// The URL for the telemetry server.
-// const STAGING_TELEMETRY_URL: &str = "wss://telemetry.bitg.org/submit/";
+
+// The URL for the telemetry server (using public Polkadot Telemetry server)
+const TELEMETRY_URL: &str = "wss://telemetry.polkadot.io/submit/";
+
 
 /// Specialized `ChainSpec`. This is a specialization of the general Substrate ChainSpec type.
 pub type ChainSpec = sc_service::GenericChainSpec<GenesisConfig>;
@@ -31,7 +34,7 @@ pub fn get_account_id_from_seed<TPublic: Public>(seed: &str) -> AccountId where
 	AccountPublic::from(get_from_seed::<TPublic>(seed)).into_account()
 }
 
-/// Generate an Aura authority key.
+/// Generates authority keys.
 pub fn authority_keys_from_seed(s: &str) -> (AuraId, GrandpaId) {
 	(
 		get_from_seed::<AuraId>(s),
@@ -178,3 +181,69 @@ fn testnet_genesis(
 
 	}
 }
+
+
+// Chain Specifications for the public Testnet 
+pub fn testnet_config() -> Result<ChainSpec, String> {
+	let wasm_binary = WASM_BINARY.ok_or_else(|| "Testnet wasm binary not available".to_string())?;
+	Ok(ChainSpec::from_genesis(
+		// Name
+		"Testnet",
+		// ID
+		"testnet",
+		// this type is for Testnet on multiple nodes
+		ChainType::Local,	
+		move || testnet_genesis(
+			wasm_binary,
+			// Initial PoA authorities
+			vec![
+				authority_keys_from_seed("Alice"),
+				authority_keys_from_seed("Bob"),
+				authority_keys_from_seed("Charlie"),
+			],
+			// Sudo account
+			get_account_id_from_seed::<sr25519::Public>("Alice"),
+			// Pre-funded accounts
+			vec![
+				get_account_id_from_seed::<sr25519::Public>("Alice"),
+				get_account_id_from_seed::<sr25519::Public>("Bob"),
+				get_account_id_from_seed::<sr25519::Public>("Charlie"),
+				get_account_id_from_seed::<sr25519::Public>("Dave"),
+				get_account_id_from_seed::<sr25519::Public>("Eve"),
+				get_account_id_from_seed::<sr25519::Public>("Ferdie"),
+				get_account_id_from_seed::<sr25519::Public>("Alice//stash"),
+				get_account_id_from_seed::<sr25519::Public>("Bob//stash"),
+				get_account_id_from_seed::<sr25519::Public>("Charlie//stash"),
+				get_account_id_from_seed::<sr25519::Public>("Dave//stash"),
+				get_account_id_from_seed::<sr25519::Public>("Eve//stash"),
+				get_account_id_from_seed::<sr25519::Public>("Ferdie//stash"),
+			],
+			true,
+		),
+		// Bootnodes (TODO)
+		vec![],
+		//vec!["/dns/bootnode-1.bitg.org/tcp/30334/p2p/12D3KooWKmFtS7BFtkkKWrP5ZcCpPFokmST2JFXFSsVBNeW5SXWg".parse().unwrap()],
+		// Telemetry
+		TelemetryEndpoints::new(vec![(TELEMETRY_URL.into(), 0)]).ok(),
+		// Protocol ID
+		Some("bitgreen_testnet"),
+		// Properties for BitGreen any chain
+		Some(bitgreen_properties()),
+		// Extensions
+		None,
+	))
+}
+
+
+// Bitgreen Chain properties settings, Test Net and Main Net
+pub fn bitgreen_properties() -> Properties {
+	let mut p = Properties::new();
+	// format of the Account Address, 42 is for any generic Substrate Chain
+	p.insert("ss58format".into(), 42.into());
+	// 18 decimals
+	p.insert("tokenDecimals".into(), 18.into());
+	// token symbol = BITG
+	p.insert("tokenSymbol".into(), "BITG".into());
+	p
+}
+
