@@ -89,11 +89,28 @@ pub use runtime_common::{
 
 pub use primitives::{currency::*, time::*};
 
+/// import pallet contracts (!Ink Native language)
+use pallet_contracts::weights::WeightInfo;
+use pallet_transaction_payment::CurrencyAdapter;
+
+
 mod weights;
 
 #[cfg(feature = "runtime-benchmarks")]
 mod benchmarking;
 
+// Contracts price units.
+pub const MILLICENTS: Balance = 1_000_000_000;
+pub const CENTS: Balance = 1_000 * MILLICENTS;
+pub const DOLLARS: Balance = 100 * CENTS;
+
+const fn deposit(items: u32, bytes: u32) -> Balance {
+    items as Balance * 15 * CENTS + (bytes as Balance) * 6 * CENTS
+}
+
+/// We assume that ~10% of the block weight is consumed by `on_initalize` handlers.
+/// This is used to limit the maximal weight of a single extrinsic.
+const AVERAGE_ON_INITIALIZE_RATIO: Perbill = Perbill::from_percent(10);
 //
 // formerly authority.rs
 //
@@ -422,6 +439,55 @@ impl pallet_timestamp::Config for Runtime {
 	type MinimumPeriod = MinimumPeriod;
 	type WeightInfo = ();
 }
+// Implementation for Contracts Pallet
+parameter_types! {
+    pub const TombstoneDeposit: Balance = deposit(
+        1,
+        sp_std::mem::size_of::<pallet_contracts::ContractInfo<Runtime>>() as u32
+    );
+    pub const DepositPerContract: Balance = TombstoneDeposit::get();
+    pub const DepositPerStorageByte: Balance = deposit(0, 1);
+    pub const DepositPerStorageItem: Balance = deposit(1, 0);
+    pub RentFraction: Perbill = Perbill::from_rational_approximation(1u32, 30 * DAYS);
+    pub const SurchargeReward: Balance = 150 * MILLICENTS;
+    pub const SignedClaimHandicap: u32 = 2;
+    pub const MaxDepth: u32 = 32;
+    pub const MaxValueSize: u32 = 16 * 1024;
+    // The lazy deletion runs inside on_initialize.
+    pub DeletionWeightLimit: Weight = AVERAGE_ON_INITIALIZE_RATIO *
+        BlockWeights::get().max_block;
+    // The weight needed for decoding the queue should be less or equal than a fifth
+    // of the overall weight dedicated to the lazy deletion.
+    pub DeletionQueueDepth: u32 = ((DeletionWeightLimit::get() / (
+            <Runtime as pallet_contracts::Config>::WeightInfo::on_initialize_per_queue_item(1) -
+            <Runtime as pallet_contracts::Config>::WeightInfo::on_initialize_per_queue_item(0)
+        )) / 5) as u32;
+    pub MaxCodeSizeK: u32 = 128 * 1024;
+}
+
+impl pallet_contracts::Config for Runtime {
+    type Time = Timestamp;
+    type Randomness = RandomnessCollectiveFlip;
+    type Currency = Balances;
+    type Event = Event;
+    type RentPayment = ();
+    type SignedClaimHandicap = SignedClaimHandicap;
+    type TombstoneDeposit = TombstoneDeposit;
+    type DepositPerContract = DepositPerContract;
+    type DepositPerStorageByte = DepositPerStorageByte;
+    type DepositPerStorageItem = DepositPerStorageItem;
+    type RentFraction = RentFraction;
+    type SurchargeReward = SurchargeReward;
+    type MaxDepth = MaxDepth;
+    type MaxValueSize = MaxValueSize;
+    type WeightPrice = pallet_transaction_payment::Module<Self>;
+    type WeightInfo = pallet_contracts::weights::SubstrateWeight<Self>;
+    type ChainExtension = ();
+    type DeletionQueueDepth = DeletionQueueDepth;
+    type DeletionWeightLimit = DeletionWeightLimit;
+    type MaxCodeSize = MaxCodeSizeK;
+}
+// End implementation for Contracts Pallet
 
 parameter_types! {
 	pub const UncleGenerations: BlockNumber = 5;
@@ -690,7 +756,25 @@ impl orml_authority::Config for Runtime {
 	type AuthorityConfig = AuthorityConfigImpl;
 	type WeightInfo = ();
 }
-
+// Transactions fees payment Pallet
+// This module provides the basic logic needed to pay the absolute minimum amount needed for a transaction to be included. This includes:
+// - base fee: This is the minimum amount a user pays for a transaction. It is declared as a base weight in the runtime and converted to a fee using WeightToFee.
+// - weight fee: A fee proportional to amount of weight a transaction consumes.
+// - length fee: A fee proportional to the encoded length of the transaction.
+// - tip: An optional tip. Tip increases the priority of the transaction, giving it a higher chance to be included by the transaction queue.
+// - The base fee and adjusted weight and length fees constitute the inclusion fee, which is the minimum fee for a transaction to be included in a block.
+// The formula of final fee:
+//   inclusion_fee = base_fee + length_fee + [targeted_fee_adjustment * weight_fee];
+//   final_fee = inclusion_fee + tip;
+parameter_types! {
+	pub const TransactionByteFeeK: Balance = 1;
+}
+impl pallet_transaction_payment::Config for Runtime {
+	type OnChargeTransaction = CurrencyAdapter<Balances, ()>;
+	type TransactionByteFee = TransactionByteFeeK;
+	type WeightToFee = IdentityFee<Balance>;
+	type FeeMultiplierUpdate = ();
+}
 
 impl pallet_sudo::Config for Runtime {
 	type Event = Event;
@@ -759,6 +843,16 @@ impl pallet_claim::Config for Runtime {
 }
 // end Claim pallet
 
+// pallet orml-nft
+impl orml_nft::Config for Runtime {
+	type ClassId = u32;
+	type TokenId =u32;
+	type ClassData = Vec<u8>;
+	type TokenData = Vec<u8>;
+}
+// end pallet orml-nft
+
+
 
 // Create the runtime by composing the FRAME pallets that were previously configured.
 
@@ -792,7 +886,7 @@ construct_runtime!(
 		// Authorization
 		Authority: orml_authority::{Module, Call, Event<T>, Origin<T>} = 10,
 
-		// Smart contracts
+		// EVM Smart contracts
 		EvmAccounts: module_evm_accounts::{Module, Call, Storage, Event<T>} = 20,
 		Evm: module_evm::{Module, Config<T>, Call, Storage, Event<T>} = 21,
 		EVMBridge: module_evm_bridge::{Module} = 22,
@@ -817,6 +911,11 @@ construct_runtime!(
 
 		// Claim Pallet
 		Claim: pallet_claim::{Module, Call, Storage, Event<T>} = 60,
+		// Nft Pallet
+		Nft: orml_nft::{Module, Call, Storage, Config<T>}= 65,
+		// !INK Smart Contracts
+		Contracts: pallet_contracts::{Module, Call, Config<T>, Storage, Event<T>}= 70,
+
 	}
 );
 
@@ -1088,6 +1187,37 @@ impl_runtime_apis! {
 			TransactionPayment::query_fee_details(uxt, len)
 		}
 	}
+	
+	// !Ink Smart Contacts RPC interface
+	impl pallet_contracts_rpc_runtime_api::ContractsApi<Block, AccountId, Balance, BlockNumber>
+    for Runtime
+    {
+        fn call(
+            origin: AccountId,
+            dest: AccountId,
+            value: Balance,
+            gas_limit: u64,
+            input_data: Vec<u8>,
+        ) -> pallet_contracts_primitives::ContractExecResult {
+            Contracts::bare_call(origin, dest, value, gas_limit, input_data)
+        }
+
+        fn get_storage(
+            address: AccountId,
+            key: [u8; 32],
+        ) -> pallet_contracts_primitives::GetStorageResult {
+            Contracts::get_storage(address, key)
+        }
+
+        fn rent_projection(
+            address: AccountId,
+        ) -> pallet_contracts_primitives::RentProjectionResult<BlockNumber> {
+            Contracts::rent_projection(address)
+        }
+    }
+	// end !Ink Contracts
+	
+
 
 	impl module_evm_rpc_runtime_api::EVMRuntimeRPCApi<Block, Balance> for Runtime {
 		fn call(

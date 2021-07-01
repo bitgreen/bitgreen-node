@@ -14,9 +14,10 @@ pub use sc_rpc_api::DenyUnsafe;
 use sp_transaction_pool::TransactionPool;
 
 use bitg_runtime::{
-	AccountId, Balance, Nonce, BlockNumber, Hash,
-	opaque::Block,
+	AccountId, Balance, Nonce, BlockNumber, Hash,opaque::Block,
 };
+
+use pallet_contracts_rpc::{Contracts, ContractsApi};
 
 use sc_consensus_babe::{Config, Epoch};
 use sp_keystore::SyncCryptoStorePtr;
@@ -78,6 +79,7 @@ pub fn create_full<C, P, SC, B>(
 	C: HeaderBackend<Block> + HeaderMetadata<Block, Error=BlockChainError> + 'static,
 	C: Send + Sync + 'static,
 	C::Api: substrate_frame_rpc_system::AccountNonceApi<Block, AccountId, Nonce>,
+	C::Api: pallet_contracts_rpc::ContractsRuntimeApi<Block, AccountId, Balance, BlockNumber>, // Contracts pallet RPC calls
 	C::Api: pallet_transaction_payment_rpc::TransactionPaymentRuntimeApi<Block, Balance>,
 	C::Api: EVMRuntimeRPCApi<Block, Balance>,
 	C::Api: sp_consensus_babe::BabeApi<Block>,
@@ -124,6 +126,10 @@ pub fn create_full<C, P, SC, B>(
 	io.extend_with(
 		TransactionPaymentApi::to_delegate(TransactionPayment::new(client.clone()))
 	);
+	// contracts pallet extension
+	io.extend_with(
+        ContractsApi::to_delegate(Contracts::new(client.clone()))
+    );
 
 	// Extend this RPC with a custom API by using the following syntax.
 	// `YourRpcStruct` should have a reference to a client, which is needed

@@ -76,9 +76,15 @@ pallet-im-online = { version = "3.0.0", default-features = false }
 pallet-offences = { version = "3.0.0", default-features = false }
 sp-authority-discovery = { version = "3.0.0", default-features = false }
 pallet-authority-discovery = { version = "3.0.0", default-features = false }
-
 pallet-identity = { version = "3.0.0", default-features = false }
 
+#!INK smart contracts
+pallet-contracts = { version = "3.0.0", default-features = false }
+pallet-contracts-primitives = { default-features = false, version = '3.0.0' }
+pallet-contracts-rpc-runtime-api = { default-features = false, version = '3.0.0' }
+
+# NFT Pallet
+orml-nft = { path = "../orml/nft", default-features = false}
 
 # PoC
 pallet-collective = { version = "3.0.0", default-features = false }
@@ -89,7 +95,6 @@ orml-traits = { path = "../orml/traits", default-features = false }
 orml-tokens = { path = "../orml/tokens", default-features = false }
 orml-authority = { path = "../orml/authority", default-features = false }
 orml-benchmarking = { path = "../orml/benchmarking", default-features = false, optional = true }
-
 module-currencies = { path = "../modules/currencies", default-features = false }
 
 # Ethereum Virtual Machine
@@ -104,7 +109,6 @@ module-support = { path = "../modules/support", default-features = false }
 
 primitives = { package = "bitg-primitives", path = "../primitives", default-features = false }
 runtime-common = { path = "common", default-features = false }
-
 
 [dev-dependencies]
 libsecp256k1 = "0.3.4"
@@ -172,6 +176,10 @@ std = [
 	"runtime-common/std",
 
 	"module-evm-rpc-runtime-api/std",
+	#!Ink Smart Contracts
+	"pallet-contracts/std",
+	"pallet-contracts-primitives/std",
+	'pallet-contracts-rpc-runtime-api/std',
 ]
 with-ethereum-compatibility = [
 	"evm",

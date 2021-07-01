@@ -2,7 +2,7 @@ use sp_core::{Pair, Public, sr25519, H160, Bytes};
 use bitg_runtime::{
 	AccountId, CurrencyId,
 	BabeConfig, BalancesConfig, GenesisConfig, GrandpaConfig, SudoConfig, SystemConfig,
-	IndicesConfig, EvmConfig, StakingConfig, SessionConfig, AuthorityDiscoveryConfig,
+	IndicesConfig, EvmConfig, StakingConfig, SessionConfig, AuthorityDiscoveryConfig,ContractsConfig,
 	WASM_BINARY,
 	TokenSymbol, TokensConfig, BITG,
 	StakerStatus,
@@ -325,7 +325,7 @@ fn testnet_genesis(
 	const INITIAL_BALANCE: u128 = 100_000_000 * BITG;
 	const INITIAL_STAKING: u128 =   1_000_000 * BITG;
 	let existential_deposit = MaxNativeTokenExistentialDeposit::get();
-
+	let enable_println=true;
 	let balances = initial_authorities
 		.iter()
 		.map(|x| (x.0.clone(), INITIAL_STAKING))
@@ -403,6 +403,15 @@ fn testnet_genesis(
 		}),
 		pallet_sudo: Some(SudoConfig { key: root_key }),
 		pallet_collective_Instance1: Some(Default::default()),
+		// Nft pallet
+		orml_nft: Default::default(),
+		// Smart contracts !Ink Language
+		pallet_contracts: Some(ContractsConfig {
+			current_schedule: pallet_contracts::Schedule {
+					enable_println,
+					..Default::default()
+			},
+		}),
 	}
 }
 
@@ -417,7 +426,7 @@ fn mainnet_genesis(
 
 	const INITIAL_STAKING: u128 = 1_000_000 * BITG;
 	let existential_deposit = MaxNativeTokenExistentialDeposit::get();
-
+	let enable_println=true;
 	let balances = initial_authorities
 		.iter()
 		.map(|x| (x.0.clone(), INITIAL_STAKING*2))
@@ -488,6 +497,15 @@ fn mainnet_genesis(
 		}),
 		pallet_sudo: Some(SudoConfig { key: root_key }),
 		pallet_collective_Instance1: Some(Default::default()),
+		// Nft pallet
+		orml_nft: Default::default(),
+		// Smart contracts !Ink Language
+		pallet_contracts: Some(ContractsConfig {
+			current_schedule: pallet_contracts::Schedule {
+					enable_println,
+					..Default::default()
+			},
+		}),
 	}
 }
 
