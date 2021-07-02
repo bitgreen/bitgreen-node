@@ -186,41 +186,48 @@ pub fn public_testnet_config() -> Result<ChainSpec, String> {
 			// authority-discovery
 			vec![
 				(
-					hex!["b2902b07056f7365bc22bf7e69c4e4fdba03e6af9c73ca6eb1703ccbc0248857"].into(),
-					hex!["cc2ea454844cc1a2e821198d9e0ce1de1aee7d014af5dd3404fc8199df89f821"].into(),
-					hex!["607712f6581e191b69046427a7e33c4713e96b4ae4654e2467c74279dc20beb2"].unchecked_into(),
-					hex!["ba630d2df03743a6441ab9221a25fc00a62e6f3b56c6920634eebb72a15fc90f"].unchecked_into(),
-					hex!["72c0d10c9cd6e44ccf5e7acf0bb1b7c4d6987dda55a36343f3d45b54ad8bfe32"].unchecked_into(),
-					hex!["f287831caa53bc1dce6f0d676ab43d248921a4c34535be8f7d7d153eda29dc3f"].unchecked_into(),
+					// Boot Node/Validator 1: ip address 95.217.2.2
+					hex!["0a8e3c33501c0001bb08efc7511ca0b81f700eb8010ec91dc2d9324b3e0d2860"].into(),
+					hex!["fabe0e7010a320055f706192258876f3e97d237f836c8e1b753175df17d97b40"].into(),
+					hex!["a538f6fbd05fdcd42d91600eca9c7e6b7240fa82fc23b569deea91af6c97a5f1"].unchecked_into(),
+					hex!["a66bdf2c219a5fc728188edfeed3eb1ef17612d65764a71effcffd7f16a72834"].unchecked_into(),
+					hex!["50341e1134ad1a2244caaba520c4fff3a44bcca58c68d2fb9fdf924180c6b67f"].unchecked_into(),
+					hex!["7e4e3fd0a36ae866460c5e857682671a3c9f6a511d589084d400f3fe55672439"].unchecked_into(),
 				),
 				(
-					hex!["06ee8fc0e34e40f6f2c98328d70874c6dd7d7989159634c8c87301efbcbe4470"].into(),
-					hex!["9cf9f939c16ef458e677472ff113af53e7fb9139244fcfa6fccb765aa8831019"].into(),
-					hex!["db6d2cb33abebdc024a14ef7bfbc68823660be8d1acac66770e406e484de3184"].unchecked_into(),
-					hex!["d09f879b3273d2cedab83fa741cdac328679c98914dc8dc07e359e19f0379844"].unchecked_into(),
-					hex!["8c38deff9ab24a8c49e2b4fbdc963af7cbf06f99d6aabfaa6e50bfe6ae0d071d"].unchecked_into(),
-					hex!["dcc1644697e98d4171a29074a4bfaeb49b39b6ea91a8ec5e049d23ea3c4a4134"].unchecked_into(),
+					// Boot Node/Validator 2: ip addres 95.217.4.158
+					hex!["c866ae8a5b961062016bda70138e00b84a2975c22b6f61d44d2004a4ef9c6116"].into(),
+					hex!["ca514d67c95446d8ee62020f22c0b70616b4d6112dfc2c6e5dcafd67e9c27d09"].into(),
+					hex!["7ea36efa84a2e3e9416d94f4979aa9a6423d6a6dd2abb475e496cb571ee99dff"].unchecked_into(),
+					hex!["44c24fd0fc8cda7ba0c2613be44ef78782ee600eea05d4eb3af0a64f12056e6e"].unchecked_into(),
+					hex!["768d7df7f1f8dfbef05c34fa11358a52106a71ada232fa2bd35cb15df86f1b58"].unchecked_into(),
+					hex!["a2c666674fbf9a66df9ad15f1fa3bcea315990f7515c3dd2c26dcccc9d4bc27a"].unchecked_into(),
 				),
 				(
-					hex!["48267bffea5e524f1c0e06cce77f0ef920be7ed9a7dd47705e181edad64f532a"].into(),
-					hex!["38594d7640612c49337f3a0bc7b39232b86f9c9c4fedec3f8b00e45d3f073a2d"].into(),
-					hex!["c8996b17688cab9bcda8dafb4dde9bab4d9b1dc81c71419fca46fedcba74a14e"].unchecked_into(),
-					hex!["568c17ce5ef308bd9544e7b16f34089a2c2329193f31577a830ffe8a023a6874"].unchecked_into(),
-					hex!["66db4135f59db92ce98cdd6c29befaf21a93f1a9059adc2326c7d371a214f97d"].unchecked_into(),
-					hex!["00858734321b53f0987a45906cbb91fe7ce1588fce03758c7c07f09022372c30"].unchecked_into(),
+					// Boot Node/Validator 3: ip addres 95.217.1.25
+					hex!["42547f143cb05a47a8de112e9b8362dec1d586fa241f29f0e591e17815f1d71a"].into(),
+					hex!["8e4ddd28c76a5963b7e81f73495afd663d9ed26ec66dfe8b8b7e3a8b4f01b330"].into(),
+					hex!["b034fb357e174f6c7bf7588dba0e191a24ae4f0b63f4ee41e9fcd9b00fcc5ed0"].unchecked_into(),
+					hex!["a401838c6a5043cc3353517e7c4396090277b568100806fed7769fadc8baa35b"].unchecked_into(),
+					hex!["6acdf720031ddf5d4c7cb06ee7876eef77688956575f5c0480df40b059804a38"].unchecked_into(),
+					hex!["bc2efdfdccb4c371eebd9fc1d9d86a6a2eaf516878a5989b0ddcd4f09101f606"].unchecked_into(),
 				),
 			],
 			// Sudo
-			hex!["0c994e7589709a85128a6695254af16227f7873816ae0269aa705861c315ba1e"].into(),
+			hex!["caca29e30cce36df2263139cb15dd0e3ecbeb053d37aeac7ac8d2291ff7afa5c"].into(),
 			// Endowed accounts
 			vec![
-				hex!["0c994e7589709a85128a6695254af16227f7873816ae0269aa705861c315ba1e"].into(),
-				hex!["9e42365c1a43fe7bd886118f49a2247aabda7079c3e4c5288f41afadd7bb1963"].into(),
-				hex!["6c1371ce4b06b8d191d6f552d716c00da31aca08a291ccbdeaf0f7aeae51201b"].into(),
+				hex!["caca29e30cce36df2263139cb15dd0e3ecbeb053d37aeac7ac8d2291ff7afa5c"].into(),
+				hex!["4e5758a750dad72ea2e777a16222765b5b713c9eeda2eb8cd3f3b989203c5008"].into(),
+				hex!["ccf2f08394dde73dd5bd1946552e2042d1f502cb50eb7c29061873f5831caf42"].into(),
 			],
 		),
 		// Bootnodes
-		vec!["/dns/bootnode-t1.bitg.org/tcp/30334/p2p/12D3KooWKmFtS7BFtkkKWrP5ZcCpPFokmST2JFXFSsVBNeW5SXWg".parse().unwrap()],
+		vec![
+			"/ip4/95.217.2.2/tcp/30333/p2p/12D3KooWKmFtS7BFtkkKWrP5ZcCpPFokmST2JFXFSsVBNeW5SXWg".parse().unwrap(),
+			"/ip4/95.217.4.158/tcp/30333/p2p/12D3KooWKmFtS7BFtkkKWrP5ZcCpPFokmST2JFXFSsVBNeW5SXWg".parse().unwrap(),
+			"/ip4/95.217.1.25/tcp/30333/p2p/12D3KooWKmFtS7BFtkkKWrP5ZcCpPFokmST2JFXFSsVBNeW5SXWg".parse().unwrap()
+			],
 		// Telemetry
 		TelemetryEndpoints::new(vec![(TELEMETRY_URL.into(), 0)]).ok(),
 		// Protocol ID
