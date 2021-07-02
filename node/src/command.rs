@@ -1,6 +1,6 @@
-// This file is part of Substrate framework, modified for BitGreen.
+// This file is part of Substrate.
 
-// Copyright (C) 2017-2021 Parity Technologies (UK) Ltd.
+// Copyright (C) 2017-2020 Parity Technologies (UK) Ltd.
 // SPDX-License-Identifier: Apache-2.0
 
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -19,11 +19,11 @@ use crate::{chain_spec, service};
 use crate::cli::{Cli, Subcommand};
 use sc_cli::{SubstrateCli, RuntimeVersion, Role, ChainSpec};
 use sc_service::PartialComponents;
-use bitg_node_runtime::Block;
-// implementation of the client interface
+use bitg_runtime::Block;
+
 impl SubstrateCli for Cli {
 	fn impl_name() -> String {
-		"BitGreen Node".into()
+		"Bitgreen Chain Node".into()
 	}
 
 	fn impl_version() -> String {
@@ -39,24 +39,19 @@ impl SubstrateCli for Cli {
 	}
 
 	fn support_url() -> String {
-		"support.bitg.org".into()
+		"docs.bitg.org".into()
 	}
 
 	fn copyright_start_year() -> i32 {
 		2021
 	}
-	// we load the different possible chain configurations as specified in chain_specs.rs
+
 	fn load_spec(&self, id: &str) -> Result<Box<dyn sc_service::ChainSpec>, String> {
 		Ok(match id {
-			// load configuration for developement chain, used to test a single node.
-			"dev" => Box::new(chain_spec::development_config()?),			
-			// load configuration for a local testnet with a the least 2 validators (ALICE/BOB)
-			"" | "local" => Box::new(chain_spec::local_testnet_config()?),
-			// load configuration for the public test net
-			"testnet" => Box::new(chain_spec::testnet_config()?),			
-			// load configuration for the main net
-			//"mainnet" => Box::new(chain_spec::testnet_config()?),			
-			// any other chain specified in the command line, we load the received json file path/name
+			"dev" => Box::new(chain_spec::development_config()?),
+			"local" => Box::new(chain_spec::local_testnet_config()?),
+			"testnet" => Box::new(chain_spec::public_testnet_config()?),
+			"mainnet" => Box::new(chain_spec::mainnet_config()?),
 			path => Box::new(chain_spec::ChainSpec::from_json_file(
 				std::path::PathBuf::from(path),
 			)?),
@@ -64,7 +59,7 @@ impl SubstrateCli for Cli {
 	}
 
 	fn native_runtime_version(_: &Box<dyn ChainSpec>) -> &'static RuntimeVersion {
-		&bitg_node_runtime::VERSION
+		&bitg_runtime::VERSION
 	}
 }
 
@@ -74,6 +69,9 @@ pub fn run() -> sc_cli::Result<()> {
 
 	match &cli.subcommand {
 		Some(Subcommand::Key(cmd)) => cmd.run(&cli),
+		Some(Subcommand::Sign(cmd)) => cmd.run(),
+		Some(Subcommand::Verify(cmd)) => cmd.run(),
+		Some(Subcommand::Vanity(cmd)) => cmd.run(),
 		Some(Subcommand::BuildSpec(cmd)) => {
 			let runner = cli.create_runner(cmd)?;
 			runner.sync_run(|config| cmd.run(config.chain_spec, config.network))
