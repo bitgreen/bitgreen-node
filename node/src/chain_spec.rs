@@ -224,7 +224,7 @@ pub fn public_testnet_config() -> Result<ChainSpec, String> {
 		),
 		// Bootnodes
 		vec![
-			"/ip4/95.217.2.2/tcp/30333/p2p/12D3KooWKmFtS7BFtkkKWrP5ZcCpPFokmST2JFXFSsVBNeW5SXWg".parse().unwrap(),
+			"/ip4/95.217.2.2/tcp/30333/p2p/12D3KooWQrG8VAfYs8nXv95XJDu9Yo1iKKQ2KZRJkBVtfxpLvoYe".parse().unwrap(),
 			"/ip4/95.217.4.158/tcp/30333/p2p/12D3KooWKmFtS7BFtkkKWrP5ZcCpPFokmST2JFXFSsVBNeW5SXWg".parse().unwrap(),
 			"/ip4/95.217.1.25/tcp/30333/p2p/12D3KooWKmFtS7BFtkkKWrP5ZcCpPFokmST2JFXFSsVBNeW5SXWg".parse().unwrap()
 			],
