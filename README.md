@@ -65,6 +65,84 @@ Start the development chain with detailed logging:
 ```bash
 RUST_LOG=debug RUST_BACKTRACE=1 ./target/release/bitg-node -lruntime=debug --dev
 ```
+### Testnet Node
+You can run the node as part of the current Testnet:  
+```bash
+./target/release/bitg-node --chain testnet --rpc-cors all
+```
+
+### Secure Web Socket
+
+You might want to host a node on one server and then connect to it from a UI hosted on another. 
+This will not be possible unless you set up a secure proxy for websocket connections. 
+Let's see how we can set up WSS on a remote Bitgreen node.  
+  
+Note: this should only be done for sync nodes used as back-end for some dapps or projects. 
+Never open websockets to your validator node - there's no reason to do that and it can only lead to security issues.  
+  
+In this guide we'll be using Debian 10.   
+We'll assume you're using a similar OS, and that you have nginx installed (if not, run sudo apt-get install nginx).  
+Start the node, for example:  
+```bash
+./target/release/bitg-node --chain testnet --rpc-cors all
+```
+The --rpc-cors mode needs to be set to all so that all external connections are allowed.  
+To get WSS (secure websocket), you need an SSL certificate.  
+Get a dedicated domain, redirect a domain name to your IP address, setting up an Nginx server for that domain, and finally following LetsEncrypt instructions for Nginx setup. 
+This will auto-generate an SSL certificate and include it in your Nginx configuration. 
+Now it's time to tell Nginx to use these certificates. The server block below is all you need, but keep in mind that you need to replace some placeholder values.  
+Notably:  
+SERVER_ADDRESS should be replaced by your domain name if you have it, or your server's IP address if not.  
+CERT_LOCATION should be /etc/letsencrypt/live/YOUR_DOMAIN/fullchain.pem if you used Certbot, or /etc/ssl/certs/nginx-selfsigned.crt if self-signed.  
+CERT_LOCATION_KEY should be /etc/letsencrypt/live/YOUR_DOMAIN/privkey.pem if you used Certbot, or /etc/ssl/private/nginx-selfsigned.key if self-signed.  
+CERT_DHPARAM should be /etc/letsencrypt/ssl-dhparams.pem if you used Certbot, and /etc/ssl/certs/dhparam.pem if self-signed.  
+Note that if you used Certbot, it should have made the path insertions below for you if you followed the official instructions. 
+Here an example of configuration of nginx (/etc/nginx/sites-available/default)
+```
+server {
+
+        server_name SERVER_ADDRESS;
+
+        root /var/www/html;
+        index index.html;
+
+        location / {
+          try_files $uri $uri/ =404;
+
+          proxy_pass http://localhost:9944;
+          proxy_set_header X-Real-IP $remote_addr;
+          proxy_set_header Host $host;
+          proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+
+          proxy_http_version 1.1;
+          proxy_set_header Upgrade $http_upgrade;
+          proxy_set_header Connection "upgrade";
+        }
+
+        listen [::]:443 ssl ipv6only=on;
+        listen 443 ssl;
+        ssl_certificate /etc/letsencrypt/live/testnet.bitg.org/fullchain.pem; # managed by Certbot
+        ssl_certificate_key /etc/letsencrypt/live/testnet.bitg.org/privkey.pem; # managed by Certbot
+        
+        ssl_session_cache shared:cache_nginx_SSL:1m;
+        ssl_session_timeout 1440m;
+
+        ssl_protocols TLSv1 TLSv1.1 TLSv1.2;
+        ssl_prefer_server_ciphers on;
+
+        ssl_ciphers "ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:DHE-RSA-AES128-GCM-SHA256:DHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-AES128-SHA256:ECDHE-RSA-AES128-SHA256:ECDHE-ECDSA-AES128-SHA:ECDHE-RSA-AES256-SHA384:ECDHE-RSA-AES128-SHA:ECDHE-ECDSA-AES256-SHA384:ECDHE-ECDSA-AES256-SHA:ECDHE-RSA-AES256-SHA:DHE-RSA-AES128-SHA256:DHE-RSA-AES128-SHA:DHE-RSA-AES256-SHA256:DHE-RSA-AES256-SHA:ECDHE-ECDSA-DES-CBC3-SHA:ECDHE-RSA-DES-CBC3-SHA:EDH-RSA-DES-CBC3-SHA:AES128-GCM-SHA256:AES256-GCM-SHA384:AES128-SHA256:AES256-SHA256:AES128-SHA:AES256-SHA:DES-CBC3-SHA:!DSS";
+        ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem; # managed by Certbot
+}
+```
+
+## Firewall Configuration
+
+For a Bitgreen Node you should open the ports: 9933/TCP and 9934/TCP.  
+If you want to reach the secure websocket, you should open 443/TCP.
+A validator should not expose the RPC interface to the public.  
+Here an example of a [firewall configuration](rpc/firewall.sh) for a Linux/Debian 10.
+
+
 ## Accounts  
 ### Address Format  
 The address format used  is SS58. SS58 is a modification of Base-58-check from Bitcoin with some minor modifications. 
@@ -145,7 +223,9 @@ testnode.bitg.org
 using the web app hosted here:    
 [https://polkadot.js.org/apps](https://polkadot.js.org/apps)  
 To configure, click on the top left menu option and set the "Custom Node" field with 'wss://testnode.bitg.org'  
-(Attention: Safari browser does not work with this app)
+You may get and error about "Not recognised data types".  
+Click on "Settings","Developer" and copy/paste the [data types of this blockchain](assets/types.json).  
+
 
 ## Development Libraries
 
