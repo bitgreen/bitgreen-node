@@ -171,7 +171,7 @@ pub fn public_testnet_config() -> Result<ChainSpec, String> {
 	let wasm_binary = WASM_BINARY.ok_or_else(|| "WASM binary not available".to_string())?;
 	Ok(ChainSpec::from_genesis(
 		// Name
-		"Bitg Testnet",
+		"Bitgreen Testnet",
 		// ID
 		"bitg_testnet",
 		ChainType::Live,
