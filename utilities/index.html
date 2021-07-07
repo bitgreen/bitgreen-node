@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.0-beta1/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-giJF6kkoqNQ00vy+HMDP7azOuL0xtbfIcaT9wjKHr8RbDVddVHyTfAAsrekwKmP1" crossorigin="anonymous">
+    <title>BITG Minting for Testnet</title>
+  </head>
+  <body>
+    <div class="container">
+        <div class="row"><div class="col-mm"> </div><div class="col-mm">
+        <a class="navbar-brand" href="#"><img src="/logo"></a>  
+        <form class="row g-3 needs-validation" action="/mint" method="post"  novalidate>
+            <p><h1>BITG for Testnet</h1><br>Please insert an account created on TESTNET, we will add 100 BITG to your balance for your testings. Please be aware that these BITG have no value.</p>
+            <label for="account" class="form-label">Account Code</label>
+                <div class="input-group-description has-validation">
+                  <input type="text" class="form-control" id="account" name="Account" required>
+                  <div class="invalid-feedback">
+                    Please insert a valid account
+                  </div>
+                </div>
+                <div id="errorMsgInputForm" class="text-danger"></div>
+                <div class="modal-footer">
+                  <button type="submit" class="btn btn-primary">Submit</button>
+                </div>
+        </form>
+        </div>
+        <div class="col-sm"> </div>
+        </div>
+
+    </div>
+  </body>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.0-beta1/dist/js/bootstrap.bundle.min.js" integrity="sha384-ygbV9kiqUc6oa4msXn9868pTtWMgiQaeYH7/t7LECLbyPA2x65Kgf80OJFdroafW" crossorigin="anonymous"></script>
+  
