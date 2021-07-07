@@ -68,8 +68,11 @@ RUST_LOG=debug RUST_BACKTRACE=1 ./target/release/bitg-node -lruntime=debug --dev
 ### Testnet Node
 You can run the node as part of the current Testnet:  
 ```bash
-./target/release/bitg-node --chain testnet --rpc-cors all
+./target/release/bitg-node --chain assets/chain_spec_testnet_raw.json --port 30333 --name yourpreferredname --rpc-cors all
 ```
+Please consider:
+1) TESTNET can be reset to the genesis anytime; 
+2) the BITG on TESTNET has no value, they are just for testings.  
 
 ### Secure Web Socket
 
