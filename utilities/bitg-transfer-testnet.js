@@ -7,14 +7,17 @@ const https = require("https");
 let fs = require('fs');
 const { ApiPromise, WsProvider } = require('@polkadot/api');
 const { Keyring } = require('@polkadot/keyring');
+const { decodeAddress, encodeAddress } = require('@polkadot/keyring');
+const { hexToU8a, isHex } = require('@polkadot/util');
 
 
 //***************************************************************************************************
 // customization section - you can change the following constants upon your preferences
-const SECRETSEED="join upgrade peasant must quantum verify beyond bullet velvet machine false replace"; // this is an example, set your account of origin
+// this is the secret seed of the user you sendinf the funds from
+const SECRETSEED=""; // for example "join upgrade peasant must quantum verify beyond bullet velvet machine false replace"
 // end customizaton section
 //***************************************************************************************************
-console.log("[Info] - BITG for TESNET - ver. 1.00 - Starting");
+console.log("[Info] - BITG for TESNET - ver. 1.01 - Starting");
 // execute main loop as async function because of "await" requirements that cannot be execute from the main body
 mainloop();
 async function mainloop(){
@@ -30,7 +33,14 @@ async function mainloop(){
     app.post('/mint',async function(req, res) {
         console.log(req.body);
         account=req.body.Account;
+        let va= await isValidAccountAddress(account);
+        if (va===false){
+            let w=read_file("wrongaccount.html");
+            res.send(w);
+            return;
+        }
         console.log("[Info] Transferring 10 BITG for ",account);
+        
         // generate key pair from Seed
         const keyring = new Keyring({ type: 'sr25519', ss58Format: 42 });
         const keyspair = keyring.createFromUri(SECRETSEED, { name: 'sr25519' });
@@ -307,8 +317,8 @@ console.log("[info] - listening for connections on port TCP/3000...");
 let server=app.listen(3000,function() {});
 // loading certificate/key
 const options = {
-    key: fs.readFileSync("localhost.key"),
-    cert: fs.readFileSync("localhost.crt")
+    key: fs.readFileSync("/etc/letsencrypt/live/testnet.bitg.org/privkey.pem"),
+    cert: fs.readFileSync("/etc/letsencrypt/live/testnet.bitg.org/fullchain.pem")
 };
 // Https listening on port 8443 -> proxy to 3000
 https.createServer(options, app).listen(8443);
@@ -325,4 +335,18 @@ function read_file(name){
         console.error(err);
         return(undefined);
       }
+}
+// function to check validity of an account address
+function isValidAccountAddress(address){
+  try {
+    encodeAddress(
+      isHex(address)
+        ? hexToU8a(address)
+        : decodeAddress(address)
+    );
+
+    return true;
+  } catch (error) {
+    return false;
+  }
 }
