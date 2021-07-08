@@ -78,8 +78,18 @@ Please consider:
 You can setup a validator on testnet. A validator is a node that writes the blocks of data and rewards in BITG.  
 Please follow [this guide](doc/validator.md).   
 
-### Secure Web Socket
 
+### How to get BITG for Testnet
+You can get 100 free BITG on Testnet using our free minter available at:  
+[https://testnet.bitg.org:8443](https://testnet.bitg.org:8443)  
+
+
+### Bugs Reporting
+For bug reporting, please open an issue on our Git Repo:  
+[https://github.com/bitgreen/bitg-node/issues](https://github.com/bitgreen/bitg-node/issues)  
+  
+
+### Secure Web Socket
 You might want to host a node on one server and then connect to it from a UI hosted on another. 
 This will not be possible unless you set up a secure proxy for websocket connections. 
 Let's see how we can set up WSS on a remote Bitgreen node.  
