@@ -13,11 +13,10 @@ const { hexToU8a, isHex } = require('@polkadot/util');
 
 //***************************************************************************************************
 // customization section - you can change the following constants upon your preferences
-// this is the secret seed of the user you sendinf the funds from
 const SECRETSEED=""; // for example "join upgrade peasant must quantum verify beyond bullet velvet machine false replace"
 // end customizaton section
 //***************************************************************************************************
-console.log("[Info] - BITG for TESNET - ver. 1.01 - Starting");
+console.log("[Info] - BITG for TESNET - ver. 1.00 - Starting");
 // execute main loop as async function because of "await" requirements that cannot be execute from the main body
 mainloop();
 async function mainloop(){
@@ -278,26 +277,31 @@ async function mainloop(){
             }
         });
         console.log("[INFO] Connected to Bitgreen Node with genesis: ",api.genesisHash.toHex())
-        api.tx.balances
+        //make transfer
+            api.tx.balances
             .transfer(account, BigInt(100000000000000000000))
             .signAndSend(keyspair, ({ status, events, dispatchError }) => {
-                // status would still be set, but in the case of error we can shortcut
-                // to just check it (so an error would indicate InBlock or Finalized)
-                if (dispatchError) {
-                if (dispatchError.isModule) {
-                    // for module errors, we have the section indexed, lookup
-                    const decoded = api.registry.findMetaError(dispatchError.asModule);
-                    const { documentation, name, section } = decoded;
-
-                    console.log(`${section}.${name}: ${documentation.join(' ')}`);
-                } else {
-                    // Other, CannotLookup, BadOrigin, no extra info
-                    console.log(dispatchError.toString());
+                try {
+                    // status would still be set, but in the case of error we can shortcut
+                    // to just check it (so an error would indicate InBlock or Finalized)
+                    if (dispatchError) {
+                    if (dispatchError.isModule) {
+                        // for module errors, we have the section indexed, lookup
+                        const decoded = api.registry.findMetaError(dispatchError.asModule);
+                        const { documentation, name, section } = decoded;
+                        console.log(`${section}.${name}: ${documentation.join(' ')}`);
+                    } else {
+                        // Other, CannotLookup, BadOrigin, no extra info
+                        console.log(dispatchError.toString());
+                    }
+                    }
+                } catch{
+                    console.log("[Error] Too many transactions in short time");
                 }
-                }
+                    
             });
-        let v=read_file("confirmation.html");
-        res.send(v);
+            let v=read_file("confirmation.html");
+            res.send(v);
     });
     // logo.png output
     app.route('/logo').get(function(req,res)
