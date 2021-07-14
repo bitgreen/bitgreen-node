@@ -1,10 +1,12 @@
 # BitGreen - Example to sign and verify a message using a SECP256K1 private key
 # to install the required libraries:
 # pip install substrate-interface
+# pip install base58
 # the "ellipticcurve package is a fork of:"
 # https://github.com/starkbank/ecdsa-python
 # with a few changes for Bitgreen usage
 # https://github.com/polkascan/py-substrate-interface
+
 
 # system packages
 import sys
@@ -18,6 +20,12 @@ from substrateinterface import SubstrateInterface, Keypair
 from substrateinterface.exceptions import SubstrateRequestException
 # base64 encoder/decoder
 import base64
+# base58 encoder/decoder
+import base58
+# import binary utility
+from ellipticcurve.utils.binary import BinaryAscii
+
+
 
 
 # Generate privateKey from PEM string
@@ -36,17 +44,26 @@ import base64
 # you can create the private key from and encoded key in Base64, by calling "PrivateKey.fromBase64()"
 # define example accounts that will be the body of the message
 
-bytesPrivatekey=base64.b64decode("7qdnjLy7dcESfsLgdNMm26vtueVZX4Q9Y7AkDBJ5Gvm3z8bgpa7k")
-privateKey = PrivateKey.fromString(bytesPrivatekey)
+bytesPrivatekey=base58.b58decode_check("7qdnjLy7dcESfsLgdNMm26vtueVZX4Q9Y7AkDBJ5Gvm3z8bgpa7k")
+print("[INFO] FULL Private Key in hex: "+bytesPrivatekey.hex())
+bl=len(bytesPrivatekey)
+privateKey = PrivateKey.fromString(bytesPrivatekey[1:bl-1])
+bytesPrivatekeyhex = bytesPrivatekey[1:bl-1].hex()
+print("[INFO] Private Key in hex: "+bytesPrivatekeyhex)
+
+# compute public key from private key
+publicKey = privateKey.publicKey()
+pks=publicKey.toString()
+print("[INFO] Public Key binary (string) lenght: ",len(pks))
+pkba=[ord(c) for c in pks]
+print("[INFO] Public Key as ascii array: ",pkba, "len:",len(pkba))
+pkb=bytes(pkba)
+print("[INFO] Public Key in hex: ",pkb.hex(), "len:",len(pkb))
 
 bitgreenaccount="GQ2htcEUSahvYp49vWwfnrgTDk8dbQ724d"
 print("[INFO] Signing a message")
 # generate the signature
 signature = Ecdsa.sign(bitgreenaccount, privateKey)
-
-print("[INFO] Computing the public key from private key")
-# compute public key from private key
-publicKey = privateKey.publicKey()
 
 # show results on console
 print("Signature: "+signature.toBase64())
@@ -59,7 +76,7 @@ for c in pk:
     ba.append(ord(c))
 pkbase64b=base64.b64encode(ba)
 pkbase64=pkbase64b.decode("ascii")
-print("Public Key: ",pkbase64)
+print("Public Key Base64: ",pkbase64)
 
 # verify the signature
 print("[INFO] Signature verification result: ",Ecdsa.verify(bitgreenaccount, signature, publicKey))
