@@ -10,6 +10,8 @@
 
 # system packages
 import sys
+import os
+import json
 #add local path for packages
 sys.path.append(".")
 # Ecsda module
@@ -24,8 +26,16 @@ import base64
 import base58
 # import binary utility
 from ellipticcurve.utils.binary import BinaryAscii
+#import scale library to load data types
+import scalecodec
 
+# function to load data types registry
+def load_type_registry_file(file_path: str) -> dict:
 
+    with open(os.path.abspath(file_path), 'r') as fp:
+        data = fp.read()
+
+    return json.loads(data)
 
 
 # Generate privateKey from PEM string
@@ -80,19 +90,25 @@ print("Public Key Base64: ",pkbase64)
 
 # verify the signature
 print("[INFO] Signature verification result: ",Ecdsa.verify(bitgreenaccount, signature, publicKey))
-sys.exit()
+
+# load custom data types
+custom_type_registry = load_type_registry_file("../assets/types.json")
+
 # define connection parameters
 substrate = SubstrateInterface(
     url="wss://testnode.bitg.org",
     #url="ws://127.0.0.1:9944",
     ss58_format=42,
-    type_registry_preset='substrate-node-template'
+    type_registry_preset='default',
+    type_registry=custom_type_registry
+
 )
 # create Substrate Key pair from secret seed
 secretseed='episode together nose spoon dose oil faculty zoo ankle evoke admit walnut';  # better to use 24 words!
 keypair = Keypair.create_from_mnemonic(secretseed)
-print("Address of BitGreen Account: ",keypair.ss58_address)
 #keypair = Keypair.create_from_uri('//Alice')
+print("Address of BitGreen Account: ",keypair.ss58_address)
+
 
 # create call object
 print("[INFO] Creating Extrinsic call")
