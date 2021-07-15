@@ -135,11 +135,19 @@ fn verify_signature_ecdsa_address(oldaddress:Vec<u8>,signature:Vec<u8>,publickey
     // encoding public key in secp256k1::Publickey
     let publickeyb=&decode(publickey).unwrap();
     let mut publickeybin: [u8;64]=[0;64];
+    let mut publickeybinx: [u8;32]=[0;32];
+    let mut publickeybiny: [u8;32]=[0;32];
     let mut x=0;
     for b in publickeyb { 
         publickeybin[x]=*b;
+        if x<32 {
+            publickeybinx[x]=*b;
+        }
+        if x>=32{
+            publickeybiny[x-32]=*b;
+        }
         x=x+1;
-        if x>63{
+        if x>=64{
             break;
         }
     }
@@ -157,8 +165,17 @@ fn verify_signature_ecdsa_address(oldaddress:Vec<u8>,signature:Vec<u8>,publickey
 	}
 	// verify that the address matches the public key
 	let mut hashera = Sha256::new();
+    // compute the prefix
+    let mut prefixpk: [u8;1]=[2;1];
+    if publickeybiny[31] % 2 == 0
+    {
+        prefixpk[0]=2;
+    } else {
+        prefixpk[0]=3;
+    }
     // write the vector message to sha256 object
-    hashera.update(publickeybin);
+    hashera.update(&prefixpk); // add 0x04 on top
+    hashera.update(publickeybinx);
     // get sha256 result
     let hasha = hashera.finalize().to_vec();    
     // apply RIPEMD160 to the previous hash
@@ -184,8 +201,8 @@ fn verify_signature_ecdsa_address(oldaddress:Vec<u8>,signature:Vec<u8>,publickey
     //add first 4 bytes of the second hash to the buffer
     buffer.push(hash2[0]);
     buffer.push(hash2[1]);
+    buffer.push(hash2[2]);
     buffer.push(hash2[3]);
-    buffer.push(hash2[4]);
 	// check if the address computed is equal to the signed address
 	let bs58 = bs58::encode(buffer).into_vec();
 	if bs58 == oldaddress {
@@ -193,7 +210,6 @@ fn verify_signature_ecdsa_address(oldaddress:Vec<u8>,signature:Vec<u8>,publickey
 	} else {
 		return false;
 	}
-	
 }
 
 

@@ -12,12 +12,8 @@ class Ecdsa:
     def sign(cls, message, privateKey, hashfunc=sha256):
         hashMessage = hashfunc(toBytes(message)).digest()
         v=hashfunc(toBytes(message)).hexdigest()
-        print("v: ",v,len(v))
         numberMessage = BinaryAscii.numberFromString(hashMessage)
-        #print("numberMessage:",numberMessage)
-
         curve = privateKey.curve
-
         r, s, randSignPoint = 0, 0, None
         while r == 0 or s == 0:
             randNum = RandomInteger.between(1, curve.N - 1)

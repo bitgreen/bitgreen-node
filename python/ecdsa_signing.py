@@ -44,7 +44,7 @@ from ellipticcurve.utils.binary import BinaryAscii
 # you can create the private key from and encoded key in Base64, by calling "PrivateKey.fromBase64()"
 # define example accounts that will be the body of the message
 
-bytesPrivatekey=base58.b58decode_check("7qdnjLy7dcESfsLgdNMm26vtueVZX4Q9Y7AkDBJ5Gvm3z8bgpa7k")
+bytesPrivatekey=base58.b58decode_check("7vG9qnC7QnG77qAvptaiXHfkrXwH4nkgx6NPoG95JFPVbqkot9gM")
 print("[INFO] FULL Private Key in hex: "+bytesPrivatekey.hex())
 bl=len(bytesPrivatekey)
 privateKey = PrivateKey.fromString(bytesPrivatekey[1:bl-1])
@@ -60,7 +60,7 @@ print("[INFO] Public Key as ascii array: ",pkba, "len:",len(pkba))
 pkb=bytes(pkba)
 print("[INFO] Public Key in hex: ",pkb.hex(), "len:",len(pkb))
 
-bitgreenaccount="GQ2htcEUSahvYp49vWwfnrgTDk8dbQ724d"
+bitgreenaccount="GR8x2NLn5fEPbbJW29EHuVjcCvE3dEhyu8"
 print("[INFO] Signing a message")
 # generate the signature
 signature = Ecdsa.sign(bitgreenaccount, privateKey)
@@ -80,7 +80,7 @@ print("Public Key Base64: ",pkbase64)
 
 # verify the signature
 print("[INFO] Signature verification result: ",Ecdsa.verify(bitgreenaccount, signature, publicKey))
-
+sys.exit()
 # define connection parameters
 substrate = SubstrateInterface(
     url="wss://testnode.bitg.org",
