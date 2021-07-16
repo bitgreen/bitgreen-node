@@ -83,9 +83,9 @@ decl_module! {
 		}
 		/// Claim a deposit from the old blockchain (no gas fees are charged to allow a claim a deposit having 0 balance)
         #[weight = (1000, Pays::No)]
-		pub fn claim_deposit(origin, oldaddress: Vec<u8>,oldpublickey: Vec<u8>,signature: Vec<u8>) -> dispatch::DispatchResult {
+		pub fn claim_deposit(origin, oldaddress: Vec<u8>,oldpublickey: Vec<u8>,signature: Vec<u8>, recipient:T::AccountId) -> dispatch::DispatchResult {
 			// check the request is signed 
-			let sender = ensure_signed(origin)?;
+			let _sender = ensure_signed(origin)?;
 			//check old address length
 			ensure!(oldaddress.len() == 34, Error::<T>::WrongAddressLength); 
 			//check public key length
@@ -100,10 +100,11 @@ decl_module! {
 				None => 0,
 			};
 			ensure!(deposit>0,Error::<T>::DepositCannotBeZero);
+            
 			// mint deposit in the new chain
-			let _result = T::Currency::deposit_into_existing(&sender, deposit.into()).unwrap();
+			let _result = T::Currency::deposit_into_existing(&recipient, deposit.into()).unwrap();
 			// Generate event
-			Self::deposit_event(RawEvent::DepositClaimAccepted(sender,oldaddress));
+			Self::deposit_event(RawEvent::DepositClaimAccepted(recipient,oldaddress));
 			// Return a successful DispatchResult
 			Ok(())
 		}
