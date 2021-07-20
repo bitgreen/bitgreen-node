@@ -321,17 +321,16 @@ async function mainloop(){
     });
     
 // listening to server port
-console.log("[info] - listening for connections on port TCP/3001...");
+console.log("[info] - listening for connections on port TCP/3001 and TLS/8443...");
 let server=app.listen(3001,function() {});
-/*
+
 // loading certificate/key
 const options = {
-    key: fs.readFileSync("/etc/letsencrypt/live/testnet.bitg.org/privkey.pem"),
-    cert: fs.readFileSync("/etc/letsencrypt/live/testnet.bitg.org/fullchain.pem")
+    key: fs.readFileSync("/etc/letsencrypt/live/testnode.bitg.org/privkey.pem"),
+    cert: fs.readFileSync("/etc/letsencrypt/live/testnode.bitg.org/fullchain.pem")
 };
 // Https listening on port 8443 -> proxy to 3000
 https.createServer(options, app).listen(8443);
-*/
 }
 
 //function to return content of a file name
