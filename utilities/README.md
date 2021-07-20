@@ -37,7 +37,6 @@ This programs is an https server that can be used to submit a claim to transfer 
 ```bash
 npm install express
 npm install readfile
-npm install requests
 yarn add @polkadot/keyring
 yarn add @polkadot/api
 ```

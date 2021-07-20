@@ -3,6 +3,7 @@
 # to install the required libraries:
 # pip install substrate-interface
 # pip install base58
+# pip install requests
 # the "ellipticcurve package is a fork of:"
 # https://github.com/starkbank/ecdsa-python
 # with a few changes for Bitgreen usage
