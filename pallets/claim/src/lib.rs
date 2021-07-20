@@ -21,21 +21,22 @@ mod tests;
 pub trait Config: frame_system::Config + Sized {
 	type Event: From<Event<Self>> + Into<<Self as frame_system::Config>::Event>;
 	type Currency: Currency<Self::AccountId>;
-
 }
+pub type Balance = u128;
+
 
 // The runtime storage items
 decl_storage! {
 	trait Store for Module<T: Config> as bitgclaim {
 		// we use a safe crypto hashing with blake2_128
 		// Keeps the address of the previous blockchain and the balance at the swapping block number
-		Balance get(fn get_balance): map hasher(blake2_128_concat) Vec<u8> => Option<u32>;
+		BalanceClaim get(fn get_balance): map hasher(blake2_128_concat) Vec<u8> => Option<Balance>;
 	}
 }
 // We generate events to inform the users of succesfully actions.
 decl_event!(
 	pub enum Event<T> where AccountId = <T as frame_system::Config>::AccountId {
-		DepositClaimAccepted(AccountId,Vec<u8>),
+		DepositClaimAccepted(AccountId,Vec<u8>,Balance),
 	}
 );
 
@@ -66,7 +67,7 @@ decl_module! {
 		fn deposit_event() = default;
 		/// Store a new deposit, used for the genesis of the blockchain (no gas fees are charged because it's part of the genesis)
         #[weight = (1000, Pays::No)]
-		pub fn new_deposit(origin, address: Vec<u8>, deposit: u32) -> dispatch::DispatchResult {
+		pub fn new_deposit(origin, address: Vec<u8>, deposit: Balance) -> dispatch::DispatchResult {
 			// check the request is signed from Super User only
 			let _sender = ensure_root(origin)?;
 			//check address length
@@ -74,14 +75,14 @@ decl_module! {
 			// check the balance is > 0
 			ensure!(deposit > 0, Error::<T>::DepositCannotBeZero); 
 			// check that the address is not already present
-			ensure!(Balance::contains_key(&address)==false, Error::<T>::DuplicatedAddress);
+			ensure!(BalanceClaim::contains_key(&address)==false, Error::<T>::DuplicatedAddress);
 			// Update deposit
-			Balance::insert(address,deposit);
+			BalanceClaim::insert(address,deposit);
 			// we do not emit events for this call because this call is used at the Genesis only.
 			// Return a successful DispatchResult
 			Ok(())
 		}
-		/// Claim a deposit from the old blockchain (no gas fees are charged to allow a claim a deposit having 0 balance)
+		/// Claim a deposit from the old blockchain (no gas fees are charged to allow the usage of "proxy" account with minimum balance)
         #[weight = (1000, Pays::No)]
 		pub fn claim_deposit(origin, oldaddress: Vec<u8>,oldpublickey: Vec<u8>,signature: Vec<u8>, recipient:T::AccountId) -> dispatch::DispatchResult {
 			// check the request is signed 
@@ -91,20 +92,20 @@ decl_module! {
 			//check public key length
 			ensure!(oldpublickey.len() >= 64, Error::<T>::WrongPublicKeyLength); 
 			// check that the old address is already present in the chain
-			ensure!(Balance::contains_key(&oldaddress)==true, Error::<T>::OldAddressNotfound);
+			ensure!(BalanceClaim::contains_key(&oldaddress)==true, Error::<T>::OldAddressNotfound);
 			// check signature from oldchain
 			ensure!(verify_signature_ecdsa_address(oldaddress.clone(),signature.clone(),oldpublickey.clone())==true,Error::<T>::WrongSignature);
 			// get amount of the deposit and burn it, in case of error we set 0
-			let deposit= match Balance::take(&oldaddress){
+			let deposit:Balance = match BalanceClaim::take(&oldaddress){
 				Some(d) => d,
 				None => 0,
 			};
 			ensure!(deposit>0,Error::<T>::DepositCannotBeZero);
             
-			// mint deposit in the new chain
-			let _result = T::Currency::deposit_into_existing(&recipient, deposit.into()).unwrap();
+			// mint deposit in the new chain (it creates the account if it's not on chain)
+			let _result = T::Currency::deposit_creating(&recipient, (deposit as u32).into());
 			// Generate event
-			Self::deposit_event(RawEvent::DepositClaimAccepted(recipient,oldaddress));
+			Self::deposit_event(RawEvent::DepositClaimAccepted(recipient,oldaddress,deposit));
 			// Return a successful DispatchResult
 			Ok(())
 		}

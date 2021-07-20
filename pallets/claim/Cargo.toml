@@ -14,9 +14,10 @@ targets = ['x86_64-unknown-linux-gnu']
 # alias "parity-scale-code" to "codec"
 [dependencies.codec]
 default-features = false
-features = ['derive']
+features = ['derive','max-encoded-len']
 package = 'parity-scale-codec'
-version = '2.0.0'
+version = '2.2.0'
+
 
 [dependencies]
 frame-support = { default-features = false, version = '3.0.0' }
