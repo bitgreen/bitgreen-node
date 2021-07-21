@@ -97,6 +97,9 @@ orml-authority = { path = "../orml/authority", default-features = false }
 orml-benchmarking = { path = "../orml/benchmarking", default-features = false, optional = true }
 module-currencies = { path = "../modules/currencies", default-features = false }
 
+# ERC 20 tokens
+pallet-assets = { version = "3.0.0", default-features = false }
+
 # Ethereum Virtual Machine
 module-evm = { path = "../modules/evm", default-features = false }
 module-evm-accounts = { path = "../modules/evm-accounts", default-features = false }

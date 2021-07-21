@@ -427,7 +427,29 @@ impl pallet_grandpa::Config for Runtime {
 		pallet_grandpa::EquivocationHandler<Self::KeyOwnerIdentification, Offences, ReportLongevity>;
 	type WeightInfo = ();
 }
-
+// pallet Assets - ERC20
+// Asset pallet
+parameter_types! {
+	pub const ASSETDEPOSITBASE: Balance = 1 * DOLLARS;
+	pub const ASSETDEPOSITPERZOMBIE: Balance = 1 * DOLLARS;
+	pub const STRINGLIMIT: u32 = 8192;	// max metadata size in bytes
+	pub const METADATADEPOSITBASE: Balance= 1 * DOLLARS; 
+	pub const METADATADEPOSITPERBYTE: Balance = 1 * CENTS;
+}
+impl pallet_assets::Config for Runtime {
+	type Event = Event;
+	type Balance = u128;
+	type AssetId = u32;
+	type Currency = Balances;
+	type ForceOrigin = EnsureRoot<AccountId>;
+	type AssetDepositBase = ASSETDEPOSITBASE;
+	type AssetDepositPerZombie = ASSETDEPOSITPERZOMBIE;
+	type StringLimit= STRINGLIMIT;
+	type MetadataDepositBase = METADATADEPOSITBASE;
+	type MetadataDepositPerByte = METADATADEPOSITPERBYTE;
+	type WeightInfo = (); //pallet_assets::weights::SubstrateWeight<Self>;
+}
+//end asset pallet
 parameter_types! {
 	pub const MinimumPeriod: u64 = SLOT_DURATION / 2;
 }
@@ -914,7 +936,9 @@ construct_runtime!(
 		// Nft Pallet
 		Nft: orml_nft::{Module, Call, Storage, Config<T>}= 65,
 		// !INK Smart Contracts
-		Contracts: pallet_contracts::{Module, Call, Config<T>, Storage, Event<T>}= 70,
+		Contracts: pallet_contracts::{Module, Call, Config<T>, Storage, Event<T>} = 70,
+		//Assets - ERC20 Tokens
+		Assets: pallet_assets::{Module, Call, Storage, Event<T>} = 71,
 
 	}
 );
