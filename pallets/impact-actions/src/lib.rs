@@ -2,7 +2,7 @@
 
 /// Module to manage the impact actions on BitGreen Blockchain
 
-use frame_support::{decl_module, decl_storage, decl_event, decl_error, dispatch, ensure, weights::Pays, traits::Currency};
+use frame_support::{decl_module, decl_storage, decl_event, decl_error, dispatch, ensure, traits::Currency};
 use frame_system::{ensure_root,ensure_signed};
 use sp_std::prelude::*;
 use core::str;
@@ -24,23 +24,37 @@ pub type Balance = u128;
 
 // The runtime storage items
 decl_storage! {
-	trait Store for Module<T: Config> as bitgclaim {
+	trait Store for Module<T: Config> as impactactions {
 		// we use a safe crypto hashing with blake2_128
 		// We store the impact actions configuration 
 		ImpactActions get(fn get_impactaction): map hasher(blake2_128_concat) u32 => Option<Vec<u8>>;
         // Categories for impact actions
-        ImpactActionsCategories get(fn get_categories_impactactions): map hasher(blake2_128_concat) u32 => Option<Vec<u8>>;
-        // Auditor configuration
-        ImpactActionsAuditors get(fn get_auditors_impactaction): map hasher(blake2_128_concat) u32 => Option<Vec<u8>>;
+        ImpactActionsCategories get(fn get_category): map hasher(blake2_128_concat) u32 => Option<Vec<u8>>;
+        // Auditor Configuration
+        ImpactActionsAuditors get(fn get_auditor): map hasher(blake2_128_concat) u32 => Option<Vec<u8>>;
+        // Auditor Configuration
+        ImpactActionsOracles get(fn get_oracle): map hasher(blake2_128_concat) u32 => Option<Vec<u8>>;
+        // Impact Action Submission
+        ImpactActionsSubmissions get(fn get_approval_request): map hasher(blake2_128_concat) u32 => Option<Vec<u8>>;
+        // Proxy Account for assigning auditors
+        ImpactActionsProxy get(fn get_proxy_account): map hasher(blake2_128_concat) u32 => Option<T::AccountId>;
 	}
 }
-
-
 
 // We generate events to inform the users of succesfully actions.
 decl_event!(
 	pub enum Event<T> where AccountId = <T as frame_system::Config>::AccountId {
-	    ImpactActionCreated(AccountId,u32),
+	    ImpactActionCreated(u32,Vec<u8>),               // New Impact Action configuration has been created
+        ImpactActionDestroyed(u32),                     // Impact action configuration has been removed
+        ImpactActionProxyCreated(u32),                  // Proxy account created
+        ImpactActionProxyDestroyed(u32),                // Proxy account removed
+        ImpactActionRequestApproval(AccountId,u32),     // Impact action approval request
+        ImpactActionCategoryCreated(u32,Vec<u8>),       // A new category has been created
+        ImpactActionCategoryDestroyed(u32),             // A category has been removed
+        ImpactActionAuditorCreated(u32,Vec<u8>),        // A new auditor has been created
+        ImpactActionAuditorDestroyed(u32),              // An auditor has been removed
+        ImpactActionOracleCreated(u32,Vec<u8>),         // A new oracle has been added
+        ImpactActionOracleDestroyed(u32),               // An oracle has been removed
 	}
 );
 
@@ -99,10 +113,28 @@ decl_error! {
         TooShortArea,
         /// area field is too long
         TooLongArea,
-        // Minimum Stakes must be >=0
+        /// Minimum Stakes must be >=0
         InvalidStakesMinimum,
-        // Other info is too long, it must be < 1024
+        /// Other info is too long, it must be < 1024
         TooLongOtherInfo,
+        /// Too short info field
+        TooShortInfo,
+        /// Too long info field
+        TooLongInfo,
+        /// Approval already present for the same id
+        ImpactActionSubmissionDuplicated,
+        /// The auditor id cannot be found
+        AuditorImpactActionNotFound,
+        /// Oracle account is not valid it should be long 48 bytes
+        OracleAccountNotValid,
+        /// Other info missing
+        OtherInfoMissing,
+        /// Oracle Impact action found
+        OracleImpactActionNotFound,
+        /// Proxy id is already present, remove it before to create again.
+        DuplicatedProxyId,
+        /// Proxy account not found
+        ProxyAccountNotFound,
 	}
 }
 
@@ -113,7 +145,7 @@ decl_module! {
 		type Error = Error<T>;
 		// Events must be initialized
 		fn deposit_event() = default;
-		/// Create a new impact action
+		/// Create a new impact action configuration
         #[weight = 1000]
 		pub fn create_impact_action(origin, uid: u32, configuration: Vec<u8>) -> dispatch::DispatchResult {
 			// check the request is signed from Super User
@@ -139,7 +171,7 @@ decl_module! {
             ensure!(categories.len() >= 3, Error::<T>::TooShortCategories); //check minimum length for the categories
             ensure!(categories.len() <=256, Error::<T>::TooLongCategories); //check maximum length for the categories
             // TODO - Add control on state of categories received that must be present
-            // check categories
+            // check auditors
             let jsa=configuration.clone();
             let auditors=json_get_value(jsa,"auditors".as_bytes().to_vec());
             ensure!(auditors.len() >= 2, Error::<T>::TooShortAuditors); //check minimum length for the auditors (can be empty with [])
@@ -251,9 +283,9 @@ decl_module! {
             ensure!(maxerrorsauditorvalue > 0, Error::<T>::InvalidMaxErrorsAuditor); //check max errors for auditors before to be revoked, that must be > 0
 
 			// Update deposit
-			ImpactActions::insert(uid,configuration);
+			ImpactActions::insert(uid,configuration.clone());
             // Generate event
-			//Self::deposit_event(RawEvent::ImpactActionCreated(sender,uid));
+			Self::deposit_event(RawEvent::ImpactActionCreated(uid,configuration));
 			// Return a successful DispatchResult
 			Ok(())
 		}
@@ -268,10 +300,49 @@ decl_module! {
 			ImpactActions::take(uid);
             // Generate event
             //TODO: verify it's not leaving orphans, in case deny
-			//Self::deposit_event(RawEvent::ImpactActionCreated(sender,uid));
+			Self::deposit_event(RawEvent::ImpactActionDestroyed(uid));
 			// Return a successful DispatchResult
 			Ok(())
 		}
+        /// Submit an approval request for an impact action
+        #[weight = 10000]
+		pub fn request_approval(origin, uid: u32, info: Vec<u8>) -> dispatch::DispatchResult {
+			// check the request is signed from Super User
+			let sender = ensure_signed(origin)?;
+			//check info length
+			ensure!(info.len()< 4, Error::<T>::TooShortInfo); 
+            ensure!(info.len()> 1024, Error::<T>::TooLongInfo); 
+			// check the id is > 0
+			ensure!(uid > 0, Error::<T>::UidCannotBeZero); 
+			// check json validity
+			let js=info.clone();
+			ensure!(json_check_validity(js),Error::<T>::InvalidJson);
+            // check impact action id
+            let jsi=info.clone();
+            let impactactionid=json_get_value(jsi,"impactactionid".as_bytes().to_vec());
+            let impactactionid_slice=impactactionid.as_slice();
+            let impactactionid_str=match str::from_utf8(&impactactionid_slice){
+                Ok(f) => f,
+                Err(_) => "0"
+            };
+            let impactactionidvalue:u32 = match u32::from_str(impactactionid_str){
+                Ok(f) => f,
+                Err(_) => 0,
+            };
+            // check that the impactactionid is present
+            ensure!(ImpactActions::contains_key(&impactactionidvalue)==true, Error::<T>::ImpactActionNotFound);
+            
+            // check that the uid is not already present
+			ensure!(ImpactActionsSubmissions::contains_key(&uid)==false, Error::<T>::ImpactActionSubmissionDuplicated);
+
+			// Insert approval request
+			ImpactActionsSubmissions::insert(uid,info);
+            // Generate event
+			Self::deposit_event(RawEvent::ImpactActionRequestApproval(sender,uid));
+			// Return a successful DispatchResult
+			Ok(())
+		}
+        
         /// Create a new category of impact actions
         #[weight = 1000]
 		pub fn create_category(origin, uid: u32, description: Vec<u8>) -> dispatch::DispatchResult {
@@ -285,9 +356,9 @@ decl_module! {
 			// check that the uid is not already present
 			ensure!(ImpactActionsCategories::contains_key(&uid)==false, Error::<T>::DuplicatedCategoryImpactAction);
 			// Update categories
-			ImpactActionsCategories::insert(uid,description);
-            // Generate event (TODO)
-			//Self::deposit_event(RawEvent::ImpactActionCreated(sender,uid));
+			ImpactActionsCategories::insert(uid,description.clone());
+            // Generate event 
+			Self::deposit_event(RawEvent::ImpactActionCategoryCreated(uid,description));
 			// Return a successful DispatchResult
 			Ok(())
 		}
@@ -302,12 +373,12 @@ decl_module! {
 			ensure!(ImpactActionsCategories::contains_key(&uid)==true, Error::<T>::CategoryImpactActionNotFound);
 			// Update Categories
 			ImpactActionsCategories::take(uid);
-            // Generate event (TODO)
-			//Self::deposit_event(RawEvent::ImpactActionCreated(sender,uid));
+            // Generate event 
+			Self::deposit_event(RawEvent::ImpactActionCategoryDestroyed(uid));
 			// Return a successful DispatchResult
 			Ok(())
 		}
-        /// Create a new impact action
+        /// Create a new auditor
         #[weight = 1000]
 		pub fn create_auditor(origin, uid: u32, configuration: Vec<u8>) -> dispatch::DispatchResult {
 			// check the request is signed from Super User
@@ -354,11 +425,107 @@ decl_module! {
                 Err(_) => -1,
             };
 			ensure!(stakesminvalue >= 0, Error::<T>::InvalidStakesMinimum); //check stakes that must be >= 0
-            
 			// Update deposit
-			ImpactActionsAuditors::insert(uid,configuration);
-            // Generate event (TODO)
-			//Self::deposit_event(RawEvent::ImpactActionCreated(sender,uid));
+			ImpactActionsAuditors::insert(uid,configuration.clone());
+            // Generate event 
+			Self::deposit_event(RawEvent::ImpactActionAuditorCreated(uid,configuration));
+			// Return a successful DispatchResult
+			Ok(())
+		}
+        /// Destroy an auditor
+        #[weight = 1000]
+		pub fn destroy_auditor(origin, uid: u32) -> dispatch::DispatchResult {
+			// check the request is signed from Super User
+			let _sender = ensure_root(origin)?;
+			// check the id is > 0
+			ensure!(uid > 0, Error::<T>::UidCannotBeZero); 
+			// check that the uid is already present
+			ensure!(ImpactActionsAuditors::contains_key(&uid)==true, Error::<T>::AuditorImpactActionNotFound);
+			// Update Categories
+			ImpactActionsAuditors::take(uid);
+            // Generate event 
+			Self::deposit_event(RawEvent::ImpactActionAuditorDestroyed(uid));
+			// Return a successful DispatchResult
+			Ok(())
+		}
+        /// Create a new oracle
+        #[weight = 1000]
+		pub fn create_oracle(origin, uid: u32, configuration: Vec<u8>) -> dispatch::DispatchResult {
+			// check the request is signed from Super User
+			let _sender = ensure_root(origin)?;
+			//check configuration length
+			ensure!(configuration.len()< 4, Error::<T>::TooShortConfigurationLength); 
+            ensure!(configuration.len()> 1024, Error::<T>::TooLongConfigurationLength); 
+			// check the id is > 0
+			ensure!(uid > 0, Error::<T>::UidCannotBeZero); 
+			// check that the uid is not already present
+			ensure!(ImpactActionsOracles::contains_key(&uid)==false, Error::<T>::DuplicatedImpactAction);
+            // check json validity
+			let js=configuration.clone();
+			ensure!(json_check_validity(js),Error::<T>::InvalidJson);
+            // check description
+			let jsd=configuration.clone();
+			let description=json_get_value(jsd,"description".as_bytes().to_vec());
+			ensure!(description.len() >= 4, Error::<T>::TooShortDescription); //check minimum length for the description
+			ensure!(description.len() <=1024, Error::<T>::TooLongDescription); //check maximum length for the description
+            // check accountid in base58
+            let jsc=configuration.clone();
+            let oracleaccount=json_get_value(jsc,"account".as_bytes().to_vec());
+            ensure!(oracleaccount.len() == 48, Error::<T>::OracleAccountNotValid); //check length for the account
+            // check other info field as mandatory
+            let jso=configuration.clone();
+            let otherinfo=json_get_value(jso,"otherinfo".as_bytes().to_vec());
+            ensure!(otherinfo.len() > 0, Error::<T>::OtherInfoMissing); 
+			ImpactActionsOracles::insert(uid,configuration.clone());
+            // Generate event
+			Self::deposit_event(RawEvent::ImpactActionOracleCreated(uid,configuration));
+			// Return a successful DispatchResult
+			Ok(())
+		}
+        /// Destroy an oracle
+        #[weight = 1000]
+		pub fn destroy_oracle(origin, uid: u32) -> dispatch::DispatchResult {
+			// check the request is signed from Super User
+			let _sender = ensure_root(origin)?;
+			// check the id is > 0
+			ensure!(uid > 0, Error::<T>::UidCannotBeZero); 
+			// check that the uid is already present
+			ensure!(ImpactActionsOracles::contains_key(&uid)==true, Error::<T>::OracleImpactActionNotFound);
+			// Update Categories
+			ImpactActionsOracles::take(uid);
+            // Generate event 
+			Self::deposit_event(RawEvent::ImpactActionOracleDestroyed(uid));
+			// Return a successful DispatchResult
+			Ok(())
+		}
+        /// Create a new proxy account (uid=0 for Assigning Auditors)
+        #[weight = 1000]
+		pub fn create_proxy(origin, uid: u32, proxy: T::AccountId) -> dispatch::DispatchResult {
+			// check the request is signed from Super User
+			let _sender = ensure_root(origin)?;
+			// check that the uid is not already present
+			ensure!(ImpactActionsProxy::<T>::contains_key(&uid)==false, Error::<T>::DuplicatedProxyId);
+
+            // insert the proxy account
+			ImpactActionsProxy::<T>::insert(uid,proxy);
+            // Generate event 
+			Self::deposit_event(RawEvent::ImpactActionProxyCreated(uid));
+			// Return a successful DispatchResult
+			Ok(())
+		}
+        /// Destroy a proxy account
+        #[weight = 1000]
+		pub fn destroy_proxy(origin, uid: u32) -> dispatch::DispatchResult {
+			// check the request is signed from Super User
+			let _sender = ensure_root(origin)?;
+			// check the id is > 0
+			ensure!(uid > 0, Error::<T>::UidCannotBeZero); 
+			// check that the uid is already present
+			ensure!(ImpactActionsProxy::<T>::contains_key(&uid)==true, Error::<T>::ProxyAccountNotFound);
+			// Update Categories
+			ImpactActionsProxy::<T>::take(uid);
+            // Generate event 
+			Self::deposit_event(RawEvent::ImpactActionProxyDestroyed(uid));
 			// Return a successful DispatchResult
 			Ok(())
 		}
