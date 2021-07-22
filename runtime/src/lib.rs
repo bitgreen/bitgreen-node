@@ -865,6 +865,13 @@ impl pallet_claim::Config for Runtime {
 }
 // end Claim pallet
 
+// Impact Actions management
+impl pallet_impact_actions::Config for Runtime {
+	type Event = Event;
+	type Currency = Balances;
+}
+// end Impact Actions
+
 // pallet orml-nft
 impl orml_nft::Config for Runtime {
 	type ClassId = u32;
@@ -939,6 +946,8 @@ construct_runtime!(
 		Contracts: pallet_contracts::{Module, Call, Config<T>, Storage, Event<T>} = 70,
 		//Assets - ERC20 Tokens
 		Assets: pallet_assets::{Module, Call, Storage, Event<T>} = 71,
+		//Impact Actions
+		ImpactActions: pallet_impact_actions::{Module, Call, Storage, Event<T>} = 72,
 
 	}
 );

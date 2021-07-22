@@ -591,6 +591,7 @@ dependencies = [
  "pallet-grandpa",
  "pallet-identity",
  "pallet-im-online",
+ "pallet-impact-actions",
  "pallet-indices",
  "pallet-offences",
  "pallet-randomness-collective-flip",
@@ -4665,6 +4666,24 @@ dependencies = [
  "sp-io",
  "sp-runtime",
  "sp-staking",
+ "sp-std",
+]
+
+[[package]]
+name = "pallet-impact-actions"
+version = "0.1.0"
+dependencies = [
+ "bs58",
+ "frame-support",
+ "frame-system",
+ "hex",
+ "parity-scale-codec",
+ "primitive-types 0.7.3",
+ "rand 0.7.3",
+ "serde",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
  "sp-std",
 ]
 

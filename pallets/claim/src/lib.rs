@@ -24,7 +24,6 @@ pub trait Config: frame_system::Config + Sized {
 }
 pub type Balance = u128;
 
-
 // The runtime storage items
 decl_storage! {
 	trait Store for Module<T: Config> as bitgclaim {
