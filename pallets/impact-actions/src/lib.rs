@@ -36,6 +36,8 @@ decl_storage! {
         ImpactActionsOracles get(fn get_oracle): map hasher(blake2_128_concat) u32 => Option<Vec<u8>>;
         // Impact Action Submission
         ImpactActionsSubmissions get(fn get_approval_request): map hasher(blake2_128_concat) u32 => Option<Vec<u8>>;
+        //Assigned Auditors
+        ImpactActionsSubmissionsAuditors get(fn get_auditor_assigned): double_map hasher(blake2_128_concat) u32, hasher(blake2_128_concat) u32 => Option<u32>;
         // Proxy Account for assigning auditors
         ImpactActionsProxy get(fn get_proxy_account): map hasher(blake2_128_concat) u32 => Option<T::AccountId>;
 	}
@@ -55,6 +57,7 @@ decl_event!(
         ImpactActionAuditorDestroyed(u32),              // An auditor has been removed
         ImpactActionOracleCreated(u32,Vec<u8>),         // A new oracle has been added
         ImpactActionOracleDestroyed(u32),               // An oracle has been removed
+        ImpactActionAuditorAssigned(u32,u32,u32),        // Assigned auditor to a request approval with xx max days to complete the auditing
 	}
 );
 
@@ -135,6 +138,12 @@ decl_error! {
         DuplicatedProxyId,
         /// Proxy account not found
         ProxyAccountNotFound,
+        /// Impact Action Submission has not been found
+        ImpactActionSubmissionNotFound,
+        /// Auditor cannot be equal to zero
+        AuditorCannotBeZero,
+        /// Max days for auditing cannot be equal to zero
+        MaxDaysCannotBeZero
 	}
 }
 
@@ -441,10 +450,32 @@ decl_module! {
 			ensure!(uid > 0, Error::<T>::UidCannotBeZero); 
 			// check that the uid is already present
 			ensure!(ImpactActionsAuditors::contains_key(&uid)==true, Error::<T>::AuditorImpactActionNotFound);
-			// Update Categories
+			// Update Auditor
 			ImpactActionsAuditors::take(uid);
             // Generate event 
 			Self::deposit_event(RawEvent::ImpactActionAuditorDestroyed(uid));
+			// Return a successful DispatchResult
+			Ok(())
+		}
+        /// Assign an auditor
+        #[weight = 1000]
+		pub fn assign_auditor(origin, uid: u32,auditor:u32, maxdays: u32) -> dispatch::DispatchResult {
+			// check the request is signed from Super User
+			let _sender = ensure_root(origin)?;
+			// check the uid is > 0
+			ensure!(uid > 0, Error::<T>::UidCannotBeZero); 
+			// check that the uid is already present
+			ensure!(ImpactActionsSubmissions::contains_key(&uid)==true, Error::<T>::ImpactActionSubmissionNotFound);
+            // check the auditor is > 0
+			ensure!(auditor > 0, Error::<T>::AuditorCannotBeZero); 
+			// check that the auditor is already present
+			ensure!(ImpactActionsAuditors::contains_key(&auditor)==true, Error::<T>::AuditorImpactActionNotFound);
+            // check the max days >0
+            ensure!(maxdays > 0, Error::<T>::MaxDaysCannotBeZero); 
+			// Update Assigned Auditors
+			ImpactActionsSubmissionsAuditors::insert(uid,auditor,maxdays);
+            // Generate event 
+			Self::deposit_event(RawEvent::ImpactActionAuditorAssigned(uid,auditor,maxdays));
 			// Return a successful DispatchResult
 			Ok(())
 		}
