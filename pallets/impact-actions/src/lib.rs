@@ -31,13 +31,15 @@ decl_storage! {
         // Categories for impact actions
         ImpactActionsCategories get(fn get_category): map hasher(blake2_128_concat) u32 => Option<Vec<u8>>;
         // Auditor Configuration
-        ImpactActionsAuditors get(fn get_auditor): map hasher(blake2_128_concat) u32 => Option<Vec<u8>>;
+        ImpactActionsAuditors get(fn get_auditor): map hasher(blake2_128_concat) T::AccountId => Option<Vec<u8>>;
         // Auditor Configuration
         ImpactActionsOracles get(fn get_oracle): map hasher(blake2_128_concat) u32 => Option<Vec<u8>>;
         // Impact Action Submission
         ImpactActionsSubmissions get(fn get_approval_request): map hasher(blake2_128_concat) u32 => Option<Vec<u8>>;
         //Assigned Auditors
-        ImpactActionsSubmissionsAuditors get(fn get_auditor_assigned): double_map hasher(blake2_128_concat) u32, hasher(blake2_128_concat) u32 => Option<u32>;
+        ImpactActionsSubmissionsAuditors get(fn get_auditor_assigned): double_map hasher(blake2_128_concat) u32, hasher(blake2_128_concat) T::AccountId => Option<u32>;
+         //Approval/Refusal of the submissions
+        ImpactActionsSubmissionsVotes get(fn get_approval_vote): double_map hasher(blake2_128_concat) u32, hasher(blake2_128_concat)T::AccountId => Option<Vec<u8>>;
         // Proxy Account for assigning auditors
         ImpactActionsProxy get(fn get_proxy_account): map hasher(blake2_128_concat) u32 => Option<T::AccountId>;
 	}
@@ -53,11 +55,12 @@ decl_event!(
         ImpactActionRequestApproval(AccountId,u32),     // Impact action approval request
         ImpactActionCategoryCreated(u32,Vec<u8>),       // A new category has been created
         ImpactActionCategoryDestroyed(u32),             // A category has been removed
-        ImpactActionAuditorCreated(u32,Vec<u8>),        // A new auditor has been created
-        ImpactActionAuditorDestroyed(u32),              // An auditor has been removed
+        ImpactActionAuditorCreated(AccountId,Vec<u8>),        // A new auditor has been created
+        ImpactActionAuditorDestroyed(AccountId),              // An auditor has been removed
         ImpactActionOracleCreated(u32,Vec<u8>),         // A new oracle has been added
         ImpactActionOracleDestroyed(u32),               // An oracle has been removed
-        ImpactActionAuditorAssigned(u32,u32,u32),        // Assigned auditor to a request approval with xx max days to complete the auditing
+        ImpactActionAuditorAssigned(u32,AccountId,u32),        // Assigned auditor to a request approval with xx max days to complete the auditing
+        ImpactActionRequestApprovalVoted(AccountId,u32,Vec<u8>),
 	}
 );
 
@@ -143,7 +146,11 @@ decl_error! {
         /// Auditor cannot be equal to zero
         AuditorCannotBeZero,
         /// Max days for auditing cannot be equal to zero
-        MaxDaysCannotBeZero
+        MaxDaysCannotBeZero,
+        /// The auditor account is already present, it cannot be duplicated
+        DuplicatedImpactActionAuditor,
+        /// The signer is not assigned as auditor to this impact action
+        SignerNotAssigneAsAuditor,
 	}
 }
 
@@ -316,7 +323,7 @@ decl_module! {
         /// Submit an approval request for an impact action
         #[weight = 10000]
 		pub fn request_approval(origin, uid: u32, info: Vec<u8>) -> dispatch::DispatchResult {
-			// check the request is signed from Super User
+			// check the request is signed
 			let sender = ensure_signed(origin)?;
 			//check info length
 			ensure!(info.len()< 4, Error::<T>::TooShortInfo); 
@@ -352,6 +359,30 @@ decl_module! {
 			Ok(())
 		}
         
+        /// Vote an approval request for an impact action from an auditor or an oracle
+        #[weight = 1000]
+        pub fn vote_approval_request(origin, approvalid: u32, vote: Vec<u8>) -> dispatch::DispatchResult {
+             // check the request is signed 
+             let sender = ensure_signed(origin)?;
+             //check info length
+             ensure!(vote.len()< 4, Error::<T>::TooShortInfo); 
+             ensure!(vote.len()> 1024, Error::<T>::TooLongInfo); 
+             // check the uid is > 0
+             ensure!(approvalid > 0, Error::<T>::UidCannotBeZero); 
+             // check json validity
+             let js=vote.clone();
+             ensure!(json_check_validity(js),Error::<T>::InvalidJson);
+             // check that the approval id is present
+             ensure!(ImpactActionsSubmissions::contains_key(&approvalid)==true, Error::<T>::ImpactActionSubmissionNotFound);
+             // check that the auditor is assigned to the approval request
+             ensure!(ImpactActionsSubmissionsAuditors::<T>::contains_key(&approvalid,&sender)==true, Error::<T>::SignerNotAssigneAsAuditor);
+             // Insert approval request
+             ImpactActionsSubmissionsVotes::<T>::insert(approvalid,sender.clone(),vote.clone());
+             // Generate event
+             Self::deposit_event(RawEvent::ImpactActionRequestApprovalVoted(sender,approvalid,vote));
+             // Return a successful DispatchResult
+             Ok(())
+        }
         /// Create a new category of impact actions
         #[weight = 1000]
 		pub fn create_category(origin, uid: u32, description: Vec<u8>) -> dispatch::DispatchResult {
@@ -389,16 +420,15 @@ decl_module! {
 		}
         /// Create a new auditor
         #[weight = 1000]
-		pub fn create_auditor(origin, uid: u32, configuration: Vec<u8>) -> dispatch::DispatchResult {
+		pub fn create_auditor(origin, account: T::AccountId, configuration: Vec<u8>) -> dispatch::DispatchResult {
 			// check the request is signed from Super User
 			let _sender = ensure_root(origin)?;
 			//check configuration length
 			ensure!(configuration.len()< 12, Error::<T>::TooShortConfigurationLength); 
             ensure!(configuration.len()> 8192, Error::<T>::TooLongConfigurationLength); 
-			// check the id is > 0
-			ensure!(uid > 0, Error::<T>::UidCannotBeZero); 
-			// check that the uid is not already present
-			ensure!(ImpactActions::contains_key(&uid)==false, Error::<T>::DuplicatedImpactAction);
+			// TODO CHECK ACCOUNT ID VALIDITY
+			// check that the account is not already present
+			ensure!(ImpactActionsAuditors::<T>::contains_key(&account)==false, Error::<T>::DuplicatedImpactActionAuditor);
             // check json validity
 			let js=configuration.clone();
 			ensure!(json_check_validity(js),Error::<T>::InvalidJson);
@@ -434,46 +464,42 @@ decl_module! {
                 Err(_) => -1,
             };
 			ensure!(stakesminvalue >= 0, Error::<T>::InvalidStakesMinimum); //check stakes that must be >= 0
-			// Update deposit
-			ImpactActionsAuditors::insert(uid,configuration.clone());
+			// insert new auditor
+			ImpactActionsAuditors::<T>::insert(account.clone(),configuration.clone());
             // Generate event 
-			Self::deposit_event(RawEvent::ImpactActionAuditorCreated(uid,configuration));
+			Self::deposit_event(RawEvent::ImpactActionAuditorCreated(account,configuration));
 			// Return a successful DispatchResult
 			Ok(())
 		}
         /// Destroy an auditor
         #[weight = 1000]
-		pub fn destroy_auditor(origin, uid: u32) -> dispatch::DispatchResult {
+		pub fn destroy_auditor(origin, account: T::AccountId) -> dispatch::DispatchResult {
 			// check the request is signed from Super User
 			let _sender = ensure_root(origin)?;
-			// check the id is > 0
-			ensure!(uid > 0, Error::<T>::UidCannotBeZero); 
 			// check that the uid is already present
-			ensure!(ImpactActionsAuditors::contains_key(&uid)==true, Error::<T>::AuditorImpactActionNotFound);
+			ensure!(ImpactActionsAuditors::<T>::contains_key(&account)==true, Error::<T>::AuditorImpactActionNotFound);
 			// Update Auditor
-			ImpactActionsAuditors::take(uid);
+			ImpactActionsAuditors::<T>::take(account.clone());
             // Generate event 
-			Self::deposit_event(RawEvent::ImpactActionAuditorDestroyed(uid));
+			Self::deposit_event(RawEvent::ImpactActionAuditorDestroyed(account));
 			// Return a successful DispatchResult
 			Ok(())
 		}
         /// Assign an auditor
         #[weight = 1000]
-		pub fn assign_auditor(origin, uid: u32,auditor:u32, maxdays: u32) -> dispatch::DispatchResult {
+		pub fn assign_auditor(origin, uid: u32, auditor: T::AccountId, maxdays: u32) -> dispatch::DispatchResult {
 			// check the request is signed from Super User
 			let _sender = ensure_root(origin)?;
 			// check the uid is > 0
 			ensure!(uid > 0, Error::<T>::UidCannotBeZero); 
 			// check that the uid is already present
 			ensure!(ImpactActionsSubmissions::contains_key(&uid)==true, Error::<T>::ImpactActionSubmissionNotFound);
-            // check the auditor is > 0
-			ensure!(auditor > 0, Error::<T>::AuditorCannotBeZero); 
 			// check that the auditor is already present
-			ensure!(ImpactActionsAuditors::contains_key(&auditor)==true, Error::<T>::AuditorImpactActionNotFound);
+			ensure!(ImpactActionsAuditors::<T>::contains_key(&auditor)==true, Error::<T>::AuditorImpactActionNotFound);
             // check the max days >0
             ensure!(maxdays > 0, Error::<T>::MaxDaysCannotBeZero); 
 			// Update Assigned Auditors
-			ImpactActionsSubmissionsAuditors::insert(uid,auditor,maxdays);
+			ImpactActionsSubmissionsAuditors::<T>::insert(uid,auditor.clone(),maxdays);
             // Generate event 
 			Self::deposit_event(RawEvent::ImpactActionAuditorAssigned(uid,auditor,maxdays));
 			// Return a successful DispatchResult
