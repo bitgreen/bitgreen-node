@@ -157,6 +157,8 @@ decl_error! {
         OtherInfoTooShort,
         /// Other info is too long it must be < 1024 bytes
         OtherInfoTooLong,
+        /// The signing account is not a valid proxy for the operation required.
+        SigningAccountNotValidProxy,
 	}
 }
 
@@ -507,8 +509,11 @@ decl_module! {
         /// Assign an auditor
         #[weight = 1000]
 		pub fn assign_auditor(origin, uid: u32, auditor: T::AccountId, maxdays: u32) -> dispatch::DispatchResult {
+            // get the proxy account used for assigning the auditor
+            let proxy=ImpactActionsProxy::<T>::get(0).unwrap();
 			// check the request is signed from Super User
-			let _sender = ensure_root(origin)?;
+			let sender = ensure_signed(origin)?;
+            ensure!(sender==proxy,Error::<T>::SigningAccountNotValidProxy);
 			// check the uid is > 0
 			ensure!(uid > 0, Error::<T>::UidCannotBeZero); 
 			// check that the uid is already present
