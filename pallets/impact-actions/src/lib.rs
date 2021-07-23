@@ -83,10 +83,6 @@ decl_error! {
         TooShortCategories,
         /// Too short categories for the impact action, it must be <=256.
         TooLongCategories,
-        /// Too short auditors for the impact action, it must be >=2.
-        TooShortAuditors,
-        /// Too short auditors for the impact action, it must be <=256.
-        TooLongAuditors,
         /// Invalid start block number, it must  be >0
         InvalidBlockStart,
         /// Invalid end block number, it must  be >0
@@ -159,6 +155,12 @@ decl_error! {
         OtherInfoTooLong,
         /// The signing account is not a valid proxy for the operation required.
         SigningAccountNotValidProxy,
+        /// Number of auditors must be > 0
+        NumberofAuditorsCannotBeZero,
+        /// Category cannot be zero
+        CategoryCannotBeZero,
+        /// Category has not been found
+        CategoryNotFound,
 	}
 }
 
@@ -194,13 +196,40 @@ decl_module! {
             let categories=json_get_value(jsc,"categories".as_bytes().to_vec());
             ensure!(categories.len() >= 3, Error::<T>::TooShortCategories); //check minimum length for the categories
             ensure!(categories.len() <=256, Error::<T>::TooLongCategories); //check maximum length for the categories
-            // TODO - Add control on state of categories received that must be present
-            // check auditors
+            // check categories that must be present
+            let mut x=0;
+            loop {
+                let category=json_get_recordvalue(categories.clone(),x);
+				if category.len()==0 {
+					break;
+				}
+                // convert category from vec to u32
+				let category_slice=category.as_slice();
+            	let category_str=match str::from_utf8(&category_slice){
+                	Ok(f) => f,
+                	Err(_) => "0"
+            	};
+            	let categoryvalue:u32 = match u32::from_str(category_str){
+                	Ok(f) => f,
+                	Err(_) => 0,
+            	};
+				ensure!(categoryvalue >0, Error::<T>::CategoryCannotBeZero);
+                ensure!(ImpactActionsCategories::contains_key(&categoryvalue)==false, Error::<T>::CategoryNotFound);
+                x=x+1;
+            }
+            // check number of auditors required
             let jsa=configuration.clone();
             let auditors=json_get_value(jsa,"auditors".as_bytes().to_vec());
-            ensure!(auditors.len() >= 2, Error::<T>::TooShortAuditors); //check minimum length for the auditors (can be empty with [])
-            ensure!(auditors.len() <=256, Error::<T>::TooLongAuditors); //check maximum length for the auditors
-            // TODO - Add control on state of auditors received that must be present
+            let auditors_slice=auditors.as_slice();
+            let auditors_str=match str::from_utf8(&auditors_slice){
+                Ok(f) => f,
+                Err(_) => "0"
+            };
+            let auditorsvalue:u32 = match u32::from_str(auditors_str){
+                Ok(f) => f,
+                Err(_) => 0,
+            };
+			ensure!(auditorsvalue > 0, Error::<T>::NumberofAuditorsCannotBeZero); 
             // check startblock
             let jssb=configuration.clone();
             let blockstart=json_get_value(jssb,"blockstart".as_bytes().to_vec());
@@ -323,7 +352,7 @@ decl_module! {
 			// Update deposit
 			ImpactActions::take(uid);
             // Generate event
-            //TODO: verify it's not leaving orphans, in case deny
+            //it can leave orphans, anyway it's a decision of the super user
 			Self::deposit_event(RawEvent::ImpactActionDestroyed(uid));
 			// Return a successful DispatchResult
 			Ok(())
@@ -447,7 +476,6 @@ decl_module! {
 			//check configuration length
 			ensure!(configuration.len()< 12, Error::<T>::TooShortConfigurationLength); 
             ensure!(configuration.len()> 8192, Error::<T>::TooLongConfigurationLength); 
-			// TODO CHECK ACCOUNT ID VALIDITY
 			// check that the account is not already present
 			ensure!(ImpactActionsAuditors::<T>::contains_key(&account)==false, Error::<T>::DuplicatedImpactActionAuditor);
             // check json validity
@@ -463,7 +491,27 @@ decl_module! {
             let categories=json_get_value(jsc,"categories".as_bytes().to_vec());
             ensure!(categories.len() >= 3, Error::<T>::TooShortCategories); //check minimum length for the categories
             ensure!(categories.len() <=256, Error::<T>::TooLongCategories); //check maximum length for the categories
-            // TODO - Add control on state of categories received that must be present
+            // check categories that must be present
+            let mut x=0;
+            loop {
+                let category=json_get_recordvalue(categories.clone(),x);
+				if category.len()==0 {
+					break;
+				}
+                // convert category from vec to u32
+				let category_slice=category.as_slice();
+            	let category_str=match str::from_utf8(&category_slice){
+                	Ok(f) => f,
+                	Err(_) => "0"
+            	};
+            	let categoryvalue:u32 = match u32::from_str(category_str){
+                	Ok(f) => f,
+                	Err(_) => 0,
+            	};
+				ensure!(categoryvalue >0, Error::<T>::CategoryCannotBeZero);
+                ensure!(ImpactActionsCategories::contains_key(&categoryvalue)==false, Error::<T>::CategoryNotFound);
+                x=x+1;
+            }
             let jsd=configuration.clone();
 			let area=json_get_value(jsd,"area".as_bytes().to_vec());
 			ensure!(area.len() >= 4, Error::<T>::TooShortArea); //check minimum length for the area
