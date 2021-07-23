@@ -161,6 +161,12 @@ decl_error! {
         CategoryCannotBeZero,
         /// Category has not been found
         CategoryNotFound,
+        /// Field name is too short, it must be > 0 
+        FieldNameTooShort,
+        /// Field type is wrong, it can be N=Numbers or S=String
+        FieldTypeIsWrong,
+        /// The mandatory flag can be Y or N only
+        FieldMandatoryFlagIsWrong,
 	}
 }
 
@@ -334,7 +340,30 @@ decl_module! {
                 Err(_) => 0,
             };
             ensure!(maxerrorsauditorvalue > 0, Error::<T>::InvalidMaxErrorsAuditor); //check max errors for auditors before to be revoked, that must be > 0
-
+            // check custom fields
+            let mut x=0;
+            let mut vy = Vec::<u8>::new();
+            vy.push(b'Y');
+            let mut vn = Vec::<u8>::new();
+            vn.push(b'N');
+            let mut ftn = Vec::<u8>::new();
+            ftn.push(b'N');
+            let mut fts = Vec::<u8>::new();
+            fts.push(b'S');
+            loop {
+                let jr=json_get_recordvalue(configuration.clone(),x);
+				if jr.len()==0 {
+					break;
+				}
+                let fieldname=json_get_value(jr.clone(),"fieldname".as_bytes().to_vec());
+                ensure!(fieldname.len() > 0, Error::<T>::FieldNameTooShort); //check minimum length for the fieldname
+                let fieldtype=json_get_value(jr.clone(),"fieldtype".as_bytes().to_vec());
+                ensure!(fieldtype==fts || fieldtype==ftn, Error::<T>::FieldTypeIsWrong);
+                let mandatory=json_get_value(jr.clone(),"mandatory".as_bytes().to_vec());
+                ensure!(mandatory==vn || mandatory==vy,Error::<T>::FieldMandatoryFlagIsWrong);
+                x=x+1;
+                
+            }
 			// Update deposit
 			ImpactActions::insert(uid,configuration.clone());
             // Generate event
