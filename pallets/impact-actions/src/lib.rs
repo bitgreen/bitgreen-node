@@ -187,8 +187,8 @@ decl_module! {
 			// check the request is signed from Super User
 			let _sender = ensure_root(origin)?;
 			//check configuration length
-			ensure!(configuration.len()< 12, Error::<T>::TooShortConfigurationLength); 
-            ensure!(configuration.len()> 8192, Error::<T>::TooLongConfigurationLength); 
+			ensure!(configuration.len() > 12, Error::<T>::TooShortConfigurationLength); 
+            ensure!(configuration.len() < 8192, Error::<T>::TooLongConfigurationLength); 
 			// check the id is > 0
 			ensure!(uid > 0, Error::<T>::UidCannotBeZero); 
 			// check that the uid is not already present
@@ -223,8 +223,10 @@ decl_module! {
                 	Ok(f) => f,
                 	Err(_) => 0,
             	};
-				ensure!(categoryvalue >0, Error::<T>::CategoryCannotBeZero);
-                ensure!(ImpactActionsCategories::contains_key(&categoryvalue)==false, Error::<T>::CategoryNotFound);
+                if categoryvalue ==0 {
+                        break;
+                }
+                ensure!(ImpactActionsCategories::contains_key(&categoryvalue)==true, Error::<T>::CategoryNotFound);
                 x=x+1;
             }
             // check number of auditors required
@@ -354,19 +356,21 @@ decl_module! {
             ftn.push(b'N');
             let mut fts = Vec::<u8>::new();
             fts.push(b'S');
-            loop {
-                let jr=json_get_recordvalue(configuration.clone(),x);
-				if jr.len()==0 {
-					break;
-				}
-                let fieldname=json_get_value(jr.clone(),"fieldname".as_bytes().to_vec());
-                ensure!(fieldname.len() > 0, Error::<T>::FieldNameTooShort); //check minimum length for the fieldname
-                let fieldtype=json_get_value(jr.clone(),"fieldtype".as_bytes().to_vec());
-                ensure!(fieldtype==fts || fieldtype==ftn, Error::<T>::FieldTypeIsWrong);
-                let mandatory=json_get_value(jr.clone(),"mandatory".as_bytes().to_vec());
-                ensure!(mandatory==vn || mandatory==vy,Error::<T>::FieldMandatoryFlagIsWrong);
-                x=x+1;
-                
+            let fields=json_get_value(configuration.clone(),"fields".as_bytes().to_vec());
+            if fields.len()>0{
+                loop {
+                    let jr=json_get_recordvalue(fields.clone(),x);
+                    if jr.len()==0 {
+                        break;
+                    }
+                    let fieldname=json_get_value(jr.clone(),"fieldname".as_bytes().to_vec());
+                    ensure!(fieldname.len() > 0, Error::<T>::FieldNameTooShort); //check minimum length for the fieldname
+                    let fieldtype=json_get_value(jr.clone(),"fieldtype".as_bytes().to_vec());
+                    ensure!(fieldtype==fts || fieldtype==ftn, Error::<T>::FieldTypeIsWrong);
+                    let mandatory=json_get_value(jr.clone(),"mandatory".as_bytes().to_vec());
+                    ensure!(mandatory==vn || mandatory==vy,Error::<T>::FieldMandatoryFlagIsWrong);
+                    x=x+1;
+                }
             }
 			// Insert configuration of the impact action
 			ImpactActions::insert(uid,configuration.clone());
@@ -396,8 +400,8 @@ decl_module! {
 			// check the request is signed
 			let sender = ensure_signed(origin)?;
 			//check info length
-			ensure!(info.len()< 4, Error::<T>::TooShortInfo); 
-            ensure!(info.len()> 1024, Error::<T>::TooLongInfo); 
+			ensure!(info.len()> 4, Error::<T>::TooShortInfo); 
+            ensure!(info.len()< 1024, Error::<T>::TooLongInfo); 
 			// check the id is > 0
 			ensure!(uid > 0, Error::<T>::UidCannotBeZero); 
 			// check json validity
@@ -475,8 +479,8 @@ decl_module! {
              // check the request is signed 
              let sender = ensure_signed(origin)?;
              //check info length
-             ensure!(vote.len()< 4, Error::<T>::TooShortInfo); 
-             ensure!(vote.len()> 1024, Error::<T>::TooLongInfo); 
+             ensure!(vote.len()> 4, Error::<T>::TooShortInfo); 
+             ensure!(vote.len()< 1024, Error::<T>::TooLongInfo); 
              // check the uid is > 0
              ensure!(approvalid > 0, Error::<T>::UidCannotBeZero); 
              // check json validity
@@ -547,8 +551,8 @@ decl_module! {
 			// check the request is signed from Super User
 			let _sender = ensure_root(origin)?;
 			//check configuration length
-			ensure!(configuration.len()< 12, Error::<T>::TooShortConfigurationLength); 
-            ensure!(configuration.len()> 8192, Error::<T>::TooLongConfigurationLength); 
+			ensure!(configuration.len()> 12, Error::<T>::TooShortConfigurationLength); 
+            ensure!(configuration.len()< 8192, Error::<T>::TooLongConfigurationLength); 
 			// check that the account is not already present
 			ensure!(ImpactActionsAuditors::<T>::contains_key(&account)==false, Error::<T>::DuplicatedImpactActionAuditor);
             // check json validity
@@ -656,8 +660,8 @@ decl_module! {
 			// check the request is signed from Super User
 			let _sender = ensure_root(origin)?;
 			//check configuration length
-			ensure!(configuration.len()< 4, Error::<T>::TooShortConfigurationLength); 
-            ensure!(configuration.len()> 1024, Error::<T>::TooLongConfigurationLength); 
+			ensure!(configuration.len()> 4, Error::<T>::TooShortConfigurationLength); 
+            ensure!(configuration.len() < 1024, Error::<T>::TooLongConfigurationLength); 
 			// check the id is > 0
 			ensure!(uid > 0, Error::<T>::UidCannotBeZero); 
 			// check that the uid is not already present
