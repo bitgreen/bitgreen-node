@@ -167,6 +167,10 @@ decl_error! {
         FieldTypeIsWrong,
         /// The mandatory flag can be Y or N only
         FieldMandatoryFlagIsWrong,
+        /// A mandatory custom field has not been submitted
+        MissingMandatoryCustomField,
+        /// Custom field configured as numeric, is not numeric
+        CustomFieldNotNumeric,
 	}
 }
 
@@ -364,7 +368,7 @@ decl_module! {
                 x=x+1;
                 
             }
-			// Update deposit
+			// Insert configuration of the impact action
 			ImpactActions::insert(uid,configuration.clone());
             // Generate event
 			Self::deposit_event(RawEvent::ImpactActionCreated(uid,configuration));
@@ -378,7 +382,7 @@ decl_module! {
 			let _sender = ensure_root(origin)?;
             // verify the impact action exists
 			ensure!(ImpactActions::contains_key(&uid)==true, Error::<T>::ImpactActionNotFound);
-			// Update deposit
+			// Remove impact action
 			ImpactActions::take(uid);
             // Generate event
             //it can leave orphans, anyway it's a decision of the super user
@@ -416,7 +420,47 @@ decl_module! {
             
             // check that the uid is not already present
 			ensure!(ImpactActionsSubmissions::contains_key(&uid)==false, Error::<T>::ImpactActionSubmissionDuplicated);
-
+            // check for custom fields
+            let configuration=ImpactActions::get(&impactactionidvalue).unwrap();
+            let customfields=json_get_value(configuration,"fields".as_bytes().to_vec());
+            let mut x=0;
+            let mut vy = Vec::<u8>::new();
+            vy.push(b'Y');
+            let mut vn = Vec::<u8>::new();
+            vn.push(b'N');
+            let mut ftn = Vec::<u8>::new();
+            ftn.push(b'N');
+            let mut fts = Vec::<u8>::new();
+            fts.push(b'S');
+            loop{
+                let field=json_get_recordvalue(customfields.clone(),x);
+				if field.len()==0 {
+					break;
+				}
+                let fieldname=json_get_value(field.clone(),"fieldname".as_bytes().to_vec());
+                let fieldtype=json_get_value(field.clone(),"fieldtype".as_bytes().to_vec());
+                let mandatory=json_get_value(field.clone(),"mandatory".as_bytes().to_vec());
+                // get the field from "info"
+                let fieldvalue=json_get_value(info.clone(),fieldname);
+                if mandatory==vy {
+                    ensure!(fieldvalue.len()>0,Error::<T>::MissingMandatoryCustomField);
+                }
+                // check for numeric field
+                if fieldtype==ftn {
+                    let fieldvalue_slice=fieldvalue.as_slice();
+                    let fieldvalue_str=match str::from_utf8(&fieldvalue_slice){
+                        Ok(f) => f,
+                        Err(_) => "-123456789"
+                    };
+                    let fieldvaluec:i128 = match i128::from_str(fieldvalue_str){
+                        Ok(f) => f,
+                        Err(_) => -123456789,
+                    };
+                    ensure!(fieldvaluec!=-123456789,Error::<T>::CustomFieldNotNumeric);
+                }
+                // no check on string, we accept any kind of value
+                x=x+1;
+            }
 			// Insert approval request
 			ImpactActionsSubmissions::insert(uid,info);
             // Generate event
