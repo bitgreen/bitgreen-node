@@ -230,6 +230,10 @@ A validator gains BITG for every new block written. The block writing allow to t
 ## Decentralized Autonomous Organization
 BitGreen blockchain has specific support for the [Decentralized Autonoumous Organization.](doc/dao.md)  
 
+## Impact Actions
+A custom module to manage the ["Impact Actions"](impactactions.md) has been created on Bitgreen blockchain.
+
+
 
 ## Development Tools
 

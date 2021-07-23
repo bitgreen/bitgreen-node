@@ -512,8 +512,8 @@ decl_module! {
 			// check the request is signed from Super User
 			let _sender = ensure_root(origin)?;
 			//check description length
-			ensure!(description.len()< 4, Error::<T>::TooShortDescription); 
-            ensure!(description.len()> 128, Error::<T>::TooLongDescription); 
+			ensure!(description.len()> 4, Error::<T>::TooShortDescription); 
+            ensure!(description.len()< 128, Error::<T>::TooLongDescription); 
 			// check the id is > 0
 			ensure!(uid > 0, Error::<T>::UidCannotBeZero); 
 			// check that the uid is not already present
