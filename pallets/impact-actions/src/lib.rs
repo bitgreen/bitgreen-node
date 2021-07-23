@@ -151,6 +151,12 @@ decl_error! {
         DuplicatedImpactActionAuditor,
         /// The signer is not assigned as auditor to this impact action
         SignerNotAssigneAsAuditor,
+        /// Vote is not valid, should be Y or N
+        VoteIsInvalid,
+        /// Other info is too short it must be > 2 bytes
+        OtherInfoTooShort,
+        /// Other info is too long it must be < 1024 bytes
+        OtherInfoTooLong,
 	}
 }
 
@@ -372,16 +378,29 @@ decl_module! {
              // check json validity
              let js=vote.clone();
              ensure!(json_check_validity(js),Error::<T>::InvalidJson);
-             // check that the approval id is present
-             ensure!(ImpactActionsSubmissions::contains_key(&approvalid)==true, Error::<T>::ImpactActionSubmissionNotFound);
-             // check that the auditor is assigned to the approval request
-             ensure!(ImpactActionsSubmissionsAuditors::<T>::contains_key(&approvalid,&sender)==true, Error::<T>::SignerNotAssigneAsAuditor);
-             // Insert approval request
-             ImpactActionsSubmissionsVotes::<T>::insert(approvalid,sender.clone(),vote.clone());
-             // Generate event
-             Self::deposit_event(RawEvent::ImpactActionRequestApprovalVoted(sender,approvalid,vote));
-             // Return a successful DispatchResult
-             Ok(())
+             // check vote Y/N
+			let jsv=vote.clone();
+            let mut vy = Vec::<u8>::new();
+            vy.push(b'Y');
+            let mut vn = Vec::<u8>::new();
+            vn.push(b'N');
+			let vote=json_get_value(jsv,"vote".as_bytes().to_vec());
+			ensure!(vote==vy || vote==vn, Error::<T>::VoteIsInvalid); 
+            // check for otherinfo
+            let jso=vote.clone();
+            let otherinfo=json_get_value(jso,"otherinfo".as_bytes().to_vec());
+            ensure!(otherinfo.len() >2 , Error::<T>::OtherInfoTooShort); //check minimum length for the otherinfo
+			ensure!(otherinfo.len() <=1024, Error::<T>::OtherInfoTooLong); //check maximum length for the otherinfo
+            // check that the approval id is present
+            ensure!(ImpactActionsSubmissions::contains_key(&approvalid)==true, Error::<T>::ImpactActionSubmissionNotFound);
+            // check that the auditor is assigned to the approval request
+            ensure!(ImpactActionsSubmissionsAuditors::<T>::contains_key(&approvalid,&sender)==true, Error::<T>::SignerNotAssigneAsAuditor);
+            // Insert approval request
+            ImpactActionsSubmissionsVotes::<T>::insert(approvalid,sender.clone(),vote.clone());
+            // Generate event
+            Self::deposit_event(RawEvent::ImpactActionRequestApprovalVoted(sender,approvalid,vote));
+            // Return a successful DispatchResult
+            Ok(())
         }
         /// Create a new category of impact actions
         #[weight = 1000]
