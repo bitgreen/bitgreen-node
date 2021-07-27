@@ -147,7 +147,7 @@ The function to call is:
 createAuditor(uid: u32, account: AccountId, configuration: Vec<u8>)
 ```
 where:  
-- "uid" is a unique id of the Oracle;  
+- "uid" is a unique id of the Auditor;  
 - "account" is the account of the auditor;
 - "configuration" is a json structure with the following fields:
 ```json
@@ -180,3 +180,38 @@ You can query the state of the Auditor on the blockchain calling the function:
 oracles(uid: u32) -> Vec<u8>
 ```
 where uid is the unique id of the Auditor,  you will get the json structure with the configuration, please check the "createAuditor" function for the meaning of the fields received.  
+
+## Request Approval Impact Action
+Any user can submit a request approval of the impact action.
+The function to call is: 
+```rust
+requestApproval(uid: u32, info: Vec<u8>)
+```
+where:  
+- "uid" is a unique id of the request approval;  
+- info" is a json structure with the following fields:
+```json
+{
+    "impactactionid": Number         // the impact action id sas from created Impact Actions
+    //.. other fields name and type as defined in Impact Action configuration
+    //.. other free fields. Total maximum lenght is 8192 bytes
+}
+```
+The json should be one single line with no space between the fields, for example using a request with free fields:
+```json
+{"impactactionid":1,"description":"Planted a new tree","coordinates":"25.283294382,55.292989282","ipfsphoto":"bafybeigdyrzt5sfp7udm7hu76uh7y27nf3efuylqabf3oclgtqy55fbzdi"}
+```
+Using the custom fields defined with:  
+```json
+{"description":"Planting a tree","categories":[1],"auditors":1,"blockstart":1,"blockend":1000000,"rewardstoken":0,"rewardsamount":1000,"rewardsoracle":0,"rewardsauditors":50,"slashingsauditors":0,"maxerrorsauditor":10,"fields":[{"fieldname":"namesurname","fieldtype":"S","mandatory":"Y"},{"fieldname":"phonenumber","fieldtype":"S","mandatory":"Y"}]}
+
+```
+you can submit a request approval like this one:  
+```json
+{"impactactionid":2,"description":"Planted a new tree","namesurname":"Jhone Smith","phonenumber":"+13489383845"}
+
+```
+
+
+
+
