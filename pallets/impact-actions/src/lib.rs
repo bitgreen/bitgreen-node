@@ -29,19 +29,19 @@ decl_storage! {
 		// We store the impact actions configuration 
 		ImpactActions get(fn get_impactaction): map hasher(blake2_128_concat) u32 => Option<Vec<u8>>;
         // Categories for impact actions
-        ImpactActionsCategories get(fn get_category): map hasher(blake2_128_concat) u32 => Option<Vec<u8>>;
+        Categories get(fn get_category): map hasher(blake2_128_concat) u32 => Option<Vec<u8>>;
         // Auditor Configuration
-        ImpactActionsAuditors get(fn get_auditor): map hasher(blake2_128_concat) T::AccountId => Option<Vec<u8>>;
+        Auditors get(fn get_auditor): map hasher(blake2_128_concat) T::AccountId => Option<Vec<u8>>;
         // Auditor Configuration
-        ImpactActionsOracles get(fn get_oracle): map hasher(blake2_128_concat) u32 => Option<Vec<u8>>;
+        Oracles get(fn get_oracle): map hasher(blake2_128_concat) u32 => Option<Vec<u8>>;
         // Impact Action Submission
-        ImpactActionsSubmissions get(fn get_approval_request): map hasher(blake2_128_concat) u32 => Option<Vec<u8>>;
+        ApprovalRequests get(fn get_approval_request): map hasher(blake2_128_concat) u32 => Option<Vec<u8>>;
         //Assigned Auditors
-        ImpactActionsSubmissionsAuditors get(fn get_auditor_assigned): double_map hasher(blake2_128_concat) u32, hasher(blake2_128_concat) T::AccountId => Option<u32>;
+        ApprovalRequestsAuditors get(fn get_auditor_assigned): double_map hasher(blake2_128_concat) u32, hasher(blake2_128_concat) T::AccountId => Option<u32>;
          //Approval/Refusal of the submissions
-        ImpactActionsSubmissionsVotes get(fn get_approval_vote): double_map hasher(blake2_128_concat) u32, hasher(blake2_128_concat)T::AccountId => Option<Vec<u8>>;
+        ApprovalRequestsVotes get(fn get_approval_vote): double_map hasher(blake2_128_concat) u32, hasher(blake2_128_concat)T::AccountId => Option<Vec<u8>>;
         // Proxy Account for assigning auditors
-        ImpactActionsProxy get(fn get_proxy_account): map hasher(blake2_128_concat) u32 => Option<T::AccountId>;
+        Proxy get(fn get_proxy_account): map hasher(blake2_128_concat) u32 => Option<T::AccountId>;
 	}
 }
 
@@ -226,7 +226,7 @@ decl_module! {
                 if categoryvalue ==0 {
                         break;
                 }
-                ensure!(ImpactActionsCategories::contains_key(&categoryvalue)==true, Error::<T>::CategoryNotFound);
+                ensure!(Categories::contains_key(&categoryvalue)==true, Error::<T>::CategoryNotFound);
                 x=x+1;
             }
             // check number of auditors required
@@ -423,7 +423,7 @@ decl_module! {
             ensure!(ImpactActions::contains_key(&impactactionidvalue)==true, Error::<T>::ImpactActionNotFound);
             
             // check that the uid is not already present
-			ensure!(ImpactActionsSubmissions::contains_key(&uid)==false, Error::<T>::ImpactActionSubmissionDuplicated);
+			ensure!(ApprovalRequests::contains_key(&uid)==false, Error::<T>::ImpactActionSubmissionDuplicated);
             // check for custom fields
             let configuration=ImpactActions::get(&impactactionidvalue).unwrap();
             let customfields=json_get_value(configuration,"fields".as_bytes().to_vec());
@@ -466,7 +466,7 @@ decl_module! {
                 x=x+1;
             }
 			// Insert approval request
-			ImpactActionsSubmissions::insert(uid,info);
+			ApprovalRequests::insert(uid,info);
             // Generate event
 			Self::deposit_event(RawEvent::ImpactActionRequestApproval(sender,uid));
 			// Return a successful DispatchResult
@@ -500,11 +500,11 @@ decl_module! {
             ensure!(otherinfo.len() >2 , Error::<T>::OtherInfoTooShort); //check minimum length for the otherinfo
 			ensure!(otherinfo.len() <=1024, Error::<T>::OtherInfoTooLong); //check maximum length for the otherinfo
             // check that the approval id is present
-            ensure!(ImpactActionsSubmissions::contains_key(&approvalid)==true, Error::<T>::ImpactActionSubmissionNotFound);
+            ensure!(ApprovalRequests::contains_key(&approvalid)==true, Error::<T>::ImpactActionSubmissionNotFound);
             // check that the auditor is assigned to the approval request
-            ensure!(ImpactActionsSubmissionsAuditors::<T>::contains_key(&approvalid,&sender)==true, Error::<T>::SignerNotAssigneAsAuditor);
+            ensure!(ApprovalRequestsAuditors::<T>::contains_key(&approvalid,&sender)==true, Error::<T>::SignerNotAssigneAsAuditor);
             // Insert approval request
-            ImpactActionsSubmissionsVotes::<T>::insert(approvalid,sender.clone(),vote.clone());
+            ApprovalRequestsVotes::<T>::insert(approvalid,sender.clone(),vote.clone());
             // Generate event
             Self::deposit_event(RawEvent::ImpactActionRequestApprovalVoted(sender,approvalid,vote));
             // Return a successful DispatchResult
@@ -521,9 +521,9 @@ decl_module! {
 			// check the id is > 0
 			ensure!(uid > 0, Error::<T>::UidCannotBeZero); 
 			// check that the uid is not already present
-			ensure!(ImpactActionsCategories::contains_key(&uid)==false, Error::<T>::DuplicatedCategoryImpactAction);
+			ensure!(Categories::contains_key(&uid)==false, Error::<T>::DuplicatedCategoryImpactAction);
 			// Update categories
-			ImpactActionsCategories::insert(uid,description.clone());
+			Categories::insert(uid,description.clone());
             // Generate event 
 			Self::deposit_event(RawEvent::ImpactActionCategoryCreated(uid,description));
 			// Return a successful DispatchResult
@@ -537,9 +537,9 @@ decl_module! {
 			// check the id is > 0
 			ensure!(uid > 0, Error::<T>::UidCannotBeZero); 
 			// check that the uid is already present
-			ensure!(ImpactActionsCategories::contains_key(&uid)==true, Error::<T>::CategoryImpactActionNotFound);
+			ensure!(Categories::contains_key(&uid)==true, Error::<T>::CategoryImpactActionNotFound);
 			// Update Categories
-			ImpactActionsCategories::take(uid);
+			Categories::take(uid);
             // Generate event 
 			Self::deposit_event(RawEvent::ImpactActionCategoryDestroyed(uid));
 			// Return a successful DispatchResult
@@ -554,7 +554,7 @@ decl_module! {
 			ensure!(configuration.len()> 12, Error::<T>::TooShortConfigurationLength); 
             ensure!(configuration.len()< 8192, Error::<T>::TooLongConfigurationLength); 
 			// check that the account is not already present
-			ensure!(ImpactActionsAuditors::<T>::contains_key(&account)==false, Error::<T>::DuplicatedImpactActionAuditor);
+			ensure!(Auditors::<T>::contains_key(&account)==false, Error::<T>::DuplicatedImpactActionAuditor);
             // check json validity
 			let js=configuration.clone();
 			ensure!(json_check_validity(js),Error::<T>::InvalidJson);
@@ -586,7 +586,7 @@ decl_module! {
                 	Err(_) => 0,
             	};
 				ensure!(categoryvalue >0, Error::<T>::CategoryCannotBeZero);
-                ensure!(ImpactActionsCategories::contains_key(&categoryvalue)==false, Error::<T>::CategoryNotFound);
+                ensure!(Categories::contains_key(&categoryvalue)==false, Error::<T>::CategoryNotFound);
                 x=x+1;
             }
             let jsd=configuration.clone();
@@ -611,7 +611,7 @@ decl_module! {
             };
 			ensure!(stakesminvalue >= 0, Error::<T>::InvalidStakesMinimum); //check stakes that must be >= 0
 			// insert new auditor
-			ImpactActionsAuditors::<T>::insert(account.clone(),configuration.clone());
+			Auditors::<T>::insert(account.clone(),configuration.clone());
             // Generate event 
 			Self::deposit_event(RawEvent::ImpactActionAuditorCreated(account,configuration));
 			// Return a successful DispatchResult
@@ -623,9 +623,9 @@ decl_module! {
 			// check the request is signed from Super User
 			let _sender = ensure_root(origin)?;
 			// check that the uid is already present
-			ensure!(ImpactActionsAuditors::<T>::contains_key(&account)==true, Error::<T>::AuditorImpactActionNotFound);
+			ensure!(Auditors::<T>::contains_key(&account)==true, Error::<T>::AuditorImpactActionNotFound);
 			// Update Auditor
-			ImpactActionsAuditors::<T>::take(account.clone());
+			Auditors::<T>::take(account.clone());
             // Generate event 
 			Self::deposit_event(RawEvent::ImpactActionAuditorDestroyed(account));
 			// Return a successful DispatchResult
@@ -635,20 +635,20 @@ decl_module! {
         #[weight = 1000]
 		pub fn assign_auditor(origin, uid: u32, auditor: T::AccountId, maxdays: u32) -> dispatch::DispatchResult {
             // get the proxy account used for assigning the auditor
-            let proxy=ImpactActionsProxy::<T>::get(0).unwrap();
+            let proxy=Proxy::<T>::get(0).unwrap();
 			// check the request is signed from Super User
 			let sender = ensure_signed(origin)?;
             ensure!(sender==proxy,Error::<T>::SigningAccountNotValidProxy);
 			// check the uid is > 0
 			ensure!(uid > 0, Error::<T>::UidCannotBeZero); 
 			// check that the uid is already present
-			ensure!(ImpactActionsSubmissions::contains_key(&uid)==true, Error::<T>::ImpactActionSubmissionNotFound);
+			ensure!(ApprovalRequests::contains_key(&uid)==true, Error::<T>::ImpactActionSubmissionNotFound);
 			// check that the auditor is already present
-			ensure!(ImpactActionsAuditors::<T>::contains_key(&auditor)==true, Error::<T>::AuditorImpactActionNotFound);
+			ensure!(Auditors::<T>::contains_key(&auditor)==true, Error::<T>::AuditorImpactActionNotFound);
             // check the max days >0
             ensure!(maxdays > 0, Error::<T>::MaxDaysCannotBeZero); 
 			// Update Assigned Auditors
-			ImpactActionsSubmissionsAuditors::<T>::insert(uid,auditor.clone(),maxdays);
+			ApprovalRequestsAuditors::<T>::insert(uid,auditor.clone(),maxdays);
             // Generate event 
 			Self::deposit_event(RawEvent::ImpactActionAuditorAssigned(uid,auditor,maxdays));
 			// Return a successful DispatchResult
@@ -665,7 +665,7 @@ decl_module! {
 			// check the id is > 0
 			ensure!(uid > 0, Error::<T>::UidCannotBeZero); 
 			// check that the uid is not already present
-			ensure!(ImpactActionsOracles::contains_key(&uid)==false, Error::<T>::DuplicatedImpactAction);
+			ensure!(Oracles::contains_key(&uid)==false, Error::<T>::DuplicatedImpactAction);
             // check json validity
 			let js=configuration.clone();
 			ensure!(json_check_validity(js),Error::<T>::InvalidJson);
@@ -682,7 +682,7 @@ decl_module! {
             let jso=configuration.clone();
             let otherinfo=json_get_value(jso,"otherinfo".as_bytes().to_vec());
             ensure!(otherinfo.len() > 0, Error::<T>::OtherInfoMissing); 
-			ImpactActionsOracles::insert(uid,configuration.clone());
+			Oracles::insert(uid,configuration.clone());
             // Generate event
 			Self::deposit_event(RawEvent::ImpactActionOracleCreated(uid,configuration));
 			// Return a successful DispatchResult
@@ -696,9 +696,9 @@ decl_module! {
 			// check the id is > 0
 			ensure!(uid > 0, Error::<T>::UidCannotBeZero); 
 			// check that the uid is already present
-			ensure!(ImpactActionsOracles::contains_key(&uid)==true, Error::<T>::OracleImpactActionNotFound);
+			ensure!(Oracles::contains_key(&uid)==true, Error::<T>::OracleImpactActionNotFound);
 			// Update Categories
-			ImpactActionsOracles::take(uid);
+			Oracles::take(uid);
             // Generate event 
 			Self::deposit_event(RawEvent::ImpactActionOracleDestroyed(uid));
 			// Return a successful DispatchResult
@@ -710,10 +710,10 @@ decl_module! {
 			// check the request is signed from Super User
 			let _sender = ensure_root(origin)?;
 			// check that the uid is not already present
-			ensure!(ImpactActionsProxy::<T>::contains_key(&uid)==false, Error::<T>::DuplicatedProxyId);
+			ensure!(Proxy::<T>::contains_key(&uid)==false, Error::<T>::DuplicatedProxyId);
 
             // insert the proxy account
-			ImpactActionsProxy::<T>::insert(uid,proxy);
+			Proxy::<T>::insert(uid,proxy);
             // Generate event 
 			Self::deposit_event(RawEvent::ImpactActionProxyCreated(uid));
 			// Return a successful DispatchResult
@@ -727,9 +727,9 @@ decl_module! {
 			// check the id is > 0
 			ensure!(uid > 0, Error::<T>::UidCannotBeZero); 
 			// check that the uid is already present
-			ensure!(ImpactActionsProxy::<T>::contains_key(&uid)==true, Error::<T>::ProxyAccountNotFound);
+			ensure!(Proxy::<T>::contains_key(&uid)==true, Error::<T>::ProxyAccountNotFound);
 			// Update Categories
-			ImpactActionsProxy::<T>::take(uid);
+			Proxy::<T>::take(uid);
             // Generate event 
 			Self::deposit_event(RawEvent::ImpactActionProxyDestroyed(uid));
 			// Return a successful DispatchResult

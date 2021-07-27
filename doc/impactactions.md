@@ -39,7 +39,7 @@ where:
 ## Query Category
 You can query the state of the category on the blockchain calling the function:
 ```rust
-impactActionsCategories(uid: u32) -> Vec<u8>
+Categories(uid: u32) -> Vec<u8>
 ```
 where uid is the unique id of the category and you will get the description or empty if it has been found.
 
@@ -53,7 +53,7 @@ The function to call is:
 createImpactAction(uid: u32, configuration: Vec<u8>)
 ```
 where:  
-- "uid" is a unique id of the category;  
+- "uid" is a unique id of the Impact Action;  
 - "configuration" is a json structure with the following fields:
 ```json
 {
@@ -92,13 +92,49 @@ destroyImpactAction(uid: u32)
 where:  
 - "uid" is the unique id of the impact action.  
 
-
 ## Query Impact Action
 You can query the state of the impact action on the blockchain calling the function:  
 ```rust
-impactActionsC(uid: u32) -> Vec<u8>
+impactActions(uid: u32) -> Vec<u8>
 ```
-where uid is the unique id of the impact action and you will get the json structure with the configuration, please check the "createImpactAction" for the meaning of tthe field received.  
+where uid is the unique id of the impact action and you will get the json structure with the configuration, please check the function "createImpactAction" for the meaning of the fields received.  
 
+## Create Oracle Configuration  
+A blockchain Oracle is a third-party service that provides the blockchain with information from the outside world. 
+It is the layer that queries, verifies, and authenticates external data sources, usually via trusted APIs and then relays that information.  
+The Super User (or the Technical Commitee) should create an Oracle configuration by "Sudo" calls.   
+The function to call is: 
+```rust
+createOracle(uid: u32, configuration: Vec<u8>)
+```
+where:  
+- "uid" is a unique id of the Oracle;  
+- "configuration" is a json structure with the following fields:
+```json
+{
+    "description" : String              // The description of the Oracle
+    "account" : String                  // The account of the Oracle to check the signature
+    "otherinfo" : String                // an IPFS address for additional info about the Oracle
+}
+```
+The json should be one single line with no space between the fields, for example:
+```json
+{"description":"Plastic Recycling Verification","account":"5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY","otherinfo":"bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi"}
+```
 
+## Destroy Oracle
+  
+The Super User (or the Technical Commitee) can remove an Oracle by  "Sudo" calls, using the function:  
+```rust
+destroyOracle(uid: u32)  
+```
+  
+where:  
+- "uid" is the unique id of the Oracle to delete.  
 
+## Query Oracle
+You can query the state of the oracle on the blockchain calling the function:  
+```rust
+oracles(uid: u32) -> Vec<u8>
+```
+where uid is the unique id of the Oracle,  you will get the json structure with the configuration, please check the "createOracle" function for the meaning of the fields received.  
