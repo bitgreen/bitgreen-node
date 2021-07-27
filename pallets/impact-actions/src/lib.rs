@@ -204,12 +204,12 @@ decl_module! {
             // check categories
             let jsc=configuration.clone();
             let categories=json_get_value(jsc,"categories".as_bytes().to_vec());
-            ensure!(categories.len() >= 3, Error::<T>::TooShortCategories); //check minimum length for the categories
+            ensure!(categories.len() >= 1, Error::<T>::TooShortCategories); //check minimum length for the categories
             ensure!(categories.len() <=256, Error::<T>::TooLongCategories); //check maximum length for the categories
             // check categories that must be present
             let mut x=0;
             loop {
-                let category=json_get_recordvalue(categories.clone(),x);
+                let category=json_get_arrayvalue(categories.clone(),x);
 				if category.len()==0 {
 					break;
 				}
@@ -568,10 +568,11 @@ decl_module! {
             let categories=json_get_value(jsc,"categories".as_bytes().to_vec());
             ensure!(categories.len() >= 3, Error::<T>::TooShortCategories); //check minimum length for the categories
             ensure!(categories.len() <=256, Error::<T>::TooLongCategories); //check maximum length for the categories
+            //frame_support::debug::info!("[DEBUG]****************************************** categories {:?}", categories);
             // check categories that must be present
             let mut x=0;
             loop {
-                let category=json_get_recordvalue(categories.clone(),x);
+                let category=json_get_arrayvalue(categories.clone(),x);
 				if category.len()==0 {
 					break;
 				}
@@ -586,7 +587,7 @@ decl_module! {
                 	Err(_) => 0,
             	};
 				ensure!(categoryvalue >0, Error::<T>::CategoryCannotBeZero);
-                ensure!(Categories::contains_key(&categoryvalue)==false, Error::<T>::CategoryNotFound);
+                ensure!(Categories::contains_key(&categoryvalue)==true, Error::<T>::CategoryNotFound);
                 x=x+1;
             }
             let jsd=configuration.clone();
@@ -609,7 +610,7 @@ decl_module! {
                 Ok(f) => f,
                 Err(_) => -1,
             };
-			ensure!(stakesminvalue >= 0, Error::<T>::InvalidStakesMinimum); //check stakes that must be >= 0
+			ensure!(stakesminvalue >= -1, Error::<T>::InvalidStakesMinimum); //check stakes that must be >= 0
 			// insert new auditor
 			Auditors::<T>::insert(account.clone(),configuration.clone());
             // Generate event 
@@ -850,6 +851,40 @@ fn json_get_recordvalue(ar:Vec<u8>,p:i32) -> Vec<u8> {
     }
     return result;
 }
+// function to get a field value from array field [1,2,3,4,100], it returns an empty Vec when the records is not present
+fn json_get_arrayvalue(ar:Vec<u8>,p:i32) -> Vec<u8> {
+    let mut result=Vec::new();
+    let mut op=true;
+    let mut cn=0;
+    let mut lb=b' ';
+    for b in ar {
+        if b==b',' && op==true {
+            cn=cn+1;
+            continue;
+        }
+        if b==b'[' && op==true && lb!=b'\\' {
+            continue;
+        }
+        if b==b']' && op==true && lb!=b'\\' {
+            continue;
+        }
+        if b==b'"' && op==true && lb!=b'\\' {
+            continue;
+        }
+        if b==b'"' && op==true && lb!=b'\\' { 
+            op=false;
+        }
+        if b==b'"' && op==false && lb!=b'\\' {
+            op=true;
+        }
+        // field found
+        if cn==p {
+            result.push(b);
+        }
+        lb=b.clone();
+    }
+    return result;
+}
 
 // function to get value of a field for Substrate runtime (no std library and no variable allocation)
 fn json_get_value(j:Vec<u8>,key:Vec<u8>) -> Vec<u8> {
@@ -898,6 +933,9 @@ fn json_get_value(j:Vec<u8>,key:Vec<u8>) -> Vec<u8> {
                     break;
                 }
                 if *j.get(i).unwrap()==b'}' && op==true{
+                    break;
+                }
+                if *j.get(i).unwrap()==b']' && op==true{
                     break;
                 }
                 if *j.get(i).unwrap()==b',' && op==true && os==true{

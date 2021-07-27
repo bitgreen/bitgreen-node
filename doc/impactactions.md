@@ -133,8 +133,50 @@ where:
 - "uid" is the unique id of the Oracle to delete.  
 
 ## Query Oracle
-You can query the state of the oracle on the blockchain calling the function:  
+You can query the state of the Oracle on the blockchain calling the function:  
 ```rust
 oracles(uid: u32) -> Vec<u8>
 ```
 where uid is the unique id of the Oracle,  you will get the json structure with the configuration, please check the "createOracle" function for the meaning of the fields received.  
+
+## Create Auditor Configuration  
+An Auditor is an human operator enabled to verify the approval requests and expresses a vote to approval/refuse the request.  
+The Super User (or the Technical Commitee) should create an Auditor configuration by "Sudo" calls.   
+The function to call is: 
+```rust
+createAuditor(uid: u32, account: AccountId, configuration: Vec<u8>)
+```
+where:  
+- "uid" is a unique id of the Oracle;  
+- "account" is the account of the auditor;
+- "configuration" is a json structure with the following fields:
+```json
+{
+    "description" : String              // The description of the Oracle
+    "account" : String                  // The account of the Oracle to check the signature
+    "categories" : Array                // The categories of competence
+    "area" : String                     // Area of actions if delimited by coordindates of a center point and a border point.
+    "otherinfo" : String                // an IPFS address for additional info about the Oracle
+}
+```
+The json should be one single line with no space between the fields, for example:
+```json
+{"description":"John Smith","categories":[1,2],"area":"41.40338,2.17403","otherinfo":"bafybeigdyrzt5sfp7udm7hu76uh7y27nf3efuylqabf3oclgtqy55fbzdi","stakesmin":0}
+```
+
+## Destroy Auditor
+  
+The Super User (or the Technical Commitee) can remove an Oracle by  "Sudo" calls, using the function:  
+```rust
+destroyAuditor(uid: u32)  
+```
+  
+where:  
+- "uid" is the unique id of the Auditor to delete.  
+
+## Query Auditor
+You can query the state of the Auditor on the blockchain calling the function:  
+```rust
+oracles(uid: u32) -> Vec<u8>
+```
+where uid is the unique id of the Auditor,  you will get the json structure with the configuration, please check the "createAuditor" function for the meaning of the fields received.  
