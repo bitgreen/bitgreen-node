@@ -171,6 +171,10 @@ decl_error! {
         MissingMandatoryCustomField,
         /// Custom field configured as numeric, is not numeric
         CustomFieldNotNumeric,
+        /// The proxy account is not configured
+        ProxyAccountNotConfigured,
+        /// Vote is already present on chain
+        VoteAlreadyPresent,
 	}
 }
 
@@ -492,8 +496,8 @@ decl_module! {
             vy.push(b'Y');
             let mut vn = Vec::<u8>::new();
             vn.push(b'N');
-			let vote=json_get_value(jsv,"vote".as_bytes().to_vec());
-			ensure!(vote==vy || vote==vn, Error::<T>::VoteIsInvalid); 
+			let votev=json_get_value(jsv,"vote".as_bytes().to_vec());
+			ensure!(votev==vy || votev==vn, Error::<T>::VoteIsInvalid); 
             // check for otherinfo
             let jso=vote.clone();
             let otherinfo=json_get_value(jso,"otherinfo".as_bytes().to_vec());
@@ -503,6 +507,8 @@ decl_module! {
             ensure!(ApprovalRequests::contains_key(&approvalid)==true, Error::<T>::ImpactActionSubmissionNotFound);
             // check that the auditor is assigned to the approval request
             ensure!(ApprovalRequestsAuditors::<T>::contains_key(&approvalid,&sender)==true, Error::<T>::SignerNotAssigneAsAuditor);
+            // check that the vote is nor already present
+            ensure!(ApprovalRequestsVotes::<T>::contains_key(&approvalid,&sender)==false, Error::<T>::VoteAlreadyPresent);
             // Insert approval request
             ApprovalRequestsVotes::<T>::insert(approvalid,sender.clone(),vote.clone());
             // Generate event
@@ -634,24 +640,25 @@ decl_module! {
 		}
         /// Assign an auditor
         #[weight = 1000]
-		pub fn assign_auditor(origin, uid: u32, auditor: T::AccountId, maxdays: u32) -> dispatch::DispatchResult {
+		pub fn assign_auditor(origin, approvalid: u32, auditor: T::AccountId, maxdays: u32) -> dispatch::DispatchResult {
             // get the proxy account used for assigning the auditor
+			ensure!(Proxy::<T>::contains_key(0)==true, Error::<T>::ProxyAccountNotConfigured);
             let proxy=Proxy::<T>::get(0).unwrap();
 			// check the request is signed from Super User
 			let sender = ensure_signed(origin)?;
             ensure!(sender==proxy,Error::<T>::SigningAccountNotValidProxy);
 			// check the uid is > 0
-			ensure!(uid > 0, Error::<T>::UidCannotBeZero); 
+			ensure!(approvalid > 0, Error::<T>::UidCannotBeZero); 
 			// check that the uid is already present
-			ensure!(ApprovalRequests::contains_key(&uid)==true, Error::<T>::ImpactActionSubmissionNotFound);
+			ensure!(ApprovalRequests::contains_key(&approvalid)==true, Error::<T>::ImpactActionSubmissionNotFound);
 			// check that the auditor is already present
 			ensure!(Auditors::<T>::contains_key(&auditor)==true, Error::<T>::AuditorImpactActionNotFound);
             // check the max days >0
             ensure!(maxdays > 0, Error::<T>::MaxDaysCannotBeZero); 
 			// Update Assigned Auditors
-			ApprovalRequestsAuditors::<T>::insert(uid,auditor.clone(),maxdays);
+			ApprovalRequestsAuditors::<T>::insert(approvalid,auditor.clone(),maxdays);
             // Generate event 
-			Self::deposit_event(RawEvent::ImpactActionAuditorAssigned(uid,auditor,maxdays));
+			Self::deposit_event(RawEvent::ImpactActionAuditorAssigned(approvalid,auditor,maxdays));
 			// Return a successful DispatchResult
 			Ok(())
 		}

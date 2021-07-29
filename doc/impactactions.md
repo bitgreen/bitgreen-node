@@ -181,6 +181,28 @@ oracles(uid: u32) -> Vec<u8>
 ```
 where uid is the unique id of the Auditor,  you will get the json structure with the configuration, please check the "createAuditor" function for the meaning of the fields received.  
 
+
+## Create Proxy Account (for assigning auditors)
+The auditors should be assigned to the approval request from an off-chain process. The assignment shall be signed from the delegated/proxy account.   
+The Super User (or the Technical Commitee) should setup the proxy account in the initial configuration.  
+The function to call by "Sudo" is:  
+```rust
+createProxy(origin, uid: u32, proxy: AccountId)
+```
+where:  
+- "uid" is a unique id of the proxy account, set it to 0;  
+- "proxy" is the Account id that will sign the assignment on chain.
+
+## Destroy Proxy Account
+  
+The Super User (or the Technical Commitee) can remove a Proxy by  "Sudo" calls, using the function:  
+```rust
+destroyProxy(uid: u32)  
+```
+where:  
+- "uid" is the unique id of the proy account to be deleted.  
+
+
 ## Request Approval Impact Action
 Any user can submit a request approval of the impact action.
 The function to call is: 
@@ -213,5 +235,42 @@ you can submit a request approval like this one:
 ```
 
 
+## Assigning an  Auditor to a Request Approval
+
+Some  "request approval" may requires the assignment of a human auditor to review and approve or refuse the impact action submitted from an  user.  
+The function can be submitted  ONLY from a "Proxy Account", (see "createProxy()" above).  
+The function to call as extrisinc is:  
+```rust
+assignAuditor(approvalid: u32, auditor: AccountId, maxdays: u32)
+```
+where:  
+- "approvalid" is the id of the request approval submitted from a regular user;  
+- "auditor" is the account of the auditor to assign to the approval request;  
+- "maxdays" are the maximum number of days allowed for the auditor to make the review, after such time the approval request will be re-assigned and the ranking of the auditor decreased.  
 
 
+## Voting a Request Approval (Auditors only)
+
+The function to call as extrisinc is:  
+```rust
+voteApprovalRequest(approvalid: u32, vote: Vec<u8>)
+```
+where:  
+- "approvalid" is the id of the request approval for an impact action, submitted from any regular user;  
+- "vote" is the a json structure with the following fields:  
+
+```json
+{
+    "vote" : String (Y/N)               // Y= Approve the submitted request, N = refuse the submitted request
+    "otherinfo" : String                // an IPFS address for additional info about the auditing process
+}
+```
+
+for example, to vote Y (approved):  
+```json
+{"vote":"Y","otherinfo":"bafybeigdyrzt5sfp7udm7hu76uh7y27nf3efuylqabf3oclgtqy55fbzdi"}
+```
+for example to vote N (refused):  
+```json
+{"vote":"Y","otherinfo":"bafybeigdyrzt5sfp7udm7hu76uh7y27nf3efuylqabf3oclgtqy55fbzdi"}
+```
