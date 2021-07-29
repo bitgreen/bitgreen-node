@@ -356,7 +356,7 @@ decl_module! {
             ftn.push(b'N');
             let mut fts = Vec::<u8>::new();
             fts.push(b'S');
-            let fields=json_get_value(configuration.clone(),"fields".as_bytes().to_vec());
+            let fields=json_get_complexarray(configuration.clone(),"fields".as_bytes().to_vec());
             if fields.len()>0{
                 loop {
                     let jr=json_get_recordvalue(fields.clone(),x);
@@ -949,7 +949,47 @@ fn json_get_value(j:Vec<u8>,key:Vec<u8>) -> Vec<u8> {
     }
     return result;
 }
-
+// function to get value of a field with a complex array like [{....},{.....}] for Substrate runtime (no std library and no variable allocation)
+fn json_get_complexarray(j:Vec<u8>,key:Vec<u8>) -> Vec<u8> {
+    let mut result=Vec::new();
+    let mut k=Vec::new();
+    let keyl = key.len();
+    let jl = j.len();
+    k.push(b'"');
+    for xk in 0..keyl{
+        k.push(*key.get(xk).unwrap());
+    }
+    k.push(b'"');
+    k.push(b':');
+    let kl = k.len();
+    for x in  0..jl {
+        let mut m=0;
+        let mut xx=0;
+        if x+kl>jl {
+            break;
+        }
+        for i in x..x+kl {
+            if *j.get(i).unwrap()== *k.get(xx).unwrap() {
+                m=m+1;
+            }
+            xx=xx+1;
+        }
+        if m==kl{
+            let mut os=true;
+            for i in x+kl..jl-1 {
+                if *j.get(i).unwrap()==b'[' && os==true{
+                    os=false;
+                }
+                result.push(j.get(i).unwrap().clone());
+                if *j.get(i).unwrap()==b']' && os==false {
+                    break;
+                }
+            }   
+            break;
+        }
+    }
+    return result;
+}
 
 
 
