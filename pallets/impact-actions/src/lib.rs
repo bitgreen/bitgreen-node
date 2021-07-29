@@ -426,7 +426,7 @@ decl_module! {
 			ensure!(ApprovalRequests::contains_key(&uid)==false, Error::<T>::ImpactActionSubmissionDuplicated);
             // check for custom fields
             let configuration=ImpactActions::get(&impactactionidvalue).unwrap();
-            let customfields=json_get_value(configuration,"fields".as_bytes().to_vec());
+            let customfields=json_get_complexarray(configuration,"fields".as_bytes().to_vec());
             let mut x=0;
             let mut vy = Vec::<u8>::new();
             vy.push(b'Y');
@@ -454,13 +454,13 @@ decl_module! {
                     let fieldvalue_slice=fieldvalue.as_slice();
                     let fieldvalue_str=match str::from_utf8(&fieldvalue_slice){
                         Ok(f) => f,
-                        Err(_) => "-123456789"
+                        Err(_) => "-999999999999"
                     };
                     let fieldvaluec:i128 = match i128::from_str(fieldvalue_str){
                         Ok(f) => f,
-                        Err(_) => -123456789,
+                        Err(_) => -999999999999,
                     };
-                    ensure!(fieldvaluec!=-123456789,Error::<T>::CustomFieldNotNumeric);
+                    ensure!(fieldvaluec!=-999999999999,Error::<T>::CustomFieldNotNumeric);
                 }
                 // no check on string, we accept any kind of value
                 x=x+1;
