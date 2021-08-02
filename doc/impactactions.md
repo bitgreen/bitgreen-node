@@ -234,7 +234,6 @@ you can submit a request approval like this one:
 
 ```
 
-
 ## Assigning an  Auditor to a Request Approval
 
 Some  "request approval" may requires the assignment of a human auditor to review and approve or refuse the impact action submitted from an  user.  
