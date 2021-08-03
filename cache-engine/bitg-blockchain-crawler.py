@@ -84,8 +84,85 @@ def create_tables():
             print(err.msg)
     else:
         print("OK")
+    # creating sync table to keep  syncronisation info
+    createsync="CREATE TABLE `sync` (`id` MEDIUMINT NOT NULL AUTO_INCREMENT,`lastblocknumberverified` INT(11) NOT NULL, PRIMARY KEY (id))"
+    try:
+        print("Creating table SYNC...")
+        cursor.execute(createsync)
+    except mysql.connector.Error as err:
+            if(err.msg!="Table 'sync' already exists"):
+                print(err.msg)
+    else:
+        print("OK")
+    
     cursor.close()
     cnx.close()
+# function to syncronise the blockchain reading the old blocks if not yet loaded
+def sync_blockchain(substrate):
+    # we get the the last block from the blockchain
+    r=substrate.rpc_request(method='chain_getHeader',params=[],result_handler=None)
+    rs=r.get('result')
+    lastblockhex=rs.get('number')
+    lastblocknumber=int(lastblockhex,16)
+    print("[Info] Last Block: ",lastblocknumber)
+    # we check the last block reconcilied
+    cnx = mysql.connector.connect(user=DB_USER, password=DB_PWD,host=DB_HOST,database=DB_NAME)
+    cursor = cnx.cursor(dictionary=True)
+    lastblocknumberverified=0
+    query="select * from sync where id=1"
+    try:
+        cursor.execute(query)
+        for row in cursor:
+            lastblocknumberverified=row['lastblocknumberverified']
+        #lastblocknumberverified=row.get('lastblocknumberverified')
+    except mysql.connector.Error as err:
+        print(err.msg)
+        lastblocknumberverified=0
+    
+    print("[INFO] Last block number verified:",lastblocknumberverified)
+    # loop the new block number to find gaps and fill them in case
+    x=lastblocknumberverified+1
+    cursorb = cnx.cursor()
+    while x<=lastblocknumber:
+        # get block data
+        print("Processing block # ",x)
+        result = substrate.get_block(block_number=x)
+        for extrinsic in result['extrinsics']:
+            if extrinsic.address:
+                signed_by_address = extrinsic.address.value
+            else:
+                signed_by_address = None
+            print('\nPallet: {}\nCall: {}\nSigned by: {}'.format(
+                extrinsic.call_module.name,
+                extrinsic.call.name,
+                signed_by_address
+            ))
+            if extrinsic.call_module.name=="Timestamp" and extrinsic.call.name=="set":
+                currentime=extrinsic.params[0]['value']
+            if extrinsic.call_module.name=="Balances" and ( extrinsic.call.name=="transfer" or extrinsic.call.name=="transfer_keep_alive"):
+                ## store the transaction in the database
+                store_transaction(x,'0x'+extrinsic.extrinsic_hash,extrinsic.address.value,extrinsic.params[0]['value'],extrinsic.params[1]['value'],currentime)
+        # update sync
+        sqlst=""
+        if(lastblocknumberverified==0):
+            sqlst="insert into sync set lastblocknumberverified="+str(x)
+        else:
+            sqlst="update sync set lastblocknumberverified="+str(x)+" where id=1"
+        try:
+            print("sqlst: ",sqlst)
+            r=cursorb.execute(sqlst)
+            print(r)
+        except mysql.connector.Error as err:
+            print(err.msg)
+            
+        lastblocknumberverified=x
+        # increase block number
+        x=x+1
+    #end while loop
+    cursor.close()
+    cursorb.close()
+    cnx.close()
+
 
 
 # function to store a new transaction
@@ -157,6 +234,9 @@ substrate = SubstrateInterface(
 )
 # create database tables
 create_tables()
+# syncronise the blockchain
+sync_blockchain(substrate)
+exit(0)
 # subscribe to new block writing
 result = substrate.subscribe_block_headers(subscription_handler, include_author=True)
 print(result)
