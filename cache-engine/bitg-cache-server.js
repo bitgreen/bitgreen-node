@@ -14,6 +14,8 @@ const DB_HOST=process.env.DB_HOST
 const DB_NAME=process.env.DB_NAME
 const DB_USER=process.env.DB_USER
 const DB_PWD=process.env.DB_PWD
+const SSL_CERT=process.env.SSL_CERT
+const SSL_KEY=process.env.SSL_KEY
 // set default to local host if not set
 if (typeof DB_HOST === 'undefined'){
     console.log("[Error] the environment variable DB_HOST is not set.");
@@ -47,23 +49,23 @@ async function mainloop(){
     });
     //mint
     app.get('/transactions',async function(req, res) {
-        console.log(req.body);
         account=req.query.account;
-        console.log("account:",account);
+        console.log("Get transactions for account:",account);
         get_transactions(res,account);
     });
     // listening to server port
-    console.log("[info] - listening for connections on port TCP/3002 and TLS/9443...");
+    console.log("[Info] - Listening for HTTP connections on port TCP/3002");
     let server=app.listen(3002,function() {});
-/*
-    // loading certificate/key
-    const options = {
-        key: fs.readFileSync("/etc/letsencrypt/live/testnode.bitg.org/privkey.pem"),
-        cert: fs.readFileSync("/etc/letsencrypt/live/testnode.bitg.org/fullchain.pem")
-    };
-    // Https listening on port 9443 -> proxy to 3001
-    https.createServer(options, app).listen(9443);
-*/
+    if(typeof SSL_CERT!=='undefined' && SSL_KEY!=='undefined'){
+        // loading certificate/key
+        const options = {
+            key: fs.readFileSync(SSL_KEY),
+            cert: fs.readFileSync(SSL_CERT)
+        };
+        console.log("[Info] - Listening for TLS connections on port TCP/9443");
+        // Https listening on port 9443 -> proxy to 3002
+        https.createServer(options, app).listen(9443);
+    }
 }
 //function to return content of a file name
 function read_file(name){
