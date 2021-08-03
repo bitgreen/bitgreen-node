@@ -8,16 +8,32 @@ const https = require("https");
 let fs = require('fs');
 let mysql= require('mysql');
 
-//***************************************************************************************************
-// customization section - you can change the following constants upon your preferences
-const MYSQLIPADDRESS="127.0.0.1";     // ip address of Mysql/Mariadb server (standard port 3306)
-const MYSQLUSERNAME="root";           // username to use for Mysql connection
-const MYSQLPWD="Aszxqw1234";          // password of the username above
-// end customizaton section
-//***************************************************************************************************
-
-
 console.log("[Info] - BitGreen Cache  Server - ver. 1.00 - Starting");
+// read the database configuration from environment variables
+const DB_HOST=process.env.DB_HOST
+const DB_NAME=process.env.DB_NAME
+const DB_USER=process.env.DB_USER
+const DB_PWD=process.env.DB_PWD
+// set default to local host if not set
+if (typeof DB_HOST === 'undefined'){
+    console.log("[Error] the environment variable DB_HOST is not set.");
+    process.exit(1);
+}
+if (typeof DB_NAME === 'undefined'){
+    console.log("[Error] the environment variable DB_NAME is not set.");
+    process.exit(1);
+}
+// DB_USER is mandatory
+if (typeof DB_USER  === 'undefined'){
+    console.log("[Error] the environment variable DB_USER is not set.");
+    process.exit(1);
+}
+// DB_PWD is mandatory
+if (typeof DB_PWD === 'undefined'){
+    console.log("[Error] the environment variable DB_PWD is not set.");
+    process.exit(1);
+}
+
 // execute main loop as async function because of "await" requirements that cannot be execute from the main body
 mainloop();
 async function mainloop(){
@@ -65,11 +81,12 @@ function read_file(name){
 // function to send transactions list in json format
 async function get_transactions(res,account){
     let connection = mysql.createConnection({
-        host     : MYSQLIPADDRESS,
-        user     : MYSQLUSERNAME,
-        password : MYSQLPWD,
+        host     : DB_HOST,
+        user     : DB_USER,
+        password : DB_PWD,
+        database : DB_NAME
     });
-    sqlquery="select * from bitgreen.transactions where sender=? or recipient=? order by dtblockchain,id desc";
+    sqlquery="select * from transactions where sender=? or recipient=? order by dtblockchain,id desc";
     connection.query(
         {
             sql: sqlquery,
