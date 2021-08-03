@@ -47,11 +47,19 @@ async function mainloop(){
         let v=read_file("index.html");
         res.send(v);
     });
-    //mint
+    //get transactions in the date/time limits
     app.get('/transactions',async function(req, res) {
         account=req.query.account;
-        console.log("Get transactions for account:",account);
-        get_transactions(res,account);
+        let dtstart='1990-01-01 00:00:00';
+        let dtend='2999-12-31 11:59:59';
+        if (typeof req.query.dts!=='undefined'){
+            dtstart=req.query.dts;
+        }
+        if (typeof req.query.dte!=='undefined'){
+            dtend=req.query.dte;
+        }
+        console.log("Get transactions for account:",account," from: ",dtstart," to: ",dtend);
+        get_transactions(res,account,dtstart,dtend);
     });
     // listening to server port
     console.log("[Info] - Listening for HTTP connections on port TCP/3002");
@@ -81,18 +89,18 @@ function read_file(name){
       }
 }
 // function to send transactions list in json format
-async function get_transactions(res,account){
+async function get_transactions(res,account,dts,dte){
     let connection = mysql.createConnection({
         host     : DB_HOST,
         user     : DB_USER,
         password : DB_PWD,
         database : DB_NAME
     });
-    sqlquery="select * from transactions where sender=? or recipient=? order by dtblockchain,id desc";
+    sqlquery="select * from transactions where (sender=? or recipient=?) and dtblockchain>=? and dtblockchain<=? order by dtblockchain,id desc";
     connection.query(
         {
             sql: sqlquery,
-            values: [account,account]
+            values: [account,account,dts,dte]
         },
         function (error, results, fields) {
             if (error){
