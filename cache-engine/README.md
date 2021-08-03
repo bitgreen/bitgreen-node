@@ -52,5 +52,75 @@ Execute from the command line:
 
 ## API Server
 
+The API server offers an https endpoint to query the transaction and received a json structure as answer.
+## Installation
+
+```sh
+npm install express
+npm install mysql
+```
+
+## Usage
+
+customise the script bitg-cache-server.sh settings the variable to access the database and execute:  
+```sh
+./bitg-cache-server.sh
+```
+You can make https calls to the following endpoint:  
+```
+https://testnode.bitg.org:9443/transactions
+```
+(eventually replace testnode.bitg.org with your domain name)
+parameters:  
+- account - the SS58 address of the account.   
+- dst - Date/time of starting the selection of the  transactions.  
+- dse - Date/time of ending the selection of the transactions.  
+
+For example you can browse or call an https get:  
+
+```sh
+https://testnode.bitg.org:9443/transactions?account=5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY&dts=2021-08-03+00:00:00&dte=2021-08-20+23:59:59
+```
+to obtain a json answer self-explained:  
+```json
+{
+	"transactions": [{
+		"id": 1,
+		"blocknumber": 162388,
+		"txhash": "0x91935fe79c429695eb34ca2a191ee2ec7e40b2734691ce7a8ba758c7e1f01e22",
+		"sender": "5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY",
+		"recipient": "5HGjWAeFDfFCWPsjFQdVV2Msvz2XtMktvgocEZcCj68kUMaw",
+		"amount": 100000000000000000000,
+		"dtblockchain": "Tue Aug 03 2021 13:16:50 GMT+0200 (Central European Summer Time)"
+	}, {
+		"id": 2,
+		"blocknumber": 162390,
+		"txhash": "0xd02b3a584ed96d5b5dff266112403a63aaa2ea43257a9ed482b0efd6080ecd64",
+		"sender": "5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY",
+		"recipient": "5HGjWAeFDfFCWPsjFQdVV2Msvz2XtMktvgocEZcCj68kUMaw",
+		"amount": 54000000000000000000,
+		"dtblockchain": "Tue Aug 03 2021 13:17:10 GMT+0200 (Central European Summer Time)"
+	}, {
+		"id": 3,
+		"blocknumber": 162424,
+		"txhash": "0x1b2495ac57c152f37aeb59ed28d833ccf7b7e6cf3b7cf345a1e194c0c5e562fd",
+		"sender": "5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY",
+		"recipient": "5DAAnrj7VHTznn2AWBemMuyBwZWs6FNFjdyVXUeYum3PTXFy",
+		"amount": 21000000000000000000,
+		"dtblockchain": "Tue Aug 03 2021 13:22:50 GMT+0200 (Central European Summer Time)"
+	}, {
+		"id": 4,
+		"blocknumber": 162430,
+		"txhash": "0xc1a74a4310fe6294a0fcdff58004009bfa48525d49a671c0a58834bce56e6cdb",
+		"sender": "5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY",
+		"recipient": "5DAAnrj7VHTznn2AWBemMuyBwZWs6FNFjdyVXUeYum3PTXFy",
+		"amount": 21000000000000000000,
+		"dtblockchain": "Tue Aug 03 2021 13:23:50 GMT+0200 (Central European Summer Time)"
+	}]
+}
+```
+
+
+
 
 
