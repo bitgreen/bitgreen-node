@@ -1,0 +1,18 @@
+<html>
+<body>
+<h1> Api Server for BitGreen Blockchain</h1>
+<hr>
+This server can be used to query the transaction by simple https calls.<br>
+You can filter the transaction by account and from date/time to date/time by the following parameters:<br>
+<li> account - is the account code SS58 format </li>
+<li> dts - is the date and time of start, in the format YYYY-MM-DD HH:MM:SS.</li>
+<li> dte - is the date and time of end, in the format YYYY-MM-DD HH:MM:SS.</li>
+<br>
+For example:<br><br>
+https://testnode.bitg.org:9443/transactions?account=5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY&dts=2021-08-03+00:00:00&dte=2021-08-20+23:59:59
+
+Will search the transactions for the account: 5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY <br>
+between 03 Agust 2021 time 00:00:00 and 20 August 2021 time 23:59:59.<br><br>
+"testnode.birg.org" should be replace with your domain name.<br>
+<hr>
+</body>

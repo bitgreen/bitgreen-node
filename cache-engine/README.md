@@ -53,30 +53,45 @@ Execute from the command line:
 ## API Server
 
 The API server offers an https endpoint to query the transaction and received a json structure as answer.
-## Installation
 
+## Requirements:
+- [Nodejs >=14.x](https://nodejs.dev)
+
+## Installation
+You should install the required libraries using npn (part of nodejs package):  
 ```sh
 npm install express
 npm install mysql
 ```
+Customize the starting script:
+customise the script: bitg-cache-server.sh settings the variable to access the database and execute:  
+```sh
+bitg-cache-server.sh
+```
+Setting the environment variable accordingly your configuration.  
+
+To enable HTTPS you should install the private key and certificate from a well recognised Certification Authority.  
+In the example we used: [https://certbot.eff.org](https://certbot.eff.org).  
+And you should set the accordingly environment variables in "bitg-cache-server.sh" to point to the correct file name.  
 
 ## Usage
 
-customise the script bitg-cache-server.sh settings the variable to access the database and execute:  
+From command line, execute:  
 ```sh
 ./bitg-cache-server.sh
 ```
-You can make https calls to the following endpoint:  
+Once active, You can make https calls to the following endpoint:  
 ```
 https://testnode.bitg.org:9443/transactions
 ```
-(eventually replace testnode.bitg.org with your domain name)
-parameters:  
+where "testnode.bitg.org" should be replace with your node name or ip address.  
+
+possible parameters:  
 - account - the SS58 address of the account.   
 - dst - Date/time of starting the selection of the  transactions.  
 - dse - Date/time of ending the selection of the transactions.  
 
-For example you can browse or call an https get:  
+For example you can browse or make an https get:  
 
 ```sh
 https://testnode.bitg.org:9443/transactions?account=5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY&dts=2021-08-03+00:00:00&dte=2021-08-20+23:59:59
