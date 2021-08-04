@@ -18,12 +18,14 @@ import scalecodec
 import mysql.connector
 currentime=""
 
-# initialize default vars
+# read environment variables
 try:
     DB_NAME=os.environ['DB_NAME']
     DB_USER=os.environ['DB_USER']
     DB_PWD=os.environ['DB_PWD']
     DB_HOST=os.environ['DB_HOST']
+    NODE=os.environ['NODE']
+
 except NameError:
     print("System Variables have not been set")
     exit(1)
@@ -109,7 +111,7 @@ def sync_blockchain(substrate):
     cnx = mysql.connector.connect(user=DB_USER, password=DB_PWD,host=DB_HOST,database=DB_NAME)
     cursor = cnx.cursor(dictionary=True)
     lastblocknumberverified=0
-    query="select * from sync where id=1"
+    query="select * from sync limit 1"
     try:
         cursor.execute(query)
         for row in cursor:
@@ -122,21 +124,18 @@ def sync_blockchain(substrate):
     print("[INFO] Last block number verified:",lastblocknumberverified)
     # loop the new block number to find gaps and fill them in case
     x=lastblocknumberverified+1
+    cursor.close()
     cursorb = cnx.cursor()
+    print("[INFO] Syncing previous blocks...")
     while x<=lastblocknumber:
         # get block data
-        print("Processing block # ",x)
+        print("Syncing block # ",x)
         result = substrate.get_block(block_number=x)
         for extrinsic in result['extrinsics']:
             if extrinsic.address:
                 signed_by_address = extrinsic.address.value
             else:
                 signed_by_address = None
-            print('\nPallet: {}\nCall: {}\nSigned by: {}'.format(
-                extrinsic.call_module.name,
-                extrinsic.call.name,
-                signed_by_address
-            ))
             if extrinsic.call_module.name=="Timestamp" and extrinsic.call.name=="set":
                 currentime=extrinsic.params[0]['value']
             if extrinsic.call_module.name=="Balances" and ( extrinsic.call.name=="transfer" or extrinsic.call.name=="transfer_keep_alive"):
@@ -147,11 +146,10 @@ def sync_blockchain(substrate):
         if(lastblocknumberverified==0):
             sqlst="insert into sync set lastblocknumberverified="+str(x)
         else:
-            sqlst="update sync set lastblocknumberverified="+str(x)+" where id=1"
+            sqlst="update sync set lastblocknumberverified="+str(x)
         try:
-            print("sqlst: ",sqlst)
-            r=cursorb.execute(sqlst)
-            print(r)
+            cursorb.execute(sqlst)
+            cnx.commit()
         except mysql.connector.Error as err:
             print(err.msg)
             
@@ -159,7 +157,6 @@ def sync_blockchain(substrate):
         # increase block number
         x=x+1
     #end while loop
-    cursor.close()
     cursorb.close()
     cnx.close()
 
@@ -222,11 +219,9 @@ def subscription_handler(obj, update_nr, subscription_id):
 
 # load custom data types
 custom_type_registry = load_type_registry_file("../assets/types.json")
-
 # define connection parameters
 substrate = SubstrateInterface(
-    #url="wss://testnode.bitg.org",
-    url="ws://127.0.0.1:9944",
+    url=NODE,
     ss58_format=42,
     type_registry_preset='default',
     type_registry=custom_type_registry
@@ -235,9 +230,11 @@ substrate = SubstrateInterface(
 # create database tables
 create_tables()
 # syncronise the blockchain
-sync_blockchain(substrate)
-exit(0)
-# subscribe to new block writing
+if(len(sys.argv)>1):
+    if (sys.argv[1]== '--sync' or sys.argv[1]=="-s"):
+        sync_blockchain(substrate)
+# subscribe to new block writing and process them in real time
 result = substrate.subscribe_block_headers(subscription_handler, include_author=True)
 print(result)
+
 

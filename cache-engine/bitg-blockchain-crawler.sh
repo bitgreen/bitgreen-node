@@ -5,7 +5,8 @@ export DB_NAME=bitgreen
 export DB_USER=bitgreen
 export DB_HOST=127.0.0.1
 export DB_PWD=aszxqw1234
+export NODE=ws://127.0.0.1:9944
 # launching the crawler, python3 should be in the path
-python3 bitg-blockchain-crawler.py
+python3 bitg-blockchain-crawler.py $1
 
 
