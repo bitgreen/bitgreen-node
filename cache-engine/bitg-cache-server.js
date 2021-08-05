@@ -61,6 +61,16 @@ async function mainloop(){
         console.log("Get transactions for account:",account," from: ",dtstart," to: ",dtend);
         get_transactions(res,account,dtstart,dtend);
     });
+    //get single transaction by txhash
+    app.get('/transaction',async function(req, res) {
+        account=req.query.account;
+        let txhash='';
+        if (typeof req.query.txhash!=='undefined'){
+            txhash=req.query.txhash;
+        }
+        console.log("Get single transaction: ",txhash);
+        get_transaction(res,txhash);
+    });
     // listening to server port
     console.log("[Info] - Listening for HTTP connections on port TCP/3002");
     let server=app.listen(3002,function() {});
@@ -135,5 +145,51 @@ async function get_transactions(res,account,dts,dte){
             }
         }
     );
-    
+}
+// function to send single transaction  in json format
+async function get_transaction(res,txhash){
+    let connection = mysql.createConnection({
+        host     : DB_HOST,
+        user     : DB_USER,
+        password : DB_PWD,
+        database : DB_NAME
+    });
+    sqlquery="select * from transactions where txhash=?";
+    connection.query(
+        {
+            sql: sqlquery,
+            values: [txhash]
+        },
+        function (error, results, fields) {
+            if (error){
+                console.log("[Error]"+error);
+                throw error;
+            }
+            if(results.length==0){
+                console.log("[Debug] Transaction not found");
+                res.send('{}');    
+                connection.end();
+                return;
+            }else{
+                let answer='';
+                let x=0;
+                for (r in results) {
+                    if(x>0){
+                        answer=answer+',';
+                    }
+                    answer= answer+'{"id":'+results[r].id;
+                    answer=answer+',"blocknumber":'+results[r].blocknumber+',"txhash":"'+results[r].txhash+'"';
+                    answer=answer+',"sender":"'+results[r].sender+'"';
+                    answer=answer+',"recipient":"'+results[r].recipient+'"';
+                    answer=answer+',"amount":'+results[r].amount;
+                    answer=answer+',"dtblockchain":"'+results[r].dtblockchain+'"}';
+                    x++;
+                }
+                console.log("[Info] Sending transaction: ",answer);
+                res.send(answer);
+                connection.end();
+                return;
+            }
+        }
+    );
 }
