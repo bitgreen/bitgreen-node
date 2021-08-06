@@ -83,6 +83,12 @@ Please follow [this guide](doc/validator.md).
 You can get 100 free BITG on Testnet using our free minter available at:  
 [https://testnet.bitg.org:8443](https://testnet.bitg.org:8443)  
 
+## Cache Engine
+We developed a light cache engine to query the transactions by account date/time limits and transaction id (txhash).  
+It's reachable at:  
+[https://testnet.bitg.org:9443](https://testnet.bitg.org:9443)  
+You can install in your node as from [instructions here](cache-engine/README.md)
+
 
 ### Bugs Reporting
 For bug reporting, please open an issue on our Git Repo:  

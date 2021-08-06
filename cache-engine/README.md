@@ -48,7 +48,19 @@ Execute from the command line:
 ```sh
 ./bit-blockchain-crawler.sh
 ```
-
+ 
+ To process the past blocks the node should run in "archive" mode by the additional the parameter:  
+ ```sh
+ --pruning archive
+```
+for example:
+```sh
+./target/release/bitg-node --chain assets/chain_spec_testnet_raw.json --port 30333 --name bitg-testnet1 --rpc-cors all --pruning archive
+```
+in the case the node was already starting in "non-archive mode" you will have to purge the chain before launching the command above:  
+```sh
+./target/release/bitg-node purge-chain --chain assets/chain_spec_testnet_raw.json
+```
 
 ## API Server
 
@@ -80,7 +92,10 @@ From command line, execute:
 ```sh
 ./bitg-cache-server.sh
 ```
+
+
 Once active, You can make https calls to the following endpoint:  
+## Query transactions
 ```
 https://testnode.bitg.org:9443/transactions
 ```
@@ -134,6 +149,25 @@ to obtain a json answer self-explained:
 	}]
 }
 ```
+
+## Get Single transactions by txhash
+
+You can query a single transaction searching by txthash, for example:  
+
+```sh
+https://testnode.bitg.org:9443/transaction?txhash=0x91935fe79c429695eb34ca2a191ee2ec7e40b2734691ce7a8ba758c7e1f01e22
+```
+to obtain a json answer like the following:  
+```json
+{
+		"id": 1,
+		"blocknumber": 162388,
+		"txhash": "0x91935fe79c429695eb34ca2a191ee2ec7e40b2734691ce7a8ba758c7e1f01e22",
+		"sender": "5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY",
+		"recipient": "5HGjWAeFDfFCWPsjFQdVV2Msvz2XtMktvgocEZcCj68kUMaw",
+		"amount": 100000000000000000000,
+		"dtblockchain": "Tue Aug 03 2021 13:16:50 GMT+0200 (Central European Summer Time)"
+}
 
 
 

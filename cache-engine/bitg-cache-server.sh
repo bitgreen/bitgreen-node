@@ -6,8 +6,8 @@ export DB_USER=bitgreen
 export DB_HOST=127.0.0.1
 export DB_PWD=aszxqw1234
 # if you want to enable TLS connection your should set this variables to your certificate and key in pem format.
-# export SSL_KEY=/etc/letsencrypt/live/testnode.bitg.org/privkey.pem
-# export SSL_CERT=/etc/letsencrypt/live/testnode.bitg.org/fullchain.pem
+#export SSL_KEY=/etc/letsencrypt/live/testnode.bitg.org/privkey.pem
+#export SSL_CERT=/etc/letsencrypt/live/testnode.bitg.org/fullchain.pem
 # Launching the API Server. Nodejs should be in the path
 node bitg-cache-server.js
 
