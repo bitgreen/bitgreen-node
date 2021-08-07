@@ -13,7 +13,7 @@ const { Keyring } = require('@polkadot/keyring');
 const { decodeAddress, encodeAddress } = require('@polkadot/keyring');
 const { hexToU8a, isHex } = require('@polkadot/util');
 
-console.log("[Info] - BitGreen - Oracle for Impact Actions - Starting");
+console.log("[Info] - BitGreen - Oracle for Impact Actions v. 1.00 - Starting");
 console.log("This is an Oracle that receive a redeem code over https, check the validity of such code contacting an API url and eventually mints a fungible assets for the amount received in the answer.")
 
 // read the environment varianles required
@@ -54,9 +54,6 @@ if (typeof HTTPPORT === 'undefined'){
     HTTPPORT="3003"
 }
 
-
-
-
 // execute main loop as async function because of "await" requirements that cannot be execute from the main body
 mainloop();
 async function mainloop(){
@@ -72,11 +69,20 @@ async function mainloop(){
     app.get('/redeem',async function(req, res) {
         if(typeof req.query.code ==='undefined') {
             res.send('{"answer":"KO","message":"code parameter has not been received');
-
+            
         }else {
-            code=req.query.code;
-            console.log("Checking Redeem Code: ",code);
-            redeem_code(res,code);
+            if(typeof req.query.account ==='undefined') {
+                res.send('{"answer":"KO","message":"account parameter has not been received');
+            }else {
+                if ( await isValidAccountAddress(req.query.account)==false) {
+                    res.send('{"answer":"KO","message":"account parameter is not valid');
+                }else {
+                    code=req.query.code;
+                    account=req.query.account;
+                    console.log("Checking Redeem Code: ",code," Account: ",account);
+                    redeem_code(res,code,account);
+                }
+            }
         }
     });
     // listening to server port
@@ -93,21 +99,9 @@ async function mainloop(){
         https.createServer(options, app).listen(TLSPORT);
     }
 }
-//function to return content of a file name
-function read_file(name){
-    const fs = require('fs');
-    if(!fs.existsSync(name))
-        return(undefined);
-    try {
-        const data = fs.readFileSync(name, 'utf8')
-        return(data);
-      } catch (err) {
-        console.error(err);
-        return(undefined);
-      }
-}
+
 // function to verify the redeem code and eventually mint the ERC20
-async function redeem_code(res,code){
+async function redeem_code(res,code,account){
    let url=HTTPAPI.replace("%CODE%",code);
    fetch(url)
    .then(data => {
@@ -129,11 +123,13 @@ async function redeem_code(res,code){
     })
    .then(res =>{console.log(res)})
 }
-async function mint_tokens(res,tokens){
+// function to mint tokens (Assets pallet)
+async function mint_tokens(res,tokens,account){
     // generate key pair from Seed
     const keyring = new Keyring({ type: 'sr25519', ss58Format: 42 });
-    const keyspair = keyring.createFromUri(SECRETSEED, { name: 'sr25519' });
+    
     const wsProvider = new WsProvider(NODE);  
+    console.log("Node: ",NODE," Seed: ",SECRETSEED);
     const api = await ApiPromise.create({ provider: wsProvider,"types" :{ 
             "CallOf": "Call",
             "DispatchTime": {
@@ -334,7 +330,8 @@ async function mint_tokens(res,tokens){
                     "Contracts": "Null",
                     "EVM": "Null",
                     "Sudo": "Null",
-                    "TransactionPayment": "Null"
+                    "TransactionPayment": "Null",
+                    "Assets": "Null",
                 }
             },
             "LockState": {
@@ -366,5 +363,59 @@ async function mint_tokens(res,tokens){
         }
     });
     console.log("[INFO] Connected to Bitgreen Node with genesis: ",api.genesisHash.toHex())
-    //Mint the token (TODO)
+    const keyspair = keyring.createFromUri(SECRETSEED, { name: 'sr25519' });
+    //Mint the token 
+    api.tx.assets.mint(TOKENID,account,tokens)
+    .signAndSend(keyspair, ({ status, events, dispatchError }) => {
+       // status would still be set, but in the case of error we can shortcut
+       // to just check it (so an error would indicate InBlock or Finalized)
+       if (dispatchError) {
+       if (dispatchError.isModule) {
+           // for module errors, we have the section indexed, lookup
+           const decoded = api.registry.findMetaError(dispatchError.asModule);
+           console.log(decoded);
+           const { docs, name, section } = decoded;
+           console.log(`${section}.${name}: ${docs.join(' ')}`);
+           res.send('{"answer":"KO","message":"'+dispatchError.toString()+'"}');
+       } else {
+           // Other, CannotLookup, BadOrigin, no extra info
+           console.log(dispatchError.toString());
+           res.send('{"answer":"KO","message":"'+dispatchError.toString()+'"}');
+
+       } 
+       }
+   else {
+           console.log('{"answer":"OK","message":"Redeem accepted"}');
+           res.send('{"answer":"OK","message":"Redeem accepted"}');
+       }             
+    });
+}
+
+// function to check validity of an account address
+async function isValidAccountAddress(address){
+    try {
+      encodeAddress(
+        isHex(address)
+          ? hexToU8a(address)
+          : decodeAddress(address)
+      );
+  
+      return true;
+    } catch (error) {
+      return false;
     }
+  }
+
+//function to return content of a file name
+function read_file(name){
+    const fs = require('fs');
+    if(!fs.existsSync(name))
+        return(undefined);
+    try {
+        const data = fs.readFileSync(name, 'utf8')
+        return(data);
+      } catch (err) {
+        console.error(err);
+        return(undefined);
+      }
+}

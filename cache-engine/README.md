@@ -95,7 +95,7 @@ From command line, execute:
 
 
 Once active, You can make https calls to the following endpoint:  
-## Query transactions
+## Query transactions by Account
 ```
 https://testnode.bitg.org:9443/transactions
 ```
@@ -150,7 +150,7 @@ to obtain a json answer self-explained:
 }
 ```
 
-## Get Single transactions by txhash
+## Query Single Transaction by Txhash
 
 You can query a single transaction searching by txthash, for example:  
 

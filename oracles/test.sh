@@ -7,14 +7,11 @@ export HTTPPORT=3003
 ## change with your secret seed that has the right on the ERC20 used, below is seed of the testing account ALICE
 export SECRETSEED="bottom drive obey lake curtain smoke basket hold race lonely fit walk//Alice"  
 # Set the ERC20 token id as from "Assets" pallet
-export TOKENID=1
+export TOKENID=2
 # set the url for Blockchain Node:
 export NODE="ws://localhost:9944"
 # Set this variables to your certificate and key in pem format.
 #export SSL_KEY=/etc/letsencrypt/live/testnode.bitg.org/privkey.pem
 #export SSL_CERT=/etc/letsencrypt/live/testnode.bitg.org/fullchain.pem
 # Launching the Oracle API Server. Nodejs should be in the path
-node bitg-oracle-impact-actions-server.js
-
-
-
+node test.js
