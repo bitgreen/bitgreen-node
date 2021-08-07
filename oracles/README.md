@@ -11,7 +11,7 @@ Many different types of oracles exist – how a blockchain oracle operates is en
   
 ## Oracle for Impact Actions
 We prepared a ready to go Oracle to be used for "Impact Actions" in the scenario of the design below:
-![Impact Actions WorkFlow](./doc/images/oracle-impact-actions.png)
+![Impact Actions WorkFlow](../doc/images/oracle-impact-actions.png)
 
 "bitg-oracel-impact-actons-server.sh" is  the bash script (for Linux OS), used to launch such Oracle
 
