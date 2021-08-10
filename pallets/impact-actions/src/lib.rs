@@ -175,6 +175,8 @@ decl_error! {
         ProxyAccountNotConfigured,
         /// Vote is already present on chain
         VoteAlreadyPresent,
+        /// The impact action is not valid because the current block is out of the block frame defined
+        ImpactActionNotValid,
 	}
 }
 
@@ -425,9 +427,34 @@ decl_module! {
             };
             // check that the impactactionid is present
             ensure!(ImpactActions::contains_key(&impactactionidvalue)==true, Error::<T>::ImpactActionNotFound);
-            
             // check that the uid is not already present
 			ensure!(ApprovalRequests::contains_key(&uid)==false, Error::<T>::ImpactActionSubmissionDuplicated);
+            // get the impact action configuration
+            let impactaction=ImpactActions::get(&impactactionidvalue).unwrap();
+            // check that the block number is inside the frame configured
+            let current_block  =  <frame_system::Module<T>>::block_number();		
+            let bs=impactaction.clone();
+            let blockstart=json_get_value(bs,"blockstart".as_bytes().to_vec());
+            let blockstart_slice=blockstart.as_slice();
+            let blockstart_str=match str::from_utf8(&blockstart_slice){
+                Ok(f) => f,
+                Err(_) => "0"
+            };
+            let blockstartvalue:u32 = match u32::from_str(blockstart_str){
+                Ok(f) => f,
+                Err(_) => 0,
+            };
+            let blockend=json_get_value(impactaction,"blockend".as_bytes().to_vec());
+            let blockend_slice=blockend.as_slice();
+            let blockend_str=match str::from_utf8(&blockend_slice){
+                Ok(f) => f,
+                Err(_) => "0"
+            };
+            let blockendvalue:u32 = match u32::from_str(blockend_str){
+                Ok(f) => f,
+                Err(_) => 0,
+            };
+            ensure!(current_block>=blockstartvalue.into() && current_block<=blockendvalue.into(),Error::<T>::ImpactActionNotValid);
             // check for custom fields
             let configuration=ImpactActions::get(&impactactionidvalue).unwrap();
             let customfields=json_get_complexarray(configuration,"fields".as_bytes().to_vec());
