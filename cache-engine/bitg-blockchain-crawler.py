@@ -96,7 +96,105 @@ def create_tables():
                 print(err.msg)
     else:
         print("OK")
-    
+    # creating categories table for impact actions
+    createcategories="CREATE TABLE `impactactionscategories` (`id` MEDIUMINT NOT NULL,`description` VARCHAR(64) NOT NULL, PRIMARY KEY (id))"
+    try:
+        print("Creating table impactactionscategories...")
+        cursor.execute(createcategories)
+    except mysql.connector.Error as err:
+            if(err.msg!="Table 'impactactionscategories' already exists"):
+                print(err.msg)
+    else:
+        print("OK")
+    # creating impactactions table for impact actions
+    createactions="CREATE TABLE `impactactions` (`id` MEDIUMINT NOT NULL,`description` VARCHAR(128) NOT NULL,\
+                `categories` VARCHAR(1024) NOT NULL,`auditors` INT(11) NOT NULL,`blockstart` INT(11) NOT NULL,\
+                `blockend` INT(11) NOT NULL, `rewardstoken` INT(11) NOT NULL, `rewardsamount` INT(32) NOT NULL,\
+                `rewardsoracle` INT(32) NOT NULL,`rewardauditors` INT(32) NOT NULL,\
+                `slashingauditors` INT(32) NOT NULL,`maxerrorsauditor` INT(11) NOT NULL,\
+                `fields` varchar(8192) NOT NULL, \
+                PRIMARY KEY (id))"
+    try:
+        print("Creating table impactactions...")
+
+        cursor.execute(createactions)
+    except mysql.connector.Error as err:
+            if(err.msg!="Table 'impactactions' already exists"):
+                print(err.msg)
+    else:
+        print("OK")
+    # creating impactactionsoracles table for impact actions
+    createactions="CREATE TABLE `impactactionsoracles` (`id` MEDIUMINT NOT NULL,`description` VARCHAR(128) NOT NULL,\
+                `account` VARCHAR(48) NOT NULL,`otherinfo` VARCHAR(66) NOT NULL,\
+                PRIMARY KEY (id))"
+    try:
+        print("Creating table impactactionsoracles...")
+
+        cursor.execute(createactions)
+    except mysql.connector.Error as err:
+            if(err.msg!="Table 'impactactionsoracles' already exists"):
+                print(err.msg)
+    else:
+        print("OK")
+    # creating impactactionsauditors table for impact actions
+    createactions="CREATE TABLE `impactactionsauditors` (`id` MEDIUMINT NOT NULL,`description` VARCHAR(128) NOT NULL,\
+                `account` VARCHAR(48) NOT NULL,`categories` VARCHAR(128) NOT NULL,\
+                `area` VARCHAR(64) NOT NULL,`otherinfo` VARCHAR(66) NOT NULL,\
+                PRIMARY KEY (id))"
+    try:
+        print("Creating table impactactionsauditors...")
+
+        cursor.execute(createactions)
+    except mysql.connector.Error as err:
+            if(err.msg!="Table 'impactactionsauditors' already exists"):
+                print(err.msg)
+    else:
+        print("OK")
+    # creating impactactionsproxy table for impact actions
+    createactions="CREATE TABLE `impactactionsproxy` (`id` MEDIUMINT NOT NULL,`account` VARCHAR(48) NOT NULL,PRIMARY KEY (id))"
+    try:
+        print("Creating table impactactionsproxy...")
+
+        cursor.execute(createactions)
+    except mysql.connector.Error as err:
+            if(err.msg!="Table 'impactactionsproxy' already exists"):
+                print(err.msg)
+    else:
+        print("OK")
+    # creating impactactionsapprovalrequests table for impact actions
+    createactions="CREATE TABLE `impactactionsapprovalrequests` (`id` MEDIUMINT NOT NULL,`info` VARCHAR(8192) NOT NULL,PRIMARY KEY (id))"
+    try:
+        print("Creating table impactactionsapprovalrequests...")
+
+        cursor.execute(createactions)
+    except mysql.connector.Error as err:
+            if(err.msg!="Table 'impactactionsapprovalrequests' already exists"):
+                print(err.msg)
+    else:
+        print("OK")
+    # creating impactactionsapprovalrequestsauditors table for impact actions
+    createactions="CREATE TABLE `impactactionsapprovalrequestsauditors` (`id` MEDIUMINT NOT NULL,`info` VARCHAR(8192) NOT NULL,PRIMARY KEY (id))"
+    try:
+        print("Creating table impactactionsapprovalrequestsauditors...")
+
+        cursor.execute(createactions)
+    except mysql.connector.Error as err:
+            if(err.msg!="Table 'impactactionsapprovalrequestsauditors' already exists"):
+                print(err.msg)
+    else:
+        print("OK")
+ # creating impactactionsapprovalrequestvotes table for impact actions
+    createactions="CREATE TABLE `impactactionsapprovalrequestauditorvotes` (`id` MEDIUMINT NOT NULL,`approvalrequestid` int(11) NOT NULL,`auditoraccount` VARCHAR(48) NOT NULL,`vote` VARCHAR(1) NOT NULL,`otherinfo` VARCHAR(66) NOT NULL,PRIMARY KEY (id))"
+    try:
+        print("Creating table impactactionsapprovalrequestsauditors...")
+
+        cursor.execute(createactions)
+    except mysql.connector.Error as err:
+            if(err.msg!="Table 'impactactionsapprovalrequestsauditors' already exists"):
+                print(err.msg)
+    else:
+        print("OK")
+
     cursor.close()
     cnx.close()
 # function to syncronise the blockchain reading the old blocks if not yet loaded
