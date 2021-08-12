@@ -49,7 +49,9 @@ def create_tables():
         print(err)
         exit(1)
     # create tables
-    createtx="CREATE TABLE `transactions` (`id` MEDIUMINT NOT NULL AUTO_INCREMENT,`blocknumber` INT(11) NOT NULL,`txhash` VARCHAR(66) NOT NULL,  `sender` VARCHAR(64) NOT NULL,  `recipient` VARCHAR(64) NOT NULL,  `amount` numeric(32,0) NOT NULL,  `dtblockchain` DATETIME NOT NULL, CONSTRAINT txhash_unique UNIQUE (txhash),PRIMARY KEY (id))"
+    createtx="CREATE TABLE `transactions` (`id` MEDIUMINT NOT NULL AUTO_INCREMENT,`blocknumber` INT(11) NOT NULL,`txhash` VARCHAR(66) NOT NULL,  \
+                `sender` VARCHAR(64) NOT NULL,  `recipient` VARCHAR(64) NOT NULL,  `amount` numeric(32,0) NOT NULL,  \
+                `dtblockchain` DATETIME NOT NULL, CONSTRAINT txhash_unique UNIQUE (txhash),PRIMARY KEY (id))"
     try:
         print("Creating table TRANSACTIONS...")
         cursor.execute(createtx)
@@ -97,7 +99,12 @@ def create_tables():
     else:
         print("OK")
     # creating categories table for impact actions
-    createcategories="CREATE TABLE `impactactionscategories` (`id` MEDIUMINT NOT NULL,`description` VARCHAR(64) NOT NULL, PRIMARY KEY (id))"
+    createcategories="CREATE TABLE `impactactionscategories` (`id` MEDIUMINT NOT NULL,\
+                    `blocknumber` INT(11) NOT NULL,\
+                    `txhash` VARCHAR(66) NOT NULL,\
+                    `dtblockchain` DATETIME NOT NULL,\
+                    `signer` VARCHAR(48) NOT NULL,\
+                    `description` VARCHAR(64) NOT NULL, PRIMARY KEY (id))"
     try:
         print("Creating table impactactionscategories...")
         cursor.execute(createcategories)
@@ -107,13 +114,18 @@ def create_tables():
     else:
         print("OK")
     # creating impactactions table for impact actions
-    createactions="CREATE TABLE `impactactions` (`id` MEDIUMINT NOT NULL,`description` VARCHAR(128) NOT NULL,\
-                `categories` VARCHAR(1024) NOT NULL,`auditors` INT(11) NOT NULL,`blockstart` INT(11) NOT NULL,\
-                `blockend` INT(11) NOT NULL, `rewardstoken` INT(11) NOT NULL, `rewardsamount` INT(32) NOT NULL,\
-                `rewardsoracle` INT(32) NOT NULL,`rewardauditors` INT(32) NOT NULL,\
-                `slashingauditors` INT(32) NOT NULL,`maxerrorsauditor` INT(11) NOT NULL,\
-                `fields` varchar(8192) NOT NULL, \
-                PRIMARY KEY (id))"
+    createactions="CREATE TABLE `impactactions` (`id` MEDIUMINT NOT NULL,\
+                    `blocknumber` INT(11) NOT NULL,\
+                    `txhash` VARCHAR(66) NOT NULL,\
+                    `dtblockchain` DATETIME NOT NULL,\
+                    `signer` VARCHAR(48) NOT NULL,\
+                    `description` VARCHAR(128) NOT NULL,\
+                    `categories` VARCHAR(1024) NOT NULL,`auditors` INT(11) NOT NULL,`blockstart` INT(11) NOT NULL,\
+                    `blockend` INT(11) NOT NULL, `rewardstoken` INT(11) NOT NULL, `rewardsamount` INT(32) NOT NULL,\
+                    `rewardsoracle` INT(32) NOT NULL,`rewardauditors` INT(32) NOT NULL,\
+                    `slashingauditors` INT(32) NOT NULL,`maxerrorsauditor` INT(11) NOT NULL,\
+                    `fields` varchar(8192) NOT NULL, \
+                    PRIMARY KEY (id))"
     try:
         print("Creating table impactactions...")
 
@@ -124,9 +136,11 @@ def create_tables():
     else:
         print("OK")
     # creating impactactionsoracles table for impact actions
-    createactions="CREATE TABLE `impactactionsoracles` (`id` MEDIUMINT NOT NULL,`description` VARCHAR(128) NOT NULL,\
-                `account` VARCHAR(48) NOT NULL,`otherinfo` VARCHAR(66) NOT NULL,\
-                PRIMARY KEY (id))"
+    createactions="CREATE TABLE `impactactionsoracles` (`id` MEDIUMINT NOT NULL,`blocknumber` INT(11) NOT NULL,\
+                    `txhash` VARCHAR(66) NOT NULL,`dtblockchain` DATETIME NOT NULL,\
+                    `description` VARCHAR(128) NOT NULL,\
+                    `account` VARCHAR(48) NOT NULL,`otherinfo` VARCHAR(66) NOT NULL,\
+                    PRIMARY KEY (id))"
     try:
         print("Creating table impactactionsoracles...")
 
@@ -137,7 +151,9 @@ def create_tables():
     else:
         print("OK")
     # creating impactactionsauditors table for impact actions
-    createactions="CREATE TABLE `impactactionsauditors` (`id` MEDIUMINT NOT NULL,`description` VARCHAR(128) NOT NULL,\
+    createactions="CREATE TABLE `impactactionsauditors` (`id` MEDIUMINT NOT NULL,`blocknumber` INT(11) NOT NULL,\
+                `txhash` VARCHAR(66) NOT NULL,`dtblockchain` DATETIME NOT NULL,\
+                `description` VARCHAR(128) NOT NULL,\
                 `account` VARCHAR(48) NOT NULL,`categories` VARCHAR(128) NOT NULL,\
                 `area` VARCHAR(64) NOT NULL,`otherinfo` VARCHAR(66) NOT NULL,\
                 PRIMARY KEY (id))"
@@ -151,7 +167,9 @@ def create_tables():
     else:
         print("OK")
     # creating impactactionsproxy table for impact actions
-    createactions="CREATE TABLE `impactactionsproxy` (`id` MEDIUMINT NOT NULL,`account` VARCHAR(48) NOT NULL,PRIMARY KEY (id))"
+    createactions="CREATE TABLE `impactactionsproxy` (`id` MEDIUMINT NOT NULL,`blocknumber` INT(11) NOT NULL,\
+                     `txhash` VARCHAR(66) NOT NULL,`dtblockchain` DATETIME NOT NULL,\
+                     `account` VARCHAR(48) NOT NULL,PRIMARY KEY (id))"
     try:
         print("Creating table impactactionsproxy...")
 
@@ -162,7 +180,9 @@ def create_tables():
     else:
         print("OK")
     # creating impactactionsapprovalrequests table for impact actions
-    createactions="CREATE TABLE `impactactionsapprovalrequests` (`id` MEDIUMINT NOT NULL,`info` VARCHAR(8192) NOT NULL,PRIMARY KEY (id))"
+    createactions="CREATE TABLE `impactactionsapprovalrequests` (`id` MEDIUMINT NOT NULL,`blocknumber` INT(11) NOT NULL,\
+                     `txhash` VARCHAR(66) NOT NULL,`dtblockchain` DATETIME NOT NULL,\
+                     `info` VARCHAR(8192) NOT NULL,PRIMARY KEY (id))"
     try:
         print("Creating table impactactionsapprovalrequests...")
 
@@ -173,7 +193,9 @@ def create_tables():
     else:
         print("OK")
     # creating impactactionsapprovalrequestsauditors table for impact actions
-    createactions="CREATE TABLE `impactactionsapprovalrequestsauditors` (`id` MEDIUMINT NOT NULL,`info` VARCHAR(8192) NOT NULL,PRIMARY KEY (id))"
+    createactions="CREATE TABLE `impactactionsapprovalrequestsauditors` (`id` MEDIUMINT NOT NULL,`blocknumber` INT(11) NOT NULL,\
+                    `txhash` VARCHAR(66) NOT NULL,`dtblockchain` DATETIME NOT NULL,\
+                    `info` VARCHAR(8192) NOT NULL,PRIMARY KEY (id))"
     try:
         print("Creating table impactactionsapprovalrequestsauditors...")
 
@@ -184,7 +206,10 @@ def create_tables():
     else:
         print("OK")
  # creating impactactionsapprovalrequestvotes table for impact actions
-    createactions="CREATE TABLE `impactactionsapprovalrequestauditorvotes` (`id` MEDIUMINT NOT NULL,`approvalrequestid` int(11) NOT NULL,`auditoraccount` VARCHAR(48) NOT NULL,`vote` VARCHAR(1) NOT NULL,`otherinfo` VARCHAR(66) NOT NULL,PRIMARY KEY (id))"
+    createactions="CREATE TABLE `impactactionsapprovalrequestauditorvotes` (`id` MEDIUMINT NOT NULL,`blocknumber` INT(11) NOT NULL,\
+                     `txhash` VARCHAR(66) NOT NULL,`dtblockchain` DATETIME NOT NULL,\
+                     `approvalrequestid` int(11) NOT NULL,`auditoraccount` VARCHAR(48) NOT NULL,\
+                     `vote` VARCHAR(1) NOT NULL,`otherinfo` VARCHAR(66) NOT NULL,PRIMARY KEY (id))"
     try:
         print("Creating table impactactionsapprovalrequestsauditors...")
 
@@ -264,7 +289,7 @@ def sync_blockchain(substrate):
 def store_transaction(blocknumber,txhash,sender,recipient,amount,currenttime):
     cnx = mysql.connector.connect(user=DB_USER, password=DB_PWD,host=DB_HOST,database=DB_NAME)
     print("Storing New Transaction")
-    print("TxHash: ",currentime)
+    print("TxHash: ",txhash)
     print("Current time: ",currentime)
     print("Sender: ",sender)
     print("Recipient: ",recipient)
@@ -281,37 +306,98 @@ def store_transaction(blocknumber,txhash,sender,recipient,amount,currenttime):
     cnx.commit()
     cursor.close()
     cnx.close()
-    
-# subscription handler for new blocks written
-def subscription_handler(obj, update_nr, subscription_id):
-
-    print(f"New block #{obj['header']['number']} produced by {obj['author']} hash: {obj['header']['hash']}")
+# function to store Impact Actions - New Category
+def impactactions_newcategory(blocknumber,txhash,signer,currenttime,idcategory,description):
+    cnx = mysql.connector.connect(user=DB_USER, password=DB_PWD,host=DB_HOST,database=DB_NAME)
+    print("Storing New Category")
+    print("BlockNumber: ",blocknumber)
+    print("TxHash: ",txhash)
+    print("Current time: ",currenttime)
+    print("Signer: ",signer)
+    print("Id category: ",idcategory)
+    print("Description: ",description)
+    cursor = cnx.cursor()
+    dtblockchain=currenttime.replace("T"," ")
+    dtblockchain=dtblockchain[0:19]
+    addtx="insert into impactactionscategories set blocknumber=%s,txhash=%s,signer=%s,dtblockchain=%s,id=%s,description=%s"
+    datatx=(blocknumber,txhash,signer,dtblockchain,idcategory,description)
+    try:
+        cursor.execute(addtx,datatx)
+    except mysql.connector.Error as err:
+                print("[Error] ",err.msg)
+    cnx.commit()
+    cursor.close()
+    cnx.close()
+# function to store Impact Actions - Destroy Category
+def impactactions_destroycategory(blocknumber,txhash,signer,currenttime,idcategory):
+    cnx = mysql.connector.connect(user=DB_USER, password=DB_PWD,host=DB_HOST,database=DB_NAME)
+    print("Destroy Category")
+    print("BlockNumber: ",blocknumber)
+    print("TxHash: ",txhash)
+    print("Current time: ",currenttime)
+    print("Signer: ",signer)
+    print("Id category: ",idcategory)
+    cursor = cnx.cursor()
+    dtblockchain=currenttime.replace("T"," ")
+    dtblockchain=dtblockchain[0:19]
+    deltx="delete from impactactionscategories where id=%s"
+    datatx=(idcategory,)
+    try:
+        cursor.execute(deltx,datatx)
+    except mysql.connector.Error as err:
+                print("[Error] ",err.msg)
+    cnx.commit()
+    cursor.close()
+    cnx.close()
+def process_block(blocknumber):
     # Retrieve extrinsics in block
-    result = substrate.get_block(block_number=obj['header']['number'])
+    print("Processing Block # ",blocknumber)
+    result = substrate.get_block(block_number=blocknumber)
     for extrinsic in result['extrinsics']:
         if extrinsic.address:
             signed_by_address = extrinsic.address.value
         else:
             signed_by_address = None
         print(extrinsic)
-
         print('\nPallet: {}\nCall: {}\nSigned by: {}'.format(
             extrinsic.call_module.name,
             extrinsic.call.name,
             signed_by_address
         ))
+        #for TimeStamp call we set the time of the following transactions
         if extrinsic.call_module.name=="Timestamp" and extrinsic.call.name=="set":
             currentime=extrinsic.params[0]['value']
+        #Balance Transfer we update the transactions
         if extrinsic.call_module.name=="Balances" and ( extrinsic.call.name=="transfer" or extrinsic.call.name=="transfer_keep_alive"):
             ## store the transaction in the database
-            store_transaction(obj['header']['number'],'0x'+extrinsic.extrinsic_hash,extrinsic.address.value,extrinsic.params[0]['value'],extrinsic.params[1]['value'],currentime)
+            store_transaction(blocknumber,'0x'+extrinsic.extrinsic_hash,extrinsic.address.value,extrinsic.params[0]['value'],extrinsic.params[1]['value'],currentime)
+        # Sudo -> Impact Actions Categories
+        if extrinsic.call_module.name=="Sudo" and extrinsic.call.name=="sudo":
+            print(extrinsic.params[0].get('value'))
+            c=extrinsic.params[0].get('value')
+            # new category
+            if c['call_module']== 'ImpactActions' and c['call_function']=='create_category':
+                print("Impact Actions - Create New Category")
+                print("id: ",c['call_args'][0]['value'])
+                print("description: ",c['call_args'][1]['value'])
+                impactactions_newcategory(blocknumber,'0x'+extrinsic.extrinsic_hash,extrinsic.address.value,currentime,c['call_args'][0]['value'],c['call_args'][1]['value'])
+            # destroy category
+            if c['call_module']== 'ImpactActions' and c['call_function']=='destroy_category':
+                print("Impact Actions - Destroy Category")
+                print("id: ",c['call_args'][0]['value'])
+                impactactions_destroycategory(blocknumber,'0x'+extrinsic.extrinsic_hash,extrinsic.address.value,currentime,c['call_args'][0]['value'])
         # Loop through call params
         for param in extrinsic.params:
-
             if param['type'] == 'Compact<Balance>':
                 param['value'] = '{} {}'.format(param['value'] / 10 ** substrate.token_decimals, substrate.token_symbol)
-
             print("Param '{}': {}".format(param['name'], param['value']))
+
+# subscription handler for new blocks written
+def subscription_handler(obj, update_nr, subscription_id):
+    print(f"New block #{obj['header']['number']} produced by {obj['author']} hash: {obj['header']['hash']}")
+    # call the block management function
+    process_block(obj['header']['number'])
+    
 
 ## MAIN 
 
