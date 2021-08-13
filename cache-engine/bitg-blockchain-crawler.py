@@ -123,7 +123,7 @@ def create_tables():
                     `categories` VARCHAR(1024) NOT NULL,`auditors` INT(11) NOT NULL,`blockstart` INT(11) NOT NULL,\
                     `blockend` INT(11) NOT NULL, `rewardstoken` INT(11) NOT NULL, `rewardsamount` INT(32) NOT NULL,\
                     `rewardsoracle` INT(32) NOT NULL,`rewardauditors` INT(32) NOT NULL,\
-                    `slashingauditors` INT(32) NOT NULL,`maxerrorsauditor` INT(11) NOT NULL,\
+                    `slashingsauditors` INT(32) NOT NULL,`maxerrorsauditor` INT(11) NOT NULL,\
                     `fields` varchar(8192) NOT NULL, \
                     PRIMARY KEY (id))"
     try:
@@ -211,11 +211,11 @@ def create_tables():
                      `approvalrequestid` int(11) NOT NULL,`auditoraccount` VARCHAR(48) NOT NULL,\
                      `vote` VARCHAR(1) NOT NULL,`otherinfo` VARCHAR(66) NOT NULL,PRIMARY KEY (id))"
     try:
-        print("Creating table impactactionsapprovalrequestsauditors...")
+        print("Creating table impactactionsapprovalrequestauditorvotes...")
 
         cursor.execute(createactions)
     except mysql.connector.Error as err:
-            if(err.msg!="Table 'impactactionsapprovalrequestsauditors' already exists"):
+            if(err.msg!="Table 'impactactionsapprovalrequestauditorvotes' already exists"):
                 print(err.msg)
     else:
         print("OK")
@@ -306,6 +306,57 @@ def store_transaction(blocknumber,txhash,sender,recipient,amount,currenttime):
     cnx.commit()
     cursor.close()
     cnx.close()
+# function to store Impact Actions - New Impact Action
+def impactactions_newimpactaction(blocknumber,txhash,signer,currenttime,idcategory,data):
+    cnx = mysql.connector.connect(user=DB_USER, password=DB_PWD,host=DB_HOST,database=DB_NAME)
+    #decode json structure
+    j=json.loads(data)
+    print("Storing New Impact Action")
+    print("BlockNumber: ",blocknumber)
+    print("TxHash: ",txhash)
+    print("Current time: ",currenttime)
+    print("Signer: ",signer)
+    print("Id: ",idcategory)
+    print("Data: ",data)
+    cursor = cnx.cursor()
+    dtblockchain=currenttime.replace("T"," ")
+    dtblockchain=dtblockchain[0:19]
+    addtx="insert into impactactions set blocknumber=%s,txhash=%s,signer=%s,dtblockchain=%s,id=%s"
+    addtx=addtx+",description=%s,categories=%s,auditors=%s,blockstart=%s,blockend=%s,rewardstoken=%s,rewardsamount=%s,rewardsoracle=%s"
+    addtx=addtx+",rewardauditors=%s,slashingsauditors=%s,maxerrorsauditor=%s,fields=%s"
+    if 'fields' in j:
+        f=j['fields']
+    else:    
+        f={}
+    datatx=(blocknumber,txhash,signer,dtblockchain,idcategory,j['description'],json.dumps(j['categories']),j['auditors'],j['blockstart'],j['blockend'],j['rewardstoken'],j['rewardsamount'],j['rewardsoracle'],j['rewardsauditors'],j['slashingsauditors'],j['maxerrorsauditor'],json.dumps(f))
+    try:
+        cursor.execute(addtx,datatx)
+    except mysql.connector.Error as err:
+                print("[Error] ",err.msg)
+    cnx.commit()
+    cursor.close()
+    cnx.close()    
+# function to store Impact Actions - Destroy Impact Actions
+def impactactions_destroyimpactaction(blocknumber,txhash,signer,currenttime,idimpactaction):
+    cnx = mysql.connector.connect(user=DB_USER, password=DB_PWD,host=DB_HOST,database=DB_NAME)
+    print("Destroy Impact Action")
+    print("BlockNumber: ",blocknumber)
+    print("TxHash: ",txhash)
+    print("Current time: ",currenttime)
+    print("Signer: ",signer)
+    print("Id Impact Action: ",idimpactaction)
+    cursor = cnx.cursor()
+    dtblockchain=currenttime.replace("T"," ")
+    dtblockchain=dtblockchain[0:19]
+    deltx="delete from impactactions where id=%s"
+    datatx=(idimpactaction,)
+    try:
+        cursor.execute(deltx,datatx)
+    except mysql.connector.Error as err:
+                print("[Error] ",err.msg)
+    cnx.commit()
+    cursor.close()
+    cnx.close()
 # function to store Impact Actions - New Category
 def impactactions_newcategory(blocknumber,txhash,signer,currenttime,idcategory,description):
     cnx = mysql.connector.connect(user=DB_USER, password=DB_PWD,host=DB_HOST,database=DB_NAME)
@@ -349,6 +400,7 @@ def impactactions_destroycategory(blocknumber,txhash,signer,currenttime,idcatego
     cnx.commit()
     cursor.close()
     cnx.close()
+# function to process a block of data
 def process_block(blocknumber):
     # Retrieve extrinsics in block
     print("Processing Block # ",blocknumber)
@@ -371,10 +423,21 @@ def process_block(blocknumber):
         if extrinsic.call_module.name=="Balances" and ( extrinsic.call.name=="transfer" or extrinsic.call.name=="transfer_keep_alive"):
             ## store the transaction in the database
             store_transaction(blocknumber,'0x'+extrinsic.extrinsic_hash,extrinsic.address.value,extrinsic.params[0]['value'],extrinsic.params[1]['value'],currentime)
-        # Sudo -> Impact Actions Categories
+        # Sudo -> Impact Actions 
         if extrinsic.call_module.name=="Sudo" and extrinsic.call.name=="sudo":
             print(extrinsic.params[0].get('value'))
             c=extrinsic.params[0].get('value')
+            # new impact action
+            if c['call_module']== 'ImpactActions' and c['call_function']=='create_impact_action':
+                print("Impact Actions - Create New Impact Action")
+                print("id: ",c['call_args'][0]['value'])
+                print("data: ",c['call_args'][1]['value'])
+                impactactions_newimpactaction(blocknumber,'0x'+extrinsic.extrinsic_hash,extrinsic.address.value,currentime,c['call_args'][0]['value'],c['call_args'][1]['value'])
+            # destroy impact action
+            if c['call_module']== 'ImpactActions' and c['call_function']=='destroy_impact_action':
+                print("Impact Actions - Destroy Impact Action")
+                print("id: ",c['call_args'][0]['value'])
+                impactactions_destroyimpactaction(blocknumber,'0x'+extrinsic.extrinsic_hash,extrinsic.address.value,currentime,c['call_args'][0]['value'])
             # new category
             if c['call_module']== 'ImpactActions' and c['call_function']=='create_category':
                 print("Impact Actions - Create New Category")
@@ -386,6 +449,7 @@ def process_block(blocknumber):
                 print("Impact Actions - Destroy Category")
                 print("id: ",c['call_args'][0]['value'])
                 impactactions_destroycategory(blocknumber,'0x'+extrinsic.extrinsic_hash,extrinsic.address.value,currentime,c['call_args'][0]['value'])
+            
         # Loop through call params
         for param in extrinsic.params:
             if param['type'] == 'Compact<Balance>':
@@ -398,7 +462,6 @@ def subscription_handler(obj, update_nr, subscription_id):
     # call the block management function
     process_block(obj['header']['number'])
     
-
 ## MAIN 
 
 # load custom data types

@@ -62,7 +62,7 @@ where:
     "auditors" : Integer                // Number of auditors approvals required to trigger the rewards
     "blockstart" : Integer              // Activated from this block number
     "blockend": :  Integer               // Deactivated after this block number
-    "rewardstoken" : Integer            // 0 = Native BITG, 1.. = unique id of the ERC 20 token as stored by "Assets" Pallet
+    "rewardstoken" : Integer            // 0 = Native BITG, 1.. = unique id of the ERC 20 token as stored by "Assets" Pallet (18 decimals)
     "rewardsamount" : Integer           // Amount of the rewards in the selected token for the user (mandatory)
     "rewardoracle" : Integer            // Amount of the rewards in the selected token for the Oracle (can be zero)
     "rewardsauditors" : Integer         // Amount of the rewards in the selected token for the Auditors (can be zero). Shared in equal parties between multiple auditors.
