@@ -173,9 +173,12 @@ def create_tables():
     else:
         print("OK")
     # creating impactactionsproxy table for impact actions
-    createactions="CREATE TABLE `impactactionsproxy` (`id` MEDIUMINT NOT NULL,`blocknumber` INT(11) NOT NULL,\
-                     `txhash` VARCHAR(66) NOT NULL,`dtblockchain` DATETIME NOT NULL,\
-                     `account` VARCHAR(48) NOT NULL,PRIMARY KEY (id))"
+    createactions="CREATE TABLE `impactactionsproxy` (`id` MEDIUMINT NOT NULL,\
+                `blocknumber` INT(11) NOT NULL,\
+                `txhash` VARCHAR(66) NOT NULL,\
+                `dtblockchain` DATETIME NOT NULL,\
+                `signer` VARCHAR(48) NOT NULL,\
+                `account` VARCHAR(48) NOT NULL,PRIMARY KEY (id))"
     try:
         print("Creating table impactactionsproxy...")
 
@@ -463,6 +466,49 @@ def impactactions_destroyauditor(blocknumber,txhash,signer,currenttime,account):
     cnx.commit()
     cursor.close()
     cnx.close()
+# function to store Impact Actions - New Proxy
+def impactactions_newproxy(blocknumber,txhash,signer,currenttime,idproxy, account):
+    cnx = mysql.connector.connect(user=DB_USER, password=DB_PWD,host=DB_HOST,database=DB_NAME)
+    print("Storing New Proxy")
+    print("BlockNumber: ",blocknumber)
+    print("TxHash: ",txhash)
+    print("Current time: ",currenttime)
+    print("Signer: ",signer)
+    print("Account: ",account)
+    cursor = cnx.cursor()
+    dtblockchain=currenttime.replace("T"," ")
+    dtblockchain=dtblockchain[0:19]
+    addtx="insert into impactactionsproxy set blocknumber=%s,txhash=%s,signer=%s,dtblockchain=%s"
+    addtx=addtx+",id=%s,account=%s"
+    datatx=(blocknumber,txhash,signer,dtblockchain,idproxy,account)
+    try:
+        cursor.execute(addtx,datatx)
+    except mysql.connector.Error as err:
+                print("[Error] ",err.msg)
+    cnx.commit()
+    cursor.close()
+    cnx.close()    
+# function to store Impact Actions - Destroy Proxy
+def impactactions_destroyproxy(blocknumber,txhash,signer,currenttime,idproxy):
+    cnx = mysql.connector.connect(user=DB_USER, password=DB_PWD,host=DB_HOST,database=DB_NAME)
+    print("Destroy Proxy")
+    print("BlockNumber: ",blocknumber)
+    print("TxHash: ",txhash)
+    print("Current time: ",currenttime)
+    print("Signer: ",signer)
+    print("id Proxy: ",idproxy)
+    cursor = cnx.cursor()
+    dtblockchain=currenttime.replace("T"," ")
+    dtblockchain=dtblockchain[0:19]
+    deltx="delete from impactactionsproxy where id=%s"
+    datatx=(idproxy,)
+    try:
+        cursor.execute(deltx,datatx)
+    except mysql.connector.Error as err:
+                print("[Error] ",err.msg)
+    cnx.commit()
+    cursor.close()
+    cnx.close()
 # function to store Impact Actions - New Category
 def impactactions_newcategory(blocknumber,txhash,signer,currenttime,idcategory,description):
     cnx = mysql.connector.connect(user=DB_USER, password=DB_PWD,host=DB_HOST,database=DB_NAME)
@@ -566,6 +612,17 @@ def process_block(blocknumber):
                 print("Impact Actions - Destroy Auditor")
                 print("id: ",c['call_args'][0]['value'])
                 impactactions_destroyauditor(blocknumber,'0x'+extrinsic.extrinsic_hash,extrinsic.address.value,currentime,c['call_args'][0]['value'])
+            # new proxy account
+            if c['call_module']== 'ImpactActions' and c['call_function']=='create_proxy':
+                print("Impact Actions - Create New Proxy")
+                print("id: ",c['call_args'][0]['value'])
+                print("account: ",c['call_args'][1]['value'])
+                impactactions_newproxy(blocknumber,'0x'+extrinsic.extrinsic_hash,extrinsic.address.value,currentime,c['call_args'][0]['value'],c['call_args'][1]['value'])
+            # destroy proxy
+            if c['call_module']== 'ImpactActions' and c['call_function']=='destroy_proxy':
+                print("Impact Actions - Destroy Proxy")
+                print("id: ",c['call_args'][0]['value'])
+                impactactions_destroyproxy(blocknumber,'0x'+extrinsic.extrinsic_hash,extrinsic.address.value,currentime,c['call_args'][0]['value'])
             # new category
             if c['call_module']== 'ImpactActions' and c['call_function']=='create_category':
                 print("Impact Actions - Create New Category")
