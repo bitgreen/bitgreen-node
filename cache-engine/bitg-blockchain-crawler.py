@@ -136,8 +136,11 @@ def create_tables():
     else:
         print("OK")
     # creating impactactionsoracles table for impact actions
-    createactions="CREATE TABLE `impactactionsoracles` (`id` MEDIUMINT NOT NULL,`blocknumber` INT(11) NOT NULL,\
-                    `txhash` VARCHAR(66) NOT NULL,`dtblockchain` DATETIME NOT NULL,\
+    createactions="CREATE TABLE `impactactionsoracles` (`id` MEDIUMINT NOT NULL,\
+                    `blocknumber` INT(11) NOT NULL,\
+                    `txhash` VARCHAR(66) NOT NULL,\
+                    `dtblockchain` DATETIME NOT NULL,\
+                    `signer` VARCHAR(48) NOT NULL,\
                     `description` VARCHAR(128) NOT NULL,\
                     `account` VARCHAR(48) NOT NULL,`otherinfo` VARCHAR(66) NOT NULL,\
                     PRIMARY KEY (id))"
@@ -357,6 +360,56 @@ def impactactions_destroyimpactaction(blocknumber,txhash,signer,currenttime,idim
     cnx.commit()
     cursor.close()
     cnx.close()
+# function to store Impact Actions - New Oracle
+def impactactions_neworacle(blocknumber,txhash,signer,currenttime,idoracle,data):
+    cnx = mysql.connector.connect(user=DB_USER, password=DB_PWD,host=DB_HOST,database=DB_NAME)
+    #decode json structure
+    j=json.loads(data)
+    print("Storing New Oracle")
+    print("BlockNumber: ",blocknumber)
+    print("TxHash: ",txhash)
+    print("Current time: ",currenttime)
+    print("Signer: ",signer)
+    print("Id: ",idoracle)
+    print("Data: ",data)
+    cursor = cnx.cursor()
+    dtblockchain=currenttime.replace("T"," ")
+    dtblockchain=dtblockchain[0:19]
+    addtx="insert into impactactionsoracles set blocknumber=%s,txhash=%s,signer=%s,dtblockchain=%s,id=%s"
+    addtx=addtx+",description=%s,account=%s,otherinfo=%s"
+    if 'otherinfo' in j:
+        o=j['otherinfo']
+    else:    
+        o=''
+    datatx=(blocknumber,txhash,signer,dtblockchain,idoracle,j['description'],j['account'],o)
+    try:
+        cursor.execute(addtx,datatx)
+    except mysql.connector.Error as err:
+                print("[Error] ",err.msg)
+    cnx.commit()
+    cursor.close()
+    cnx.close()    
+# function to store Impact Actions - Destroy Oracle
+def impactactions_destroyoracle(blocknumber,txhash,signer,currenttime,idoracle):
+    cnx = mysql.connector.connect(user=DB_USER, password=DB_PWD,host=DB_HOST,database=DB_NAME)
+    print("Destroy Oracle")
+    print("BlockNumber: ",blocknumber)
+    print("TxHash: ",txhash)
+    print("Current time: ",currenttime)
+    print("Signer: ",signer)
+    print("Id Oracle: ",idoracle)
+    cursor = cnx.cursor()
+    dtblockchain=currenttime.replace("T"," ")
+    dtblockchain=dtblockchain[0:19]
+    deltx="delete from impactactionsoracles where id=%s"
+    datatx=(idoracle,)
+    try:
+        cursor.execute(deltx,datatx)
+    except mysql.connector.Error as err:
+                print("[Error] ",err.msg)
+    cnx.commit()
+    cursor.close()
+    cnx.close()
 # function to store Impact Actions - New Category
 def impactactions_newcategory(blocknumber,txhash,signer,currenttime,idcategory,description):
     cnx = mysql.connector.connect(user=DB_USER, password=DB_PWD,host=DB_HOST,database=DB_NAME)
@@ -438,6 +491,17 @@ def process_block(blocknumber):
                 print("Impact Actions - Destroy Impact Action")
                 print("id: ",c['call_args'][0]['value'])
                 impactactions_destroyimpactaction(blocknumber,'0x'+extrinsic.extrinsic_hash,extrinsic.address.value,currentime,c['call_args'][0]['value'])
+            # new oracle
+            if c['call_module']== 'ImpactActions' and c['call_function']=='create_oracle':
+                print("Impact Actions - Create New Oracle")
+                print("id: ",c['call_args'][0]['value'])
+                print("data: ",c['call_args'][1]['value'])
+                impactactions_neworacle(blocknumber,'0x'+extrinsic.extrinsic_hash,extrinsic.address.value,currentime,c['call_args'][0]['value'],c['call_args'][1]['value'])
+            # destroy oracle
+            if c['call_module']== 'ImpactActions' and c['call_function']=='destroy_oracle':
+                print("Impact Actions - Destroy Oracle")
+                print("id: ",c['call_args'][0]['value'])
+                impactactions_destroyoracle(blocknumber,'0x'+extrinsic.extrinsic_hash,extrinsic.address.value,currentime,c['call_args'][0]['value'])
             # new category
             if c['call_module']== 'ImpactActions' and c['call_function']=='create_category':
                 print("Impact Actions - Create New Category")
