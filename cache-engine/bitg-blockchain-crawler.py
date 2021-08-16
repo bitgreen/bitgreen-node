@@ -501,6 +501,28 @@ def impactactions_assignauditorapprovalrequest(blocknumber,txhash,signer,current
     cnx.commit()
     cursor.close()
     cnx.close()   
+# function to store Impact Actions - Destroy Auditor
+def impactactions_destory_assignedauditorapprovalrequest(blocknumber,txhash,signer,currenttime,approvalrequestid,auditor):
+    cnx = mysql.connector.connect(user=DB_USER, password=DB_PWD,host=DB_HOST,database=DB_NAME)
+    print("Destroy Assigned Auditor to an Approval Request")
+    print("BlockNumber: ",blocknumber)
+    print("TxHash: ",txhash)
+    print("Current time: ",currenttime)
+    print("Signer: ",signer)
+    print("Approval Request id: ",approvalrequestid)
+    print("Auditor: ",auditor)
+    cursor = cnx.cursor()
+    dtblockchain=currenttime.replace("T"," ")
+    dtblockchain=dtblockchain[0:19]
+    deltx="delete from impactactionsapprovalrequestsauditors where approvalrequestid=%s and auditor=%s"
+    datatx=(approvalrequestid,auditor)
+    try:
+        cursor.execute(deltx,datatx)
+    except mysql.connector.Error as err:
+                print("[Error] ",err.msg)
+    cnx.commit()
+    cursor.close()
+    cnx.close()
 # function to store Impact Actions - New Auditor
 def impactactions_newauditor(blocknumber,txhash,signer,currenttime,account,data):
     cnx = mysql.connector.connect(user=DB_USER, password=DB_PWD,host=DB_HOST,database=DB_NAME)
@@ -673,7 +695,10 @@ def process_block(blocknumber):
             impactactions_newapprovalrequest(blocknumber,'0x'+extrinsic.extrinsic_hash,extrinsic.address.value,currentime,extrinsic.params[0]['value'],extrinsic.params[1]['value'])            
         #Impact Actions - Assign Auditor to Approval Request
         if extrinsic.call_module.name=="ImpactActions" and extrinsic.call.name=="assign_auditor":
-            impactactions_assignauditorapprovalrequest(blocknumber,'0x'+extrinsic.extrinsic_hash,extrinsic.address.value,currentime,extrinsic.params[0]['value'],extrinsic.params[1]['value'],extrinsic.params[2]['value'])            
+            impactactions_assignauditorapprovalrequest(blocknumber,'0x'+extrinsic.extrinsic_hash,extrinsic.address.value,currentime,extrinsic.params[0]['value'],extrinsic.params[1]['value'],extrinsic.params[2]['value']) 
+        #Impact Actions - Remove Assigned Auditor to Approval Request
+        if extrinsic.call_module.name=="ImpactActions" and extrinsic.call.name=="destroy_assigned_auditor":
+            impactactions_destory_assignedauditorapprovalrequest(blocknumber,'0x'+extrinsic.extrinsic_hash,extrinsic.address.value,currentime,extrinsic.params[0]['value'],extrinsic.params[1]['value'])            
         # Sudo -> Impact Actions 
         if extrinsic.call_module.name=="Sudo" and extrinsic.call.name=="sudo":
             print(extrinsic.params[0].get('value'))
