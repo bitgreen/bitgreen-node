@@ -234,7 +234,7 @@ you can submit a request approval like this one:
 
 ```
 
-## Assigning an  Auditor to a Request Approval
+## Assigning an  Auditor to an Approval Request 
 
 Some  "request approval" may requires the assignment of a human auditor to review and approve or refuse the impact action submitted from an  user.  
 The function can be submitted  ONLY from a "Proxy Account", (see "createProxy()" above).  
@@ -247,6 +247,17 @@ where:
 - "auditor" is the account of the auditor to assign to the approval request;  
 - "maxdays" are the maximum number of days allowed for the auditor to make the review, after such time the approval request will be re-assigned and the ranking of the auditor decreased.  
 
+## Destroy the assignment of an Auditor to an Approval Request
+
+The assignment of an auditor to an approval request may be necessary to replace the auditor in case of not performance for example.  
+he function can be submitted  ONLY from a "Proxy Account", (see "createProxy()" above).  
+The function to call as extrisinc is:  
+```rust
+impactactions_destory_assignedauditorapprovalrequest(approvalid: u32, auditor: AccountId)
+```
+where:  
+- "approvalid" is the id of the request approval submitted from a regular user;  
+- "auditor" is the account of the auditor to assign to the approval request;  
 
 ## Voting a Request Approval (Auditors only)
 
