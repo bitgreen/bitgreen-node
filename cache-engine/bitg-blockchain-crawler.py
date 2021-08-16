@@ -205,12 +205,14 @@ def create_tables():
     else:
         print("OK")
     # creating impactactionsapprovalrequestsauditors table for impact actions
-    createactions="CREATE TABLE `impactactionsapprovalrequestsauditors` (`id` MEDIUMINT NOT NULL,\
+    createactions="CREATE TABLE `impactactionsapprovalrequestsauditors` (`id` MEDIUMINT NOT NULL AUTO_INCREMENT,\
                     `blocknumber` INT(11) NOT NULL,\
                     `txhash` VARCHAR(66) NOT NULL,\
                     `dtblockchain` DATETIME NOT NULL,\
                     `signer` VARCHAR(48) NOT NULL,\
-                    `info` VARCHAR(8192) NOT NULL,PRIMARY KEY (id))"
+                    `approvalrequestid` int(11) NOT NULL,\
+                    `auditor` VARCHAR(48) NOT NULL,\
+                    `maxdays` INT(11) NOT NULL,PRIMARY KEY (id))"
     try:
         print("Creating table impactactionsapprovalrequestsauditors...")
 
@@ -475,6 +477,30 @@ def impactactions_voteapprovalrequest(blocknumber,txhash,signer,currenttime,appr
     cnx.commit()
     cursor.close()
     cnx.close() 
+# function to store Impact Actions - Assign Auditor to Approval Request
+def impactactions_assignauditorapprovalrequest(blocknumber,txhash,signer,currenttime,approvalrequestid,auditor,maxdays):
+    cnx = mysql.connector.connect(user=DB_USER, password=DB_PWD,host=DB_HOST,database=DB_NAME)
+    #decode json structure
+    print("Storing Assigned Auditor for an Approval Request")
+    print("BlockNumber: ",blocknumber)
+    print("TxHash: ",txhash)
+    print("Current time: ",currenttime)
+    print("Signer: ",signer)
+    print("Approval Request Id: ",approvalrequestid)
+    print("Auditor: ",auditor)
+    print("Max days: ",maxdays)
+    cursor = cnx.cursor()
+    dtblockchain=currenttime.replace("T"," ")
+    dtblockchain=dtblockchain[0:19]
+    addtx="insert into impactactionsapprovalrequestsauditors set blocknumber=%s,txhash=%s,signer=%s,dtblockchain=%s,approvalrequestid=%s,auditor=%s,maxdays=%s"
+    datatx=(blocknumber,txhash,signer,dtblockchain,approvalrequestid,auditor,maxdays)
+    try:
+        cursor.execute(addtx,datatx)
+    except mysql.connector.Error as err:
+                print("[Error] ",err.msg)
+    cnx.commit()
+    cursor.close()
+    cnx.close()   
 # function to store Impact Actions - New Auditor
 def impactactions_newauditor(blocknumber,txhash,signer,currenttime,account,data):
     cnx = mysql.connector.connect(user=DB_USER, password=DB_PWD,host=DB_HOST,database=DB_NAME)
@@ -645,6 +671,9 @@ def process_block(blocknumber):
         #Impact Actions - Vote Approval Request
         if extrinsic.call_module.name=="ImpactActions" and extrinsic.call.name=="request_approval":
             impactactions_newapprovalrequest(blocknumber,'0x'+extrinsic.extrinsic_hash,extrinsic.address.value,currentime,extrinsic.params[0]['value'],extrinsic.params[1]['value'])            
+        #Impact Actions - Assign Auditor to Approval Request
+        if extrinsic.call_module.name=="ImpactActions" and extrinsic.call.name=="assign_auditor":
+            impactactions_assignauditorapprovalrequest(blocknumber,'0x'+extrinsic.extrinsic_hash,extrinsic.address.value,currentime,extrinsic.params[0]['value'],extrinsic.params[1]['value'],extrinsic.params[2]['value'])            
         # Sudo -> Impact Actions 
         if extrinsic.call_module.name=="Sudo" and extrinsic.call.name=="sudo":
             print(extrinsic.params[0].get('value'))
