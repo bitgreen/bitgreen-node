@@ -510,7 +510,7 @@ decl_module! {
              // check the request is signed 
              let sender = ensure_signed(origin)?;
              //check info length
-             ensure!(vote.len()> 4, Error::<T>::TooShortInfo); 
+             ensure!(vote.len()>=4, Error::<T>::TooShortInfo); 
              ensure!(vote.len()< 1024, Error::<T>::TooLongInfo); 
              // check the uid is > 0
              ensure!(approvalid > 0, Error::<T>::UidCannotBeZero); 
@@ -599,7 +599,7 @@ decl_module! {
             // check categories
             let jsc=configuration.clone();
             let categories=json_get_value(jsc,"categories".as_bytes().to_vec());
-            ensure!(categories.len() >= 3, Error::<T>::TooShortCategories); //check minimum length for the categories
+            ensure!(categories.len() >= 1, Error::<T>::TooShortCategories); //check minimum length for the categories
             ensure!(categories.len() <=256, Error::<T>::TooLongCategories); //check maximum length for the categories
             //frame_support::debug::info!("[DEBUG]****************************************** categories {:?}", categories);
             // check categories that must be present
