@@ -60,7 +60,8 @@ decl_event!(
         ImpactActionOracleCreated(u32,Vec<u8>),         // A new oracle has been added
         ImpactActionOracleDestroyed(u32),               // An oracle has been removed
         ImpactActionAuditorAssigned(u32,AccountId,u32),        // Assigned auditor to a request approval with xx max days to complete the auditing
-        ImpactActionRequestApprovalVoted(AccountId,u32,Vec<u8>),
+        ImpactActionRequestApprovalVoted(AccountId,u32,Vec<u8>),    //Vote expressed from an auditor
+        AssignedAuditorDestroyed(u32,AccountId),        //Assigned auditor has been revoked
 	}
 );
 
@@ -177,6 +178,8 @@ decl_error! {
         VoteAlreadyPresent,
         /// The impact action is not valid because the current block is out of the block frame defined
         ImpactActionNotValid,
+        /// Assigne Auditor not found for such approval request id
+        AssignedAuditorNotFound,
 	}
 }
 
@@ -671,7 +674,7 @@ decl_module! {
             // get the proxy account used for assigning the auditor
 			ensure!(Proxy::<T>::contains_key(0)==true, Error::<T>::ProxyAccountNotConfigured);
             let proxy=Proxy::<T>::get(0).unwrap();
-			// check the request is signed from Super User
+			// check the request is signed from Authorised Proxy
 			let sender = ensure_signed(origin)?;
             ensure!(sender==proxy,Error::<T>::SigningAccountNotValidProxy);
 			// check the uid is > 0
@@ -686,6 +689,25 @@ decl_module! {
 			ApprovalRequestsAuditors::<T>::insert(approvalid,auditor.clone(),maxdays);
             // Generate event 
 			Self::deposit_event(RawEvent::ImpactActionAuditorAssigned(approvalid,auditor,maxdays));
+			// Return a successful DispatchResult
+			Ok(())
+		}
+        /// Destroy an impact action
+        #[weight = 1000]
+		pub fn destroy_assigned_auditor(origin, approvalid: u32, auditor: T::AccountId) -> dispatch::DispatchResult {
+			// get the proxy account used for assigning the auditor
+			ensure!(Proxy::<T>::contains_key(0)==true, Error::<T>::ProxyAccountNotConfigured);
+            let proxy=Proxy::<T>::get(0).unwrap();
+			// check the request is signed from Authorised Proxy
+			let sender = ensure_signed(origin)?;
+            ensure!(sender==proxy,Error::<T>::SigningAccountNotValidProxy);
+            // verify the assigned editor exists
+			ensure!(ApprovalRequestsAuditors::<T>::contains_key(&approvalid,&auditor)==true, Error::<T>::AssignedAuditorNotFound);
+			// Remove impact action
+			ApprovalRequestsAuditors::<T>::take(&approvalid,&auditor);
+            // Generate event
+            //it can leave orphans, anyway it's a decision of the super user
+			Self::deposit_event(RawEvent::AssignedAuditorDestroyed(approvalid,auditor));
 			// Return a successful DispatchResult
 			Ok(())
 		}
