@@ -666,20 +666,27 @@ def process_block(blocknumber):
     result = substrate.get_block(block_number=blocknumber)
     print ("##########################")
     print(result)
+    print("Block Hash: ",result['header']['hash'])
     print ("##########################")
+    events=substrate.get_events(result['header']['hash'])
+    cnt=0    
     for extrinsic in result['extrinsics']:
         if extrinsic.address:
             signed_by_address = extrinsic.address.value
         else:
             signed_by_address = None
-    #    print ("##########################")
-    #    print(extrinsic)
-    #    print ("##########################")
         print('\nPallet: {}\nCall: {}\nSigned by: {}'.format(
             extrinsic.call_module.name,
             extrinsic.call.name,
             signed_by_address
         ))
+        # check for exstrinc success or not
+        if events[cnt].event.name!="ExtrinsicSuccess":
+            print("Extrinsic has failed: ",events[cnt].event.name)
+            cnt=cnt+1
+            continue
+        else:
+            print("Extrinsic succeded: ",events[cnt].event.name)
         #for TimeStamp call we set the time of the following transactions
         if extrinsic.call_module.name=="Timestamp" and extrinsic.call.name=="set":
             currentime=extrinsic.params[0]['value']
@@ -764,6 +771,7 @@ def process_block(blocknumber):
             if param['type'] == 'Compact<Balance>':
                 param['value'] = '{} {}'.format(param['value'] / 10 ** substrate.token_decimals, substrate.token_symbol)
             print("Param '{}': {}".format(param['name'], param['value']))
+        cnt=cnt+1
 
 # subscription handler for new blocks written
 def subscription_handler(obj, update_nr, subscription_id):
