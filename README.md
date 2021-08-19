@@ -259,7 +259,7 @@ Click on "Settings","Developer" and copy/paste the [data types of this blockchai
 [JavaScript - Polkadot-JS API](https://polkadot.js.org/docs/api/)  
 The Polkadot-JS API is a javascript library of interfaces for communicating with Substrate nodes like BitGreen node.  
 The API provides application developers the ability to query a node and submit signed transaction using Javascript.  
-A specific [integration guide to JavaScript/Bitgreen is available](docs/javascript.md).  
+A specific [integration guide to JavaScript/Bitgreen is available](doc/javascript.md).  
 
 [JavaScript Polkadot-JS Extension](https://github.com/polkadot-js/apps)    
 The Polkadot-JS Extension is a simple extension for managing accounts in a browser extension and allowing the signing of extrinsics using these accounts.  

@@ -23,12 +23,12 @@ wss://testnet.bitg.org
 ```
 ## Data Types
 BitGreen blockchain has some differences compared to Polkadot, some data types have been created for our specific modules.  
-You should "inject" the datatypes during the connection to the node. 
-The data types are in [/assets/types.json](../assets/types.json)
+You should "inject" the datatypes during the connection to the node.  
+The data types are in [/assets/types.json](../assets/types.json)  
 Here you can find an example how to open a connection injecting the required data types:  
-[/utilities/bitg-transfer-testnet.js](../utilities/bitg-transfer-testnet.js)
+[/utilities/bitg-transfer-testnet.js](../utilities/bitg-transfer-testnet.js)  
 
-##How to get BITG for Testnet
+## How to get BITG for Testnet
 You can get 100 free BITG on Testnet using our free minter available at:  
 [https://testnet.bitg.org:8443](https://testnet.bitg.org:8443)  
 
