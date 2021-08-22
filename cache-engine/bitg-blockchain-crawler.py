@@ -681,8 +681,12 @@ def process_block(blocknumber):
             signed_by_address
         ))
         # check for exstrinc success or not
-        if events[cnt].event.name!="ExtrinsicSuccess":
-            print("Extrinsic has failed: ",events[cnt].event.name)
+        try:
+            error=events[cnt].params[0]['value'].get('Error')
+        except:
+            error=None
+        if events[cnt].event.name=="ExtrinsicFailed" or error!=None :
+            print("Extrinsic has failed")
             cnt=cnt+1
             continue
         else:
