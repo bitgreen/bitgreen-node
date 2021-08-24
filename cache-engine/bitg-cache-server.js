@@ -71,6 +71,11 @@ async function mainloop(){
         console.log("Get single transaction: ",txhash);
         get_transaction(res,txhash);
     });
+    //get categories of impact actions
+    app.get('/impactactionscategories',async function(req, res) {
+        console.log("Get Impact Action Categories");
+        get_impactactions_categories(res);
+    });
     // listening to server port
     console.log("[Info] - Listening for HTTP connections on port TCP/3002");
     let server=app.listen(3002,function() {});
@@ -97,6 +102,52 @@ function read_file(name){
         console.error(err);
         return(undefined);
       }
+}
+// function to send impact actions/categories list in json format
+async function get_impactactions_categories(res){
+    let connection = mysql.createConnection({
+        host     : DB_HOST,
+        user     : DB_USER,
+        password : DB_PWD,
+        database : DB_NAME
+    });
+    sqlquery="select * from impactactionscategories order by id";
+    connection.query(
+        {
+            sql: sqlquery,
+        },
+        function (error, results, fields) {
+            if (error){
+                console.log("[Error]"+error);
+                throw error;
+            }
+            if(results.length==0){
+                console.log("[Debug] Impact Actions Categories not found");
+                res.send('{"categories":[]}');    
+                connection.end();
+                return;
+            }else{
+                let answer='{"categories":[';
+                let x=0;
+                for (r in results) {
+                    if(x>0){
+                        answer=answer+',';
+                    }
+                    answer= answer+'{"id":'+results[r].id;
+                    answer=answer+',"blocknumber":'+results[r].blocknumber+',"txhash":"'+results[r].txhash+'"';
+                    answer=answer+',"sender":"'+results[r].signer+'"';
+                    answer=answer+',"description":"'+results[r].description+'"';
+                    answer=answer+',"dtblockchain":"'+results[r].dtblockchain+'"}';
+                    x++;
+                }
+                answer=answer+']}';
+                console.log("[Info] Sending Impact Actions Categories: ",answer);
+                res.send(answer);
+                connection.end();
+                return;
+            }
+        }
+    );
 }
 // function to send transactions list in json format
 async function get_transactions(res,account,dts,dte){
