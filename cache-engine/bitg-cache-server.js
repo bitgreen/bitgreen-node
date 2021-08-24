@@ -71,10 +71,20 @@ async function mainloop(){
         console.log("Get single transaction: ",txhash);
         get_transaction(res,txhash);
     });
+    //get impact actions configuration
+    app.get('/impactactions',async function(req, res) {
+        console.log("Get Impact Action ");
+        get_impactactions(res);
+    });
     //get categories of impact actions
     app.get('/impactactionscategories',async function(req, res) {
         console.log("Get Impact Action Categories");
         get_impactactions_categories(res);
+    });
+    //get proxy accounts in impact actions
+    app.get('/impactactionsproxies',async function(req, res) {
+        console.log("Get Impact Action Proxies");
+        get_impactactions_proxies(res);
     });
     // listening to server port
     console.log("[Info] - Listening for HTTP connections on port TCP/3002");
@@ -102,6 +112,110 @@ function read_file(name){
         console.error(err);
         return(undefined);
       }
+}
+// function to send impact actions configuration in json format
+async function get_impactactions(res){
+    let connection = mysql.createConnection({
+        host     : DB_HOST,
+        user     : DB_USER,
+        password : DB_PWD,
+        database : DB_NAME
+    });
+    sqlquery="select * from impactactions order by id desc";
+    connection.query(
+        {
+            sql: sqlquery,
+        },
+        function (error, results, fields) {
+            if (error){
+                console.log("[Error]"+error);
+                throw error;
+            }
+            if(results.length==0){
+                console.log("[Debug] Impact Actions not found");
+                res.send('{"proxies":[]}');    
+                connection.end();
+                return;
+            }else{
+                let answer='{"impactactions":[';
+                let x=0;
+                for (r in results) {
+                    if(x>0){
+                        answer=answer+',';
+                    }
+                    answer= answer+'{"id":'+results[r].id;
+                    answer=answer+',"blocknumber":'+results[r].blocknumber+',"txhash":"'+results[r].txhash+'"';
+                    answer=answer+',"sender":"'+results[r].signer+'"';
+                    answer=answer+',"description":"'+results[r].description+'"';
+                    answer=answer+',"categories":'+results[r].categories;
+                    answer=answer+',"auditors":'+results[r].auditors;
+                    answer=answer+',"blockstart":'+results[r].blockstart;
+                    answer=answer+',"blockend":'+results[r].blockend;
+                    answer=answer+',"rewardstoken":'+results[r].rewardstoken;
+                    answer=answer+',"rewardsamount":'+results[r].rewardsamount;
+                    answer=answer+',"rewardsoracle":'+results[r].rewardsoracle;
+                    answer=answer+',"rewardauditors":'+results[r].rewardauditors;
+                    answer=answer+',"slashingsauditors":'+results[r].slashingsauditors;
+                    answer=answer+',"maxerrorsauditor":'+results[r].maxerrorsauditor;
+                    answer=answer+',"slashingsauditors":'+results[r].slashingsauditors;
+                    answer=answer+',"fields":'+results[r].fields;
+                    answer=answer+',"dtblockchain":"'+results[r].dtblockchain+'"}';
+                    x++;
+                }
+                answer=answer+']}';
+                console.log("[Info] Sending Impact Actions: ",answer);
+                res.send(answer);
+                connection.end();
+                return;
+            }
+        }
+    );
+}
+// function to send impact actions/proxies list in json format
+async function get_impactactions_proxies(res){
+    let connection = mysql.createConnection({
+        host     : DB_HOST,
+        user     : DB_USER,
+        password : DB_PWD,
+        database : DB_NAME
+    });
+    sqlquery="select * from impactactionsproxy order by id desc";
+    connection.query(
+        {
+            sql: sqlquery,
+        },
+        function (error, results, fields) {
+            if (error){
+                console.log("[Error]"+error);
+                throw error;
+            }
+            if(results.length==0){
+                console.log("[Debug] Impact Actions Proxies not found");
+                res.send('{"proxies":[]}');    
+                connection.end();
+                return;
+            }else{
+                let answer='{"categories":[';
+                let x=0;
+                for (r in results) {
+                    if(x>0){
+                        answer=answer+',';
+                    }
+                    answer= answer+'{"id":'+results[r].id;
+                    answer=answer+',"blocknumber":'+results[r].blocknumber+',"txhash":"'+results[r].txhash+'"';
+                    answer=answer+',"sender":"'+results[r].signer+'"';
+                    answer=answer+',"account":"'+results[r].account+'"';
+                    answer=answer+',"dtblockchain":"'+results[r].dtblockchain+'"}';
+                    x++;
+                }
+                answer=answer+']}';
+                console.log("[Info] Sending Impact Actions Proxies: ",answer);
+                res.send(answer);
+                connection.end();
+                return;
+            }
+        }
+    );
 }
 // function to send impact actions/categories list in json format
 async function get_impactactions_categories(res){
