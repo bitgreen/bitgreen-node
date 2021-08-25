@@ -81,6 +81,14 @@ async function mainloop(){
         console.log("Get Impact Action - Approval Rquests ");
         get_impactactions_approval_requests(res);
     });
+    app.get('/impactactionsapprovalrequestauditorvotes',async function(req, res) {
+        let id='';
+        if (typeof req.query.id!=='undefined'){
+            id=req.query.id;
+        }
+        console.log("Get Auditors' votes for an  Approval Requests: ",id);
+        get_impactactions_votes_auditors(res,id);
+    });
     app.get('/impactactionsapprovalrequestsauditors',async function(req, res) {
         let id='';
         if (typeof req.query.id!=='undefined'){
@@ -248,7 +256,7 @@ async function get_impactactions_approval_requests(res){
         }
     );
 }
-// function to send impact actions - audito assigned to approval requests in json format
+// function to send impact actions - auditors assigned to approval requests in json format
 async function get_impactactions_approval_requests_auditors(res,id){
     let connection = mysql.createConnection({
         host     : DB_HOST,
@@ -291,6 +299,56 @@ async function get_impactactions_approval_requests_auditors(res,id){
                 }
                 answer=answer+']}';
                 console.log("[Info] Sending Impact Actions - Auditors assignet to Approval Requests: ",answer);
+                res.send(answer);
+                connection.end();
+                return;
+            }
+        }
+    );
+}
+// function to send impact actions - votes's auditors for an approval requests in json format
+async function get_impactactions_votes_auditors(res,id){
+    let connection = mysql.createConnection({
+        host     : DB_HOST,
+        user     : DB_USER,
+        password : DB_PWD,
+        database : DB_NAME
+    });
+    sqlquery="select * from impactactionsapprovalrequestauditorvotes where approvalrequestid=? order by id desc";
+    connection.query(
+        {
+            sql: sqlquery,
+            values: [id]
+
+        },
+        function (error, results, fields) {
+            if (error){
+                console.log("[Error]"+error);
+                throw error;
+            }
+            if(results.length==0){
+                console.log("[Debug] Impact Actions - Auditors' Votes for an  Approval requests not found");
+                res.send('{"approvalrequestsauditors":[]}');    
+                connection.end();
+                return;
+            }else{
+                let answer='{"approvalrequestsauditorsvotes":[';
+                let x=0;
+                for (r in results) {
+                    if(x>0){
+                        answer=answer+',';
+                    }
+                    answer= answer+'{"id":'+results[r].id;
+                    answer=answer+',"blocknumber":'+results[r].blocknumber+',"txhash":"'+results[r].txhash+'"';
+                    answer=answer+',"signer":"'+results[r].signer+'"';
+                    answer=answer+',"approvalrequestid":'+results[r].approvalrequestid;
+                    answer=answer+',"vote":"'+results[r].auditor+'"';
+                    answer=answer+',"otherinfo":'+results[r].otherinfo;
+                    answer=answer+',"dtblockchain":"'+results[r].dtblockchain+'"}';
+                    x++;
+                }
+                answer=answer+']}';
+                console.log("[Info] Sending Impact Actions - Auditors's votes for an Approval Requests: ",answer);
                 res.send(answer);
                 connection.end();
                 return;
