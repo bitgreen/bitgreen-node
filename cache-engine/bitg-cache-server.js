@@ -81,6 +81,11 @@ async function mainloop(){
         console.log("Get Impact Action Oracles");
         get_impactactions_oracles(res);
     });
+    //get auditors in impact actions
+    app.get('/impactactionsauditors',async function(req, res) {
+        console.log("Get Impact Action Auditors");
+        get_impactactions_auditors(res);
+    });
     //get categories of impact actions
     app.get('/impactactionscategories',async function(req, res) {
         console.log("Get Impact Action Categories");
@@ -176,6 +181,56 @@ async function get_impactactions(res){
         }
     );
 }
+// function to send impact actions/auditors list in json format
+async function get_impactactions_auditors(res){
+    let connection = mysql.createConnection({
+        host     : DB_HOST,
+        user     : DB_USER,
+        password : DB_PWD,
+        database : DB_NAME
+    });
+    sqlquery="select * from impactactionsauditors order by id desc";
+    connection.query(
+        {
+            sql: sqlquery,
+        },
+        function (error, results, fields) {
+            if (error){
+                console.log("[Error]"+error);
+                throw error;
+            }
+            if(results.length==0){
+                console.log("[Debug] Impact Actions Auditors not found");
+                res.send('{"auditors":[]}');    
+                connection.end();
+                return;
+            }else{
+                let answer='{"auditors":[';
+                let x=0;
+                for (r in results) {
+                    if(x>0){
+                        answer=answer+',';
+                    }
+                    answer= answer+'{"id":'+results[r].id;
+                    answer=answer+',"blocknumber":'+results[r].blocknumber+',"txhash":"'+results[r].txhash+'"';
+                    answer=answer+',"sender":"'+results[r].signer+'"';
+                    answer=answer+',"description":"'+results[r].description+'"';
+                    answer=answer+',"account":"'+results[r].account+'"';
+                    answer=answer+',"categories":'+results[r].categories;
+                    answer=answer+',"area":'+results[r].area;
+                    answer=answer+',"otherinfo":"'+results[r].otherinfo+'"';
+                    answer=answer+',"dtblockchain":"'+results[r].dtblockchain+'"}';
+                    x++;
+                }
+                answer=answer+']}';
+                console.log("[Info] Sending Impact Actions Auditors: ",answer);
+                res.send(answer);
+                connection.end();
+                return;
+            }
+        }
+    );
+}
 // function to send impact actions/oracles list in json format
 async function get_impactactions_oracles(res){
     let connection = mysql.createConnection({
@@ -200,7 +255,7 @@ async function get_impactactions_oracles(res){
                 connection.end();
                 return;
             }else{
-                let answer='{"categories":[';
+                let answer='{"oracles":[';
                 let x=0;
                 for (r in results) {
                     if(x>0){
