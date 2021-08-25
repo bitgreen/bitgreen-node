@@ -76,6 +76,11 @@ async function mainloop(){
         console.log("Get Impact Action ");
         get_impactactions(res);
     });
+    //get impact actions - Approval Requests
+    app.get('/impactactionsapprovalrequests',async function(req, res) {
+        console.log("Get Impact Action - Approval Rquests ");
+        get_impactactions_approval_request(res);
+    });
     //get oracles in impact actions
     app.get('/impactactionsoracles',async function(req, res) {
         console.log("Get Impact Action Oracles");
@@ -174,6 +179,52 @@ async function get_impactactions(res){
                 }
                 answer=answer+']}';
                 console.log("[Info] Sending Impact Actions: ",answer);
+                res.send(answer);
+                connection.end();
+                return;
+            }
+        }
+    );
+}
+// function to send impact actions configuration in json format
+async function get_impactactions_approval_request(res){
+    let connection = mysql.createConnection({
+        host     : DB_HOST,
+        user     : DB_USER,
+        password : DB_PWD,
+        database : DB_NAME
+    });
+    sqlquery="select * from impactactionsapprovalrequests order by id desc";
+    connection.query(
+        {
+            sql: sqlquery,
+        },
+        function (error, results, fields) {
+            if (error){
+                console.log("[Error]"+error);
+                throw error;
+            }
+            if(results.length==0){
+                console.log("[Debug] Impact Actions - Approval requests not found");
+                res.send('{"approvalrequests":[]}');    
+                connection.end();
+                return;
+            }else{
+                let answer='{"approvalrequests":[';
+                let x=0;
+                for (r in results) {
+                    if(x>0){
+                        answer=answer+',';
+                    }
+                    answer= answer+'{"id":'+results[r].id;
+                    answer=answer+',"blocknumber":'+results[r].blocknumber+',"txhash":"'+results[r].txhash+'"';
+                    answer=answer+',"signer":"'+results[r].signer+'"';
+                    answer=answer+',"info":'+results[r].info;
+                    answer=answer+',"dtblockchain":"'+results[r].dtblockchain+'"}';
+                    x++;
+                }
+                answer=answer+']}';
+                console.log("[Info] Sending Impact Actions - Approval Requests: ",answer);
                 res.send(answer);
                 connection.end();
                 return;
