@@ -249,17 +249,19 @@ async function get_impactactions_approval_requests(res){
     );
 }
 // function to send impact actions - audito assigned to approval requests in json format
-async function get_impactactions_approval_requests_auditors(res){
+async function get_impactactions_approval_requests_auditors(res,id){
     let connection = mysql.createConnection({
         host     : DB_HOST,
         user     : DB_USER,
         password : DB_PWD,
         database : DB_NAME
     });
-    sqlquery="select * from impactactionsapprovalrequestsauditors order by id desc";
+    sqlquery="select * from impactactionsapprovalrequestsauditors where approvalrequestid=? order by id desc";
     connection.query(
         {
             sql: sqlquery,
+            values: [id]
+
         },
         function (error, results, fields) {
             if (error){
