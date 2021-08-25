@@ -79,7 +79,23 @@ async function mainloop(){
     //get impact actions - Approval Requests
     app.get('/impactactionsapprovalrequests',async function(req, res) {
         console.log("Get Impact Action - Approval Rquests ");
-        get_impactactions_approval_request(res);
+        get_impactactions_approval_requests(res);
+    });
+    app.get('/impactactionsapprovalrequestsauditors',async function(req, res) {
+        let id='';
+        if (typeof req.query.id!=='undefined'){
+            id=req.query.id;
+        }
+        console.log("Get Auditors assigned to Approval Requests: ",id);
+        get_impactactions_approval_requests_auditors(res,id);
+    });
+    app.get('/impactactionsapprovalrequest',async function(req, res) {
+        let id='';
+        if (typeof req.query.id!=='undefined'){
+            id=req.query.id;
+        }
+        console.log("Get single transaction: ",id);
+        get_impactactions_approval_request(res,id);
     });
     //get oracles in impact actions
     app.get('/impactactionsoracles',async function(req, res) {
@@ -186,8 +202,8 @@ async function get_impactactions(res){
         }
     );
 }
-// function to send impact actions configuration in json format
-async function get_impactactions_approval_request(res){
+// function to send impact actions - approval requests in json format
+async function get_impactactions_approval_requests(res){
     let connection = mysql.createConnection({
         host     : DB_HOST,
         user     : DB_USER,
@@ -225,6 +241,101 @@ async function get_impactactions_approval_request(res){
                 }
                 answer=answer+']}';
                 console.log("[Info] Sending Impact Actions - Approval Requests: ",answer);
+                res.send(answer);
+                connection.end();
+                return;
+            }
+        }
+    );
+}
+// function to send impact actions - audito assigned to approval requests in json format
+async function get_impactactions_approval_requests_auditors(res){
+    let connection = mysql.createConnection({
+        host     : DB_HOST,
+        user     : DB_USER,
+        password : DB_PWD,
+        database : DB_NAME
+    });
+    sqlquery="select * from impactactionsapprovalrequestsauditors order by id desc";
+    connection.query(
+        {
+            sql: sqlquery,
+        },
+        function (error, results, fields) {
+            if (error){
+                console.log("[Error]"+error);
+                throw error;
+            }
+            if(results.length==0){
+                console.log("[Debug] Impact Actions - Auditor assigned to Approval requests not found");
+                res.send('{"approvalrequestsauditors":[]}');    
+                connection.end();
+                return;
+            }else{
+                let answer='{"approvalrequestsauditors":[';
+                let x=0;
+                for (r in results) {
+                    if(x>0){
+                        answer=answer+',';
+                    }
+                    answer= answer+'{"id":'+results[r].id;
+                    answer=answer+',"blocknumber":'+results[r].blocknumber+',"txhash":"'+results[r].txhash+'"';
+                    answer=answer+',"signer":"'+results[r].signer+'"';
+                    answer=answer+',"approvalrequestid":'+results[r].approvalrequestid;
+                    answer=answer+',"auditor":"'+results[r].auditor+'"';
+                    answer=answer+',"maxdays":'+results[r].maxdays;
+                    answer=answer+',"dtblockchain":"'+results[r].dtblockchain+'"}';
+                    x++;
+                }
+                answer=answer+']}';
+                console.log("[Info] Sending Impact Actions - Auditors assignet to Approval Requests: ",answer);
+                res.send(answer);
+                connection.end();
+                return;
+            }
+        }
+    );
+}
+// function to send a single impact action in json format
+async function get_impactactions_approval_request(res,id){
+    let connection = mysql.createConnection({
+        host     : DB_HOST,
+        user     : DB_USER,
+        password : DB_PWD,
+        database : DB_NAME
+    });
+    sqlquery="select * from impactactionsapprovalrequests where id=?";
+    connection.query(
+        {
+            sql: sqlquery,
+            values: [id]
+        },
+        function (error, results, fields) {
+            if (error){
+                console.log("[Error]"+error);
+                throw error;
+            }
+            if(results.length==0){
+                console.log("[Debug] Impact Actions - Approval request not found");
+                res.send('{}');    
+                connection.end();
+                return;
+            }else{
+                let answer='{';
+                let x=0;
+                for (r in results) {
+                    if(x>0){
+                        answer=answer+',';
+                    }
+                    answer= answer+'"id":'+results[r].id;
+                    answer=answer+',"blocknumber":'+results[r].blocknumber+',"txhash":"'+results[r].txhash+'"';
+                    answer=answer+',"signer":"'+results[r].signer+'"';
+                    answer=answer+',"info":'+results[r].info;
+                    answer=answer+',"dtblockchain":"'+results[r].dtblockchain+'"';
+                    x++;
+                }
+                answer=answer+'}';
+                console.log("[Info] Sending Impact Actions - Single Approval Request: ",answer);
                 res.send(answer);
                 connection.end();
                 return;
