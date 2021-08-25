@@ -76,6 +76,11 @@ async function mainloop(){
         console.log("Get Impact Action ");
         get_impactactions(res);
     });
+    //get oracles in impact actions
+    app.get('/impactactionsoracles',async function(req, res) {
+        console.log("Get Impact Action Oracles");
+        get_impactactions_oracles(res);
+    });
     //get categories of impact actions
     app.get('/impactactionscategories',async function(req, res) {
         console.log("Get Impact Action Categories");
@@ -164,6 +169,53 @@ async function get_impactactions(res){
                 }
                 answer=answer+']}';
                 console.log("[Info] Sending Impact Actions: ",answer);
+                res.send(answer);
+                connection.end();
+                return;
+            }
+        }
+    );
+}
+// function to send impact actions/oracles list in json format
+async function get_impactactions_oracles(res){
+    let connection = mysql.createConnection({
+        host     : DB_HOST,
+        user     : DB_USER,
+        password : DB_PWD,
+        database : DB_NAME
+    });
+    sqlquery="select * from impactactionsoracles order by id desc";
+    connection.query(
+        {
+            sql: sqlquery,
+        },
+        function (error, results, fields) {
+            if (error){
+                console.log("[Error]"+error);
+                throw error;
+            }
+            if(results.length==0){
+                console.log("[Debug] Impact Actions Oracles not found");
+                res.send('{"oracles":[]}');    
+                connection.end();
+                return;
+            }else{
+                let answer='{"categories":[';
+                let x=0;
+                for (r in results) {
+                    if(x>0){
+                        answer=answer+',';
+                    }
+                    answer= answer+'{"id":'+results[r].id;
+                    answer=answer+',"blocknumber":'+results[r].blocknumber+',"txhash":"'+results[r].txhash+'"';
+                    answer=answer+',"sender":"'+results[r].signer+'"';
+                    answer=answer+',"account":"'+results[r].account+'"';
+                    answer=answer+',"otherinfo":"'+results[r].otherinfo+'"';
+                    answer=answer+',"dtblockchain":"'+results[r].dtblockchain+'"}';
+                    x++;
+                }
+                answer=answer+']}';
+                console.log("[Info] Sending Impact Actions Oracles: ",answer);
                 res.send(answer);
                 connection.end();
                 return;
