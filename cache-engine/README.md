@@ -92,7 +92,10 @@ From command line, execute:
 ```sh
 ./bitg-cache-server.sh
 ```
-
+To syncronize the cache from first block written in the table "sync" of the database "bitgreen" you can launch:   
+```sh
+./bitg-cache-server.sh --sync
+```
 
 Once active, You can make https calls to the following endpoint:  
 ## Query transactions by Account
