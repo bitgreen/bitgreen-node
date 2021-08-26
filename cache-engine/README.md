@@ -283,6 +283,155 @@ to obtain a json answer like the following:
 }
 ```
 
+## Impact Actions - Query Votes of the Auditors on Approval Requests
+You can query the votes expressed from each auditor on the approval request by the following GET:
+
+```sh
+https://testnode.bitg.org:9443/impactactionsapprovalrequestauditorvotes?id=xx
+```
+where "testnode.bitg.org" should be replaced with your node name or ip address and id is the approval request id.  
+
+to obtain a json answer like the following:  
+```json
+{
+	"id": 2,
+	"blocknumber": 470,
+	"txhash": "0xd1aa2db676176c1564887cdd9b17520491fb8bf52c7c819d722ff2d166efd741",
+	"signer": "5GNJqTPyNqANBkUVMN1LPPrxXnFouWXoe2wNSmmEoLctxiZY",
+	"info": {
+		"impactactionid": 1,
+		"description": "Planted a new tree",
+		"coordinates": "25.283294382,55.292989282",
+		"ipfsphoto": "bafybeigdyrzt5sfp7udm7hu76uh7y27nf3efuylqabf3oclgtqy55fbzdi"
+	},
+	"dtblockchain": "Mon Aug 16 2021 10:00:40 GMT+0400 (Gulf Standard Time)"
+}
+```
+
+## Impact Actions - Query Auditors Assigned to Approval Requests  
+
+You can query the auditors assigned to an approval request by the following GET:  
+
+```sh
+https://testnode.bitg.org:9443/impactactionsapprovalrequestsauditors?id=xx
+```
+where "testnode.bitg.org" should be replaced with your node name or ip address and id is the approval request id.  
+
+to obtain a json answer like the following:  
+```json
+{
+		"approvalrequestsauditors": [{
+		"id": 1,
+		"blocknumber": 679,
+		"txhash": "0xc0c60e4741a879b26729137c8ccac5ae3610866d2a5340a03121b07cba969ba1",
+		"signer": "5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY",
+		"approvalrequestid": 2,
+		"auditor": "5FHneW46xGXgs5mUiveU4sbTyGBzmstUspZC92UhjJM694ty",
+		"maxdays": 60,
+		"dtblockchain": "Mon Aug 16 2021 10:35:30 GMT+0400 (Gulf Standard Time)"
+	}]
+}
+```
+
+## Impact Actions - Query Auditors
+
+You can query all the auditors registered using the following GET:
+
+```sh
+https://testnode.bitg.org:9443/impactactionauditors
+```
+where "testnode.bitg.org" should be replaced with your node name or ip address.  
+
+to obtain a json answer like the following:  
+```json
+{
+		"auditors": [{
+		"id": 1,
+		"blocknumber": 679,
+		"txhash": "0xc0c60e4741a879b26729137c8ccac5ae3610866d2a5340a03121b07cba969ba1",
+		"signer": "5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY",
+		"description": "Oracle to verify CO2 abosrbed from Solar Panels",
+		"account": "5FHneW46xGXgs5mUiveU4sbTyGBzmstUspZC92UhjJM694ty",
+		"categories": [1,2],
+		"area": "55.255111,45.438981",
+		"otherinfo":"bafybeigdyrzt5sfp7udm7hu76uh7y27nf3efuylqabf3oclgtqy55fbzdi",
+		"dtblockchain": "Mon Aug 16 2021 10:35:30 GMT+0400 (Gulf Standard Time)"
+	}]
+}
+```
+## Impact Actions - Query Oracles
+
+You can query all the Oracles registered using the following GET:
+
+```sh
+https://testnode.bitg.org:9443/impactactionoracles
+```
+where "testnode.bitg.org" should be replaced with your node name or ip address.  
+
+to obtain a json answer like the following:  
+```json
+{
+		"oracles": [{
+		"id": 1,
+		"blocknumber": 679,
+		"txhash": "0xc0c60e4741a879b26729137c8ccac5ae3610866d2a5340a03121b07cba969ba1",
+		"signer": "5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY",
+		"description": "Oracle to verify CO2 abosrbed from Solar Panels",
+		"account": "5FHneW46xGXgs5mUiveU4sbTyGBzmstUspZC92UhjJM694ty",
+		"otherinfo":"bafybeigdyrzt5sfp7udm7hu76uh7y27nf3efuylqabf3oclgtqy55fbzdi",
+		"dtblockchain": "Mon Aug 16 2021 10:35:30 GMT+0400 (Gulf Standard Time)"
+	}]
+}
+```
+
+## Impact Actions - Categories
+
+You can query all the Oracles registered using the following GET:
+
+```sh
+https://testnode.bitg.org:9443/impactactioncategories
+```
+where "testnode.bitg.org" should be replaced with your node name or ip address.  
+
+to obtain a json answer like the following:  
+```json
+{
+		"oracles": [{
+		"id": 1,
+		"blocknumber": 679,
+		"txhash": "0xc0c60e4741a879b26729137c8ccac5ae3610866d2a5340a03121b07cba969ba1",
+		"signer": "5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY",
+		"description": "Oracle to verify CO2 abosrbed from Solar Panels",
+		"dtblockchain": "Mon Aug 16 2021 10:35:30 GMT+0400 (Gulf Standard Time)"
+	}]
+}
+```
+## Impact Actions - Proxies
+
+You can query all the proxies registered using the following GET:
+
+```sh
+https://testnode.bitg.org:9443/impactactioncategories
+```
+where "testnode.bitg.org" should be replaced with your node name or ip address.  
+
+to obtain a json answer like the following:  
+```json
+{
+	"proxies": [{
+		"id": 0,
+		"blocknumber": 770,
+		"txhash": "0x2f123ad6341a4fbcfad2cb4815bc1122cf5952c6be82eedcfd377d55ba27ce09",
+		"sender": "5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY",
+		"account": "5HpG9w8EBLe5XCrbczpwq5TSXvedjrBGCwqxK1iQ7qUsSWFc",
+		"dtblockchain": "Mon Aug 16 2021 10:50:40 GMT+0400 (Gulf Standard Time)"
+	}]
+}
+```
+
+
+
+
 
 
 

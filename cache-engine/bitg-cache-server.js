@@ -523,7 +523,7 @@ async function get_impactactions_proxies(res){
                 connection.end();
                 return;
             }else{
-                let answer='{"categories":[';
+                let answer='{"proxies":[';
                 let x=0;
                 for (r in results) {
                     if(x>0){
