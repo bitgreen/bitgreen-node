@@ -99,7 +99,7 @@ Once active, You can make https calls to the following endpoint:
 ```
 https://testnode.bitg.org:9443/transactions
 ```
-where "testnode.bitg.org" should be replace with your node name or ip address.  
+where "testnode.bitg.org" should be replaced with your node name or ip address.  
 
 possible parameters:  
 - account - the SS58 address of the account.   
@@ -168,6 +168,66 @@ to obtain a json answer like the following:
 		"amount": 100000000000000000000,
 		"dtblockchain": "Tue Aug 03 2021 13:16:50 GMT+0200 (Central European Summer Time)"
 }
+```
+
+## Impact Actions - Query Impact Actions Configuration
+
+You can query the configuration of impact actions in the system by the following GET
+
+```sh
+https://testnode.bitg.org:9443/impactactions
+```
+where "testnode.bitg.org" should be replaced with your node name or ip address.  
+
+to obtain a json answer like the following:  
+```json
+{
+		"impactactions": [{
+		"id": 9,
+		"blocknumber": 247,
+		"txhash": "0x6fa43de51eaf89401d2e54129b3ef6063302c55ef56d7e9effad44c6e4660794",
+		"sender": "5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY",
+		"description": "Planting a tree",
+		"categories": [1],
+		"auditors": 1,
+		"blockstart": 1,
+		"blockend": 1000000,
+		"rewardstoken": 1,
+		"rewardsamount": 1000,
+		"rewardsoracle": 0,
+		"rewardauditors": 50,
+		"slashingsauditors": 0,
+		"maxerrorsauditor": 10,
+		"fields": {},
+		"dtblockchain": "Fri Aug 13 2021 04:34:30 GMT+0400 (Gulf Standard Time)"
+	},{..}]
+}	
+```
+where 
+- categories is an array of categories of impact actions id
+- auditors is the number od auditors required, it may be 0;
+- blockstart is the block number from when the configuration is valid;
+- blockend is the block number till when the configuration is valid;
+- rewardstoken is the token id  (assetid in Assets Pallet), of the token used as rewards, 0=BITG;
+- rewardsamount is the amount of token given as rewards to the operator of the impact action;
+- rewardsoracle is the amount of token given as rewards to the Oracle, if present;
+- rewardauditors is the amount of tokens givine as rewards to the auditors, in case of multiple auditors the amount will be split;
+- slashingsauditors is the amount of slashing token in case of verified error;
+- maxerrorsauditor is the maximum number of errors an auditor can do, after that he will be disable from further auditings;
+- fields is a configurable structure to have custom fields required in the approval request.
+ fields is a json structure as follows:
+ [{
+	 "fieldname":"xxxxxx",
+	 "fieldtype":"N/S"  (N=Numeric, S=String)
+	 "mandatory":"Y/N"	(Y= yes is mandatory, N= Optional field)
+ },{...}]
+ You can configure as many field you need withint the maximum of 8192 bytes.
+ 
+
+
+
+
+
 
 
 

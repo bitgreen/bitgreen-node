@@ -196,7 +196,6 @@ async function get_impactactions(res){
                     answer=answer+',"rewardauditors":'+results[r].rewardauditors;
                     answer=answer+',"slashingsauditors":'+results[r].slashingsauditors;
                     answer=answer+',"maxerrorsauditor":'+results[r].maxerrorsauditor;
-                    answer=answer+',"slashingsauditors":'+results[r].slashingsauditors;
                     answer=answer+',"fields":'+results[r].fields;
                     answer=answer+',"dtblockchain":"'+results[r].dtblockchain+'"}';
                     x++;
