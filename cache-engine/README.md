@@ -172,7 +172,7 @@ to obtain a json answer like the following:
 
 ## Impact Actions - Query Impact Actions Configuration
 
-You can query the configuration of impact actions in the system by the following GET
+You can query the configuration of impact actions in the system by the following GET:  
 
 ```sh
 https://testnode.bitg.org:9443/impactactions
@@ -204,27 +204,84 @@ to obtain a json answer like the following:
 }	
 ```
 where 
-- categories is an array of categories of impact actions id
-- auditors is the number od auditors required, it may be 0;
-- blockstart is the block number from when the configuration is valid;
-- blockend is the block number till when the configuration is valid;
-- rewardstoken is the token id  (assetid in Assets Pallet), of the token used as rewards, 0=BITG;
-- rewardsamount is the amount of token given as rewards to the operator of the impact action;
-- rewardsoracle is the amount of token given as rewards to the Oracle, if present;
-- rewardauditors is the amount of tokens givine as rewards to the auditors, in case of multiple auditors the amount will be split;
-- slashingsauditors is the amount of slashing token in case of verified error;
-- maxerrorsauditor is the maximum number of errors an auditor can do, after that he will be disable from further auditings;
-- fields is a configurable structure to have custom fields required in the approval request.
- fields is a json structure as follows:
- [{
+- categories is an array of categories of impact actions id;  
+- auditors is the number od auditors required, it may be 0;  
+- blockstart is the block number from when the configuration is valid;  
+- blockend is the block number till when the configuration is valid;  
+- rewardstoken is the token id  (assetid in Assets Pallet), of the token used as rewards, 0=BITG;  
+- rewardsamount is the amount of token given as rewards to the operator of the impact action;  
+- rewardsoracle is the amount of token given as rewards to the Oracle, if present;  
+- rewardauditors is the amount of tokens givine as rewards to the auditors, in case of multiple auditors the amount will be split;  
+- slashingsauditors is the amount of slashing token in case of verified error;  
+- maxerrorsauditor is the maximum number of errors an auditor can do, after that he will be disable from further auditings;  
+- fields is a configurable structure to have custom fields required in the approval request.  
+ fields is a json structure as follows:  
+ ```json
+
+ [
+	 {
 	 "fieldname":"xxxxxx",
 	 "fieldtype":"N/S"  (N=Numeric, S=String)
 	 "mandatory":"Y/N"	(Y= yes is mandatory, N= Optional field)
- },{...}]
+ 	},
+ 	{...}
+ ]
+ ```
  You can configure as many field you need withint the maximum of 8192 bytes.
- 
 
+ ## Impact Actions - Query Approval Requests (ALL)
 
+ You can query all the approvals request by the following GET:  
+
+```sh
+https://testnode.bitg.org:9443/impactactions
+```
+where "testnode.bitg.org" should be replaced with your node name or ip address.  
+
+to obtain a json answer like the following:  
+```json
+{
+	"approvalrequests": [{
+		"id": 2,
+		"blocknumber": 470,
+		"txhash": "0xd1aa2db676176c1564887cdd9b17520491fb8bf52c7c819d722ff2d166efd741",
+		"signer": "5GNJqTPyNqANBkUVMN1LPPrxXnFouWXoe2wNSmmEoLctxiZY",
+		"info": {
+			"impactactionid": 1,
+			"description": "Planted a new tree",
+			"coordinates": "25.283294382,55.292989282",
+			"ipfsphoto": "bafybeigdyrzt5sfp7udm7hu76uh7y27nf3efuylqabf3oclgtqy55fbzdi"
+		},
+		"dtblockchain": "Mon Aug 16 2021 10:00:40 GMT+0400 (Gulf Standard Time)"
+	},{...}]
+}
+```
+
+## Impact Actions - Query Approval Request (Single)
+
+ You can query all one approval request by the following GET:  
+
+```sh
+https://testnode.bitg.org:9443/impactactions?id=xx
+```
+where "testnode.bitg.org" should be replaced with your node name or ip address and id is the approval request id.  
+
+to obtain a json answer like the following:  
+```json
+{
+	"id": 2,
+	"blocknumber": 470,
+	"txhash": "0xd1aa2db676176c1564887cdd9b17520491fb8bf52c7c819d722ff2d166efd741",
+	"signer": "5GNJqTPyNqANBkUVMN1LPPrxXnFouWXoe2wNSmmEoLctxiZY",
+	"info": {
+		"impactactionid": 1,
+		"description": "Planted a new tree",
+		"coordinates": "25.283294382,55.292989282",
+		"ipfsphoto": "bafybeigdyrzt5sfp7udm7hu76uh7y27nf3efuylqabf3oclgtqy55fbzdi"
+	},
+	"dtblockchain": "Mon Aug 16 2021 10:00:40 GMT+0400 (Gulf Standard Time)"
+}
+```
 
 
 

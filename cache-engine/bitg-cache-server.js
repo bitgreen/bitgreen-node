@@ -342,7 +342,7 @@ async function get_impactactions_votes_auditors(res,id){
                     answer=answer+',"signer":"'+results[r].signer+'"';
                     answer=answer+',"approvalrequestid":'+results[r].approvalrequestid;
                     answer=answer+',"vote":"'+results[r].auditor+'"';
-                    answer=answer+',"otherinfo":'+results[r].otherinfo;
+                    answer=answer+',"otherinfo":"'+results[r].otherinfo+'"';
                     answer=answer+',"dtblockchain":"'+results[r].dtblockchain+'"}';
                     x++;
                 }
