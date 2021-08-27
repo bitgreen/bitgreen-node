@@ -240,7 +240,27 @@ def create_tables():
                 print(err.msg)
     else:
         print("OK")
+    # creating assets table for NFT
+    createassets="CREATE TABLE `nftassets` (`id` MEDIUMINT NOT NULL AUTO_INCREMENT,\
+                    `blocknumber` INT(11) NOT NULL,\
+                    `txhash` VARCHAR(66) NOT NULL,\
+                    `dtblockchain` DATETIME NOT NULL,\
+                    `signer` VARCHAR(48) NOT NULL,\
+                    `assetid` int(11) NOT NULL,\
+                    `owner` VARCHAR(48) NOT NULL,\
+                    `maxzombies` int(11) NOT NULL,\
+                    `minbalance` int(11) NOT NULL,\
+                    PRIMARY KEY (id))"
+    try:
+        print("Creating table nftassets...")
+        cursor.execute(createassets)
+    except mysql.connector.Error as err:
+            if(err.msg!="Table 'nftassets' already exists"):
+                print(err.msg)
+    else:
+        print("OK")
 
+    #closing database
     cursor.close()
     cnx.close()
 # function to syncronise the blockchain reading the old blocks if not yet loaded
@@ -655,7 +675,53 @@ def impactactions_destroycategory(blocknumber,txhash,signer,currenttime,idcatego
     try:
         cursor.execute(deltx,datatx)
     except mysql.connector.Error as err:
-                print("[Error] ",err.msg)
+        print("[Error] ",err.msg)
+    cnx.commit()
+    cursor.close()
+    cnx.close()
+# function to create new asset from Sudo
+def assets_force_create(blocknumber,txhash,signer,currenttime,assetid,owner,maxzombies,minbalance):
+    cnx = mysql.connector.connect(user=DB_USER, password=DB_PWD,host=DB_HOST,database=DB_NAME)
+    print("Create Asset (NFT)")
+    print("BlockNumber: ",blocknumber)
+    print("TxHash: ",txhash)
+    print("Current time: ",currenttime)
+    print("Signer: ",signer)
+    print("Asset Id : ",assetid)
+    print("Owner : ",owner)
+    print("Max Zombies : ",maxzombies)
+    print("Min Balance : ",minbalance)
+    cursor = cnx.cursor()
+    dtblockchain=currenttime.replace("T"," ")
+    dtblockchain=dtblockchain[0:19]
+    addtx="insert into nftassets set blocknumber=%s,txhash=%s,signer=%s,assetid=%s,owner=%s,maxzombies=%s,minbalance=%s,dtblockchain=%s"
+    datatx=(blocknumber,txhash,signer,assetid,owner,maxzombies,minbalance,dtblockchain)
+    try:
+        cursor.execute(addtx,datatx)
+    except mysql.connector.Error as err:
+        print("[Error] ",err.msg)
+    cnx.commit()
+    cursor.close()
+    cnx.close()
+# function to destroy asset (NFT) from Sudo
+def assets_force_destroy(blocknumber,txhash,signer,currenttime,assetid,witnesszombies):
+    cnx = mysql.connector.connect(user=DB_USER, password=DB_PWD,host=DB_HOST,database=DB_NAME)
+    print("Destroy Asset (NFT)")
+    print("BlockNumber: ",blocknumber)
+    print("TxHash: ",txhash)
+    print("Current time: ",currenttime)
+    print("Signer: ",signer)
+    print("Asset Id: ",assetid)
+    print("Witnesses Zombies: ",witnesszombies)
+    cursor = cnx.cursor()
+    dtblockchain=currenttime.replace("T"," ")
+    dtblockchain=dtblockchain[0:19]
+    deltx="delete from nftassets where assetid=%s"
+    datatx=(assetid,)
+    try:
+        cursor.execute(deltx,datatx)
+    except mysql.connector.Error as err:
+        print("[Error] ",err.msg)
     cnx.commit()
     cursor.close()
     cnx.close()
@@ -769,6 +835,20 @@ def process_block(blocknumber):
                 print("Impact Actions - Destroy Category")
                 print("id: ",c['call_args'][0]['value'])
                 impactactions_destroycategory(blocknumber,'0x'+extrinsic.extrinsic_hash,extrinsic.address.value,currentime,c['call_args'][0]['value'])
+            # Force Create Asset
+            if c['call_module']== 'Assets' and c['call_function']=='force_create':
+                print("NFT - Create Asset")
+                print("id: ",c['call_args'][0]['value'])
+                print("Owner: ",c['call_args'][1]['value'])
+                print("Max Zombies: ",c['call_args'][2]['value'])
+                print("Minimum Deposit: ",c['call_args'][3]['value'])
+                assets_force_create(blocknumber,'0x'+extrinsic.extrinsic_hash,extrinsic.address.value,currentime,c['call_args'][0]['value'],c['call_args'][1]['value'],c['call_args'][2]['value'],c['call_args'][3]['value'])
+            # Force Destroy Asset
+            if c['call_module']== 'Assets' and c['call_function']=='force_destroy':
+                print("NFT - Create Asset")
+                print("id: ",c['call_args'][0]['value'])
+                print("Witnesses Zombies: ",c['call_args'][1]['value'])
+                assets_force_destroy(blocknumber,'0x'+extrinsic.extrinsic_hash,extrinsic.address.value,currentime,c['call_args'][0]['value'],c['call_args'][1]['value'])
             
         # Loop through call params
         for param in extrinsic.params:
