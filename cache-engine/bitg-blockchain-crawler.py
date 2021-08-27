@@ -240,8 +240,8 @@ def create_tables():
                 print(err.msg)
     else:
         print("OK")
-    # creating assets table for NFT
-    createassets="CREATE TABLE `nftassets` (`id` MEDIUMINT NOT NULL AUTO_INCREMENT,\
+    # creating assets table for FT
+    createassets="CREATE TABLE `ftassets` (`id` MEDIUMINT NOT NULL AUTO_INCREMENT,\
                     `blocknumber` INT(11) NOT NULL,\
                     `txhash` VARCHAR(66) NOT NULL,\
                     `dtblockchain` DATETIME NOT NULL,\
@@ -252,10 +252,29 @@ def create_tables():
                     `minbalance` int(11) NOT NULL,\
                     PRIMARY KEY (id))"
     try:
-        print("Creating table nftassets...")
+        print("Creating table ftassets...")
         cursor.execute(createassets)
     except mysql.connector.Error as err:
-            if(err.msg!="Table 'nftassets' already exists"):
+            if(err.msg!="Table 'ftassets' already exists"):
+                print(err.msg)
+    else:
+        print("OK")
+    # creating transaction for fungible tokens
+    createassets="CREATE TABLE `fttransactions` (`id` MEDIUMINT NOT NULL AUTO_INCREMENT,\
+                    `blocknumber` INT(11) NOT NULL,\
+                    `txhash` VARCHAR(66) NOT NULL,\
+                    `dtblockchain` DATETIME NOT NULL,\
+                    `signer` VARCHAR(48) NOT NULL,\
+                    `category` VARCHAR(20) NOT NULL,\
+                    `assetid` int(11) NOT NULL,\
+                    `recipient` VARCHAR(48) NOT NULL,\
+                    `amount` int(11) NOT NULL,\
+                    PRIMARY KEY (id))"
+    try:
+        print("Creating table fttransactions...")
+        cursor.execute(createassets)
+    except mysql.connector.Error as err:
+            if(err.msg!="Table 'fttransactions' already exists"):
                 print(err.msg)
     else:
         print("OK")
@@ -682,7 +701,7 @@ def impactactions_destroycategory(blocknumber,txhash,signer,currenttime,idcatego
 # function to create new asset from Sudo
 def assets_force_create(blocknumber,txhash,signer,currenttime,assetid,owner,maxzombies,minbalance):
     cnx = mysql.connector.connect(user=DB_USER, password=DB_PWD,host=DB_HOST,database=DB_NAME)
-    print("Create Asset (NFT)")
+    print("Create Asset (Fungible Tokens)")
     print("BlockNumber: ",blocknumber)
     print("TxHash: ",txhash)
     print("Current time: ",currenttime)
@@ -694,7 +713,7 @@ def assets_force_create(blocknumber,txhash,signer,currenttime,assetid,owner,maxz
     cursor = cnx.cursor()
     dtblockchain=currenttime.replace("T"," ")
     dtblockchain=dtblockchain[0:19]
-    addtx="insert into nftassets set blocknumber=%s,txhash=%s,signer=%s,assetid=%s,owner=%s,maxzombies=%s,minbalance=%s,dtblockchain=%s"
+    addtx="insert into ftassets set blocknumber=%s,txhash=%s,signer=%s,assetid=%s,owner=%s,maxzombies=%s,minbalance=%s,dtblockchain=%s"
     datatx=(blocknumber,txhash,signer,assetid,owner,maxzombies,minbalance,dtblockchain)
     try:
         cursor.execute(addtx,datatx)
@@ -703,10 +722,34 @@ def assets_force_create(blocknumber,txhash,signer,currenttime,assetid,owner,maxz
     cnx.commit()
     cursor.close()
     cnx.close()
-# function to destroy asset (NFT) from Sudo
+# function to mint assets in favor of an account
+def assets_mint(blocknumber,txhash,signer,currenttime,assetid,recipient,amount):
+    cnx = mysql.connector.connect(user=DB_USER, password=DB_PWD,host=DB_HOST,database=DB_NAME)
+    category="Minted"
+    print("Mint Assets (Fungible Tokens)")
+    print("BlockNumber: ",blocknumber)
+    print("TxHash: ",txhash)
+    print("Current time: ",currenttime)
+    print("Signer: ",signer)
+    print("Asset Id : ",assetid)
+    print("Recipient : ",recipient)
+    print("Amount : ",amount)
+    cursor = cnx.cursor()
+    dtblockchain=currenttime.replace("T"," ")
+    dtblockchain=dtblockchain[0:19]
+    addtx="insert into fttransactions set blocknumber=%s,txhash=%s,signer=%s,category=%s,assetid=%s,recipient=%s,amount=%s,dtblockchain=%s"
+    datatx=(blocknumber,txhash,signer,category,assetid,recipient,amount,dtblockchain)
+    try:
+        cursor.execute(addtx,datatx)
+    except mysql.connector.Error as err:
+        print("[Error] ",err.msg)
+    cnx.commit()
+    cursor.close()
+    cnx.close()
+# function to destroy asset (Fungible Tokens) from Sudo
 def assets_force_destroy(blocknumber,txhash,signer,currenttime,assetid,witnesszombies):
     cnx = mysql.connector.connect(user=DB_USER, password=DB_PWD,host=DB_HOST,database=DB_NAME)
-    print("Destroy Asset (NFT)")
+    print("Destroy Asset (Fungible Tokens)")
     print("BlockNumber: ",blocknumber)
     print("TxHash: ",txhash)
     print("Current time: ",currenttime)
@@ -716,7 +759,7 @@ def assets_force_destroy(blocknumber,txhash,signer,currenttime,assetid,witnesszo
     cursor = cnx.cursor()
     dtblockchain=currenttime.replace("T"," ")
     dtblockchain=dtblockchain[0:19]
-    deltx="delete from nftassets where assetid=%s"
+    deltx="delete from ftassets where assetid=%s"
     datatx=(assetid,)
     try:
         cursor.execute(deltx,datatx)
@@ -775,8 +818,17 @@ def process_block(blocknumber):
             impactactions_assignauditorapprovalrequest(blocknumber,'0x'+extrinsic.extrinsic_hash,extrinsic.address.value,currentime,extrinsic.params[0]['value'],extrinsic.params[1]['value'],extrinsic.params[2]['value']) 
         #Impact Actions - Remove Assigned Auditor to Approval Request
         if extrinsic.call_module.name=="ImpactActions" and extrinsic.call.name=="destroy_assigned_auditor":
-            impactactions_destory_assignedauditorapprovalrequest(blocknumber,'0x'+extrinsic.extrinsic_hash,extrinsic.address.value,currentime,extrinsic.params[0]['value'],extrinsic.params[1]['value'])            
-        # Sudo -> Impact Actions 
+            impactactions_destory_assignedauditorapprovalrequest(blocknumber,'0x'+extrinsic.extrinsic_hash,extrinsic.address.value,currentime,extrinsic.params[0]['value'],extrinsic.params[1]['value'])   
+        #Assets - Create new asset as regular user
+        if extrinsic.call_module.name=="Assets" and extrinsic.call.name=="create":
+            assets_force_create(blocknumber,'0x'+extrinsic.extrinsic_hash,extrinsic.address.value,currentime,extrinsic.params[0]['value'],extrinsic.params[1]['value'],extrinsic.params[2]['value'],extrinsic.params[3]['value'])
+        #Assets - Destroy asset as regular user
+        if extrinsic.call_module.name=="Assets" and extrinsic.call.name=="destroy":
+            assets_force_destroy(blocknumber,'0x'+extrinsic.extrinsic_hash,extrinsic.address.value,currentime,extrinsic.params[0]['value'],extrinsic.params[1]['value'])
+        #Assets - Mint assets in favor of an account
+        if extrinsic.call_module.name=="Assets" and extrinsic.call.name=="mint":
+            assets_mint(blocknumber,'0x'+extrinsic.extrinsic_hash,extrinsic.address.value,currentime,extrinsic.params[0]['value'],extrinsic.params[1]['value'],extrinsic.params[2]['value'])
+        # Sudo Calls
         if extrinsic.call_module.name=="Sudo" and extrinsic.call.name=="sudo":
             print(extrinsic.params[0].get('value'))
             c=extrinsic.params[0].get('value')
@@ -837,7 +889,7 @@ def process_block(blocknumber):
                 impactactions_destroycategory(blocknumber,'0x'+extrinsic.extrinsic_hash,extrinsic.address.value,currentime,c['call_args'][0]['value'])
             # Force Create Asset
             if c['call_module']== 'Assets' and c['call_function']=='force_create':
-                print("NFT - Create Asset")
+                print("Fungibile Tokens - Create Asset")
                 print("id: ",c['call_args'][0]['value'])
                 print("Owner: ",c['call_args'][1]['value'])
                 print("Max Zombies: ",c['call_args'][2]['value'])
@@ -845,7 +897,7 @@ def process_block(blocknumber):
                 assets_force_create(blocknumber,'0x'+extrinsic.extrinsic_hash,extrinsic.address.value,currentime,c['call_args'][0]['value'],c['call_args'][1]['value'],c['call_args'][2]['value'],c['call_args'][3]['value'])
             # Force Destroy Asset
             if c['call_module']== 'Assets' and c['call_function']=='force_destroy':
-                print("NFT - Create Asset")
+                print("Fungible Tokens - Create Asset")
                 print("id: ",c['call_args'][0]['value'])
                 print("Witnesses Zombies: ",c['call_args'][1]['value'])
                 assets_force_destroy(blocknumber,'0x'+extrinsic.extrinsic_hash,extrinsic.address.value,currentime,c['call_args'][0]['value'],c['call_args'][1]['value'])
