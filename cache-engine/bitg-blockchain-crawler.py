@@ -922,6 +922,12 @@ def process_block(blocknumber):
                 print("Max Zombies: ",c['call_args'][2]['value'])
                 print("Minimum Deposit: ",c['call_args'][3]['value'])
                 assets_force_create(blocknumber,'0x'+extrinsic.extrinsic_hash,extrinsic.address.value,currentime,c['call_args'][0]['value'],c['call_args'][1]['value'],c['call_args'][2]['value'],c['call_args'][3]['value'])
+            # Force transfer Assets
+            if c['call_module']== 'Assets' and c['call_function']=='force_transfer':
+                print("Fungible Tokens - Create Asset")
+                print("id: ",c['call_args'][0]['value'])
+                print("Witnesses Zombies: ",c['call_args'][1]['value'])
+                assets_transfer(blocknumber,'0x'+extrinsic.extrinsic_hash,c['call_args'][1]['value'],currentime,c['call_args'][0]['value'],c['call_args'][2]['value'],c['call_args'][2]['value'])
             # Force Destroy Asset
             if c['call_module']== 'Assets' and c['call_function']=='force_destroy':
                 print("Fungible Tokens - Create Asset")
