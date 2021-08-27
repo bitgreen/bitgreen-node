@@ -746,6 +746,30 @@ def assets_mint(blocknumber,txhash,signer,currenttime,assetid,recipient,amount):
     cnx.commit()
     cursor.close()
     cnx.close()
+# function to burn assets decrease the balance of an account
+def assets_burn(blocknumber,txhash,signer,currenttime,assetid,recipient,amount):
+    cnx = mysql.connector.connect(user=DB_USER, password=DB_PWD,host=DB_HOST,database=DB_NAME)
+    category="Burned"
+    print("Burn Assets (Fungible Tokens)")
+    print("BlockNumber: ",blocknumber)
+    print("TxHash: ",txhash)
+    print("Current time: ",currenttime)
+    print("Signer: ",signer)
+    print("Asset Id : ",assetid)
+    print("Recipient : ",recipient)
+    print("Amount : ",amount)
+    cursor = cnx.cursor()
+    dtblockchain=currenttime.replace("T"," ")
+    dtblockchain=dtblockchain[0:19]
+    addtx="insert into fttransactions set blocknumber=%s,txhash=%s,signer=%s,category=%s,assetid=%s,recipient=%s,amount=%s,dtblockchain=%s"
+    datatx=(blocknumber,txhash,signer,category,assetid,recipient,amount,dtblockchain)
+    try:
+        cursor.execute(addtx,datatx)
+    except mysql.connector.Error as err:
+        print("[Error] ",err.msg)
+    cnx.commit()
+    cursor.close()
+    cnx.close()
 # function to transfer assets in favor of an account
 def assets_transfer(blocknumber,txhash,signer,currenttime,assetid,recipient,amount):
     cnx = mysql.connector.connect(user=DB_USER, password=DB_PWD,host=DB_HOST,database=DB_NAME)
@@ -852,7 +876,10 @@ def process_block(blocknumber):
         #Assets - Mint assets in favor of an account
         if extrinsic.call_module.name=="Assets" and extrinsic.call.name=="mint":
             assets_mint(blocknumber,'0x'+extrinsic.extrinsic_hash,extrinsic.address.value,currentime,extrinsic.params[0]['value'],extrinsic.params[1]['value'],extrinsic.params[2]['value'])
-        #Assets - Mint assets in favor of an account
+        #Assets - Burn assets decreasing the balance of an account
+        if extrinsic.call_module.name=="Assets" and extrinsic.call.name=="burn":
+            assets_burn(blocknumber,'0x'+extrinsic.extrinsic_hash,extrinsic.address.value,currentime,extrinsic.params[0]['value'],extrinsic.params[1]['value'],extrinsic.params[2]['value'])
+        #Assets - Transfer assets in favor of an account
         if extrinsic.call_module.name=="Assets" and extrinsic.call.name=="transfer":
             assets_transfer(blocknumber,'0x'+extrinsic.extrinsic_hash,extrinsic.address.value,currentime,extrinsic.params[0]['value'],extrinsic.params[1]['value'],extrinsic.params[2]['value'])
         # Sudo Calls
