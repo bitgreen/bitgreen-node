@@ -746,6 +746,30 @@ def assets_mint(blocknumber,txhash,signer,currenttime,assetid,recipient,amount):
     cnx.commit()
     cursor.close()
     cnx.close()
+# function to transfer assets in favor of an account
+def assets_transfer(blocknumber,txhash,signer,currenttime,assetid,recipient,amount):
+    cnx = mysql.connector.connect(user=DB_USER, password=DB_PWD,host=DB_HOST,database=DB_NAME)
+    category="Transfer"
+    print("Mint Assets (Fungible Tokens)")
+    print("BlockNumber: ",blocknumber)
+    print("TxHash: ",txhash)
+    print("Current time: ",currenttime)
+    print("Signer: ",signer)
+    print("Asset Id : ",assetid)
+    print("Recipient : ",recipient)
+    print("Amount : ",amount)
+    cursor = cnx.cursor()
+    dtblockchain=currenttime.replace("T"," ")
+    dtblockchain=dtblockchain[0:19]
+    addtx="insert into fttransactions set blocknumber=%s,txhash=%s,signer=%s,category=%s,assetid=%s,recipient=%s,amount=%s,dtblockchain=%s"
+    datatx=(blocknumber,txhash,signer,category,assetid,recipient,amount,dtblockchain)
+    try:
+        cursor.execute(addtx,datatx)
+    except mysql.connector.Error as err:
+        print("[Error] ",err.msg)
+    cnx.commit()
+    cursor.close()
+    cnx.close()
 # function to destroy asset (Fungible Tokens) from Sudo
 def assets_force_destroy(blocknumber,txhash,signer,currenttime,assetid,witnesszombies):
     cnx = mysql.connector.connect(user=DB_USER, password=DB_PWD,host=DB_HOST,database=DB_NAME)
@@ -828,6 +852,9 @@ def process_block(blocknumber):
         #Assets - Mint assets in favor of an account
         if extrinsic.call_module.name=="Assets" and extrinsic.call.name=="mint":
             assets_mint(blocknumber,'0x'+extrinsic.extrinsic_hash,extrinsic.address.value,currentime,extrinsic.params[0]['value'],extrinsic.params[1]['value'],extrinsic.params[2]['value'])
+        #Assets - Mint assets in favor of an account
+        if extrinsic.call_module.name=="Assets" and extrinsic.call.name=="transfer":
+            assets_transfer(blocknumber,'0x'+extrinsic.extrinsic_hash,extrinsic.address.value,currentime,extrinsic.params[0]['value'],extrinsic.params[1]['value'],extrinsic.params[2]['value'])
         # Sudo Calls
         if extrinsic.call_module.name=="Sudo" and extrinsic.call.name=="sudo":
             print(extrinsic.params[0].get('value'))
