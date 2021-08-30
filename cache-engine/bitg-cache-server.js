@@ -125,6 +125,11 @@ async function mainloop(){
         console.log("Get Impact Action Proxies");
         get_impactactions_proxies(res);
     });
+    //get assets lists (ERC20 Tokens)
+    app.get('/assets',async function(req, res) {
+        console.log("Get Assets List");
+        get_assets(res);
+    });
     // listening to server port
     console.log("[Info] - Listening for HTTP connections on port TCP/3002");
     let server=app.listen(3002,function() {});
@@ -679,6 +684,55 @@ async function get_transaction(res,txhash){
                     x++;
                 }
                 console.log("[Info] Sending transaction: ",answer);
+                res.send(answer);
+                connection.end();
+                return;
+            }
+        }
+    );
+}
+// function to send impact actions configuration in json format
+async function get_assets(res){
+    let connection = mysql.createConnection({
+        host     : DB_HOST,
+        user     : DB_USER,
+        password : DB_PWD,
+        database : DB_NAME
+    });
+    sqlquery="select * from ftassets order by id desc";
+    connection.query(
+        {
+            sql: sqlquery,
+        },
+        function (error, results, fields) {
+            if (error){
+                console.log("[Error]"+error);
+                throw error;
+            }
+            if(results.length==0){
+                console.log("[Debug] Assets not found");
+                res.send('{"assets":[]}');    
+                connection.end();
+                return;
+            }else{
+                let answer='{"assets":[';
+                let x=0;
+                for (r in results) {
+                    if(x>0){
+                        answer=answer+',';
+                    }
+                    answer= answer+'{"id":'+results[r].id;
+                    answer=answer+',"blocknumber":'+results[r].blocknumber+',"txhash":"'+results[r].txhash+'"';
+                    answer=answer+',"signer":"'+results[r].signer+'"';
+                    answer=answer+',"assetid":"'+results[r].assetid+'"';
+                    answer=answer+',"owner":"'+results[r].owner+'"';
+                    answer=answer+',"maxzombies":'+results[r].maxzombies;
+                    answer=answer+',"minbalance":'+results[r].minbalance;
+                    answer=answer+',"dtblockchain":"'+results[r].dtblockchain+'"}';
+                    x++;
+                }
+                answer=answer+']}';
+                console.log("[Info] Sending Assets: ",answer);
                 res.send(answer);
                 connection.end();
                 return;
