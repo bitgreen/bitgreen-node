@@ -248,6 +248,9 @@
         "balance":"Balance",
         "is_frozen":"bool",
         "is_zombie":"bool"
-    }
-  }
+    },
+    "AssetId":"u32",
+    "BalanceOf":"Balance"
+}
+
   
