@@ -175,6 +175,19 @@ to obtain a json answer like the following:
 }
 ```
 
+## Query  Assets List (ERC20)
+You can query the list of ERC20s token by https calls to the following endpoint:  
+
+```
+https://testnode.bitg.org:9443/assets
+```
+where "testnode.bitg.org" should be replaced with your node name or ip address.  
+
+to obtain a json answer self-explained:  
+```json
+
+```
+
 ## Query transactions on Assets (ERC20) by Account
 You can query the transactions done on ERC20 token by https calls to the following endpoint:  
 

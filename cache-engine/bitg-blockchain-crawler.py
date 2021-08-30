@@ -6,7 +6,7 @@ import sys
 import os
 import json
 # Substrate module
-from substrateinterface import SubstrateInterface, Keypair
+from substrateinterface import SubstrateInterface, Keypair,ExtrinsicReceipt
 from substrateinterface.exceptions import SubstrateRequestException
 # base64 encoder/decoder
 import base64
@@ -849,8 +849,13 @@ def process_block(blocknumber):
     print ("##########################")
     print(result)
     print("Block Hash: ",result['header']['hash'])
+    blockhash=result['header']['hash']
     print ("##########################")
     events=substrate.get_events(result['header']['hash'])
+    print ("#######EVENTS##############")
+    print(events)
+    print ("##########################")
+    # retrieve receipt
     cnt=0    
     for extrinsic in result['extrinsics']:
         if extrinsic.address:
@@ -873,6 +878,24 @@ def process_block(blocknumber):
             continue
         else:
             print("Extrinsic succeded: ",events[cnt].event.name)
+        print("extrinsic.extrinsic_hash: ",extrinsic.extrinsic_hash)
+        print("extrinsic: ",extrinsic)
+        print("blockhash: ",blockhash)
+        if (extrinsic.extrinsic_hash!=None):
+            # get receipt of the extrisinc
+            receipt = ExtrinsicReceipt(
+                substrate=substrate,
+                extrinsic_hash=extrinsic.extrinsic_hash,
+                block_hash=blockhash
+            )
+            print("*********************************")
+            print("receipt.total_fee_amount: ",receipt.total_fee_amount)
+            print(receipt.is_success) 
+            print(receipt.extrinsic.call_module.name) 
+            print(receipt.extrinsic.call.name) 
+            print(receipt.weight) 
+            print(receipt.total_fee_amount) 
+            print("*********************************")
         #for TimeStamp call we set the time of the following transactions
         if extrinsic.call_module.name=="Timestamp" and extrinsic.call.name=="set":
             currentime=extrinsic.params[0]['value']
