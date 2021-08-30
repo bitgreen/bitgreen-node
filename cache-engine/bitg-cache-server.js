@@ -130,6 +130,33 @@ async function mainloop(){
         console.log("Get Assets List");
         get_assets(res);
     });
+    //get assets transactions in the date/time limits
+    app.get('/assetstransactions',async function(req, res) {
+        account=req.query.account;
+        assetid=req.query.assetid;
+        let dtstart='1990-01-01 00:00:00';
+        let dtend='2999-12-31 11:59:59';
+        if (typeof req.query.dts!=='undefined'){
+            dtstart=req.query.dts;
+        }
+        if (typeof req.query.dte!=='undefined'){
+            dtend=req.query.dte;
+        }
+        if (typeof req.query.dte!=='undefined'){
+            dtend=req.query.dte;
+        }
+        console.log("Get Assets transactions for account:",account," from: ",dtstart," to: ",dtend," asset id: ",assetid);
+        get_assetstransactions(res,account,dtstart,dtend,assetid);
+    });
+    //get single transaction by txhash
+    app.get('/assetstransaction',async function(req, res) {
+        let txhash='';
+        if (typeof req.query.txhash!=='undefined'){
+            txhash=req.query.txhash;
+        }
+        console.log("Get single asset transaction: ",txhash);
+        get_assetstransaction(res,txhash);
+    });
     // listening to server port
     console.log("[Info] - Listening for HTTP connections on port TCP/3002");
     let server=app.listen(3002,function() {});
@@ -733,6 +760,105 @@ async function get_assets(res){
                 }
                 answer=answer+']}';
                 console.log("[Info] Sending Assets: ",answer);
+                res.send(answer);
+                connection.end();
+                return;
+            }
+        }
+    );
+}
+// function to send transactions list in json format
+async function get_assetstransactions(res,account,dts,dte,assetid){
+    let connection = mysql.createConnection({
+        host     : DB_HOST,
+        user     : DB_USER,
+        password : DB_PWD,
+        database : DB_NAME
+    });
+    sqlquery="select * from fttransactions where (signer=? or recipient=?) and dtblockchain>=? and dtblockchain<=? and assetid=? order by dtblockchain,id desc";
+    connection.query(
+        {
+            sql: sqlquery,
+            values: [account,account,dts,dte,assetid]
+        },
+        function (error, results, fields) {
+            if (error){
+                console.log("[Error]"+error);
+                throw error;
+            }
+            if(results.length==0){
+                console.log("[Debug] Assets Transactions not found");
+                res.send('{"assetstransactions":[]}');    
+                connection.end();
+                return;
+            }else{
+                let answer='{"assetstransactions":[';
+                let x=0;
+                for (r in results) {
+                    if(x>0){
+                        answer=answer+',';
+                    }
+                    answer= answer+'{"id":'+results[r].id;
+                    answer=answer+',"blocknumber":'+results[r].blocknumber+',"txhash":"'+results[r].txhash+'"';
+                    answer=answer+',"sender":"'+results[r].signer+'"';
+                    answer=answer+',"recipient":"'+results[r].recipient+'"';
+                    answer=answer+',"assetid":"'+results[r].assetid+'"';
+                    answer=answer+',"category":"'+results[r].category+'"';
+                    answer=answer+',"amount":'+results[r].amount;
+                    answer=answer+',"dtblockchain":"'+results[r].dtblockchain+'"}';
+                    x++;
+                }
+                answer=answer+']}';
+                console.log("[Info] Sending Assets transactions: ",answer);
+                res.send(answer);
+                connection.end();
+                return;
+            }
+        }
+    );
+}
+// function to send single transaction  in json format
+async function get_assetstransaction(res,txhash){
+    let connection = mysql.createConnection({
+        host     : DB_HOST,
+        user     : DB_USER,
+        password : DB_PWD,
+        database : DB_NAME
+    });
+    sqlquery="select * from fttransactions where txhash=?";
+    connection.query(
+        {
+            sql: sqlquery,
+            values: [txhash]
+        },
+        function (error, results, fields) {
+            if (error){
+                console.log("[Error]"+error);
+                throw error;
+            }
+            if(results.length==0){
+                console.log("[Debug] Transaction not found");
+                res.send('{}');    
+                connection.end();
+                return;
+            }else{
+                let answer='';
+                let x=0;
+                for (r in results) {
+                    if(x>0){
+                        answer=answer+',';
+                    }
+                    answer= answer+'{"id":'+results[r].id;
+                    answer=answer+',"blocknumber":'+results[r].blocknumber+',"txhash":"'+results[r].txhash+'"';
+                    answer=answer+',"sender":"'+results[r].signer+'"';
+                    answer=answer+',"recipient":"'+results[r].recipient+'"';
+                    answer=answer+',"assetid":"'+results[r].assetid+'"';
+                    answer=answer+',"category":"'+results[r].category+'"';
+                    answer=answer+',"amount":'+results[r].amount;
+                    answer=answer+',"dtblockchain":"'+results[r].dtblockchain+'"}';
+                    x++;
+                }
+                console.log("[Info] Sending transaction: ",answer);
                 res.send(answer);
                 connection.end();
                 return;
