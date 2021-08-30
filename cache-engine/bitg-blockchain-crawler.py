@@ -265,6 +265,7 @@ def create_tables():
                     `txhash` VARCHAR(66) NOT NULL,\
                     `dtblockchain` DATETIME NOT NULL,\
                     `signer` VARCHAR(48) NOT NULL,\
+                    `sender` VARCHAR(48) NOT NULL,\
                     `category` VARCHAR(20) NOT NULL,\
                     `assetid` int(11) NOT NULL,\
                     `recipient` VARCHAR(48) NOT NULL,\
@@ -737,8 +738,8 @@ def assets_mint(blocknumber,txhash,signer,currenttime,assetid,recipient,amount):
     cursor = cnx.cursor()
     dtblockchain=currenttime.replace("T"," ")
     dtblockchain=dtblockchain[0:19]
-    addtx="insert into fttransactions set blocknumber=%s,txhash=%s,signer=%s,category=%s,assetid=%s,recipient=%s,amount=%s,dtblockchain=%s"
-    datatx=(blocknumber,txhash,signer,category,assetid,recipient,amount,dtblockchain)
+    addtx="insert into fttransactions set blocknumber=%s,txhash=%s,signer=%s,sender=%s,category=%s,assetid=%s,recipient=%s,amount=%s,dtblockchain=%s"
+    datatx=(blocknumber,txhash,signer,signer,category,assetid,recipient,amount,dtblockchain)
     try:
         cursor.execute(addtx,datatx)
     except mysql.connector.Error as err:
@@ -761,8 +762,8 @@ def assets_burn(blocknumber,txhash,signer,currenttime,assetid,recipient,amount):
     cursor = cnx.cursor()
     dtblockchain=currenttime.replace("T"," ")
     dtblockchain=dtblockchain[0:19]
-    addtx="insert into fttransactions set blocknumber=%s,txhash=%s,signer=%s,category=%s,assetid=%s,recipient=%s,amount=%s,dtblockchain=%s"
-    datatx=(blocknumber,txhash,signer,category,assetid,recipient,amount,dtblockchain)
+    addtx="insert into fttransactions set blocknumber=%s,txhash=%s,signer=%s,sender=%s,category=%s,assetid=%s,recipient=%s,amount=%s,dtblockchain=%s"
+    datatx=(blocknumber,txhash,signer,signer,category,assetid,recipient,amount,dtblockchain)
     try:
         cursor.execute(addtx,datatx)
     except mysql.connector.Error as err:
@@ -785,8 +786,32 @@ def assets_transfer(blocknumber,txhash,signer,currenttime,assetid,recipient,amou
     cursor = cnx.cursor()
     dtblockchain=currenttime.replace("T"," ")
     dtblockchain=dtblockchain[0:19]
-    addtx="insert into fttransactions set blocknumber=%s,txhash=%s,signer=%s,category=%s,assetid=%s,recipient=%s,amount=%s,dtblockchain=%s"
-    datatx=(blocknumber,txhash,signer,category,assetid,recipient,amount,dtblockchain)
+    addtx="insert into fttransactions set blocknumber=%s,txhash=%s,signer=%s,sender=%s,category=%s,assetid=%s,recipient=%s,amount=%s,dtblockchain=%s"
+    datatx=(blocknumber,txhash,signer,signer,category,assetid,recipient,amount,dtblockchain)
+    try:
+        cursor.execute(addtx,datatx)
+    except mysql.connector.Error as err:
+        print("[Error] ",err.msg)
+    cnx.commit()
+    cursor.close()
+    cnx.close()
+# function to force transfer assets in favor of an account
+def assets_forcetransfer(blocknumber,txhash,signer,sender,currenttime,assetid,recipient,amount):
+    cnx = mysql.connector.connect(user=DB_USER, password=DB_PWD,host=DB_HOST,database=DB_NAME)
+    category="Transfer"
+    print("Mint Assets (Fungible Tokens)")
+    print("BlockNumber: ",blocknumber)
+    print("TxHash: ",txhash)
+    print("Current time: ",currenttime)
+    print("Signer: ",signer)
+    print("Asset Id : ",assetid)
+    print("Recipient : ",recipient)
+    print("Amount : ",amount)
+    cursor = cnx.cursor()
+    dtblockchain=currenttime.replace("T"," ")
+    dtblockchain=dtblockchain[0:19]
+    addtx="insert into fttransactions set blocknumber=%s,txhash=%s,signer=%s,sender=%s,category=%s,assetid=%s,recipient=%s,amount=%s,dtblockchain=%s"
+    datatx=(blocknumber,txhash,signer,signer,category,assetid,recipient,amount,dtblockchain)
     try:
         cursor.execute(addtx,datatx)
     except mysql.connector.Error as err:
@@ -951,10 +976,10 @@ def process_block(blocknumber):
                 assets_force_create(blocknumber,'0x'+extrinsic.extrinsic_hash,extrinsic.address.value,currentime,c['call_args'][0]['value'],c['call_args'][1]['value'],c['call_args'][2]['value'],c['call_args'][3]['value'])
             # Force transfer Assets
             if c['call_module']== 'Assets' and c['call_function']=='force_transfer':
-                print("Fungible Tokens - Create Asset")
+                print("Fungible Tokens - Force Transfer")
                 print("id: ",c['call_args'][0]['value'])
                 print("Witnesses Zombies: ",c['call_args'][1]['value'])
-                assets_transfer(blocknumber,'0x'+extrinsic.extrinsic_hash,c['call_args'][1]['value'],currentime,c['call_args'][0]['value'],c['call_args'][2]['value'],c['call_args'][2]['value'])
+                assets_forcetransfer(blocknumber,'0x'+extrinsic.extrinsic_hash,extrinsic.address.value,c['call_args'][1]['value'],currentime,c['call_args'][0]['value'],c['call_args'][2]['value'],c['call_args'][3]['value'])
             # Force Destroy Asset
             if c['call_module']== 'Assets' and c['call_function']=='force_destroy':
                 print("Fungible Tokens - Create Asset")

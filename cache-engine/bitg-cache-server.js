@@ -775,7 +775,7 @@ async function get_assetstransactions(res,account,dts,dte,assetid){
         password : DB_PWD,
         database : DB_NAME
     });
-    sqlquery="select * from fttransactions where (signer=? or recipient=?) and dtblockchain>=? and dtblockchain<=? and assetid=? order by dtblockchain,id desc";
+    sqlquery="select * from fttransactions where (sender=? or recipient=?) and dtblockchain>=? and dtblockchain<=? and assetid=? order by dtblockchain,id desc";
     connection.query(
         {
             sql: sqlquery,
@@ -800,7 +800,8 @@ async function get_assetstransactions(res,account,dts,dte,assetid){
                     }
                     answer= answer+'{"id":'+results[r].id;
                     answer=answer+',"blocknumber":'+results[r].blocknumber+',"txhash":"'+results[r].txhash+'"';
-                    answer=answer+',"sender":"'+results[r].signer+'"';
+                    answer=answer+',"signer":"'+results[r].signer+'"';
+                    answer=answer+',"sender":"'+results[r].sender+'"';
                     answer=answer+',"recipient":"'+results[r].recipient+'"';
                     answer=answer+',"assetid":"'+results[r].assetid+'"';
                     answer=answer+',"category":"'+results[r].category+'"';
@@ -850,7 +851,8 @@ async function get_assetstransaction(res,txhash){
                     }
                     answer= answer+'{"id":'+results[r].id;
                     answer=answer+',"blocknumber":'+results[r].blocknumber+',"txhash":"'+results[r].txhash+'"';
-                    answer=answer+',"sender":"'+results[r].signer+'"';
+                    answer=answer+',"signer":"'+results[r].signer+'"';
+                    answer=answer+',"sender":"'+results[r].sender+'"';
                     answer=answer+',"recipient":"'+results[r].recipient+'"';
                     answer=answer+',"assetid":"'+results[r].assetid+'"';
                     answer=answer+',"category":"'+results[r].category+'"';
