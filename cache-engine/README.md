@@ -97,8 +97,10 @@ To syncronize the cache from first block written in the table "sync" of the data
 ./bitg-cache-server.sh --sync
 ```
 
-Once active, You can make https calls to the following endpoint:  
+
 ## Query transactions by Account
+You can query the transactions done on BITG tokens by https calls to the following endpoint:  
+
 ```
 https://testnode.bitg.org:9443/transactions
 ```
@@ -155,7 +157,7 @@ to obtain a json answer self-explained:
 
 ## Query Single Transaction by Txhash
 
-You can query a single transaction searching by txthash, for example:  
+You can query a single transaction on BITG tokens searching by txthash, for example:  
 
 ```sh
 https://testnode.bitg.org:9443/transaction?txhash=0x91935fe79c429695eb34ca2a191ee2ec7e40b2734691ce7a8ba758c7e1f01e22
@@ -170,6 +172,109 @@ to obtain a json answer like the following:
 		"recipient": "5HGjWAeFDfFCWPsjFQdVV2Msvz2XtMktvgocEZcCj68kUMaw",
 		"amount": 100000000000000000000,
 		"dtblockchain": "Tue Aug 03 2021 13:16:50 GMT+0200 (Central European Summer Time)"
+}
+```
+
+## Query transactions on Assets (ERC20) by Account
+You can query the transactions done on ERC20 token by https calls to the following endpoint:  
+
+```
+https://testnode.bitg.org:9443/transactions
+```
+where "testnode.bitg.org" should be replaced with your node name or ip address.  
+
+possible parameters:  
+- account - the SS58 address of the account.   
+- assetid - is the asset id of the ERC20 token
+- dst - Date/time of starting the selection of the  transactions.  
+- dse - Date/time of ending the selection of the transactions.  
+
+For example you can browse or make an https get:  
+
+```sh
+https://testnode.bitg.org:9443/assetstransactions?account=5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY&assetid=1&dts=2021-08-03+00:00:00&dte=2021-08-20+23:59:59
+```
+to obtain a json answer self-explained:  
+```json
+{
+	"assetstransactions": [{
+		"id": 1,
+		"blocknumber": 1500,
+		"txhash": "0x821fdff7e1848f7be7db746eff2ba2f1e749cbc5bf71eb67c9a92bbfc7b29c56",
+		"signer": "5FHneW46xGXgs5mUiveU4sbTyGBzmstUspZC92UhjJM694ty",
+		"sender": "5FHneW46xGXgs5mUiveU4sbTyGBzmstUspZC92UhjJM694ty",
+		"recipient": "5FHneW46xGXgs5mUiveU4sbTyGBzmstUspZC92UhjJM694ty",
+		"assetid": "1",
+		"category": "Minted",
+		"amount": 100000,
+		"dtblockchain": "Fri Aug 27 2021 11:53:30 GMT+0400 (Gulf Standard Time)"
+	}, {
+		"id": 2,
+		"blocknumber": 1585,
+		"txhash": "0xe57fd032e9f1b54d147a338425881e86a0af2b65536cb8a4ca20d9b34099e869",
+		"signer": "5FHneW46xGXgs5mUiveU4sbTyGBzmstUspZC92UhjJM694ty",
+		"sender": "5FHneW46xGXgs5mUiveU4sbTyGBzmstUspZC92UhjJM694ty",
+		"recipient": "5FHneW46xGXgs5mUiveU4sbTyGBzmstUspZC92UhjJM694ty",
+		"assetid": "1",
+		"category": "Minted",
+		"amount": 100000,
+		"dtblockchain": "Fri Aug 27 2021 12:07:40 GMT+0400 (Gulf Standard Time)"
+	}, {
+		"id": 3,
+		"blocknumber": 1587,
+		"txhash": "0x8f22591a74def67c2f576b3571aa534c525bdeea97fd59eded8e7177b6c725d4",
+		"signer": "5FHneW46xGXgs5mUiveU4sbTyGBzmstUspZC92UhjJM694ty",
+		"sender": "5FHneW46xGXgs5mUiveU4sbTyGBzmstUspZC92UhjJM694ty",
+		"recipient": "5GNJqTPyNqANBkUVMN1LPPrxXnFouWXoe2wNSmmEoLctxiZY",
+		"assetid": "1",
+		"category": "Transfer",
+		"amount": 100,
+		"dtblockchain": "Fri Aug 27 2021 12:08:00 GMT+0400 (Gulf Standard Time)"
+	}, {
+		"id": 4,
+		"blocknumber": 1755,
+		"txhash": "0xc77ba67f181d95ee6a14b91d22a6aeea7c3ef54dfe14b3ebed716c9efa344a5d",
+		"signer": "5FHneW46xGXgs5mUiveU4sbTyGBzmstUspZC92UhjJM694ty",
+		"sender": "5FHneW46xGXgs5mUiveU4sbTyGBzmstUspZC92UhjJM694ty",
+		"recipient": "5FHneW46xGXgs5mUiveU4sbTyGBzmstUspZC92UhjJM694ty",
+		"assetid": "1",
+		"category": "Burnt",
+		"amount": 1,
+		"dtblockchain": "Fri Aug 27 2021 12:36:00 GMT+0400 (Gulf Standard Time)"
+	}, {
+		"id": 5,
+		"blocknumber": 82,
+		"txhash": "0x6e442c2e01ea5289757b40c0183016144f7db08bc8a12ef4b1d68150c749ec43",
+		"signer": "5FHneW46xGXgs5mUiveU4sbTyGBzmstUspZC92UhjJM694ty",
+		"sender": "5FHneW46xGXgs5mUiveU4sbTyGBzmstUspZC92UhjJM694ty",
+		"recipient": "5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY",
+		"assetid": "1",
+		"category": "Minted",
+		"amount": 1000000000,
+		"dtblockchain": "Mon Aug 30 2021 06:59:30 GMT+0400 (Gulf Standard Time)"
+	}]
+}
+```
+
+## Query Single Transaction on Assets (ERC20) by Txhash
+
+You can query a single transaction on BITG tokens searching by txthash, for example:  
+
+```sh
+https://testnode.bitg.org:9443/assetstransaction?txhash=0x91935fe79c429695eb34ca2a191ee2ec7e40b2734691ce7a8ba758c7e1f01e22
+```
+to obtain a json answer like the following:  
+```json
+{
+	"id": 1,
+	"blocknumber": 1500,
+	"txhash": "0x821fdff7e1848f7be7db746eff2ba2f1e749cbc5bf71eb67c9a92bbfc7b29c56",
+	"sender": "5FHneW46xGXgs5mUiveU4sbTyGBzmstUspZC92UhjJM694ty",
+	"recipient": "5FHneW46xGXgs5mUiveU4sbTyGBzmstUspZC92UhjJM694ty",
+	"assetid": "1",
+	"category": "Minted",
+	"amount": 100000,
+	"dtblockchain": "Fri Aug 27 2021 11:53:30 GMT+0400 (Gulf Standard Time)"
 }
 ```
 
