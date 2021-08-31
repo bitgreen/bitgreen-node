@@ -126,6 +126,7 @@ to obtain a json answer self-explained:
 		"sender": "5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY",
 		"recipient": "5HGjWAeFDfFCWPsjFQdVV2Msvz2XtMktvgocEZcCj68kUMaw",
 		"amount": 100000000000000000000,
+		"gasfees": 12400000000000,
 		"dtblockchain": "Tue Aug 03 2021 13:16:50 GMT+0200 (Central European Summer Time)"
 	}, {
 		"id": 2,
@@ -134,6 +135,7 @@ to obtain a json answer self-explained:
 		"sender": "5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY",
 		"recipient": "5HGjWAeFDfFCWPsjFQdVV2Msvz2XtMktvgocEZcCj68kUMaw",
 		"amount": 54000000000000000000,
+		"gasfees": 12400000000000,
 		"dtblockchain": "Tue Aug 03 2021 13:17:10 GMT+0200 (Central European Summer Time)"
 	}, {
 		"id": 3,
@@ -142,6 +144,7 @@ to obtain a json answer self-explained:
 		"sender": "5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY",
 		"recipient": "5DAAnrj7VHTznn2AWBemMuyBwZWs6FNFjdyVXUeYum3PTXFy",
 		"amount": 21000000000000000000,
+		"gasfees": 12400000000000,
 		"dtblockchain": "Tue Aug 03 2021 13:22:50 GMT+0200 (Central European Summer Time)"
 	}, {
 		"id": 4,
@@ -150,6 +153,7 @@ to obtain a json answer self-explained:
 		"sender": "5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY",
 		"recipient": "5DAAnrj7VHTznn2AWBemMuyBwZWs6FNFjdyVXUeYum3PTXFy",
 		"amount": 21000000000000000000,
+		"gasfees": 12400000000000,
 		"dtblockchain": "Tue Aug 03 2021 13:23:50 GMT+0200 (Central European Summer Time)"
 	}]
 }
@@ -171,6 +175,7 @@ to obtain a json answer like the following:
 		"sender": "5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY",
 		"recipient": "5HGjWAeFDfFCWPsjFQdVV2Msvz2XtMktvgocEZcCj68kUMaw",
 		"amount": 100000000000000000000,
+		"gasfees": 12400000000000,
 		"dtblockchain": "Tue Aug 03 2021 13:16:50 GMT+0200 (Central European Summer Time)"
 }
 ```
