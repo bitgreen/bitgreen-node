@@ -806,6 +806,7 @@ async function get_assetstransactions(res,account,dts,dte,assetid){
                     answer=answer+',"assetid":"'+results[r].assetid+'"';
                     answer=answer+',"category":"'+results[r].category+'"';
                     answer=answer+',"amount":'+results[r].amount;
+                    answer=answer+',"gasfees":'+results[r].gasfees;
                     answer=answer+',"dtblockchain":"'+results[r].dtblockchain+'"}';
                     x++;
                 }
@@ -857,6 +858,7 @@ async function get_assetstransaction(res,txhash){
                     answer=answer+',"assetid":"'+results[r].assetid+'"';
                     answer=answer+',"category":"'+results[r].category+'"';
                     answer=answer+',"amount":'+results[r].amount;
+                    answer=answer+',"gasfees":'+results[r].gasfees;
                     answer=answer+',"dtblockchain":"'+results[r].dtblockchain+'"}';
                     x++;
                 }
