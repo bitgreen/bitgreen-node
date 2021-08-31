@@ -49,9 +49,12 @@ def create_tables():
         print(err)
         exit(1)
     # create tables
-    createtx="CREATE TABLE `transactions` (`id` MEDIUMINT NOT NULL AUTO_INCREMENT,`blocknumber` INT(11) NOT NULL,`txhash` VARCHAR(66) NOT NULL,  \
-                `sender` VARCHAR(64) NOT NULL,  `recipient` VARCHAR(64) NOT NULL,  `amount` numeric(32,0) NOT NULL,  \
-                `dtblockchain` DATETIME NOT NULL, CONSTRAINT txhash_unique UNIQUE (txhash),PRIMARY KEY (id))"
+    createtx="CREATE TABLE `transactions` (`id` MEDIUMINT NOT NULL AUTO_INCREMENT,\
+             `blocknumber` INT(11) NOT NULL,`txhash` VARCHAR(66) NOT NULL,  \
+            `sender` VARCHAR(64) NOT NULL,  `recipient` VARCHAR(64) NOT NULL,  \
+            `amount` numeric(32,0) NOT NULL,  \
+            `gasfees` numeric(32,0) NOT NULL,  \
+            `dtblockchain` DATETIME NOT NULL, CONSTRAINT txhash_unique UNIQUE (txhash),PRIMARY KEY (id))"
     try:
         print("Creating table TRANSACTIONS...")
         cursor.execute(createtx)
@@ -104,7 +107,7 @@ def create_tables():
                     `txhash` VARCHAR(66) NOT NULL,\
                     `dtblockchain` DATETIME NOT NULL,\
                     `signer` VARCHAR(48) NOT NULL,\
-                    `description` VARCHAR(64) NOT NULL, PRIMARY KEY (id))"
+                    `description` VARCHAR(64) NOT NULL, CONSTRAINT txhash_unique UNIQUE (txhash), PRIMARY KEY (id))"
     try:
         print("Creating table impactactionscategories...")
         cursor.execute(createcategories)
@@ -124,7 +127,7 @@ def create_tables():
                     `blockend` INT(11) NOT NULL, `rewardstoken` INT(11) NOT NULL, `rewardsamount` INT(32) NOT NULL,\
                     `rewardsoracle` INT(32) NOT NULL,`rewardauditors` INT(32) NOT NULL,\
                     `slashingsauditors` INT(32) NOT NULL,`maxerrorsauditor` INT(11) NOT NULL,\
-                    `fields` varchar(8192) NOT NULL, \
+                    `fields` varchar(8192) NOT NULL, CONSTRAINT txhash_unique UNIQUE (txhash), \
                     PRIMARY KEY (id))"
     try:
         print("Creating table impactactions...")
@@ -142,7 +145,7 @@ def create_tables():
                     `dtblockchain` DATETIME NOT NULL,\
                     `signer` VARCHAR(48) NOT NULL,\
                     `description` VARCHAR(128) NOT NULL,\
-                    `account` VARCHAR(48) NOT NULL,`otherinfo` VARCHAR(66) NOT NULL,\
+                    `account` VARCHAR(48) NOT NULL,`otherinfo` VARCHAR(66) NOT NULL, CONSTRAINT txhash_unique UNIQUE (txhash),\
                     PRIMARY KEY (id))"
     try:
         print("Creating table impactactionsoracles...")
@@ -161,7 +164,7 @@ def create_tables():
                 `signer` VARCHAR(48) NOT NULL,\
                 `description` VARCHAR(128) NOT NULL,\
                 `account` VARCHAR(48) NOT NULL,`categories` VARCHAR(128) NOT NULL,\
-                `area` VARCHAR(64) NOT NULL,`otherinfo` VARCHAR(66) NOT NULL,\
+                `area` VARCHAR(64) NOT NULL,`otherinfo` VARCHAR(66) NOT NULL, CONSTRAINT txhash_unique UNIQUE (txhash),\
                 PRIMARY KEY (id))"
     try:
         print("Creating table impactactionsauditors...")
@@ -178,7 +181,7 @@ def create_tables():
                 `txhash` VARCHAR(66) NOT NULL,\
                 `dtblockchain` DATETIME NOT NULL,\
                 `signer` VARCHAR(48) NOT NULL,\
-                `account` VARCHAR(48) NOT NULL,PRIMARY KEY (id))"
+                `account` VARCHAR(48) NOT NULL, CONSTRAINT txhash_unique UNIQUE (txhash),PRIMARY KEY (id))"
     try:
         print("Creating table impactactionsproxy...")
 
@@ -194,7 +197,7 @@ def create_tables():
                     `txhash` VARCHAR(66) NOT NULL,\
                     `dtblockchain` DATETIME NOT NULL,\
                     `signer` VARCHAR(48) NOT NULL,\
-                    `info` VARCHAR(8192) NOT NULL,PRIMARY KEY (id))"
+                    `info` VARCHAR(8192) NOT NULL, CONSTRAINT txhash_unique UNIQUE (txhash),PRIMARY KEY (id))"
     try:
         print("Creating table impactactionsapprovalrequests...")
 
@@ -212,7 +215,7 @@ def create_tables():
                     `signer` VARCHAR(48) NOT NULL,\
                     `approvalrequestid` int(11) NOT NULL,\
                     `auditor` VARCHAR(48) NOT NULL,\
-                    `maxdays` INT(11) NOT NULL,PRIMARY KEY (id))"
+                    `maxdays` INT(11) NOT NULL, CONSTRAINT txhash_unique UNIQUE (txhash),PRIMARY KEY (id))"
     try:
         print("Creating table impactactionsapprovalrequestsauditors...")
 
@@ -230,7 +233,7 @@ def create_tables():
                     `signer` VARCHAR(48) NOT NULL,\
                     `approvalrequestid` int(11) NOT NULL,\
                     `vote` VARCHAR(1) NOT NULL,\
-                    `otherinfo` VARCHAR(66) NOT NULL,PRIMARY KEY (id))"
+                    `otherinfo` VARCHAR(66) NOT NULL, CONSTRAINT txhash_unique UNIQUE (txhash),PRIMARY KEY (id))"
     try:
         print("Creating table impactactionsapprovalrequestauditorvotes...")
 
@@ -249,7 +252,7 @@ def create_tables():
                     `assetid` int(11) NOT NULL,\
                     `owner` VARCHAR(48) NOT NULL,\
                     `maxzombies` int(11) NOT NULL,\
-                    `minbalance` int(11) NOT NULL,\
+                    `minbalance` int(11) NOT NULL, CONSTRAINT txhash_unique UNIQUE (txhash),\
                     PRIMARY KEY (id))"
     try:
         print("Creating table ftassets...")
@@ -269,7 +272,7 @@ def create_tables():
                     `category` VARCHAR(20) NOT NULL,\
                     `assetid` int(11) NOT NULL,\
                     `recipient` VARCHAR(48) NOT NULL,\
-                    `amount` int(11) NOT NULL,\
+                    `amount` int(11) NOT NULL, CONSTRAINT txhash_unique UNIQUE (txhash),\
                     PRIMARY KEY (id))"
     try:
         print("Creating table fttransactions...")
@@ -314,17 +317,8 @@ def sync_blockchain(substrate):
     while x<=lastblocknumber:
         # get block data
         print("Syncing block # ",x)
-        result = substrate.get_block(block_number=x)
-        for extrinsic in result['extrinsics']:
-            if extrinsic.address:
-                signed_by_address = extrinsic.address.value
-            else:
-                signed_by_address = None
-            if extrinsic.call_module.name=="Timestamp" and extrinsic.call.name=="set":
-                currentime=extrinsic.params[0]['value']
-            if extrinsic.call_module.name=="Balances" and ( extrinsic.call.name=="transfer" or extrinsic.call.name=="transfer_keep_alive"):
-                ## store the transaction in the database
-                store_transaction(x,'0x'+extrinsic.extrinsic_hash,extrinsic.address.value,extrinsic.params[0]['value'],extrinsic.params[1]['value'],currentime)
+        # process the block of data
+        process_block(x)
         # update sync
         sqlst=""
         if(lastblocknumberverified==0):
@@ -347,7 +341,7 @@ def sync_blockchain(substrate):
 
 
 # function to store a new transaction
-def store_transaction(blocknumber,txhash,sender,recipient,amount,currenttime):
+def store_transaction(blocknumber,txhash,sender,recipient,amount,currenttime,gasfees):
     cnx = mysql.connector.connect(user=DB_USER, password=DB_PWD,host=DB_HOST,database=DB_NAME)
     print("Storing New Transaction")
     print("TxHash: ",txhash)
@@ -355,11 +349,12 @@ def store_transaction(blocknumber,txhash,sender,recipient,amount,currenttime):
     print("Sender: ",sender)
     print("Recipient: ",recipient)
     print("Amount: ",amount)
+    print("`Gas fees`: ",gasfees)
     cursor = cnx.cursor()
     dtblockchain=currenttime.replace("T"," ")
     dtblockchain=dtblockchain[0:19]
-    addtx="insert into transactions set blocknumber=%s,txhash=%s,sender=%s,recipient=%s,amount=%s,dtblockchain=%s"
-    datatx=(blocknumber,txhash,sender,recipient,amount,dtblockchain)
+    addtx="insert into transactions set blocknumber=%s,txhash=%s,sender=%s,recipient=%s,amount=%s,gasfees=%s,dtblockchain=%s"
+    datatx=(blocknumber,txhash,sender,recipient,amount,gasfees,dtblockchain)
     try:
         cursor.execute(addtx,datatx)
     except mysql.connector.Error as err:
@@ -881,6 +876,7 @@ def process_block(blocknumber):
         print("extrinsic.extrinsic_hash: ",extrinsic.extrinsic_hash)
         print("extrinsic: ",extrinsic)
         print("blockhash: ",blockhash)
+        gasfees=0
         if (extrinsic.extrinsic_hash!=None):
             # get receipt of the extrisinc
             receipt = ExtrinsicReceipt(
@@ -888,21 +884,22 @@ def process_block(blocknumber):
                 extrinsic_hash=extrinsic.extrinsic_hash,
                 block_hash=blockhash
             )
-            print("*********************************")
+            print("************RECEIPT**************")
             print("receipt.total_fee_amount: ",receipt.total_fee_amount)
             print(receipt.is_success) 
             print(receipt.extrinsic.call_module.name) 
             print(receipt.extrinsic.call.name) 
             print(receipt.weight) 
-            print(receipt.total_fee_amount) 
+            print("receipt.total_fee_amount: ",receipt.total_fee_amount) 
             print("*********************************")
+            gasfees=receipt.total_fee_amount
         #for TimeStamp call we set the time of the following transactions
         if extrinsic.call_module.name=="Timestamp" and extrinsic.call.name=="set":
             currentime=extrinsic.params[0]['value']
         #Balance Transfer we update the transactions
         if extrinsic.call_module.name=="Balances" and ( extrinsic.call.name=="transfer" or extrinsic.call.name=="transfer_keep_alive"):
             ## store the transaction in the database
-            store_transaction(blocknumber,'0x'+extrinsic.extrinsic_hash,extrinsic.address.value,extrinsic.params[0]['value'],extrinsic.params[1]['value'],currentime)
+            store_transaction(blocknumber,'0x'+extrinsic.extrinsic_hash,extrinsic.address.value,extrinsic.params[0]['value'],extrinsic.params[1]['value'],currentime,gasfees)
         #Impact Actions - Vote Approval Request
         if extrinsic.call_module.name=="ImpactActions" and extrinsic.call.name=="vote_approval_request":
             impactactions_voteapprovalrequest(blocknumber,'0x'+extrinsic.extrinsic_hash,extrinsic.address.value,currentime,extrinsic.params[0]['value'],extrinsic.params[1]['value'])
