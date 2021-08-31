@@ -885,12 +885,13 @@ def process_block(blocknumber):
                 block_hash=blockhash
             )
             print("************RECEIPT**************")
+            print("blockhash: ",blockhash)
+            print("extrinsic.extrinsic_hash: ",extrinsic.extrinsic_hash)
             print("receipt.total_fee_amount: ",receipt.total_fee_amount)
             print(receipt.is_success) 
             print(receipt.extrinsic.call_module.name) 
             print(receipt.extrinsic.call.name) 
             print(receipt.weight) 
-            print("receipt.total_fee_amount: ",receipt.total_fee_amount) 
             print("*********************************")
             gasfees=receipt.total_fee_amount
         #for TimeStamp call we set the time of the following transactions
