@@ -92,7 +92,10 @@ def create_tables():
     else:
         print("OK")
     # creating sync table to keep  syncronisation info
-    createsync="CREATE TABLE `sync` (`id` MEDIUMINT NOT NULL AUTO_INCREMENT,`lastblocknumberverified` INT(11) NOT NULL, PRIMARY KEY (id))"
+    createsync="CREATE TABLE `sync` (`id` MEDIUMINT NOT NULL AUTO_INCREMENT,\
+    `lastblocknumberverified` INT(11) NOT NULL, \
+    `lastapprovalrequestprocessed` int(11) default 0 not null,\
+    PRIMARY KEY (id))"
     try:
         print("Creating table SYNC...")
         cursor.execute(createsync)
