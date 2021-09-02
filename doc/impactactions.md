@@ -58,7 +58,7 @@ where:
 ```json
 {
     "description" : String              // The description of the impact action
-    "categories" : Array of Integers    // the categories of this impact action, they must be pre-loaded
+    "category" : Category id            // the category of this impact action, it must be pre-loaded
     "auditors" : Integer                // Number of auditors approvals required to trigger the rewards
     "blockstart" : Integer              // Activated from this block number
     "blockend": :  Integer               // Deactivated after this block number
@@ -75,11 +75,11 @@ where:
 ```
 The json should be one single line with no space between the fields, for example:
 ```json
-{"description":"Planting a tree","categories":[1],"auditors":1,"blockstart":1,"blockend":1000000,"rewardstoken":0,"rewardsamount":1000,"rewardsoracle":0,"rewardsauditors":50,"slashingsauditors":0,"maxerrorsauditor":10}
+{"description":"Planting a tree","category":1,"auditors":1,"blockstart":1,"blockend":1000000,"rewardstoken":0,"rewardsamount":1000,"rewardsoracle":0,"rewardsauditors":50,"slashingsauditors":0,"maxerrorsauditor":10}
 ```
 this one is an example with custom fields:  
 ```json
-{"description":"Planting a tree","categories":[1],"auditors":1,"blockstart":1,"blockend":1000000,"rewardstoken":0,"rewardsamount":1000,"rewardsoracle":0,"rewardsauditors":50,"slashingsauditors":0,"maxerrorsauditor":10,"fields":[{"fieldname":"namesurname","fieldtype":"S","mandatory":"Y"},{"fieldname":"phonenumber","fieldtype":"S","mandatory":"Y"}]}
+{"description":"Planting a tree","category":1,"auditors":1,"blockstart":1,"blockend":1000000,"rewardstoken":0,"rewardsamount":1000,"rewardsoracle":0,"rewardsauditors":50,"slashingsauditors":0,"maxerrorsauditor":10,"fields":[{"fieldname":"namesurname","fieldtype":"S","mandatory":"Y"},{"fieldname":"phonenumber","fieldtype":"S","mandatory":"Y"}]}
 ```
 
 ## Destroy Impact Actions  

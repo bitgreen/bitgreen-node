@@ -126,7 +126,7 @@ def create_tables():
                     `dtblockchain` DATETIME NOT NULL,\
                     `signer` VARCHAR(48) NOT NULL,\
                     `description` VARCHAR(128) NOT NULL,\
-                    `categories` VARCHAR(1024) NOT NULL,`auditors` INT(11) NOT NULL,`blockstart` INT(11) NOT NULL,\
+                    `category` INT(11) NOT NULL,`auditors` INT(11) NOT NULL,`blockstart` INT(11) NOT NULL,\
                     `blockend` INT(11) NOT NULL, `rewardstoken` INT(11) NOT NULL, `rewardsamount` INT(32) NOT NULL,\
                     `rewardsoracle` INT(32) NOT NULL,`rewardauditors` INT(32) NOT NULL,\
                     `slashingsauditors` INT(32) NOT NULL,`maxerrorsauditor` INT(11) NOT NULL,\
@@ -366,7 +366,7 @@ def store_transaction(blocknumber,txhash,sender,recipient,amount,currenttime,gas
     cursor.close()
     cnx.close()
 # function to store Impact Actions - New Impact Action
-def impactactions_newimpactaction(blocknumber,txhash,signer,currenttime,idcategory,data):
+def impactactions_newimpactaction(blocknumber,txhash,signer,currenttime,idimpactaction,data):
     cnx = mysql.connector.connect(user=DB_USER, password=DB_PWD,host=DB_HOST,database=DB_NAME)
     #decode json structure
     j=json.loads(data)
@@ -375,19 +375,20 @@ def impactactions_newimpactaction(blocknumber,txhash,signer,currenttime,idcatego
     print("TxHash: ",txhash)
     print("Current time: ",currenttime)
     print("Signer: ",signer)
-    print("Id: ",idcategory)
+    print("Id: ",idimpactaction)
     print("Data: ",data)
+    print("Category: ",j['category'])
     cursor = cnx.cursor()
     dtblockchain=currenttime.replace("T"," ")
     dtblockchain=dtblockchain[0:19]
     addtx="insert into impactactions set blocknumber=%s,txhash=%s,signer=%s,dtblockchain=%s,id=%s"
-    addtx=addtx+",description=%s,categories=%s,auditors=%s,blockstart=%s,blockend=%s,rewardstoken=%s,rewardsamount=%s,rewardsoracle=%s"
+    addtx=addtx+",description=%s,category=%s,auditors=%s,blockstart=%s,blockend=%s,rewardstoken=%s,rewardsamount=%s,rewardsoracle=%s"
     addtx=addtx+",rewardauditors=%s,slashingsauditors=%s,maxerrorsauditor=%s,fields=%s"
     if 'fields' in j:
         f=j['fields']
     else:    
         f={}
-    datatx=(blocknumber,txhash,signer,dtblockchain,idcategory,j['description'],json.dumps(j['categories']),j['auditors'],j['blockstart'],j['blockend'],j['rewardstoken'],j['rewardsamount'],j['rewardsoracle'],j['rewardsauditors'],j['slashingsauditors'],j['maxerrorsauditor'],json.dumps(f))
+    datatx=(blocknumber,txhash,signer,dtblockchain,idimpactaction,j['description'],j['category'],j['auditors'],j['blockstart'],j['blockend'],j['rewardstoken'],j['rewardsamount'],j['rewardsoracle'],j['rewardsauditors'],j['slashingsauditors'],j['maxerrorsauditor'],json.dumps(f))
     try:
         cursor.execute(addtx,datatx)
     except mysql.connector.Error as err:

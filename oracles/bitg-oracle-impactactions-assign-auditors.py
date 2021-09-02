@@ -36,7 +36,7 @@ def load_type_registry_file(file_path: str) -> dict:
     return json.loads(data)
 
 ## MAIN 
-print("bitf-oracle-impactactsion-assign-auditors v. 1.00- This program assign an auditor to the pending approval requests")
+print("bitg-oracle-impactactsion-assign-auditors v. 1.00- This program assign an auditor to the pending approval requests")
 
 # load custom data types
 custom_type_registry = load_type_registry_file("../assets/types.json")
@@ -50,7 +50,7 @@ substrate = SubstrateInterface(
 # open database
 cnx = mysql.connector.connect(user=DB_USER, password=DB_PWD,host=DB_HOST,database=DB_NAME)
 # search for the last proceessed approval request
-query="select impactactionsapprovalrequests from sync limit 1"
+query="select lastapprovalrequestprocessed from sync limit 1"
 cursor = cnx.cursor()
 cursor.execute(query)
 lar=(0,)   
@@ -64,15 +64,78 @@ try:
     cursor.execute(querytx,lar)
 except mysql.connector.Error as err:
     print("[Error] ",err.msg)
-for (id,info) in cursor:
-    print("id: ",id,"info: ",info)
-    # TODO - filter those requiring and auditor
+for (approvalrequestid,info) in cursor:
+    print("approvalrequestid: ",approvalrequestid,"info: ",info)
+    # filter those requiring and auditor
+    ar=json.loads(info)
+    print(ar)
+    print("Impact Action id:",ar['impactactionid'])
+    # get impact action configuration
+    cursoria = cnx.cursor()
+    querytx="select id,auditors,category from impactactions where id=%s"
+    datatx=(ar['impactactionid'],)
+    try:
+        cursoria.execute(querytx,datatx)
+    except mysql.connector.Error as err:
+        print("[Error] ",err.msg)
+        continue
+    auditorsn=0
+    for (id,auditors,category) in cursoria:
+        auditorsn=auditors
+        categoryimpactaction=category
+    cursoria.close()
+    print("Number of Auditors required: ",auditorsn)
+    # search for assigned auditors
+    cursoraa = cnx.cursor()
+    querytx="select count(*) as auditorsnr from impactactionsapprovalrequestsauditors where approvalrequestid=%s"
+    datatx=(approvalrequestid,)
+    try:
+        cursoraa.execute(querytx,datatx)
+    except mysql.connector.Error as err:
+        print("[Error] ",err.msg)
+        continue
+        
+    for (auditorsnr) in cursoraa:
+        auditorsn=auditorsnr
+        break
+    cursoraa.close()
+    print("Auditors already assigned: ",auditorsn[0])
     # search a possible auditor
-    # select the one with less tasks
-    # assign the approval request
-    # update impactactionsapprovalrequests
+    cursora = cnx.cursor()
+    querytx="select id,account,description,categories,area from impactactionsauditors order by id desc"
+    try:
+        cursora.execute(querytx)
+    except mysql.connector.Error as err:
+        print("[Error] ",err.msg)
+        continue
+    # TODO - assign the auditor within the area (a function to calculate the area is required, we need also to force a correct area with 2 gps valid points in the pallet)
+    # TODO - assign the auditor with less tasks open (add field to order the search by number of tasks)    
+    for (id,account,description,categories,area) in cursora:
+        ct=json.loads(categories)
+        print("Auditor:",account, description)
+        print("Categories:",ct)
+        for c in ct:
+            if(c==categoryimpactaction):
+                #assign the auditor to the approval request
+                print("Auditor found:",account,description,categories,area)
+                # assign the approval request
 
-# close database
+        #repeat until the number of auditors is reached - TODO
+    #close the cursor
+    cursoraa.close()
+    # update impactactionsapprovalrequests
+    cursorc = cnx.cursor()
+    querytx="update sync set lastapprovalrequestprocessed=%s"
+    datatx=(approvalrequestid,)
+    try:
+#       cursora.execute(querytx,datatx)
+        print("execute last update")
+    except mysql.connector.Error as err:
+        print("[Error] ",err.msg)
+        continue
+    #close the cursor
+    cursorc.close()
+# close cursor and database
 cursor.close()
 cnx.close()
 print("Regular end....")

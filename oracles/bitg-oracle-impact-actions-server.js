@@ -13,7 +13,7 @@ const { Keyring } = require('@polkadot/keyring');
 const { decodeAddress, encodeAddress } = require('@polkadot/keyring');
 const { hexToU8a, isHex } = require('@polkadot/util');
 
-console.log("[Info] - BitGreen - Oracle for Impact Actions v. 1.00 - Starting");
+console.log("[Info] - BitGreen - Oracle for Impact Actions v. 1.10 - Starting");
 console.log("This is an Oracle that receive a redeem code over https, check the validity of such code contacting an API url and eventually mints a fungible assets for the amount received in the answer.")
 
 // read the environment varianles required

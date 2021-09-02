@@ -210,34 +210,19 @@ decl_module! {
 			let description=json_get_value(jsd,"description".as_bytes().to_vec());
 			ensure!(description.len() >= 4, Error::<T>::TooShortDescription); //check minimum length for the description
 			ensure!(description.len() <=1024, Error::<T>::TooLongDescription); //check maximum length for the description
-            // check categories
+            // check category
             let jsc=configuration.clone();
-            let categories=json_get_value(jsc,"categories".as_bytes().to_vec());
-            ensure!(categories.len() >= 1, Error::<T>::TooShortCategories); //check minimum length for the categories
-            ensure!(categories.len() <=256, Error::<T>::TooLongCategories); //check maximum length for the categories
-            // check categories that must be present
-            let mut x=0;
-            loop {
-                let category=json_get_arrayvalue(categories.clone(),x);
-				if category.len()==0 {
-					break;
-				}
-                // convert category from vec to u32
-				let category_slice=category.as_slice();
-            	let category_str=match str::from_utf8(&category_slice){
-                	Ok(f) => f,
-                	Err(_) => "0"
-            	};
-            	let categoryvalue:u32 = match u32::from_str(category_str){
-                	Ok(f) => f,
-                	Err(_) => 0,
-            	};
-                if categoryvalue ==0 {
-                        break;
-                }
-                ensure!(Categories::contains_key(&categoryvalue)==true, Error::<T>::CategoryNotFound);
-                x=x+1;
-            }
+            let category=json_get_value(jsc,"category".as_bytes().to_vec());
+            let category_slice=category.as_slice();
+            let category_str=match str::from_utf8(&category_slice){
+                Ok(f) => f,
+                Err(_) => "0"
+            };
+            let categoryvalue:u32 = match u32::from_str(category_str){
+                Ok(f) => f,
+                Err(_) => 0,
+            };
+            ensure!(Categories::contains_key(&categoryvalue)==true, Error::<T>::CategoryNotFound);
             // check number of auditors required
             let jsa=configuration.clone();
             let auditors=json_get_value(jsa,"auditors".as_bytes().to_vec());
