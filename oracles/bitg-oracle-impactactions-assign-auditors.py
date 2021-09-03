@@ -24,6 +24,7 @@ try:
     DB_PWD=os.environ['DB_PWD']
     DB_HOST=os.environ['DB_HOST']
     NODE=os.environ['NODE']
+    SEED=os.environ['SEED']
 
 except NameError:
     print("System Variables have not been set")
@@ -47,6 +48,8 @@ substrate = SubstrateInterface(
     type_registry_preset='default',
     type_registry=custom_type_registry
 )
+# generate keys pair
+keyspair = Keypair.create_from_mnemonic(SEED)
 # open database
 cnx = mysql.connector.connect(user=DB_USER, password=DB_PWD,host=DB_HOST,database=DB_NAME)
 # search for the last proceessed approval request
@@ -119,8 +122,27 @@ for (approvalrequestid,info) in cursor:
                 #assign the auditor to the approval request
                 print("Auditor found:",account,description,categories,area)
                 # assign the approval request
-
-        #repeat until the number of auditors is reached - TODO
+                call = substrate.compose_call(
+                    call_module='ImpactActions',
+                    call_function='assign_auditor',
+                    call_params={
+                        'approvalid': approvalid,
+                        'auditor': account,
+                        'maxdays': 30
+                    }
+                )
+                extrinsic = substrate.create_signed_extrinsic(call=call, keypair=keypair)
+                try:
+                    receipt = substrate.submit_extrinsic(extrinsic, wait_for_inclusion=True)
+                    print("Auditor Assigned",account,description)
+                    print("Extrinsic '{}' sent and included in block '{}'".format(receipt.extrinsic_hash, receipt.block_hash))
+                    auditorsn=auditorsn-1
+                except SubstrateRequestException as e:
+                    print("Failed to send: {}".format(e))
+                    exit(1)
+        #repeat until the number of auditors is reached 
+        if (auditorsn==0):
+            break
     #close the cursor
     cursoraa.close()
     # update impactactionsapprovalrequests
