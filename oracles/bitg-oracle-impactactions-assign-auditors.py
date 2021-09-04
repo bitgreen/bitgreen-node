@@ -151,8 +151,9 @@ for (approvalrequestid,info) in cursor:
     querytx="update sync set lastapprovalrequestprocessed=%s"
     datatx=(approvalrequestid,)
     try:
-#       cursora.execute(querytx,datatx)
-        print("execute last update")
+        cursorc.execute(querytx,datatx)
+        cnx.commit()
+        print("Execute last update for approval request id:",approvalrequestid,querytx,datatx)
     except mysql.connector.Error as err:
         print("[Error] ",err.msg)
         continue
