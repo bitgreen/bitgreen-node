@@ -103,6 +103,7 @@ for (approvalrequestid,info) in cursor:
         break
     cursoraa.close()
     print("Auditors already assigned: ",auditorsn[0])
+    anr=auditorsn[0]
     # search a possible auditor
     cursora = cnx.cursor()
     querytx="select id,account,description,categories,area from impactactionsauditors order by id desc"
@@ -126,22 +127,22 @@ for (approvalrequestid,info) in cursor:
                     call_module='ImpactActions',
                     call_function='assign_auditor',
                     call_params={
-                        'approvalid': approvalid,
+                        'approvalid': approvalrequestid,
                         'auditor': account,
                         'maxdays': 30
                     }
                 )
-                extrinsic = substrate.create_signed_extrinsic(call=call, keypair=keypair)
+                extrinsic = substrate.create_signed_extrinsic(call=call, keypair=keyspair)
                 try:
                     receipt = substrate.submit_extrinsic(extrinsic, wait_for_inclusion=True)
                     print("Auditor Assigned",account,description)
                     print("Extrinsic '{}' sent and included in block '{}'".format(receipt.extrinsic_hash, receipt.block_hash))
-                    auditorsn=auditorsn-1
+                    anr=anr-1
                 except SubstrateRequestException as e:
                     print("Failed to send: {}".format(e))
                     exit(1)
         #repeat until the number of auditors is reached 
-        if (auditorsn==0):
+        if (anr==0):
             break
     #close the cursor
     cursoraa.close()
