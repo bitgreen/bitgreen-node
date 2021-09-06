@@ -11,6 +11,6 @@ export SEED='episode together nose spoon dose oil faculty zoo ankle evoke admit 
 # Account: 5HmubXCdmtEvKmvqjJ7fXkxhPXcg6JTS62kMMphqxpEE6zcG to be set as Proxy Account with UID 0
 #export NODE=wss://testnode.bitg.org
 # launching the app, python3 should be in the path
-python3 bitg-oracle-impactactions-assign-auditors.py $1
+python3 bitg-oracle-impactactions-rewards-users.py $1
 
 

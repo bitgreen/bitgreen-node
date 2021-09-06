@@ -31,14 +31,15 @@ You should install the following packages:
   
 - [Nodejs >= 14.x](https://nodejs.dev)
 - [Yarn >= 1.22](https://classic.yarnpkg.com)  
+- [Python >=3.0](https://www.python.org)  
 
 
 ## Installation
 You should install the required libraries using npn (part of nodejs package) and yarn:  
 ```sh
 npm install express
-yarn add  @polkadot/api
-yarn add  @polkadot/keyring
+npm install @polkadot/api
+npm install @polkadot/keyring
 ```
 
 To user HTTPS you should install the private key and certificate from a well recognised Certification Authority.  
@@ -56,5 +57,20 @@ bitg-oracle-impact-actions.sh
 To run the Oracle from command line:  
 ```sh
 ./bitg-oracle-impact-actions.sh
+```
+
+## Oracle to Assign Auditors  
+An Oracle to assign the auditors for the pending approval requests is available. It should be executed periodically from the crontab.  
+You can customize the bash file bitg-oracle-impactactions-assign-auditors.sh and execute it from command line:  
+```sh
+./bitg-oracle-impactactions-assign-auditors.sh
+```
+
+## Oracle to Mint the Rewards to Users  
+
+An Oracle to mint the rewards in ERC20 tokens in favor of the user has been created.  The Oracle will scan for Approval request that has been voted from auditors positevely and in such case will mint the rewards.  
+You can customize the bash file bitg-oracle-impactactions-rewards-users.sh and execute it from command line:  
+```sh
+./bitg-oracle-impactactions-rewards-users.sh
 ```
 

@@ -200,7 +200,10 @@ def create_tables():
                     `txhash` VARCHAR(66) NOT NULL,\
                     `dtblockchain` DATETIME NOT NULL,\
                     `signer` VARCHAR(48) NOT NULL,\
-                    `info` VARCHAR(8192) NOT NULL, CONSTRAINT txhash_unique UNIQUE (txhash),PRIMARY KEY (id))"
+                    `info` VARCHAR(8192) NOT NULL,\
+                    `dtapproved` DATETIME,\
+                    `dtrefused` DATETIME,\
+                    CONSTRAINT txhash_unique UNIQUE (txhash),PRIMARY KEY (id))"
     try:
         print("Creating table impactactionsapprovalrequests...")
 
