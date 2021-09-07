@@ -239,7 +239,9 @@ def create_tables():
                     `signer` VARCHAR(48) NOT NULL,\
                     `approvalrequestid` int(11) NOT NULL,\
                     `vote` VARCHAR(1) NOT NULL,\
-                    `otherinfo` VARCHAR(66) NOT NULL, CONSTRAINT txhash_unique UNIQUE (txhash),PRIMARY KEY (id))"
+                    `otherinfo` VARCHAR(66) NOT NULL,\
+                    `dtrewards` DATETIME NOT NULL,\
+                    CONSTRAINT txhash_unique UNIQUE (txhash),PRIMARY KEY (id))"
     try:
         print("Creating table impactactionsapprovalrequestauditorvotes...")
 
