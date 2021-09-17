@@ -36,6 +36,10 @@ pallet-claim ={ default-features = false, version = '0.1.0', path = "../pallets/
 # Impact Actions
 pallet-impact-actions ={ default-features = false, version = '0.1.0', path = "../pallets/impact-actions"}
 
+# Bonds
+pallet-bonds ={ default-features = false, version = '0.1.0', path = "../pallets/bonds"}
+
+
 # Substrate dependencies
 frame-benchmarking = { default-features = false, optional = true, version = '3.1.0' }
 frame-executive = { default-features = false, version = '3.0.0' }

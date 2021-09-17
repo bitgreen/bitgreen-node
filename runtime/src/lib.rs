@@ -872,6 +872,13 @@ impl pallet_impact_actions::Config for Runtime {
 }
 // end Impact Actions
 
+// Bonds management
+impl pallet_bonds::Config for Runtime {
+	type Event = Event;
+	type Currency = Balances;
+}
+// end Bonds
+
 // pallet orml-nft
 impl orml_nft::Config for Runtime {
 	type ClassId = u32;
@@ -948,6 +955,9 @@ construct_runtime!(
 		Assets: pallet_assets::{Module, Call, Storage, Event<T>} = 71,
 		//Impact Actions
 		ImpactActions: pallet_impact_actions::{Module, Call, Storage, Event<T>} = 72,
+		// Bonds
+		Bonds: pallet_bonds::{Module, Call, Storage, Event<T>} = 73,
+
 
 	}
 );

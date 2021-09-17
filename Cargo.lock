@@ -583,6 +583,7 @@ dependencies = [
  "pallet-authorship",
  "pallet-babe",
  "pallet-balances",
+ "pallet-bonds",
  "pallet-claim",
  "pallet-collective",
  "pallet-contracts",
@@ -4475,6 +4476,24 @@ dependencies = [
  "frame-system",
  "parity-scale-codec",
  "serde",
+ "sp-runtime",
+ "sp-std",
+]
+
+[[package]]
+name = "pallet-bonds"
+version = "0.1.0"
+dependencies = [
+ "bs58",
+ "frame-support",
+ "frame-system",
+ "hex",
+ "parity-scale-codec",
+ "primitive-types 0.7.3",
+ "rand 0.7.3",
+ "serde",
+ "sp-core",
+ "sp-io",
  "sp-runtime",
  "sp-std",
 ]
