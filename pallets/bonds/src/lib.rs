@@ -6,8 +6,6 @@ use frame_support::{decl_module, decl_storage, decl_event, decl_error, dispatch,
 use frame_system::{ensure_root,ensure_signed};
 use sp_std::prelude::*;
 use core::str;
-use core::str::FromStr;
-
 #[cfg(test)]
 mod mock;
 
@@ -54,14 +52,46 @@ decl_error! {
 		SettingsKeyNotValid,
         /// Settings Key has not been found on the blockchain
         SettingsKeyNotFound,
-        /// Settings Key has been already used, it cannot be duplicated
-        SettingsKeyAlreadyUsed,
         /// Settings data is too short to be valid
         SettingsJsonTooShort,
         /// Settings data is too long to be valid
         SettingsJsonTooLong,
+        /// Settings key is wrong
+        SettingsKeyIsWrong,
         /// Invalid Json structure
         InvalidJson,
+        /// Manager account in KYC settings is wrong
+        KycManagerAccountIsWrong,
+        /// Supervisor account in KYC settings is wrong
+        KycSupervisorAccountIsWrong,
+        /// Operators account for KYC have not been configured, minimum one account
+        KycOperatorsNotConfigured,
+        /// Manager account for bond approval is wrong
+        BondApprovalManagerAccountIsWrong,
+        /// Bond approval commitee is wrong
+        BondApprovalCommitteeIsWrong,
+        /// Mandatory underwriting can be Y or N only.
+        BondApprovalMandatoryUnderwritingIsWrong,
+        /// Mandatory credit rating can be Y or N only.
+        BondApprovalMandatoryCreditRatingIsWrong,
+        /// Mandatory legal opinion can be Y or N only.
+        BondApprovalMandatoryLegalOpinionIsWrong,
+        /// Manager account for underwriters submission is wrong
+        UnderWritersSubmissionManagerAccountIsWrong,
+        /// Committe for underwriters submission is wrong
+        UnderwritersSubmissionCommitteeIsWrong,
+        /// Manager account for lawyers submission is wrong
+        LawyersSubmissionManagerAccountIsWrong,
+        /// Committe for lawyers submission is wrong
+        LawyersSubmissionCommitteeIsWrong,
+        /// Manager account for collateral verification is wrong    
+        CollateralVerificationManagerAccountIsWrong,
+        /// Committe for collateral verification is wrong
+        CollateralVerificationCommitteeIsWrong,
+        ///  Account for Hedge fund approval is wrong    
+        HedgeFundApprovalManagerAccountIsWrong,
+        /// Committe for Hedge fund approval  is wrong
+        HedgeFundApprovalCommitteeIsWrong,
 	}
 }
 
@@ -72,22 +102,149 @@ decl_module! {
 		type Error = Error<T>;
 		// Events must be initialized
 		fn deposit_event() = default;
-		/// Create a new impact action configuration
+		/// Create a  settings configuration
+        /// We have multiple of configuration:
+        /// key=="keyc" {"manager":"xxxaccountidxxx","supervisor":"xxxxaccountidxxxx","operators":["xxxxaccountidxxxx","xxxxaccountidxxxx",...]}
+        /// for example: {"manager":"5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY","supervisor":"5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY","operators":["5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY"]}
+        /// key=="bondapproval" {"manager":"xxxaccountidxxx","committee":["xxxxaccountidxxxx","xxxxaccountidxxxx",...],"mandatoryunderwriting":"Y/N","mandatorycreditrating":"Y/N","mandatorylegalopinion":"Y/N"}
+        /// for example: {"manager":"5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY","committee":["5FLSigC9HGRKVhB9FiEo4Y3koPsNmBmLJbpXg2mp1hXcS59Y","5HpG9w8EBLe5XCrbczpwq5TSXvedjrBGCwqxK1iQ7qUsSWFc"],"mandatoryunderwriting":"Y","mandatorycreditrating":"Y","mandatorylegalopinion":"Y"}
+        /// key=="underwriterssubmission" {"manager":"xxxaccountidxxx","committee":["xxxxaccountidxxxx","xxxxaccountidxxxx",...]}
         #[weight = 1000]
-		pub fn create_settings(origin, key: Vec<u8>, configuration: Vec<u8>) -> dispatch::DispatchResult {
+		pub fn create_change_settings(origin, key: Vec<u8>, configuration: Vec<u8>) -> dispatch::DispatchResult {
 			// check the request is signed from Super User
 			let _sender = ensure_root(origin)?;
 			//check configuration length
 			ensure!(configuration.len() > 12, Error::<T>::SettingsJsonTooShort); 
             ensure!(configuration.len() < 8192, Error::<T>::SettingsJsonTooLong); 
-			// check that the key is not already present
-			ensure!(Settings::contains_key(&key)==false, Error::<T>::SettingsKeyAlreadyUsed);
             // check json validity
 			let js=configuration.clone();
 			ensure!(json_check_validity(js),Error::<T>::InvalidJson);
-            // TODO check data validity
-			// TODO insert settings on chain
-			Settings::insert(key.clone(),configuration.clone());
+            // check for key validity
+            ensure!(key=="kyc".as_bytes().to_vec() 
+                || key=="bondapproval".as_bytes().to_vec() 
+                || key=="underwriterssubmission".as_bytes().to_vec()
+                || key=="collateralverification".as_bytes().to_vec()
+                || key=="hedgefundapproval".as_bytes().to_vec(),
+                Error::<T>::SettingsKeyIsWrong);
+            // check validity for kyc settings
+            if key=="kyc".as_bytes().to_vec() {
+                let manager=json_get_value(configuration.clone(),"manager".as_bytes().to_vec());
+                ensure!(manager.len()==48 || manager.len()==0, Error::<T>::KycManagerAccountIsWrong);
+                let supervisor=json_get_value(configuration.clone(),"supervisor".as_bytes().to_vec());
+                ensure!(supervisor.len()==48 || supervisor.len()==0, Error::<T>::KycSupervisorAccountIsWrong);
+                let operators=json_get_complexarray(configuration.clone(),"operators".as_bytes().to_vec());
+                if operators.len()>2 {
+                    let mut x=0;
+                    loop {  
+                        let w=json_get_recordvalue(operators.clone(),x);
+                        if w.len()==0 {
+                            break;
+                        }
+                        x=x+1;
+                    }
+                    ensure!(x>0,Error::<T>::KycOperatorsNotConfigured);
+                }
+            }
+            // check validity for bond approval settings
+            if key=="bondapproval".as_bytes().to_vec() {
+                let manager=json_get_value(configuration.clone(),"manager".as_bytes().to_vec());
+                ensure!(manager.len()==48 || manager.len()==0, Error::<T>::BondApprovalManagerAccountIsWrong);
+                let committee=json_get_complexarray(configuration.clone(),"committee".as_bytes().to_vec());
+                let mut x=0;
+                if committee.len()>2 {
+                    loop {  
+                        let w=json_get_recordvalue(committee.clone(),x);
+                        if w.len()==0 {
+                            break;
+                        }
+                        x=x+1;
+                    }
+                }
+                ensure!(x>0,Error::<T>::BondApprovalCommitteeIsWrong);
+                let mandatoryunderwriting=json_get_value(configuration.clone(),"mandatoryunderwriting".as_bytes().to_vec());
+                ensure!(mandatoryunderwriting=="Y".as_bytes().to_vec() || mandatoryunderwriting=="N".as_bytes().to_vec(), Error::<T>::BondApprovalMandatoryUnderwritingIsWrong);
+                let mandatorycreditrating=json_get_value(configuration.clone(),"mandatorycreditrating".as_bytes().to_vec());
+                ensure!(mandatorycreditrating=="Y".as_bytes().to_vec() || mandatorycreditrating=="N".as_bytes().to_vec(), Error::<T>::BondApprovalMandatoryCreditRatingIsWrong);
+                let mandatorylegalopinion=json_get_value(configuration.clone(),"mandatorylegalopinion".as_bytes().to_vec());
+                ensure!(mandatorylegalopinion=="Y".as_bytes().to_vec() || mandatorylegalopinion=="N".as_bytes().to_vec(), Error::<T>::BondApprovalMandatoryLegalOpinionIsWrong);
+            }
+            // check validity for under writers submission settings
+            if key=="underwriterssubmission".as_bytes().to_vec() {
+                let manager=json_get_value(configuration.clone(),"manager".as_bytes().to_vec());
+                ensure!(manager.len()==48 || manager.len()==0, Error::<T>::UnderWritersSubmissionManagerAccountIsWrong);
+                let committee=json_get_complexarray(configuration.clone(),"committee".as_bytes().to_vec());
+                let mut x=0;
+                if committee.len()>2 {
+                    loop {  
+                        let w=json_get_recordvalue(committee.clone(),x);
+                        if w.len()==0 {
+                            break;
+                        }
+                        x=x+1;
+                    }
+                }
+                ensure!(x>0,Error::<T>::UnderwritersSubmissionCommitteeIsWrong);
+            }
+            // check validity for lawyers submission settings
+            if key=="lawyerssubmission".as_bytes().to_vec() {
+                let manager=json_get_value(configuration.clone(),"manager".as_bytes().to_vec());
+                ensure!(manager.len()==48 || manager.len()==0, Error::<T>::LawyersSubmissionManagerAccountIsWrong);
+                let committee=json_get_complexarray(configuration.clone(),"committee".as_bytes().to_vec());
+                let mut x=0;
+                if committee.len()>2 {
+                    loop {  
+                        let w=json_get_recordvalue(committee.clone(),x);
+                        if w.len()==0 {
+                            break;
+                        }
+                        x=x+1;
+                    }
+                }
+                ensure!(x>0,Error::<T>::LawyersSubmissionCommitteeIsWrong);
+            }
+            // check validity for collateral verification settings
+            if key=="collateralverification".as_bytes().to_vec() {
+                let manager=json_get_value(configuration.clone(),"manager".as_bytes().to_vec());
+                ensure!(manager.len()==48 || manager.len()==0, Error::<T>::CollateralVerificationManagerAccountIsWrong);
+                let committee=json_get_complexarray(configuration.clone(),"committee".as_bytes().to_vec());
+                let mut x=0;
+                if committee.len()>2 {
+                    loop {  
+                        let w=json_get_recordvalue(committee.clone(),x);
+                        if w.len()==0 {
+                            break;
+                        }
+                        x=x+1;
+                    }
+                }
+                ensure!(x>0,Error::<T>::CollateralVerificationCommitteeIsWrong);
+            }
+            // check validity for hedge fund approval settings
+            if key=="hedgefundapproval".as_bytes().to_vec() {
+                let manager=json_get_value(configuration.clone(),"manager".as_bytes().to_vec());
+                ensure!(manager.len()==48 || manager.len()==0, Error::<T>::HedgeFundApprovalManagerAccountIsWrong);
+                let committee=json_get_complexarray(configuration.clone(),"committee".as_bytes().to_vec());
+                let mut x=0;
+                if committee.len()>2 {
+                    loop {  
+                        let w=json_get_recordvalue(committee.clone(),x);
+                        if w.len()==0 {
+                            break;
+                        }
+                        x=x+1;
+                    }
+                }
+                ensure!(x>0,Error::<T>::HedgeFundApprovalCommitteeIsWrong);
+            }
+            //store settings on chain
+            if Settings::contains_key(&key)==false {
+                // Insert settings
+                Settings::insert(key.clone(),configuration.clone());
+            } else {
+                // Replace Settings Data 
+                Settings::take(key.clone());
+                Settings::insert(key.clone(),configuration.clone());
+            }
             // Generate event
 			Self::deposit_event(RawEvent::SettingsCreated(key,configuration));
 			// Return a successful DispatchResult
