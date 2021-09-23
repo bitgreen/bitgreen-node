@@ -39,6 +39,8 @@ pallet-impact-actions ={ default-features = false, version = '0.1.0', path = "..
 # Bonds
 pallet-bonds ={ default-features = false, version = '0.1.0', path = "../pallets/bonds"}
 
+# VCU
+pallet-vcu ={ default-features = false, version = '0.1.0', path = "../pallets/vcu"}
 
 # Substrate dependencies
 frame-benchmarking = { default-features = false, optional = true, version = '3.1.0' }
