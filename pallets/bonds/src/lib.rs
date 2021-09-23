@@ -22,17 +22,12 @@ pub type Balance = u128;
 
 // The runtime storage items
 decl_storage! {
-	trait Store for Module<T: Config> as impactactions {
+	trait Store for Module<T: Config> as bonds {
 		// we use a safe crypto hashing with blake2_128
         //
-		// Settings configuration, we store json structure with different keys:
-        // key="kyc"  and data: {"manager":"xxx_account_id_xxxx","supervisor":"xxx_account_id_xxx","operators":["xxx_account_id_xxx,xxx_account_id_xxx,.."]}
-        // where:
-        // "manager" is the account id of the Top Manager of the KYC (Know You Client) process;
-	    // "supervisor" is the  account id of the supervisor of the KYC;
-        // "operators" is an array of account id of the operators of the KYC;
-        // 
+		// Settings configuration, we store json structure with different keys (see the function for details)
 		Settings get(fn get_settings): map hasher(blake2_128_concat) Vec<u8> => Option<Vec<u8>>;
+        Kyc get(fn get_kyc): map hasher(blake2_128_concat) u32 => Option<Vec<u8>>;
 	}
 }
 
@@ -41,7 +36,8 @@ decl_event!(
 	pub enum Event<T> where AccountId = <T as frame_system::Config>::AccountId {
 	    SettingsCreated(Vec<u8>,Vec<u8>),               // New settings configuration has been created
         SettingsDestroyed(Vec<u8>),                     // A settings has been removed
-        BondIssued(AccountId,Vec<u8>),                  // Placeholder for account id, to be remove...
+        BondIssued(AccountId,Vec<u8>),                  // Placeholder for account id, to be removed...
+        KycStored(u32,Vec<u8>),                         // Kyc data stored on chain
 	}
 );
 
@@ -92,6 +88,51 @@ decl_error! {
         HedgeFundApprovalManagerAccountIsWrong,
         /// Committe for Hedge fund approval  is wrong
         HedgeFundApprovalCommitteeIsWrong,
+        /// Info Documents is empty
+        InfoDocumentsIsWrong,
+        /// Kyc Id is wrong, it cannot be zero
+        KycIdIsWrongCannotBeZero,
+        /// Kyc info cannot be longer of 8192 bytes
+        KycInfoIsTooLong,
+        /// Kyc cannot be shorter of 10 bytes
+        KycNameTooShort,
+        /// Kyc cannot be longer of 64 bytes
+        KycNameTooLong,
+        /// Kyc address cannot be shorter of 10 bytes
+        KycAddressTooShort,
+        /// Kyc address cannot be longer of 64 bytes
+        KycAddressTooLong,
+        /// Kyc zip code cannot be shorter of 3 bytes
+        KycZipCodeTooShort,
+        /// Kyc zip code cannot be longer of 6 bytes
+        KycZipCodeTooLong,
+        /// Kyc city cannot be shorter of 3 bytes
+        KycCityTooShort,
+        /// Kyc state cannot be longer of 64 bytes
+        KycCityTooLong,
+        /// Kyc state cannot be shorter of 3 bytes
+        KycStateTooShort,
+        /// Kyc state cannot be longer of 64 bytes
+        KycStateTooLong,
+        /// Kyc country cannot be shorter of 3 bytes
+        KycCountryTooShort,
+        /// Kyc country cannot be longer of 64 bytes
+        KycCountryTooLong,
+        /// Kyc website is too short
+        KycWebSiteTooShort,
+        /// Kyc website is too long
+        KycWebSiteTooLong,
+        /// Kyc phone is too short
+        KycPhoneTooShort,
+        /// Kyc phone is too long
+        KycPhoneTooLong,
+        /// Document description is too short
+        KycDocumentDescriptionTooShort,
+        /// Document Ipfs address is too short
+        KycDocumentIpfsAddressTooShort,
+        /// Missing documents
+        KycMissingDocuments,
+        
 	}
 }
 
@@ -102,13 +143,16 @@ decl_module! {
 		type Error = Error<T>;
 		// Events must be initialized
 		fn deposit_event() = default;
-		/// Create a  settings configuration
+		/// Create/change a  settings configuration. Reserved to super user
         /// We have multiple of configuration:
         /// key=="keyc" {"manager":"xxxaccountidxxx","supervisor":"xxxxaccountidxxxx","operators":["xxxxaccountidxxxx","xxxxaccountidxxxx",...]}
         /// for example: {"manager":"5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY","supervisor":"5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY","operators":["5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY"]}
         /// key=="bondapproval" {"manager":"xxxaccountidxxx","committee":["xxxxaccountidxxxx","xxxxaccountidxxxx",...],"mandatoryunderwriting":"Y/N","mandatorycreditrating":"Y/N","mandatorylegalopinion":"Y/N"}
         /// for example: {"manager":"5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY","committee":["5FLSigC9HGRKVhB9FiEo4Y3koPsNmBmLJbpXg2mp1hXcS59Y","5HpG9w8EBLe5XCrbczpwq5TSXvedjrBGCwqxK1iQ7qUsSWFc"],"mandatoryunderwriting":"Y","mandatorycreditrating":"Y","mandatorylegalopinion":"Y"}
         /// key=="underwriterssubmission" {"manager":"xxxaccountidxxx","committee":["xxxxaccountidxxxx","xxxxaccountidxxxx",...]}
+        /// for example: {"manager":"5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY","committee":["5FLSigC9HGRKVhB9FiEo4Y3koPsNmBmLJbpXg2mp1hXcS59Y","5HpG9w8EBLe5XCrbczpwq5TSXvedjrBGCwqxK1iQ7qUsSWFc"]}
+        /// key=="infodocuments" [{"document":"xxxxdescription"},{"document":"xxxxdescription"}]
+        /// for example: [{"document":"Profit&Loss Previous year"},{"document":"Board Members/Director List"}]
         #[weight = 1000]
 		pub fn create_change_settings(origin, key: Vec<u8>, configuration: Vec<u8>) -> dispatch::DispatchResult {
 			// check the request is signed from Super User
@@ -124,7 +168,8 @@ decl_module! {
                 || key=="bondapproval".as_bytes().to_vec() 
                 || key=="underwriterssubmission".as_bytes().to_vec()
                 || key=="collateralverification".as_bytes().to_vec()
-                || key=="hedgefundapproval".as_bytes().to_vec(),
+                || key=="hedgefundapproval".as_bytes().to_vec()
+                || key=="infodocuments".as_bytes().to_vec(),
                 Error::<T>::SettingsKeyIsWrong);
             // check validity for kyc settings
             if key=="kyc".as_bytes().to_vec() {
@@ -236,6 +281,21 @@ decl_module! {
                 }
                 ensure!(x>0,Error::<T>::HedgeFundApprovalCommitteeIsWrong);
             }
+            // check validity for info documents
+            if key=="infodocuments".as_bytes().to_vec() {
+                let documents=json_get_complexarray(configuration.clone(),"documents".as_bytes().to_vec());
+                let mut x=0;
+                if documents.len()>2 {
+                    loop {  
+                        let w=json_get_recordvalue(documents.clone(),x);
+                        if w.len()==0 {
+                            break;
+                        }
+                        x=x+1;
+                    }
+                }
+                ensure!(x>0,Error::<T>::InfoDocumentsIsWrong);
+            }
             //store settings on chain
             if Settings::contains_key(&key)==false {
                 // Insert settings
@@ -250,7 +310,85 @@ decl_module! {
 			// Return a successful DispatchResult
 			Ok(())
 		}
-	}
+	
+        // this function has the purpose to the insert or update data for KYC
+        #[weight = 1000]
+        pub fn create_change_kyc(origin, id: u32, info: Vec<u8>) -> dispatch::DispatchResult {
+            let signer = ensure_signed(origin)?;
+            // TODO check the signer is one of the operators for kyc
+            //check id >0
+            ensure!(id>0, Error::<T>::KycIdIsWrongCannotBeZero); 
+            //check info length
+            ensure!(info.len() < 8192, Error::<T>::KycInfoIsTooLong); 
+            // check json validity
+            let js=info.clone();
+            ensure!(json_check_validity(js),Error::<T>::InvalidJson);
+            // check name
+            let name=json_get_value(info.clone(),"name".as_bytes().to_vec());
+            ensure!(name.len()>=10,Error::<T>::KycNameTooShort);
+            ensure!(name.len()<=64,Error::<T>::KycNameTooLong);
+            // check Address
+            let address=json_get_value(info.clone(),"address".as_bytes().to_vec());
+            ensure!(address.len()>=10,Error::<T>::KycAddressTooShort);
+            ensure!(address.len()<=64,Error::<T>::KycAddressTooLong);
+            // check Zip code
+            let zip=json_get_value(info.clone(),"zip".as_bytes().to_vec());
+            ensure!(zip.len()>3,Error::<T>::KycZipCodeTooShort);
+            ensure!(zip.len()<=6,Error::<T>::KycZipCodeTooLong);
+            // check City
+            let city=json_get_value(info.clone(),"city".as_bytes().to_vec());
+            ensure!(city.len()>3,Error::<T>::KycCityTooShort);
+            ensure!(city.len()<=64,Error::<T>::KycCityTooLong);
+            // check State
+            let state=json_get_value(info.clone(),"state".as_bytes().to_vec());
+            ensure!(state.len()>3,Error::<T>::KycStateTooShort);
+            ensure!(state.len()<=64,Error::<T>::KycStateTooLong);
+            // check Country
+            let country=json_get_value(info.clone(),"country".as_bytes().to_vec());
+            ensure!(country.len()>3,Error::<T>::KycCountryTooShort);
+            ensure!(country.len()<64,Error::<T>::KycCountryTooLong);
+            // check Website
+            let website=json_get_value(info.clone(),"website".as_bytes().to_vec());
+            ensure!(website.len()>=10,Error::<T>::KycWebSiteTooShort);
+            ensure!(website.len()<=64,Error::<T>::KycWebSiteTooLong);
+            // TODO url validity
+            // check Phone lenght
+            let phone=json_get_value(info.clone(),"phone".as_bytes().to_vec());
+            ensure!(phone.len()>=10,Error::<T>::KycPhoneTooShort);
+            ensure!(phone.len()<=21,Error::<T>::KycPhoneTooLong);
+            //TODO check prefix
+            let ipfsdocs=json_get_complexarray(info.clone(),"ipfsdocs".as_bytes().to_vec());
+            if ipfsdocs.len()>2 {
+                let mut x=0;
+                loop {  
+                    let w=json_get_recordvalue(ipfsdocs.clone(),x);
+                    if w.len()==0 {
+                        break;
+                    }
+                    let description=json_get_value(w.clone(),"description".as_bytes().to_vec());
+                    ensure!(description.len()>5,Error::<T>::KycDocumentDescriptionTooShort);
+                    let ipfsaddress=json_get_value(w.clone(),"ipfsaddress".as_bytes().to_vec());
+                    ensure!(ipfsaddress.len()>20,Error::<T>::KycDocumentIpfsAddressTooShort);
+
+                    x=x+1;
+                }
+                ensure!(x>0,Error::<T>::KycMissingDocuments);
+            }
+            //store Kyc on chain
+            if Kyc::contains_key(&id)==false {
+                // Insert kyc
+                Kyc::insert(id.clone(),info.clone());
+            } else {
+                // Replace Kyc Data 
+                Kyc::take(id.clone());
+                Kyc::insert(id.clone(),info.clone());
+            }
+            // Generate event
+            Self::deposit_event(RawEvent::KycStored(id,info));
+            // Return a successful DispatchResult
+            Ok(())
+        }
+    }
 }
 // function to validate a json string for no/std. It does not allocate of memory
 fn json_check_validity(j:Vec<u8>) -> bool{	
