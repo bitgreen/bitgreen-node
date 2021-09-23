@@ -895,6 +895,10 @@ impl orml_nft::Config for Runtime {
 // workaround for a weird bug in macro
 use pallet_session::historical as pallet_session_historical;
 
+impl pallet_vcu::Config for Runtime {
+	type Event = Event;
+}
+
 // TODO: Implementation of `From` is preferred since it gives you `Into<_>` for free where the reverse isn't true.
 // After this TODO will be resolved, remove the suppresion of `from-over-into` warnings in the Makefile.
 construct_runtime!(
@@ -957,7 +961,8 @@ construct_runtime!(
 		ImpactActions: pallet_impact_actions::{Module, Call, Storage, Event<T>} = 72,
 		// Bonds
 		Bonds: pallet_bonds::{Module, Call, Storage, Event<T>} = 73,
-
+		// VCUs
+		VCU: pallet_vcu::{Module, Call, Storage, Event<T>} = 74,
 
 	}
 );
