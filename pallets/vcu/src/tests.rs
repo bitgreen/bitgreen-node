@@ -2,22 +2,30 @@ use crate::{Error, mock::*};
 use frame_support::{assert_ok, assert_noop};
 
 #[test]
-fn it_works_for_default_value() {
+fn create_vcu_should_work() {
 	new_test_ext().execute_with(|| {
-		// Dispatch a signed extrinsic.
-		assert_ok!(TemplateModule::do_something(Origin::signed(1), 42));
-		// Read pallet storage and assert an expected result.
-		assert_eq!(TemplateModule::something(), Some(42));
+		assert_ok!(VCU::create_vcu(Origin::signed(1), 42, "Veera".as_bytes().to_vec(), 10, b"QmXbTtSAPJ545YRnLt7n7ngMa4ZTmizmznshZZjXDRhYih".to_vec()));
+
+		assert_eq!(VCU::get_vcu(1).serial_number, 42);
 	});
 }
 
 #[test]
-fn correct_error_for_none_value() {
+fn create_vcu_should_not_work_for_invalid_ipfs_hash() {
 	new_test_ext().execute_with(|| {
-		// Ensure the expected error is thrown when no value is present.
 		assert_noop!(
-			TemplateModule::cause_error(Origin::signed(1)),
-			Error::<Test>::NoneValue
+			VCU::create_vcu(Origin::signed(1), 42, "Veera".as_bytes().to_vec(), 10, b"test".to_vec()),
+			Error::<Test>::InvalidIPFSHash
+		);
+	});
+}
+
+#[test]
+fn create_vcu_should_not_work_for_invalid_project_name() {
+	new_test_ext().execute_with(|| {
+		assert_noop!(
+			VCU::create_vcu(Origin::signed(1), 42, "".as_bytes().to_vec(), 10, b"QmXbTtSAPJ545YRnLt7n7ngMa4ZTmizmznshZZjXDRhYih".to_vec()),
+			Error::<Test>::ProjectNameIsTooShort
 		);
 	});
 }

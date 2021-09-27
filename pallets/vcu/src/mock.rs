@@ -51,8 +51,17 @@ impl system::Config for Test {
 	type SS58Prefix = SS58Prefix;
 }
 
+parameter_types! {
+  pub const MinProjectNameLength: u32 = 5;
+  pub const MaxProjectNameLength: u32 = 50;
+  pub const IpfsHashLength: u32 = 46;
+}
+
 impl pallet_vcu::Config for Test {
 	type Event = Event;
+	type IpfsHashLength = IpfsHashLength;
+	type MinProjectNameLength = MinProjectNameLength;
+	type MaxProjectNameLength = MaxProjectNameLength;
 }
 
 // Build genesis storage according to the mock runtime.

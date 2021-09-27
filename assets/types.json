@@ -250,7 +250,13 @@
         "is_zombie":"bool"
     },
     "AssetId":"u32",
-    "BalanceOf":"Balance"
+    "BalanceOf":"Balance",
+    "VCU": {
+      "serial_number": "i32",
+      "project": "Vec<u8>",
+      "amount_co2": "Balance",
+      "ipfs_hash": "Vec<u8>"
+    }
 }
 
   
