@@ -2,7 +2,7 @@
 
 /// Module to manage the Bonds on BitGreen Blockchain
 
-use frame_support::{decl_module, decl_storage, decl_event, decl_error, dispatch, ensure, traits::Currency};
+use frame_support::{decl_module, decl_storage, decl_event, decl_error, dispatch, ensure, traits::Currency,codec::Decode};
 use frame_system::{ensure_root,ensure_signed};
 use sp_std::prelude::*;
 use core::str;
@@ -28,6 +28,7 @@ decl_storage! {
 		// Settings configuration, we store json structure with different keys (see the function for details)
 		Settings get(fn get_settings): map hasher(blake2_128_concat) Vec<u8> => Option<Vec<u8>>;
         Kyc get(fn get_kyc): map hasher(blake2_128_concat) u32 => Option<Vec<u8>>;
+        KycSignatures get(fn get_kycsignatures): double_map hasher(blake2_128_concat) u32,hasher(blake2_128_concat) T::AccountId => Option<u32>;
 	}
 }
 
@@ -38,6 +39,7 @@ decl_event!(
         SettingsDestroyed(Vec<u8>),                     // A settings has been removed
         BondIssued(AccountId,Vec<u8>),                  // Placeholder for account id, to be removed...
         KycStored(u32,Vec<u8>),                         // Kyc data stored on chain
+        KycSignedforApproval(u32,AccountId),            // Kyc has been signed for approval
 	}
 );
 
@@ -132,7 +134,12 @@ decl_error! {
         KycDocumentIpfsAddressTooShort,
         /// Missing documents
         KycMissingDocuments,
-        
+        /// Kyc Id has not been found
+        KycIdNotFound,
+        /// The signer has already signed the same kyc
+        KycSignatureAlreadyPresentrSameSigner,
+        /// The signer is not authorized to approve a KYC
+        SignerIsNotAuthorizedForKycApproval,
 	}
 }
 
@@ -145,7 +152,7 @@ decl_module! {
 		fn deposit_event() = default;
 		/// Create/change a  settings configuration. Reserved to super user
         /// We have multiple of configuration:
-        /// key=="keyc" {"manager":"xxxaccountidxxx","supervisor":"xxxxaccountidxxxx","operators":["xxxxaccountidxxxx","xxxxaccountidxxxx",...]}
+        /// key=="kyc" {"manager":"xxxaccountidxxx","supervisor":"xxxxaccountidxxxx","operators":["xxxxaccountidxxxx","xxxxaccountidxxxx",...]}
         /// for example: {"manager":"5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY","supervisor":"5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY","operators":["5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY"]}
         /// key=="bondapproval" {"manager":"xxxaccountidxxx","committee":["xxxxaccountidxxxx","xxxxaccountidxxxx",...],"mandatoryunderwriting":"Y/N","mandatorycreditrating":"Y/N","mandatorylegalopinion":"Y/N"}
         /// for example: {"manager":"5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY","committee":["5FLSigC9HGRKVhB9FiEo4Y3koPsNmBmLJbpXg2mp1hXcS59Y","5HpG9w8EBLe5XCrbczpwq5TSXvedjrBGCwqxK1iQ7qUsSWFc"],"mandatoryunderwriting":"Y","mandatorycreditrating":"Y","mandatorylegalopinion":"Y"}
@@ -314,7 +321,7 @@ decl_module! {
         // this function has the purpose to the insert or update data for KYC
         #[weight = 1000]
         pub fn create_change_kyc(origin, id: u32, info: Vec<u8>) -> dispatch::DispatchResult {
-            let signer = ensure_signed(origin)?;
+            let _signer = ensure_signed(origin)?;
             // TODO check the signer is one of the operators for kyc
             //check id >0
             ensure!(id>0, Error::<T>::KycIdIsWrongCannotBeZero); 
@@ -388,6 +395,55 @@ decl_module! {
             // Return a successful DispatchResult
             Ok(())
         }
+        #[weight = 1000]
+        pub fn kyc_approve(origin, id: u32) -> dispatch::DispatchResult {
+            let signer = ensure_signed(origin)?;
+            //check id >0
+            ensure!(id>0, Error::<T>::KycIdIsWrongCannotBeZero); 
+            ensure!(Kyc::contains_key(&id),Error::<T>::KycIdNotFound);
+            ensure!(!KycSignatures::<T>::contains_key(&id,&signer),Error::<T>::KycSignatureAlreadyPresentrSameSigner);
+            // check the signer is one of the operators for kyc
+            let json:Vec<u8>=Settings::get("kyc".as_bytes().to_vec()).unwrap();
+            let mut flag=0;
+            let manager=json_get_value(json.clone(),"manager".as_bytes().to_vec());
+            if manager.len()>0 {
+                let managervec=bs58::decode(manager).into_vec().unwrap();
+                let accountidmanager=T::AccountId::decode(&mut &managervec[1..33]).unwrap_or_default();
+                if signer==accountidmanager {
+                    flag=1;                    
+                }
+            }
+            let supervisor=json_get_value(json.clone(),"supervisor".as_bytes().to_vec());
+            if supervisor.len()>0 {
+                let supervisorvec=bs58::decode(supervisor).into_vec().unwrap();
+                let accountidsupervisor=T::AccountId::decode(&mut &supervisorvec[1..33]).unwrap_or_default();
+                if signer==accountidsupervisor {
+                    flag=1;
+                }
+            }
+            let operators=json_get_complexarray(json.clone(),"operators".as_bytes().to_vec());
+            let mut x=0;
+            loop {  
+                let operator=json_get_arrayvalue(operators.clone(),x);
+                if operator.len()==0 {
+                    break;
+                }
+                let operatorvec=bs58::decode(operator).into_vec().unwrap();
+                let accountidoperator=T::AccountId::decode(&mut &operatorvec[1..33]).unwrap_or_default();
+                if accountidoperator==signer {
+                    flag=1;
+                }
+                x=x+1;
+            }
+            ensure!(flag==1,Error::<T>::SignerIsNotAuthorizedForKycApproval);
+            // write/update signature
+            KycSignatures::<T>::insert(id,signer.clone(),1);
+            // check for all the approval
+            // generate event
+            Self::deposit_event(RawEvent::KycSignedforApproval(id,signer));
+            // Return a successful DispatchResult
+            Ok(())
+        }  
     }
 }
 // function to validate a json string for no/std. It does not allocate of memory
