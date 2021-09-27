@@ -895,8 +895,17 @@ impl orml_nft::Config for Runtime {
 // workaround for a weird bug in macro
 use pallet_session::historical as pallet_session_historical;
 
+parameter_types! {
+  pub const MinProjectNameLength: u32 = 5;
+  pub const MaxProjectNameLength: u32 = 50;
+  pub const IpfsHashLength: u32 = 46;
+}
+
 impl pallet_vcu::Config for Runtime {
 	type Event = Event;
+	type IpfsHashLength = IpfsHashLength;
+	type MinProjectNameLength = MinProjectNameLength;
+	type MaxProjectNameLength = MaxProjectNameLength;
 }
 
 // TODO: Implementation of `From` is preferred since it gives you `Into<_>` for free where the reverse isn't true.
