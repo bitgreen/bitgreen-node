@@ -16,17 +16,15 @@
 
 
 #![cfg_attr(not(feature = "std"), no_std)]
-use frame_support::{decl_module, decl_storage, decl_event, decl_error, traits::Get};
-use frame_system::ensure_signed;
+use frame_support::{decl_module, decl_storage, decl_event, decl_error, ensure, traits::Get};
 use primitives::Balance;
 use codec::{Decode, Encode};
-use frame_support::ensure;
+use frame_system::ensure_root;
 use frame_support::dispatch::DispatchResult;
 use frame_support::traits::Vec;
 #[cfg(feature = "std")]
 use serde::{Deserialize, Serialize};
 use sp_runtime::RuntimeDebug;
-
 #[cfg(test)]
 mod mock;
 
@@ -41,11 +39,8 @@ pub trait Config: frame_system::Config {
 	/// IPFS content valid length.
 	type IpfsHashLength: Get<u32>;
 
-	/// Minimal length of project name
-	type MinProjectNameLength: Get<u32>;
-
-	/// Maximal length of project name
-	type MaxProjectNameLength: Get<u32>;
+	/// Veera project id minimum length
+	type MinPIDLength: Get<u32>;
 }
 
 /// Verified Carbon Units (VCU) The VCU data (serial number, project, amount of CO2 in tons,
@@ -54,8 +49,6 @@ pub trait Config: frame_system::Config {
 #[derive(Encode, Decode, Eq, PartialEq, Clone, RuntimeDebug, PartialOrd, Ord, Default)]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 pub struct VCU {
-	pub serial_number: i32,
-	pub project: Vec<u8>,
 	pub amount_co2: Balance,
 	pub ipfs_hash: Vec<u8>,
 }
@@ -64,27 +57,25 @@ decl_storage! {
 
 	trait Store for Module<T: Config> as VCUModule {
 		/// VCUs stored in system
-		VCUs get(fn get_vcu): map hasher(blake2_128_concat) T::AccountId => VCU;
+		VCUs get(fn get_vcu): map hasher(blake2_128_concat) u32 => Vec<VCU>;
 	}
 }
 
 decl_event!(
 	pub enum Event<T> where AccountId = <T as frame_system::Config>::AccountId {
-		/// A VCU was stored with a serial number. \[who, value\]
-		VCUStored(AccountId, i32),
+		/// A VCU was stored with a serial number.
+		VCUStored(u32),
+		/// A VCU was updated.
+		VCUUpdated(u32, AccountId),
 	}
 );
 
 decl_error! {
 	pub enum Error for Module<T: Config> {
-		/// VCU Already exits
-		VCUAlreadyExists,
 		/// Invalid IPFS Hash
 		InvalidIPFSHash,
-		/// Project name is too short
-		ProjectNameIsTooShort,
-		/// Project name is too long
-		ProjectNameIsTooLong,
+		/// Invalid Project id
+		InvalidPidLength,
 	}
 }
 
@@ -98,29 +89,28 @@ decl_module! {
 
 		/// Create new VCU on chain
 		///
-		/// `create_vcu` will accept `serial_number`, `project`, `amount_co2` and `ipfs_hash` as parameter
+		/// `create_vcu` will accept `pid`, `amount_co2` and `ipfs_hash` as parameter
 		/// and create new VCU in system
 		///
-		/// The dispatch origin for this call must be `Signed` by the transactor.
+		/// The dispatch origin for this call must be `Signed` by the Root.
 		#[weight = 10_000 + T::DbWeight::get().writes(1)]
-		pub fn create_vcu(origin, serial_number: i32, project: Vec<u8>, amount_co2: Balance, ipfs_hash: Vec<u8>) -> DispatchResult {
+		pub fn create_vcu(origin, pid: u32, amount_co2: Balance, ipfs_hash: Vec<u8>) -> DispatchResult {
 
-			let who = ensure_signed(origin)?;
+			ensure_root(origin)?;
 
-			ensure!(!VCUs::<T>::contains_key(who.clone()), Error::<T>::VCUAlreadyExists);
-			ensure!(project.len() >= T::MinProjectNameLength::get() as usize, Error::<T>::ProjectNameIsTooShort);
-        	ensure!(project.len() <= T::MaxProjectNameLength::get() as usize, Error::<T>::ProjectNameIsTooLong);
 			ensure!(ipfs_hash.len() == T::IpfsHashLength::get() as usize, Error::<T>::InvalidIPFSHash);
-			let vcu = VCU {
-				serial_number: serial_number.clone(),
-				project,
-				amount_co2,
-				ipfs_hash
-			};
+			ensure!(pid > T::MinPIDLength::get(), Error::<T>::InvalidPidLength);
+			VCUs::try_mutate(pid, |vcu_details| -> DispatchResult {
+				let vcu = VCU {
+					amount_co2,
+					ipfs_hash
+				};
+				vcu_details.push(vcu);
 
-			VCUs::<T>::insert(who.clone(), vcu);
+				Ok(())
+			})?;
 
-			Self::deposit_event(RawEvent::VCUStored(who, serial_number));
+			Self::deposit_event(RawEvent::VCUStored(pid));
 			Ok(())
 		}
 	}
