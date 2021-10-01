@@ -6,6 +6,7 @@ use frame_support::{decl_module, decl_storage, decl_event, decl_error, dispatch,
 use frame_system::{ensure_root,ensure_signed};
 use sp_std::prelude::*;
 use core::str;
+use core::str::FromStr;
 #[cfg(test)]
 mod mock;
 
@@ -24,13 +25,17 @@ pub type Balance = u128;
 decl_storage! {
 	trait Store for Module<T: Config> as bonds {
 		// we use a safe crypto hashing with blake2_128
-        //
 		// Settings configuration, we store json structure with different keys (see the function for details)
 		Settings get(fn get_settings): map hasher(blake2_128_concat) Vec<u8> => Option<Vec<u8>>;
+        // Know Your client Data
         Kyc get(fn get_kyc): map hasher(blake2_128_concat) T::AccountId => Option<Vec<u8>>;
         KycSignatures get(fn get_kycsignatures): double_map hasher(blake2_128_concat) T::AccountId,hasher(blake2_128_concat) T::AccountId => Option<u32>;
+        // Bonds data
         Bonds get(fn get_bond): map hasher(blake2_128_concat) u32 => Option<Vec<u8>>;
-
+        // Standard Iso country code and official name
+        IsoCountries get(fn get_iso_country): map hasher(blake2_128_concat) Vec<u8> => Option<Vec<u8>>;
+        // Currencies data
+        Currencies get(fn get_currency): map hasher(blake2_128_concat) Vec<u8> => Option<Vec<u8>>
 	}
 }
 
@@ -42,6 +47,10 @@ decl_event!(
         BondIssued(AccountId,Vec<u8>),                  // Placeholder for account id, to be removed...
         KycStored(AccountId,Vec<u8>),                   // Kyc data stored on chain
         KycSignedforApproval(AccountId,AccountId),      // Kyc has been signed for approval
+        IsoCountryCreated(Vec<u8>,Vec<u8>),             // Iso country created
+        IsoCountryDestroyed(Vec<u8>),                   // Iso country destroyed
+        CurrencyCodeCreated(Vec<u8>,Vec<u8>),           // a currency code has been created
+        CurrencyDestroyed(Vec<u8>),                     // Currency code has been destroyed
 	}
 );
 
@@ -152,6 +161,38 @@ decl_error! {
         MissingKycForSigner,
         /// Missing Kyc Approval
         MissingKycApproval,
+        /// Bond total amount cannot be zero
+        BondTotalAmountCannotBeZero,
+        /// Country code lenght is wrong
+        WrongLengthCountryCode,
+        /// Country name is too short
+        CountryNameTooShort,
+        /// Country code is already present
+        CountryCodeAlreadyPresent,
+        /// Country code not found
+        CountryCodeNotFound,
+        /// Wrong lenght of the currency code
+        WrongLengthCurrencyCode,
+        /// info field is too long
+        SizeInfoTooLong,
+        /// Currency name is too short
+        CurrencyNameTooShort,
+        /// Currency name is too long
+        CurrencyNameTooLong,
+        /// Currency category is wrong, it can be 'c' for crypto currency or 'f' for fiat currency
+        CurrencyCategoryIswrong,
+        /// Currency code has not been found
+        CurrencyCodeNotFound,
+        /// block chain name is too short
+        BlockchainNameTooShort,
+        /// block chain name is too long
+        BlockchainNameTooLong,
+        /// Currency code is already present
+        CurrencyCodeAlreadyPresent,
+        /// Bond interest rate cannot be zero
+        BondInterestRateCannotBeZero,
+        /// Bond interest type is wrong, it can be X,F,Z,I only.
+        BondInterestTypeIsWrong,
 	}
 }
 
@@ -462,6 +503,15 @@ decl_module! {
             // Return a successful DispatchResult
             Ok(())
         }  
+        // Function to create a new bond subject to approval. The info field is a json structure with the following fields:
+        // totalamount: total amount considering 0 decimals
+        // currency: is the currency code as from the blockchain storage "Currencies"
+        // country: is the the iso conty code as from blockchain storage "IsoCountries"
+        // interestrate: is the interest rate expressed in an integer assumin 2 decimals, for example 200 is equivalent to 2.00 %
+        // interest type: X=Fixed Rate / F=Floating Rate /Z= Zero Interest/ I= Inflation Linked
+        // TODO - Oracle to get Inflation rate
+        // for example: 
+        // {"totalamount":100000000,
         #[weight = 1000]
         pub fn bond_create(origin, id: u32,info: Vec<u8>) -> dispatch::DispatchResult {
             let signer = ensure_signed(origin)?;
@@ -469,12 +519,124 @@ decl_module! {
             ensure!(id>0, Error::<T>::BondIdIsWrongCannotBeZero); 
             ensure!(!Bonds::contains_key(&id),Error::<T>::BondIdAlreadyUsed);
             // check the signer has been subject to KYC approval
-            ensure!(!Kyc::contains_key(&signer),Error::<T>::MissingKycForSigner);
+            ensure!(Kyc::<T>::contains_key(&signer),Error::<T>::MissingKycForSigner);
             // check the Kyc has been approved
-            ensure!(!KycSignatures::contains_key(&signer),Error::<T>::MissingKycApproval);
-
+            // TODO check all the type of approvals
+            //ensure!(!KycSignatures::contains_key(&signer),Error::<T>::MissingKycApproval);
+            // check total amount
+            let totalamount=json_get_value(info.clone(),"totalamount".as_bytes().to_vec());
+            let totalamountv=vecu8_to_u32(totalamount);
+            ensure!(totalamountv>0,Error::<T>::BondTotalAmountCannotBeZero);
+            let currency=json_get_value(info.clone(),"currency".as_bytes().to_vec());
+            ensure!(Currencies::contains_key(&currency), Error::<T>::CurrencyCodeNotFound);
+            let country=json_get_value(info.clone(),"country".as_bytes().to_vec());
+            ensure!(IsoCountries::contains_key(&country), Error::<T>::CountryCodeNotFound);
+            let country=json_get_value(info.clone(),"country".as_bytes().to_vec());
+            ensure!(IsoCountries::contains_key(&country), Error::<T>::CountryCodeNotFound);
+            let interestrate=json_get_value(info.clone(),"interestrate".as_bytes().to_vec());
+            let interestratev=vecu8_to_u32(interestrate);
+            ensure!(interestratev>0,Error::<T>::BondInterestRateCannotBeZero);
+            let interestype=json_get_value(info.clone(),"interestype".as_bytes().to_vec());
+            ensure!(interestype[0]==b'X' 
+                || interestype[0]==b'F'  
+                || interestype[0]==b'Z' 
+                || interestype[0]==b'I' 
+                ,Error::<T>::BondInterestTypeIsWrong);
             Ok(())
         }  
+        /// Create a new Iso country code and name
+        #[weight = 1000]
+        pub fn iso_country_create(origin, countrycode: Vec<u8>, countryname: Vec<u8>) -> dispatch::DispatchResult {
+            // check the request is signed from the Super User
+            let _sender = ensure_root(origin)?;
+            // check country code length == 2
+            ensure!(countrycode.len()==2, Error::<T>::WrongLengthCountryCode);
+            // check country name length  >= 3
+            ensure!(countryname.len()>=3, Error::<T>::CountryNameTooShort);
+            // check the country is not alreay present on chain
+            ensure!(IsoCountries::contains_key(&countrycode)==false, Error::<T>::CountryCodeAlreadyPresent);
+            // store the Iso Country Code and Name
+            IsoCountries::insert(countrycode.clone(),countryname.clone());
+            // Generate event
+            Self::deposit_event(RawEvent::IsoCountryCreated(countrycode,countryname));
+            // Return a successful DispatchResult
+            Ok(())
+        }
+        /// Destroy an Iso country code and name
+        #[weight = 1000]
+        pub fn iso_country_destroy(origin, countrycode: Vec<u8>,) -> dispatch::DispatchResult {
+            // check the request is signed from the Super User
+            let _sender = ensure_root(origin)?;
+            // verify the country code exists
+            ensure!(IsoCountries::contains_key(&countrycode)==true, Error::<T>::CountryCodeNotFound);
+            // Remove country code
+            IsoCountries::take(countrycode.clone());
+            // Generate event
+            //it can leave orphans, anyway it's a decision of the super user
+            Self::deposit_event(RawEvent::IsoCountryDestroyed(countrycode));
+            // Return a successful DispatchResult
+            Ok(())
+        }
+        /// Create a new Currency code with name and other info in a json structure
+         /// {"name":"Bitcoin","category":"c(rypto)/f(iat)","country":"countryisocode","blockchain":"Ethereum(...)","address":"xxxfor_crypto_currencyxxx"}
+         /// for example: {"name":"Bitcoin","category":"c","country":"AE","blockchain":"Bitcoin","address":"not applicable"}
+         /// {"name":"American Dollars","category":"f","country":"US","blockchain":"not applicable","address":"not applicable"}
+         #[weight = 1000]
+         pub fn currency_create(origin, currencycode: Vec<u8>, info: Vec<u8>) -> dispatch::DispatchResult {
+             // check the request is signed from the Super User
+             let _sender = ensure_root(origin)?;
+             // check currency code length is between 3 and 5 bytes
+             ensure!((currencycode.len()>=3 && currencycode.len()<=5), Error::<T>::WrongLengthCurrencyCode);
+             // check the info field is not longer 1024 bytes
+             ensure!((info.len()<=1024), Error::<T>::SizeInfoTooLong);
+             // check for a valid json structure
+             ensure!(json_check_validity(info.clone()),Error::<T>::InvalidJson);
+             // check for name
+             let name=json_get_value(info.clone(),"name".as_bytes().to_vec());
+             ensure!(name.len()>=3, Error::<T>::CurrencyNameTooShort);
+             ensure!(name.len()<=32, Error::<T>::CurrencyNameTooLong);
+             // check for type of currency (fiat/crypto)
+             let category=json_get_value(info.clone(),"category".as_bytes().to_vec());
+             let mut c: Vec<u8>= Vec::new();
+             c.push(b'c');
+             let mut f: Vec<u8>= Vec::new();
+             f.push(b'f');
+             ensure!((category==c || category==f),Error::<T>::CurrencyCategoryIswrong);
+             // check for the country code in case of Fiat currency
+             if category==f {
+                 let countrycode=json_get_value(info.clone(),"country".as_bytes().to_vec());
+                 ensure!(IsoCountries::contains_key(&countrycode), Error::<T>::CountryCodeNotFound);
+             }
+             // check for the blockchain in case of Crypto currency
+             if category==c {
+                 let blockchain=json_get_value(info.clone(),"blockchain".as_bytes().to_vec());
+                 ensure!(blockchain.len()>=3, Error::<T>::BlockchainNameTooShort);
+                 ensure!(blockchain.len()<=32, Error::<T>::BlockchainNameTooLong);
+             }
+             // check the currency is not alreay present on chain
+             ensure!(!Currencies::contains_key(&currencycode), Error::<T>::CurrencyCodeAlreadyPresent);
+             // store the Currency Code and info
+             Currencies::insert(currencycode.clone(),info.clone());
+             // Generate event
+             Self::deposit_event(RawEvent::CurrencyCodeCreated(currencycode,info));
+             // Return a successful DispatchResult
+             Ok(())
+         }
+         /// Destroy a currency
+         #[weight = 1000]
+         pub fn currency_destroy(origin, currencycode: Vec<u8>,) -> dispatch::DispatchResult {
+             // check the request is signed from the Super User
+             let _sender = ensure_root(origin)?;
+             // verify the currency code exists
+             ensure!(Currencies::contains_key(&currencycode), Error::<T>::CurrencyCodeNotFound);
+             // Remove currency code
+             Currencies::take(currencycode.clone());
+             // Generate event
+             //it can leave orphans, anyway it's a decision of the super user
+             Self::deposit_event(RawEvent::CurrencyDestroyed(currencycode));
+             // Return a successful DispatchResult
+             Ok(())
+         }
     }
 }
 // function to validate a json string for no/std. It does not allocate of memory
@@ -728,6 +890,12 @@ fn json_get_complexarray(j:Vec<u8>,key:Vec<u8>) -> Vec<u8> {
     }
     return result;
 }
-
+// function to convert vec<u8> to u32
+fn vecu8_to_u32(v: Vec<u8>) -> u32 {
+    let vslice = v.as_slice();
+    let vstr = str::from_utf8(&vslice).unwrap_or("0");
+    let vvalue: u32 = u32::from_str(vstr).unwrap_or(0);
+    vvalue
+}
 
 
