@@ -51,6 +51,7 @@ decl_event!(
         IsoCountryDestroyed(Vec<u8>),                   // Iso country destroyed
         CurrencyCodeCreated(Vec<u8>,Vec<u8>),           // a currency code has been created
         CurrencyDestroyed(Vec<u8>),                     // Currency code has been destroyed
+        BondCreated(u32,Vec<u8>),                       // New bond has been created
 	}
 );
 
@@ -193,6 +194,38 @@ decl_error! {
         BondInterestRateCannotBeZero,
         /// Bond interest type is wrong, it can be X,F,Z,I only.
         BondInterestTypeIsWrong,
+        /// Bond maturity cannot be zero
+        BondMaturityCannotBeZero,
+        /// Bond maturity cannot be longer than 600 months (50 years)
+        BondMaturityTooLong,
+        /// Bond Instalments cannot be more than 600
+        BondTooManyInstalments,
+        /// Bond instalmnents cannot exceed Maturity
+        BondInstalmentsCannotExceedMaturity,
+        /// Grace period cannot exceed the maturity
+        BondGracePeriodCannotExceedMaturity,
+        /// Bond accepted currencies cannot be empty
+        BondAcceptedCurrenciesCannotBeEmpty,
+        /// Bond subordinated is wrong, it can be Y/N
+        BondSubordinatedIsWrong,
+        /// Bond put option is wrong, it can be Y/N
+        BondPutOptionIsWrong,
+        /// Bond put vesting period cannot be zero
+        BondPutVestingPeriodCannotBeZero,
+        /// Bond call option is wrong, it can be Y/N
+        BondCallOptionIsWrong,
+        /// Bond put vesting period cannot be zero
+        BondCallVestingPeriodCannotBeZero,
+        /// Bond put convertible option is wrong, it can be Y/N
+        BondPutConvertibleOptionIsWrong,
+        /// Bond call convertible option is wrong, it can be Y/N
+        BondCallConvertibleOptionIsWrong,
+        // The bond document description cannot be shorter of 5 bytes
+        BondDocumentDescriptionTooShort,
+        /// The ipfs address of the bond document is too short to be real
+        BondDocumentIpfsAddressTooShort,
+        /// Bond documents are missing
+        BondMissingDocuments,
 	}
 }
 
@@ -527,21 +560,104 @@ decl_module! {
             let totalamount=json_get_value(info.clone(),"totalamount".as_bytes().to_vec());
             let totalamountv=vecu8_to_u32(totalamount);
             ensure!(totalamountv>0,Error::<T>::BondTotalAmountCannotBeZero);
+            // check currency
             let currency=json_get_value(info.clone(),"currency".as_bytes().to_vec());
             ensure!(Currencies::contains_key(&currency), Error::<T>::CurrencyCodeNotFound);
+            // check country
             let country=json_get_value(info.clone(),"country".as_bytes().to_vec());
             ensure!(IsoCountries::contains_key(&country), Error::<T>::CountryCodeNotFound);
             let country=json_get_value(info.clone(),"country".as_bytes().to_vec());
             ensure!(IsoCountries::contains_key(&country), Error::<T>::CountryCodeNotFound);
+            // check interest rate
             let interestrate=json_get_value(info.clone(),"interestrate".as_bytes().to_vec());
             let interestratev=vecu8_to_u32(interestrate);
             ensure!(interestratev>0,Error::<T>::BondInterestRateCannotBeZero);
+            // check interest type
             let interestype=json_get_value(info.clone(),"interestype".as_bytes().to_vec());
             ensure!(interestype[0]==b'X' 
                 || interestype[0]==b'F'  
                 || interestype[0]==b'Z' 
                 || interestype[0]==b'I' 
                 ,Error::<T>::BondInterestTypeIsWrong);
+            // check maturity
+            let maturity=json_get_value(info.clone(),"maturity".as_bytes().to_vec());
+            let maturityv=vecu8_to_u32(maturity);
+            ensure!(maturityv>0,Error::<T>::BondMaturityCannotBeZero);
+            ensure!(maturityv<=600,Error::<T>::BondMaturityTooLong);  // 50 years maximum
+            // check Instalments 
+            let instalments=json_get_value(info.clone(),"instalments".as_bytes().to_vec());
+            let instalmentsv=vecu8_to_u32(instalments);
+            ensure!(instalmentsv<=600,Error::<T>::BondTooManyInstalments);  
+            ensure!(instalmentsv<=maturityv,Error::<T>::BondInstalmentsCannotExceedMaturity); 
+            // check Grace Period 
+            let graceperiod=json_get_value(info.clone(),"graceperiod".as_bytes().to_vec());
+            let graceperiodv=vecu8_to_u32(graceperiod);
+            ensure!(graceperiodv<maturityv,Error::<T>::BondGracePeriodCannotExceedMaturity); 
+            // check accepted currencies
+            let acceptedcurrencies=json_get_value(info.clone(),"acceptedcurrencies".as_bytes().to_vec());
+            if acceptedcurrencies.len()>2 {
+                let mut x=0;
+                loop {  
+                    let ac=json_get_arrayvalue(acceptedcurrencies.clone(),x);
+                    if ac.len()==0 {
+                        break;
+                    }
+                    // check crypto currency on blockchain
+                    ensure!(Currencies::contains_key(&ac), Error::<T>::CurrencyCodeNotFound);
+                    x=x+1;
+                }
+                ensure!(x>0, Error::<T>::BondAcceptedCurrenciesCannotBeEmpty);
+            }
+            // check subordinated field
+            let subordinated=json_get_value(info.clone(),"subordinated".as_bytes().to_vec());
+            ensure!(subordinated[0]==b'Y'  || subordinated[0]==b'Y',Error::<T>::BondSubordinatedIsWrong);
+            // check put option field
+            let putoption=json_get_value(info.clone(),"putoption".as_bytes().to_vec());
+            ensure!(putoption[0]==b'Y'  || putoption[0]==b'Y',Error::<T>::BondPutOptionIsWrong);
+            // check vesting period for put option
+            if putoption[0]==b'Y' {
+                let putvestingperiod=json_get_value(info.clone(),"putvestingperiod".as_bytes().to_vec());
+                let putvestingperiodv=vecu8_to_u32(putvestingperiod);
+                ensure!(putvestingperiodv>0,Error::<T>::BondPutVestingPeriodCannotBeZero);
+            }
+            // check call option field
+            let calloption=json_get_value(info.clone(),"calloption".as_bytes().to_vec());
+            ensure!(calloption[0]==b'Y'  || calloption[0]==b'Y',Error::<T>::BondCallOptionIsWrong);
+            // check vesting period for call option
+            if calloption[0]==b'Y' {
+                let callvestingperiod=json_get_value(info.clone(),"callvestingperiod".as_bytes().to_vec());
+                let callvestingperiodv=vecu8_to_u32(callvestingperiod);
+                ensure!(callvestingperiodv>0,Error::<T>::BondCallVestingPeriodCannotBeZero);
+            }
+            // check put convertible option field
+            let putconvertibleoption=json_get_value(info.clone(),"putconvertibleoption".as_bytes().to_vec());
+            ensure!(putconvertibleoption[0]==b'Y'  || putconvertibleoption[0]==b'Y',Error::<T>::BondPutConvertibleOptionIsWrong);
+             // check call convertible option field
+             let callconvertibleoption=json_get_value(info.clone(),"callconvertibleoption".as_bytes().to_vec());
+             ensure!(callconvertibleoption[0]==b'Y'  || callconvertibleoption[0]==b'Y',Error::<T>::BondCallConvertibleOptionIsWrong);
+            // check the info documents
+            // TODO - check for mandatory documents
+            let ipfsdocs=json_get_complexarray(info.clone(),"ipfsdocs".as_bytes().to_vec());
+            if ipfsdocs.len()>2 {
+                let mut x=0;
+                loop {  
+                    let w=json_get_recordvalue(ipfsdocs.clone(),x);
+                    if w.len()==0 {
+                        break;
+                    }
+                    let description=json_get_value(w.clone(),"description".as_bytes().to_vec());
+                    ensure!(description.len()>5,Error::<T>::BondDocumentDescriptionTooShort);
+                    let ipfsaddress=json_get_value(w.clone(),"ipfsaddress".as_bytes().to_vec());
+                    ensure!(ipfsaddress.len()>20,Error::<T>::BondDocumentIpfsAddressTooShort);
+                    x=x+1;
+                }
+                ensure!(x>0,Error::<T>::BondMissingDocuments);
+            }
+            //store bond
+            Bonds::insert(id,info.clone());
+            // Generate event
+            Self::deposit_event(RawEvent::BondCreated(id,info));
+            // Return a successful DispatchResult
             Ok(())
         }  
         /// Create a new Iso country code and name
