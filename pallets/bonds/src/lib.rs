@@ -30,6 +30,7 @@ decl_storage! {
         // Know Your client Data
         Kyc get(fn get_kyc): map hasher(blake2_128_concat) T::AccountId => Option<Vec<u8>>;
         KycSignatures get(fn get_kycsignatures): double_map hasher(blake2_128_concat) T::AccountId,hasher(blake2_128_concat) T::AccountId => Option<u32>;
+        KycApproved get(fn get_kycapproved): map hasher(blake2_128_concat) T::AccountId => Option<u32>;
         // Bonds data
         Bonds get(fn get_bond): map hasher(blake2_128_concat) u32 => Option<Vec<u8>>;
         // Standard Iso country code and official name
@@ -47,6 +48,7 @@ decl_event!(
         BondIssued(AccountId,Vec<u8>),                  // Placeholder for account id, to be removed...
         KycStored(AccountId,Vec<u8>),                   // Kyc data stored on chain
         KycSignedforApproval(AccountId,AccountId),      // Kyc has been signed for approval
+        KycApproved(AccountId,AccountId),               // Kyc approved with all the required signatures
         IsoCountryCreated(Vec<u8>,Vec<u8>),             // Iso country created
         IsoCountryDestroyed(Vec<u8>),                   // Iso country destroyed
         CurrencyCodeCreated(Vec<u8>,Vec<u8>),           // a currency code has been created
@@ -226,6 +228,10 @@ decl_error! {
         BondDocumentIpfsAddressTooShort,
         /// Bond documents are missing
         BondMissingDocuments,
+        /// Kyc of the signer is not present or not approved yet
+        KycSignerIsNotApproved,
+        /// Kyc is under process it cannot be changed
+        KycUnderProcessItCannotBeChanged,
 	}
 }
 
@@ -407,8 +413,49 @@ decl_module! {
         // this function has the purpose to the insert or update data for KYC
         #[weight = 1000]
         pub fn create_change_kyc(origin, accountid: T::AccountId, info: Vec<u8>) -> dispatch::DispatchResult {
-            let _signer = ensure_signed(origin)?;
-            // TODO check the signer is one of the operators for kyc
+            let signer = ensure_signed(origin)?;
+            // check the signer is one of the operators for kyc
+            let json:Vec<u8>=Settings::get("kyc".as_bytes().to_vec()).unwrap();
+            let mut flag=0;
+            let mut signingtype=0;
+            let manager=json_get_value(json.clone(),"manager".as_bytes().to_vec());
+            if manager.len()>0 {
+                let managervec=bs58::decode(manager).into_vec().unwrap();
+                let accountidmanager=T::AccountId::decode(&mut &managervec[1..33]).unwrap_or_default();
+                if signer==accountidmanager {
+                    flag=1;       
+                    signingtype=1;             
+                }
+            }
+            let supervisor=json_get_value(json.clone(),"supervisor".as_bytes().to_vec());
+            if supervisor.len()>0 {
+                let supervisorvec=bs58::decode(supervisor).into_vec().unwrap();
+                let accountidsupervisor=T::AccountId::decode(&mut &supervisorvec[1..33]).unwrap_or_default();
+                if signer==accountidsupervisor {
+                    flag=1;
+                    if signingtype==0 {
+                        signingtype=2;             
+                    }
+                }
+            }
+            let operators=json_get_complexarray(json.clone(),"operators".as_bytes().to_vec());
+            let mut x=0;
+            loop {  
+                let operator=json_get_arrayvalue(operators.clone(),x);
+                if operator.len()==0 {
+                    break;
+                }
+                let operatorvec=bs58::decode(operator).into_vec().unwrap();
+                let accountidoperator=T::AccountId::decode(&mut &operatorvec[1..33]).unwrap_or_default();
+                if accountidoperator==signer {
+                    flag=1;
+                    if signingtype==0 {
+                        signingtype=3;             
+                    }
+                }
+                x=x+1;
+            }
+            ensure!(flag==1,Error::<T>::SignerIsNotAuthorizedForKycApproval);
             //check info length
             ensure!(info.len() < 8192, Error::<T>::KycInfoIsTooLong); 
             // check json validity
@@ -470,7 +517,9 @@ decl_module! {
                 // Insert kyc
                 Kyc::<T>::insert(accountid.clone(),info.clone());
             } else {
-                // TODO: check that is not already approved from anybody
+                // check that is not already approved from anybody
+                let itr=KycSignatures::<T>::iter_prefix(accountid.clone());
+                ensure!(itr.count()==0,Error::<T>::KycUnderProcessItCannotBeChanged);
                 // Replace Kyc Data 
                 Kyc::<T>::take(accountid.clone());
                 Kyc::<T>::insert(accountid.clone(),info.clone());
@@ -529,9 +578,37 @@ decl_module! {
             }
             ensure!(flag==1,Error::<T>::SignerIsNotAuthorizedForKycApproval);
             // write/update signature
-            KycSignatures::<T>::insert(accountid.clone(),signer.clone(),1);
+            KycSignatures::<T>::insert(accountid.clone(),signer.clone(),signingtype);
             // check for all the approval
-            // generate event
+            let mut sigmanager=0;
+            let mut sigsupervisor=0;
+            let mut sigoperator=0;
+            let mut itr=KycSignatures::<T>::iter_prefix(accountid.clone());
+            let mut result;
+            loop {
+                result=itr.next();
+                match result {
+                    Some(x) => {
+                        if x.1==1 {
+                            sigmanager=1;
+                        }
+                        if x.1==2 {
+                            sigsupervisor=1;
+                        }
+                        if x.1==3 {
+                            sigoperator=1;
+                        }
+                    },
+                    None => break,
+                }
+            }
+            // store approved flag if all signatures have been received
+            if sigmanager==1 && sigsupervisor==1 && sigoperator==1 {
+                KycApproved::<T>::insert(accountid.clone(),1);
+                // generate event for approved
+                Self::deposit_event(RawEvent::KycApproved(accountid.clone(),signer.clone()));
+            }
+            // generate event for the approval
             Self::deposit_event(RawEvent::KycSignedforApproval(accountid,signer));
             // Return a successful DispatchResult
             Ok(())
@@ -554,8 +631,7 @@ decl_module! {
             // check the signer has been subject to KYC approval
             ensure!(Kyc::<T>::contains_key(&signer),Error::<T>::MissingKycForSigner);
             // check the Kyc has been approved
-            // TODO check all the type of approvals
-            //ensure!(!KycSignatures::contains_key(&signer),Error::<T>::MissingKycApproval);
+            ensure!(KycApproved::<T>::contains_key(&signer),Error::<T>::KycSignerIsNotApproved);
             // check total amount
             let totalamount=json_get_value(info.clone(),"totalamount".as_bytes().to_vec());
             let totalamountv=vecu8_to_u32(totalamount);
@@ -636,7 +712,24 @@ decl_module! {
              let callconvertibleoption=json_get_value(info.clone(),"callconvertibleoption".as_bytes().to_vec());
              ensure!(callconvertibleoption[0]==b'Y'  || callconvertibleoption[0]==b'Y',Error::<T>::BondCallConvertibleOptionIsWrong);
             // check the info documents
-            // TODO - check for mandatory documents
+            // get required documents          
+            let mut settingdocs="".as_bytes().to_vec();
+            let mut settingconf=0;
+            let mut ndocuments=0;
+            if Settings::contains_key("infodocuments".as_bytes().to_vec()){
+                settingdocs=Settings::get("infodocuments".as_bytes().to_vec()).unwrap();
+                settingconf=1;
+                let documents=json_get_complexarray(settingdocs.clone(),"documents".as_bytes().to_vec());
+                if documents.len()>2 {
+                    loop {  
+                        let w=json_get_recordvalue(documents.clone(),ndocuments);
+                        if w.len()==0 {
+                            break;
+                        }
+                        ndocuments=ndocuments+1;
+                    }
+                }
+            }
             let ipfsdocs=json_get_complexarray(info.clone(),"ipfsdocs".as_bytes().to_vec());
             if ipfsdocs.len()>2 {
                 let mut x=0;
@@ -649,9 +742,26 @@ decl_module! {
                     ensure!(description.len()>5,Error::<T>::BondDocumentDescriptionTooShort);
                     let ipfsaddress=json_get_value(w.clone(),"ipfsaddress".as_bytes().to_vec());
                     ensure!(ipfsaddress.len()>20,Error::<T>::BondDocumentIpfsAddressTooShort);
+                    //check if one of the mandatory documents
+                    if settingconf==1 {
+                        let documents=json_get_complexarray(settingdocs.clone(),"documents".as_bytes().to_vec());
+                        if documents.len()>2 {
+                            loop {  
+                                let ww=json_get_recordvalue(documents.clone(),ndocuments);
+                                if ww.len()==0 {
+                                    break;
+                                }
+                                let wdescription=json_get_value(ww.clone(),"description".as_bytes().to_vec());
+
+                                if wdescription==description {
+                                    ndocuments=ndocuments-1;
+                                }
+                            }
+                        }
+                    }
                     x=x+1;
                 }
-                ensure!(x>0,Error::<T>::BondMissingDocuments);
+                ensure!(x>0 && ndocuments==0,Error::<T>::BondMissingDocuments);
             }
             //store bond
             Bonds::insert(id,info.clone());
