@@ -33,6 +33,8 @@ decl_storage! {
         KycApproved get(fn get_kycapproved): map hasher(blake2_128_concat) T::AccountId => Option<u32>;
         // Bonds data
         Bonds get(fn get_bond): map hasher(blake2_128_concat) u32 => Option<Vec<u8>>;
+        BondsSignatures get(fn get_bondssignatures): double_map hasher(blake2_128_concat) u32,hasher(blake2_128_concat) T::AccountId => Option<u32>;
+        BondsApproved get(fn get_bondapproved): map hasher(blake2_128_concat) u32 => Option<u32>;
         // Standard Iso country code and official name
         IsoCountries get(fn get_iso_country): map hasher(blake2_128_concat) Vec<u8> => Option<Vec<u8>>;
         // Currencies data
@@ -54,6 +56,8 @@ decl_event!(
         CurrencyCodeCreated(Vec<u8>,Vec<u8>),           // a currency code has been created
         CurrencyDestroyed(Vec<u8>),                     // Currency code has been destroyed
         BondCreated(u32,Vec<u8>),                       // New bond has been created
+        BondApproved(u32,AccountId),                    // A bond has been approved
+        BondSignedforApproval(u32,AccountId),           // A bond has been assigned for approval
 	}
 );
 
@@ -138,10 +142,14 @@ decl_error! {
         KycWebSiteTooShort,
         /// Kyc website is too long
         KycWebSiteTooLong,
+        /// Kyc website is wrong
+        KycWebSiteIsWrong,
         /// Kyc phone is too short
         KycPhoneTooShort,
         /// Kyc phone is too long
         KycPhoneTooLong,
+        /// Kyc phone is wrong, not international prefix is matching
+        KycPhoneIsWrong,
         /// Document description is too short
         KycDocumentDescriptionTooShort,
         /// Document Ipfs address is too short
@@ -232,6 +240,12 @@ decl_error! {
         KycSignerIsNotApproved,
         /// Kyc is under process it cannot be changed
         KycUnderProcessItCannotBeChanged,
+        /// Bonds Id has not been found on chain
+        BondsIdNotFound,
+        /// The signature for the bond approval is alredy present for the same signer
+        BondsSignatureAlreadyPresentrSameSigner,
+        /// Signer is not authorized for Bond approval
+        SignerIsNotAuthorizedForBondApproval,
 	}
 }
 
@@ -489,12 +503,12 @@ decl_module! {
             let website=json_get_value(info.clone(),"website".as_bytes().to_vec());
             ensure!(website.len()>=10,Error::<T>::KycWebSiteTooShort);
             ensure!(website.len()<=64,Error::<T>::KycWebSiteTooLong);
-            // TODO url validity
-            // check Phone lenght
+            ensure!(validate_weburl(website),Error::<T>::KycWebSiteIsWrong);
+            // check Phone 
             let phone=json_get_value(info.clone(),"phone".as_bytes().to_vec());
             ensure!(phone.len()>=10,Error::<T>::KycPhoneTooShort);
             ensure!(phone.len()<=21,Error::<T>::KycPhoneTooLong);
-            //TODO check prefix
+            ensure!(validate_phonenumber(phone),Error::<T>::KycPhoneIsWrong);
             let ipfsdocs=json_get_complexarray(info.clone(),"ipfsdocs".as_bytes().to_vec());
             if ipfsdocs.len()>2 {
                 let mut x=0;
@@ -767,6 +781,76 @@ decl_module! {
             Bonds::insert(id,info.clone());
             // Generate event
             Self::deposit_event(RawEvent::BondCreated(id,info));
+            // Return a successful DispatchResult
+            Ok(())
+        }  
+        #[weight = 1000]
+        pub fn bond_approve(origin, bondid: u32) -> dispatch::DispatchResult {
+            let signer = ensure_signed(origin)?;
+            let mut signingtype=0;
+            //check id >0
+            ensure!(Bonds::contains_key(&bondid),Error::<T>::BondsIdNotFound);
+            ensure!(!BondsSignatures::<T>::contains_key(&bondid,&signer),Error::<T>::BondsSignatureAlreadyPresentrSameSigner);
+            // check the signer is one of the operators for Bonds approval
+            let json:Vec<u8>=Settings::get("bondapproval".as_bytes().to_vec()).unwrap();
+            let mut flag=0;
+            let manager=json_get_value(json.clone(),"manager".as_bytes().to_vec());
+            if manager.len()>0 {
+                let managervec=bs58::decode(manager).into_vec().unwrap();
+                let accountidmanager=T::AccountId::decode(&mut &managervec[1..33]).unwrap_or_default();
+                if signer==accountidmanager {
+                    flag=1;       
+                    signingtype=1;             
+                }
+            }
+            let committee=json_get_complexarray(json.clone(),"committee".as_bytes().to_vec());
+            let mut x=0;
+            loop {  
+                let committeem=json_get_arrayvalue(committee.clone(),x);
+                if committeem.len()==0 {
+                    break;
+                }
+                let committeemvec=bs58::decode(committeem).into_vec().unwrap();
+                let accountidoperator=T::AccountId::decode(&mut &committeemvec[1..33]).unwrap_or_default();
+                if accountidoperator==signer {
+                    flag=1;
+                    if signingtype==0 {
+                        signingtype=2;             
+                    }
+                }
+                x=x+1;
+            }
+            ensure!(flag==1,Error::<T>::SignerIsNotAuthorizedForBondApproval);
+            // write/update signature
+            BondsSignatures::<T>::insert(bondid.clone(),signer.clone(),signingtype);
+            // check for all the approval
+            // TODO? actually one committe member is enough to reach the "approved" status. It may be necessary to let sign a minimum quorum
+            let mut sigmanager=0;
+            let mut sigcommitee=0;
+            let mut itr=BondsSignatures::<T>::iter_prefix(bondid.clone());
+            let mut result;
+            loop {
+                result=itr.next();
+                match result {
+                    Some(x) => {
+                        if x.1==1 {
+                            sigmanager=1;
+                        }
+                        if x.1==2 {
+                            sigcommitee=1;
+                        }
+                    },
+                    None => break,
+                }
+            }
+            // store approved flag if all signatures have been received
+            if sigmanager==1 && sigcommitee==1 {
+                BondsApproved::insert(bondid.clone(),1);
+                // generate event for approved
+                Self::deposit_event(RawEvent::BondApproved(bondid.clone(),signer.clone()));
+            }
+            // generate event for the approval
+            Self::deposit_event(RawEvent::BondSignedforApproval(bondid,signer));
             // Return a successful DispatchResult
             Ok(())
         }  
@@ -1122,6 +1206,340 @@ fn vecu8_to_u32(v: Vec<u8>) -> u32 {
     let vstr = str::from_utf8(&vslice).unwrap_or("0");
     let vvalue: u32 = u32::from_str(vstr).unwrap_or(0);
     vvalue
+}
+// function to validate a phone number
+fn validate_phonenumber(phonenumber:Vec<u8>) -> bool {
+    // check maximum lenght
+    if phonenumber.len()>23{
+        return false;
+    }
+    // check admitted bytes
+    let mut x=0;
+    for v in phonenumber.clone() {
+        if (v>=48 && v<=57) || (v==43 && x==0){
+            x=x+1;
+        }else {
+            return false;
+        }
+    }
+    // load international prefixes table
+    let mut p: Vec<Vec<u8>> = Vec::new();
+    p.push("972".into());
+    p.push("93".into());
+    p.push("355".into());
+    p.push("213".into());
+    p.push("376".into());
+    p.push("244".into());
+    p.push("54".into());
+    p.push("374".into());
+    p.push("297".into());
+    p.push("61".into());
+    p.push("43".into());
+    p.push("994".into());
+    p.push("973".into());
+    p.push("880".into());
+    p.push("375".into());
+    p.push("32".into());
+    p.push("501".into());
+    p.push("229".into());
+    p.push("975".into());
+    p.push("387".into());
+    p.push("267".into());
+    p.push("55".into());
+    p.push("246".into());
+    p.push("359".into());
+    p.push("226".into());
+    p.push("257".into());
+    p.push("855".into());
+    p.push("237".into());
+    p.push("1".into());
+    p.push("238".into());
+    p.push("345".into());
+    p.push("236".into());
+    p.push("235".into());
+    p.push("56".into());
+    p.push("86".into());
+    p.push("61".into());
+    p.push("57".into());
+    p.push("269".into());
+    p.push("242".into());
+    p.push("682".into());
+    p.push("506".into());
+    p.push("385".into());
+    p.push("53".into());
+    p.push("537".into());
+    p.push("420".into());
+    p.push("45".into());
+    p.push("253".into());
+    p.push("593".into());
+    p.push("20".into());
+    p.push("503".into());
+    p.push("240".into());
+    p.push("291".into());
+    p.push("372".into());
+    p.push("251".into());
+    p.push("298".into());
+    p.push("679".into());
+    p.push("358".into());
+    p.push("33".into());
+    p.push("594".into());
+    p.push("689".into());
+    p.push("241".into());
+    p.push("220".into());
+    p.push("995".into());
+    p.push("49".into());
+    p.push("233".into());
+    p.push("350".into());
+    p.push("30".into());
+    p.push("299".into());
+    p.push("590".into());
+    p.push("502".into());
+    p.push("224".into());
+    p.push("245".into());
+    p.push("595".into());
+    p.push("509".into());
+    p.push("504".into());
+    p.push("36".into());
+    p.push("354".into());
+    p.push("91".into());
+    p.push("62".into());
+    p.push("964".into());
+    p.push("353".into());
+    p.push("972".into());
+    p.push("39".into());
+    p.push("81".into());
+    p.push("962".into());
+    p.push("254".into());
+    p.push("686".into());
+    p.push("965".into());
+    p.push("996".into());
+    p.push("371".into());
+    p.push("961".into());
+    p.push("266".into());
+    p.push("231".into());
+    p.push("423".into());
+    p.push("370".into());
+    p.push("352".into());
+    p.push("261".into());
+    p.push("265".into());
+    p.push("60".into());
+    p.push("960".into());
+    p.push("223".into());
+    p.push("356".into());
+    p.push("692".into());
+    p.push("596".into());
+    p.push("222".into());
+    p.push("230".into());
+    p.push("262".into());
+    p.push("52".into());
+    p.push("377".into());
+    p.push("976".into());
+    p.push("382".into());
+    p.push("1664".into());
+    p.push("212".into());
+    p.push("95".into());
+    p.push("264".into());
+    p.push("674".into());
+    p.push("977".into());
+    p.push("31".into());
+    p.push("599".into());
+    p.push("687".into());
+    p.push("64".into());
+    p.push("505".into());
+    p.push("227".into());
+    p.push("234".into());
+    p.push("683".into());
+    p.push("672".into());
+    p.push("47".into());
+    p.push("968".into());
+    p.push("92".into());
+    p.push("680".into());
+    p.push("507".into());
+    p.push("675".into());
+    p.push("595".into());
+    p.push("51".into());
+    p.push("63".into());
+    p.push("48".into());
+    p.push("351".into());
+    p.push("974".into());
+    p.push("40".into());
+    p.push("250".into());
+    p.push("685".into());
+    p.push("378".into());
+    p.push("966".into());
+    p.push("221".into());
+    p.push("381".into());
+    p.push("248".into());
+    p.push("232".into());
+    p.push("65".into());
+    p.push("421".into());
+    p.push("386".into());
+    p.push("677".into());
+    p.push("27".into());
+    p.push("500".into());
+    p.push("34".into());
+    p.push("94".into());
+    p.push("249".into());
+    p.push("597".into());
+    p.push("268".into());
+    p.push("46".into());
+    p.push("41".into());
+    p.push("992".into());
+    p.push("66".into());
+    p.push("228".into());
+    p.push("690".into());
+    p.push("676".into());
+    p.push("216".into());
+    p.push("90".into());
+    p.push("993".into());
+    p.push("688".into());
+    p.push("256".into());
+    p.push("380".into());
+    p.push("971".into());
+    p.push("44".into());
+    p.push("1".into());
+    p.push("598".into());
+    p.push("998".into());
+    p.push("678".into());
+    p.push("681".into());
+    p.push("967".into());
+    p.push("260".into());
+    p.push("263".into());
+    p.push("591".into());
+    p.push("673".into());
+    p.push("61".into());
+    p.push("243".into());
+    p.push("225".into());
+    p.push("500".into());
+    p.push("44".into());
+    p.push("379".into());
+    p.push("852".into());
+    p.push("98".into());
+    p.push("44".into());
+    p.push("44".into());
+    p.push("850".into());
+    p.push("82".into());
+    p.push("856".into());
+    p.push("218".into());
+    p.push("853".into());
+    p.push("389".into());
+    p.push("691".into());
+    p.push("373".into());
+    p.push("258".into());
+    p.push("970".into());
+    p.push("872".into());
+    p.push("262".into());
+    p.push("7".into());
+    p.push("590".into());
+    p.push("290".into());
+    p.push("590".into());
+    p.push("508".into());
+    p.push("239".into());
+    p.push("252".into());
+    p.push("47".into());
+    p.push("963".into());
+    p.push("886".into());
+    p.push("255".into());
+    p.push("670".into());
+    p.push("58".into());
+    p.push("84".into());
+    // normalis number
+    let mut startpoint=0;
+    if phonenumber[0]==b'0' && phonenumber[1]==b'0' {
+        startpoint=2;
+    }
+    if phonenumber[0]==b'+' {
+        startpoint=1;
+    }
+    // create vec for comparison
+    let mut pc3:Vec<u8>= Vec::new();
+    pc3.push(phonenumber[startpoint]);
+    pc3.push(phonenumber[startpoint+1]);
+    pc3.push(phonenumber[startpoint+2]);
+    let mut pc2:Vec<u8>= Vec::new();
+    pc2.push(phonenumber[startpoint]);
+    pc2.push(phonenumber[startpoint+1]);
+    let mut pc1:Vec<u8>= Vec::new();
+    pc1.push(phonenumber[startpoint]);
+    let mut valid=false;
+    for xp in p {
+        if xp==pc3 || xp==pc2 || xp==pc1 {
+            valid =true;
+        }
+    }
+    valid
+}
+// function to validate an web url return true/false
+fn validate_weburl(weburl:Vec<u8>) -> bool {
+    let mut valid=false;
+    let mut x=0;
+    let mut httpsflag=false;
+    let mut httpflag=false;
+    let mut startpoint=0;
+    let mut https: Vec<u8>= Vec::new();
+    https.push(b'h');
+    https.push(b't');
+    https.push(b't');
+    https.push(b'p');
+    https.push(b's');
+    https.push(b':');
+    https.push(b'/');
+    https.push(b'/');
+    let mut http: Vec<u8>= Vec::new();
+    http.push(b'h');
+    http.push(b't');
+    http.push(b't');
+    http.push(b'p');
+    http.push(b':');
+    http.push(b'/');
+    http.push(b'/');
+    let mut httpscomp: Vec<u8> =Vec::new();
+    httpscomp.push(weburl[0]);
+    httpscomp.push(weburl[1]);
+    httpscomp.push(weburl[2]);
+    httpscomp.push(weburl[3]);
+    httpscomp.push(weburl[4]);
+    httpscomp.push(weburl[5]);
+    httpscomp.push(weburl[6]);
+    httpscomp.push(weburl[7]);
+    let mut httpcomp: Vec<u8> =Vec::new();
+    httpcomp.push(weburl[0]);
+    httpcomp.push(weburl[1]);
+    httpcomp.push(weburl[2]);
+    httpcomp.push(weburl[3]);
+    httpcomp.push(weburl[4]);
+    httpcomp.push(weburl[5]);
+    httpcomp.push(weburl[6]);
+    if https==httpscomp {
+        httpsflag=true;
+    }
+    if http==httpcomp {
+        httpflag=true;
+    }
+    if httpflag==false && httpsflag==false {
+        return false;
+    }
+    if httpsflag==true{
+        startpoint=8;
+    }
+    if httpflag==true{
+        startpoint=7;
+    }
+    for c in weburl {    
+        if x<startpoint {
+            x=x+1;
+            continue;
+        }
+        // check for allowed chars    
+        if  (c>=32 && c<=95) ||
+            (c>=97 && c<=126) {
+            valid=true;
+        }else{
+            valid=false;
+            break;
+        }
+    }
+    return valid;
 }
 
 
