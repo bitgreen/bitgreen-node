@@ -35,6 +35,8 @@ decl_storage! {
         Bonds get(fn get_bond): map hasher(blake2_128_concat) u32 => Option<Vec<u8>>;
         BondsSignatures get(fn get_bondssignatures): double_map hasher(blake2_128_concat) u32,hasher(blake2_128_concat) T::AccountId => Option<u32>;
         BondsApproved get(fn get_bondapproved): map hasher(blake2_128_concat) u32 => Option<u32>;
+        // Credit Rating
+        CreditRatingAgencies get(fn get_creditrating_agency): map hasher(blake2_128_concat) T::AccountId => Option<Vec<u8>>;
         // Standard Iso country code and official name
         IsoCountries get(fn get_iso_country): map hasher(blake2_128_concat) Vec<u8> => Option<Vec<u8>>;
         // Currencies data
@@ -58,6 +60,7 @@ decl_event!(
         BondCreated(u32,Vec<u8>),                       // New bond has been created
         BondApproved(u32,AccountId),                    // A bond has been approved
         BondSignedforApproval(u32,AccountId),           // A bond has been assigned for approval
+        CreditRatingAgencyStored(AccountId,Vec<u8>),    // Credit rating agency has been stored/updated
 	}
 );
 
@@ -246,6 +249,28 @@ decl_error! {
         BondsSignatureAlreadyPresentrSameSigner,
         /// Signer is not authorized for Bond approval
         SignerIsNotAuthorizedForBondApproval,
+        /// The manager enabled to submit a credit rating agency is wrong
+        CreditRatingAgenciesSubmissionManagerAccountIsWrong,
+        /// The committee enabled to submit a credit rating agency is wrong
+        CreditRatingAgenciesSubmissionCommitteeIsWrong,
+        /// The signed is not authorized to submit a credit rating agency
+        SignerIsNotAuthorizedForCreditRatingAgencySubmission,
+        /// the json structure for credit rating agency is too long
+        CreditRatingAgencyInfoIsTooLong,
+        /// The name of the credit rating agency is too short
+        CreditRatingAgencyNameTooShort,
+        /// The name of the credit rating agency is too long
+        CreditRatingAgencyNameTooLong,
+        /// The account id of the credit rating agency is wrong, it shoulf be 48 bytes
+        CreditRatingAgencyAccountIdIsWrong,
+        /// The website of the Credit Rating Agency is wrong
+        CreditRatingAgencyWebSiteIsWrong,
+        /// Description of the document for the credit agency is too short
+        CreditRatingAgencyDocumentDescriptionTooShort,
+        /// IPFS address of the document for a credit agency is too short
+        CreditRatingAgencyDocumentIpfsAddressTooShort,
+        /// Documents for the credit rating agency are missing, at the least one is required
+        CreditRatingAgencyMissingDocuments,
 	}
 }
 
@@ -280,6 +305,7 @@ decl_module! {
             ensure!(key=="kyc".as_bytes().to_vec() 
                 || key=="bondapproval".as_bytes().to_vec() 
                 || key=="underwriterssubmission".as_bytes().to_vec()
+                || key=="creditratingagencies".as_bytes().to_vec()
                 || key=="collateralverification".as_bytes().to_vec()
                 || key=="hedgefundapproval".as_bytes().to_vec()
                 || key=="infodocuments".as_bytes().to_vec(),
@@ -342,6 +368,23 @@ decl_module! {
                     }
                 }
                 ensure!(x>0,Error::<T>::UnderwritersSubmissionCommitteeIsWrong);
+            }
+            // check validity for credit rating submission settings
+            if key=="creditratingagencies".as_bytes().to_vec() {
+                let manager=json_get_value(configuration.clone(),"manager".as_bytes().to_vec());
+                ensure!(manager.len()==48 || manager.len()==0, Error::<T>::CreditRatingAgenciesSubmissionManagerAccountIsWrong);
+                let committee=json_get_complexarray(configuration.clone(),"committee".as_bytes().to_vec());
+                let mut x=0;
+                if committee.len()>2 {
+                    loop {  
+                        let w=json_get_recordvalue(committee.clone(),x);
+                        if w.len()==0 {
+                            break;
+                        }
+                        x=x+1;
+                    }
+                }
+                ensure!(x>0,Error::<T>::CreditRatingAgenciesSubmissionCommitteeIsWrong);
             }
             // check validity for lawyers submission settings
             if key=="lawyerssubmission".as_bytes().to_vec() {
@@ -854,6 +897,82 @@ decl_module! {
             // Return a successful DispatchResult
             Ok(())
         }  
+         // this function has the purpose to the insert or update data for KYC
+         #[weight = 1000]
+         pub fn create_change_credit_rating_agency(origin, accountid: T::AccountId, info: Vec<u8>) -> dispatch::DispatchResult {
+             let signer = ensure_signed(origin)?;
+             // check the signer is one of the manager or a member of the committee
+             let json:Vec<u8>=Settings::get("creditratingagencies".as_bytes().to_vec()).unwrap();
+             let mut flag=0;
+             let mut signingtype=0;
+             let manager=json_get_value(json.clone(),"manager".as_bytes().to_vec());
+             if manager.len()>0 {
+                 let managervec=bs58::decode(manager).into_vec().unwrap();
+                 let accountidmanager=T::AccountId::decode(&mut &managervec[1..33]).unwrap_or_default();
+                 if signer==accountidmanager {
+                     flag=1;       
+                     signingtype=1;             
+                 }
+             }
+             let operators=json_get_complexarray(json.clone(),"committee".as_bytes().to_vec());
+             let mut x=0;
+             loop {  
+                 let operator=json_get_arrayvalue(operators.clone(),x);
+                 if operator.len()==0 {
+                     break;
+                 }
+                 let operatorvec=bs58::decode(operator).into_vec().unwrap();
+                 let accountidoperator=T::AccountId::decode(&mut &operatorvec[1..33]).unwrap_or_default();
+                 if accountidoperator==signer {
+                     flag=1;
+                     if signingtype==0 {
+                         signingtype=3;             
+                     }
+                 }
+                 x=x+1;
+             }
+             ensure!(flag==1,Error::<T>::SignerIsNotAuthorizedForCreditRatingAgencySubmission);
+             //check info length
+             ensure!(info.len() < 8192, Error::<T>::CreditRatingAgencyInfoIsTooLong); 
+             // check json validity
+             let js=info.clone();
+             ensure!(json_check_validity(js),Error::<T>::InvalidJson);
+             // check name
+             let name=json_get_value(info.clone(),"name".as_bytes().to_vec());
+             ensure!(name.len()>=10,Error::<T>::CreditRatingAgencyNameTooShort);
+             ensure!(name.len()<=64,Error::<T>::CreditRatingAgencyNameTooLong);
+             // check Website
+             let website=json_get_value(info.clone(),"website".as_bytes().to_vec());
+             ensure!(validate_weburl(website),Error::<T>::CreditRatingAgencyWebSiteIsWrong);
+             let ipfsdocs=json_get_complexarray(info.clone(),"ipfsdocs".as_bytes().to_vec());
+             if ipfsdocs.len()>2 {
+                 let mut x=0;
+                 loop {  
+                     let w=json_get_recordvalue(ipfsdocs.clone(),x);
+                     if w.len()==0 {
+                         break;
+                     }
+                     let description=json_get_value(w.clone(),"description".as_bytes().to_vec());
+                     ensure!(description.len()>5,Error::<T>::CreditRatingAgencyDocumentDescriptionTooShort);
+                     let ipfsaddress=json_get_value(w.clone(),"ipfsaddress".as_bytes().to_vec());
+                     ensure!(ipfsaddress.len()>20,Error::<T>::CreditRatingAgencyDocumentIpfsAddressTooShort);
+                     x=x+1;
+                 }
+                 ensure!(x>0,Error::<T>::CreditRatingAgencyMissingDocuments);
+             }
+             if CreditRatingAgencies::<T>::contains_key(&accountid)==false {
+                 // Insert Credit Rating Agency
+                 CreditRatingAgencies::<T>::insert(accountid.clone(),info.clone());
+             } else {
+                 // Replace Credit Rating Agency Data 
+                 CreditRatingAgencies::<T>::take(accountid.clone());
+                 CreditRatingAgencies::<T>::insert(accountid.clone(),info.clone());
+             }
+             // Generate event
+             Self::deposit_event(RawEvent::CreditRatingAgencyStored(accountid,info));
+             // Return a successful DispatchResult
+             Ok(())
+         }
         /// Create a new Iso country code and name
         #[weight = 1000]
         pub fn iso_country_create(origin, countrycode: Vec<u8>, countryname: Vec<u8>) -> dispatch::DispatchResult {
