@@ -38,6 +38,9 @@ decl_storage! {
         // Credit Rating
         CreditRatingAgencies get(fn get_creditrating_agency): map hasher(blake2_128_concat) T::AccountId => Option<Vec<u8>>;
         CreditRatings get(fn get_creditrating): map hasher(blake2_128_concat) u32 => Option<Vec<u8>>;
+        // Collaterals
+        Collaterals get(fn get_collateral): double_map hasher(blake2_128_concat) u32, hasher(blake2_128_concat) u32 => Option<Vec<u8>>;
+        CollateralsApproval get(fn get_collateral_approval): double_map hasher(blake2_128_concat) u32, hasher(blake2_128_concat) u32 => Option<Vec<u8>>;
         // Standard Iso country code and official name
         IsoCountries get(fn get_iso_country): map hasher(blake2_128_concat) Vec<u8> => Option<Vec<u8>>;
         // Currencies data
@@ -52,7 +55,6 @@ decl_event!(
 	pub enum Event<T> where AccountId = <T as frame_system::Config>::AccountId {
 	    SettingsCreated(Vec<u8>,Vec<u8>),               // New settings configuration has been created
         SettingsDestroyed(Vec<u8>),                     // A settings has been removed
-        BondIssued(AccountId,Vec<u8>),                  // Placeholder for account id, to be removed...
         KycStored(AccountId,Vec<u8>),                   // Kyc data stored on chain
         KycSignedforApproval(AccountId,AccountId),      // Kyc has been signed for approval
         KycApproved(AccountId,AccountId),               // Kyc approved with all the required signatures
@@ -67,7 +69,10 @@ decl_event!(
         CreditRatingStored(u32,Vec<u8>),                // New credit rating has been created
         UnderwriterCreated(AccountId),                // An underwriter has been created
         UnderwriterDestroyed(AccountId),              // An underwriter has been destroyed
-    }
+        CollateralsStored(u32,u32,Vec<u8>),             // A collaterals has been stored
+        CollateralsApproved(u32,u32,Vec<u8>),           // A collaterals has been approved
+	}
+
 );
 
 // Errors to inform users that something went wrong.
@@ -286,7 +291,7 @@ decl_error! {
         /// The credit rating description is too long
         CreditRatingDescriptionTooLong,
         /// the credit rating document description is too long
-        CreditRatingDocumentDescriptionTooLong,
+        CreditRatingDocumentDescriptionTooShort,
         /// IPFS address of the document of credit rating is too short
         CreditRatingDocumentIpfsAddressTooShort,
         /// Documents for the credit rating  are missing, at the least one is required
@@ -294,6 +299,18 @@ decl_error! {
         UnderwriterAccountNotFound,
         /// Underwriter account already stored on chain
         UnderwriterAlreadyPresent,
+        /// The collaterals info are too long, maximum 8192 bytes
+        CollateralsInfoIsTooLong,
+        /// Collateral document description is too short
+        CollateralDocumentDescriptionTooShort,
+        /// Collateral document ipfs address is too short
+        CollateralDocumentIpfsAddressTooShort,
+        /// Collateral requires at least one document
+        CollateralMissingDocuments,
+        /// The collateral id is already present per this bond id
+        CollateralIdAlreadyPresent,
+        /// The signer cannot approve a collateral
+        SignerIsNotAuthorizedForCollateralsApproval,
 	}
 }
 
@@ -329,7 +346,7 @@ decl_module! {
                 || key=="bondapproval".as_bytes().to_vec() 
                 || key=="underwriterssubmission".as_bytes().to_vec()
                 || key=="creditratingagencies".as_bytes().to_vec()
-                || key=="collateralverification".as_bytes().to_vec()
+                || key=="collateralsverification".as_bytes().to_vec()
                 || key=="hedgefundapproval".as_bytes().to_vec()
                 || key=="infodocuments".as_bytes().to_vec(),
                 Error::<T>::SettingsKeyIsWrong);
@@ -427,7 +444,7 @@ decl_module! {
                 ensure!(x>0,Error::<T>::LawyersSubmissionCommitteeIsWrong);
             }
             // check validity for collateral verification settings
-            if key=="collateralverification".as_bytes().to_vec() {
+            if key=="collateralsverification".as_bytes().to_vec() {
                 let manager=json_get_value(configuration.clone(),"manager".as_bytes().to_vec());
                 ensure!(manager.len()==48 || manager.len()==0, Error::<T>::CollateralVerificationManagerAccountIsWrong);
                 let committee=json_get_complexarray(configuration.clone(),"committee".as_bytes().to_vec());
@@ -1020,7 +1037,7 @@ decl_module! {
                          break;
                      }
                      let description=json_get_value(w.clone(),"description".as_bytes().to_vec());
-                     ensure!(description.len()>5,Error::<T>::CreditRatingDocumentDescriptionTooLong);
+                     ensure!(description.len()>5,Error::<T>::CreditRatingDocumentDescriptionTooShort);
                      let ipfsaddress=json_get_value(w.clone(),"ipfsaddress".as_bytes().to_vec());
                      ensure!(ipfsaddress.len()>20,Error::<T>::CreditRatingDocumentIpfsAddressTooShort);
                      x=x+1;
@@ -1031,6 +1048,111 @@ decl_module! {
              CreditRatings::insert(bondid.clone(),info.clone());
              // Generate event
              Self::deposit_event(RawEvent::CreditRatingStored(bondid,info));
+             // Return a successful DispatchResult
+             Ok(())
+        }
+        // this function has the purpose to the insert collaterals document for a bond
+        #[weight = 1000]
+        pub fn create_collaterals(origin, bondid: u32, collateralid: u32, info: Vec<u8>) -> dispatch::DispatchResult {
+             let _signer = ensure_signed(origin)?;
+             // check for bond id
+             ensure!(Bonds::contains_key(&bondid),Error::<T>::BondsIdNotFound);
+             // check for collateral id  not already present
+             ensure!(!Collaterals::contains_key(&bondid,&collateralid),Error::<T>::CollateralIdAlreadyPresent);
+             //check info length
+             ensure!(info.len() < 8192, Error::<T>::CollateralsInfoIsTooLong); 
+             // check json validity
+             let js=info.clone();
+             ensure!(json_check_validity(js),Error::<T>::InvalidJson);
+             // check documents
+             let ipfsdocs=json_get_complexarray(info.clone(),"ipfsdocs".as_bytes().to_vec());
+             if ipfsdocs.len()>2 {
+                 let mut x=0;
+                 loop {  
+                     let w=json_get_recordvalue(ipfsdocs.clone(),x);
+                     if w.len()==0 {
+                         break;
+                     }
+                     let description=json_get_value(w.clone(),"description".as_bytes().to_vec());
+                     ensure!(description.len()>5,Error::<T>::CollateralDocumentDescriptionTooShort);
+                     let ipfsaddress=json_get_value(w.clone(),"ipfsaddress".as_bytes().to_vec());
+                     ensure!(ipfsaddress.len()>20,Error::<T>::CollateralDocumentIpfsAddressTooShort);
+                     x=x+1;
+                 }
+                 ensure!(x>0,Error::<T>::CollateralMissingDocuments);
+             }
+             // Insert Collateral
+             Collaterals::insert(bondid.clone(),collateralid.clone(),info.clone());
+             // Generate event
+             Self::deposit_event(RawEvent::CollateralsStored(bondid,collateralid,info));
+             // Return a successful DispatchResult
+             Ok(())
+        }
+        // this function has the purpose to the insert collaterals document for a bond
+        #[weight = 1000]
+        pub fn confirm_collaterals(origin, bondid: u32, collateralid: u32, info: Vec<u8>) -> dispatch::DispatchResult {
+             let signer = ensure_signed(origin)?;
+             // check the signer is one of the manager or a member of the committee
+             let json:Vec<u8>=Settings::get("collateralsverification".as_bytes().to_vec()).unwrap();
+             let mut flag=0;
+             let mut signingtype=0;
+             let manager=json_get_value(json.clone(),"manager".as_bytes().to_vec());
+             if manager.len()>0 {
+                 let managervec=bs58::decode(manager).into_vec().unwrap();
+                 let accountidmanager=T::AccountId::decode(&mut &managervec[1..33]).unwrap_or_default();
+                 if signer==accountidmanager {
+                     flag=1;       
+                     signingtype=1;             
+                 }
+             }
+             let operators=json_get_complexarray(json.clone(),"committee".as_bytes().to_vec());
+             let mut x=0;
+             loop {  
+                 let operator=json_get_arrayvalue(operators.clone(),x);
+                 if operator.len()==0 {
+                     break;
+                 }
+                 let operatorvec=bs58::decode(operator).into_vec().unwrap();
+                 let accountidoperator=T::AccountId::decode(&mut &operatorvec[1..33]).unwrap_or_default();
+                 if accountidoperator==signer {
+                     flag=1;
+                     if signingtype==0 {
+                         signingtype=3;             
+                     }
+                 }
+                 x=x+1;
+             }
+             ensure!(flag==1,Error::<T>::SignerIsNotAuthorizedForCollateralsApproval);
+             // check for bond id
+             ensure!(Bonds::contains_key(&bondid),Error::<T>::BondsIdNotFound);
+             // check for collateral id  not already present
+             ensure!(!CollateralsApproval::contains_key(&bondid,&collateralid),Error::<T>::CollateralIdAlreadyPresent);
+             //check info length
+             ensure!(info.len() < 8192, Error::<T>::CollateralsInfoIsTooLong); 
+             // check json validity
+             let js=info.clone();
+             ensure!(json_check_validity(js),Error::<T>::InvalidJson);
+             // check documents
+             let ipfsdocs=json_get_complexarray(info.clone(),"ipfsdocs".as_bytes().to_vec());
+             if ipfsdocs.len()>2 {
+                 let mut x=0;
+                 loop {  
+                     let w=json_get_recordvalue(ipfsdocs.clone(),x);
+                     if w.len()==0 {
+                         break;
+                     }
+                     let description=json_get_value(w.clone(),"description".as_bytes().to_vec());
+                     ensure!(description.len()>5,Error::<T>::CollateralDocumentDescriptionTooShort);
+                     let ipfsaddress=json_get_value(w.clone(),"ipfsaddress".as_bytes().to_vec());
+                     ensure!(ipfsaddress.len()>20,Error::<T>::CollateralDocumentIpfsAddressTooShort);
+                     x=x+1;
+                 }
+                 ensure!(x>0,Error::<T>::CollateralMissingDocuments);
+             }
+             // Insert Collateral
+             CollateralsApproval::insert(bondid.clone(),collateralid.clone(),info.clone());
+             // Generate event
+             Self::deposit_event(RawEvent::CollateralsApproved(bondid,collateralid,info));
              // Return a successful DispatchResult
              Ok(())
         }
