@@ -37,6 +37,7 @@ decl_storage! {
         BondsApproved get(fn get_bondapproved): map hasher(blake2_128_concat) u32 => Option<u32>;
         // Credit Rating
         CreditRatingAgencies get(fn get_creditrating_agency): map hasher(blake2_128_concat) T::AccountId => Option<Vec<u8>>;
+        CreditRatings get(fn get_creditrating): map hasher(blake2_128_concat) u32 => Option<Vec<u8>>;
         // Standard Iso country code and official name
         IsoCountries get(fn get_iso_country): map hasher(blake2_128_concat) Vec<u8> => Option<Vec<u8>>;
         // Currencies data
@@ -61,6 +62,7 @@ decl_event!(
         BondApproved(u32,AccountId),                    // A bond has been approved
         BondSignedforApproval(u32,AccountId),           // A bond has been assigned for approval
         CreditRatingAgencyStored(AccountId,Vec<u8>),    // Credit rating agency has been stored/updated
+        CreditRatingStored(u32,Vec<u8>),                // New credit rating has been created
 	}
 );
 
@@ -271,6 +273,20 @@ decl_error! {
         CreditRatingAgencyDocumentIpfsAddressTooShort,
         /// Documents for the credit rating agency are missing, at the least one is required
         CreditRatingAgencyMissingDocuments,
+        /// The signer is not a credit rating agency
+        SignerIsNotAuthorizedAsCreditRatingAgency,
+        /// The credit rating info is too long, maximum 8192
+        CreditRatingInfoIsTooLong,
+        /// The credit rating description is too short
+        CreditRatingDescriptionTooShort,
+        /// The credit rating description is too long
+        CreditRatingDescriptionTooLong,
+        /// the credit rating document description is too long
+        CreditRatingDocumentDescriptionTooLong,
+        /// IPFS address of the document of credit rating is too short
+        CreditRatingDocumentIpfsAddressTooShort,
+        /// Documents for the credit rating  are missing, at the least one is required
+        CreditRatingMissingDocuments,
 	}
 }
 
@@ -897,9 +913,9 @@ decl_module! {
             // Return a successful DispatchResult
             Ok(())
         }  
-         // this function has the purpose to the insert or update data for KYC
-         #[weight = 1000]
-         pub fn create_change_credit_rating_agency(origin, accountid: T::AccountId, info: Vec<u8>) -> dispatch::DispatchResult {
+        // this function has the purpose to the insert or update data for Credit Rating (reserved to Credit Rating Agencies)
+        #[weight = 1000]
+        pub fn create_change_credit_rating_agency(origin, accountid: T::AccountId, info: Vec<u8>) -> dispatch::DispatchResult {
              let signer = ensure_signed(origin)?;
              // check the signer is one of the manager or a member of the committee
              let json:Vec<u8>=Settings::get("creditratingagencies".as_bytes().to_vec()).unwrap();
@@ -972,7 +988,45 @@ decl_module! {
              Self::deposit_event(RawEvent::CreditRatingAgencyStored(accountid,info));
              // Return a successful DispatchResult
              Ok(())
-         }
+        }
+        // this function has the purpose to the insert or update data for Credit Rating Agency
+        #[weight = 1000]
+        pub fn create_credit_rating(origin, bondid: u32, info: Vec<u8>) -> dispatch::DispatchResult {
+             let signer = ensure_signed(origin)?;
+             // check the signer is a credit rating agency
+             ensure!(CreditRatingAgencies::<T>::contains_key(&signer),Error::<T>::SignerIsNotAuthorizedAsCreditRatingAgency);
+             //check info length
+             ensure!(info.len() < 8192, Error::<T>::CreditRatingInfoIsTooLong); 
+             // check json validity
+             let js=info.clone();
+             ensure!(json_check_validity(js),Error::<T>::InvalidJson);
+             // check name
+             let description=json_get_value(info.clone(),"description".as_bytes().to_vec());
+             ensure!(description.len()>=10,Error::<T>::CreditRatingDescriptionTooShort);
+             ensure!(description.len()<=64,Error::<T>::CreditRatingDescriptionTooLong);
+             let ipfsdocs=json_get_complexarray(info.clone(),"ipfsdocs".as_bytes().to_vec());
+             if ipfsdocs.len()>2 {
+                 let mut x=0;
+                 loop {  
+                     let w=json_get_recordvalue(ipfsdocs.clone(),x);
+                     if w.len()==0 {
+                         break;
+                     }
+                     let description=json_get_value(w.clone(),"description".as_bytes().to_vec());
+                     ensure!(description.len()>5,Error::<T>::CreditRatingDocumentDescriptionTooLong);
+                     let ipfsaddress=json_get_value(w.clone(),"ipfsaddress".as_bytes().to_vec());
+                     ensure!(ipfsaddress.len()>20,Error::<T>::CreditRatingDocumentIpfsAddressTooShort);
+                     x=x+1;
+                 }
+                 ensure!(x>0,Error::<T>::CreditRatingMissingDocuments);
+             }
+             // Insert Credit Rating 
+             CreditRatings::insert(bondid.clone(),info.clone());
+             // Generate event
+             Self::deposit_event(RawEvent::CreditRatingStored(bondid,info));
+             // Return a successful DispatchResult
+             Ok(())
+        }
         /// Create a new Iso country code and name
         #[weight = 1000]
         pub fn iso_country_create(origin, countrycode: Vec<u8>, countryname: Vec<u8>) -> dispatch::DispatchResult {
