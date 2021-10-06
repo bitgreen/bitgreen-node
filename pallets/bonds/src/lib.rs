@@ -41,7 +41,9 @@ decl_storage! {
         // Standard Iso country code and official name
         IsoCountries get(fn get_iso_country): map hasher(blake2_128_concat) Vec<u8> => Option<Vec<u8>>;
         // Currencies data
-        Currencies get(fn get_currency): map hasher(blake2_128_concat) Vec<u8> => Option<Vec<u8>>
+        Currencies get(fn get_currency): map hasher(blake2_128_concat) Vec<u8> => Option<Vec<u8>>;
+        // Underwriters data
+        Underwriters get(fn get_underwriter): map hasher(blake2_128_concat) T::AccountId => Option<Vec<u8>>;
 	}
 }
 
@@ -63,7 +65,9 @@ decl_event!(
         BondSignedforApproval(u32,AccountId),           // A bond has been assigned for approval
         CreditRatingAgencyStored(AccountId,Vec<u8>),    // Credit rating agency has been stored/updated
         CreditRatingStored(u32,Vec<u8>),                // New credit rating has been created
-	}
+        UnderwriterCreated(AccountId),                // An underwriter has been created
+        UnderwriterDestroyed(AccountId),              // An underwriter has been destroyed
+    }
 );
 
 // Errors to inform users that something went wrong.
@@ -287,6 +291,9 @@ decl_error! {
         CreditRatingDocumentIpfsAddressTooShort,
         /// Documents for the credit rating  are missing, at the least one is required
         CreditRatingMissingDocuments,
+        UnderwriterAccountNotFound,
+        /// Underwriter account already stored on chain
+        UnderwriterAlreadyPresent,
 	}
 }
 
@@ -1120,6 +1127,39 @@ decl_module! {
              // Return a successful DispatchResult
              Ok(())
          }
+    
+        /// Create an Underwriter
+        #[weight = 1000]
+        pub fn undwerwriter_create(origin, underwriter_account: T::AccountId, info: Vec<u8>) -> dispatch::DispatchResult {
+
+            ensure_signed(origin)?;
+
+            // check for a valid json structure
+            ensure!(json_check_validity(info.clone()),Error::<T>::InvalidJson);
+
+            ensure!(!Underwriters::<T>::contains_key(&underwriter_account), Error::<T>::UnderwriterAlreadyPresent);
+
+            Underwriters::<T>::insert(underwriter_account.clone(),info.clone());
+
+            // Generate event
+            Self::deposit_event(RawEvent::UnderwriterCreated(underwriter_account));
+            // Return a successful DispatchResult
+            Ok(())
+        }
+
+        /// Destroy an Underwriter
+        #[weight = 1000]
+        pub fn undwerwriter_destroy(origin, underwriter_account: T::AccountId) -> dispatch::DispatchResult {
+            ensure_signed(origin)?;
+            // verify the underwriter  exists
+            ensure!(Underwriters::<T>::contains_key(&underwriter_account), Error::<T>::UnderwriterAccountNotFound);
+            // Remove the underwriter
+            Underwriters::<T>::take(underwriter_account.clone());
+            // Generate event
+            Self::deposit_event(RawEvent::UnderwriterDestroyed(underwriter_account));
+            // Return a successful DispatchResult
+            Ok(())
+        }
     }
 }
 // function to validate a json string for no/std. It does not allocate of memory
