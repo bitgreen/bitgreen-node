@@ -1,5 +1,7 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
+#![recursion_limit="256"]
+
 /// Module to manage the Bonds on BitGreen Blockchain
 
 use frame_support::{decl_module, decl_storage, decl_event, decl_error, dispatch, ensure, traits::Currency,codec::Decode};
@@ -67,7 +69,7 @@ decl_event!(
         BondSignedforApproval(u32,AccountId),           // A bond has been assigned for approval
         CreditRatingAgencyStored(AccountId,Vec<u8>),    // Credit rating agency has been stored/updated
         CreditRatingStored(u32,Vec<u8>),                // New credit rating has been created
-        UnderwriterCreated(AccountId),                // An underwriter has been created
+        UnderwriterCreated(AccountId, Vec<u8>),                // An underwriter has been created
         UnderwriterDestroyed(AccountId),              // An underwriter has been destroyed
         CollateralsStored(u32,u32,Vec<u8>),             // A collaterals has been stored
         CollateralsApproved(u32,u32,Vec<u8>),           // A collaterals has been approved
@@ -108,8 +110,6 @@ decl_error! {
         BondApprovalMandatoryLegalOpinionIsWrong,
         /// Manager account for underwriters submission is wrong
         UnderWritersSubmissionManagerAccountIsWrong,
-        /// Committe for underwriters submission is wrong
-        UnderwritersSubmissionCommitteeIsWrong,
         /// Manager account for lawyers submission is wrong
         LawyersSubmissionManagerAccountIsWrong,
         /// Committe for lawyers submission is wrong
@@ -296,6 +296,7 @@ decl_error! {
         CreditRatingDocumentIpfsAddressTooShort,
         /// Documents for the credit rating  are missing, at the least one is required
         CreditRatingMissingDocuments,
+        /// Underwriter account is not found on chain
         UnderwriterAccountNotFound,
         /// Underwriter account already stored on chain
         UnderwriterAlreadyPresent,
@@ -311,6 +312,24 @@ decl_error! {
         CollateralIdAlreadyPresent,
         /// The signer cannot approve a collateral
         SignerIsNotAuthorizedForCollateralsApproval,
+        /// Underwriter InfoDocuments Missing
+        MissingUnderwriterInfoDocuments,
+        /// Underwriter name is too short
+        UnderwriterNameTooShort,
+        /// Underwriter website is too short
+        UnderwriterWebSiteTooShort,
+        /// Underwriter website is too long
+        UnderwriterWebSiteTooLong,
+        /// Invalid Website
+        InvalidWebsite,
+        /// The adrresses for the underwriter from json and passed paramenters did not match
+        UnmatchingUderwriterAddress,
+        /// Missing Underwriter Account ID from json input
+        MissingUnderwriterAccountId,
+        /// The committee enabled to submit Underwriter is wrong
+        UnderwritersSubmissionCommitteeIsWrong,
+        /// The signed is not authorized to submit or remove an underwriter
+        SignerIsNotAuthorizedForUnderwriterSubmissionOrRemoval,
 	}
 }
 
@@ -409,8 +428,8 @@ decl_module! {
                 }
                 ensure!(x>0,Error::<T>::UnderwritersSubmissionCommitteeIsWrong);
             }
-            // check validity for credit rating submission settings
-            if key=="creditratingagencies".as_bytes().to_vec() {
+            // check validity for underwriters submission settings
+            if key=="underwriterssubmission".as_bytes().to_vec() {
                 let manager=json_get_value(configuration.clone(),"manager".as_bytes().to_vec());
                 ensure!(manager.len()==48 || manager.len()==0, Error::<T>::CreditRatingAgenciesSubmissionManagerAccountIsWrong);
                 let committee=json_get_complexarray(configuration.clone(),"committee".as_bytes().to_vec());
@@ -424,7 +443,7 @@ decl_module! {
                         x=x+1;
                     }
                 }
-                ensure!(x>0,Error::<T>::CreditRatingAgenciesSubmissionCommitteeIsWrong);
+                ensure!(x>0,Error::<T>::UnderwritersSubmissionCommitteeIsWrong);
             }
             // check validity for lawyers submission settings
             if key=="lawyerssubmission".as_bytes().to_vec() {
@@ -1254,17 +1273,74 @@ decl_module! {
         #[weight = 1000]
         pub fn undwerwriter_create(origin, underwriter_account: T::AccountId, info: Vec<u8>) -> dispatch::DispatchResult {
 
-            ensure_signed(origin)?;
+          let signer =  ensure_signed(origin)?;
 
-            // check for a valid json structure
-            ensure!(json_check_validity(info.clone()),Error::<T>::InvalidJson);
+          // check for a valid json structure
+          ensure!(json_check_validity(info.clone()),Error::<T>::InvalidJson);
 
+            // check the signer is one of the manager or a member of the committee
+            let json:Vec<u8>=Settings::get("underwriterssubmission".as_bytes().to_vec()).unwrap();
+            let mut flag=0;
+            let mut signingtype=0;
+            let manager=json_get_value(json.clone(),"manager".as_bytes().to_vec());
+            if manager.len()>0 {
+                let managervec=bs58::decode(manager).into_vec().unwrap();
+                let accountidmanager=T::AccountId::decode(&mut &managervec[1..33]).unwrap_or_default();
+                if signer==accountidmanager {
+                    flag=1;       
+                    signingtype=1;             
+                }
+            }
+            let operators=json_get_complexarray(json.clone(),"committee".as_bytes().to_vec());
+            let mut x=0;
+            loop {  
+                let operator=json_get_arrayvalue(operators.clone(),x);
+                if operator.len()==0 {
+                    break;
+                }
+                let operatorvec=bs58::decode(operator).into_vec().unwrap();
+                let accountidoperator=T::AccountId::decode(&mut &operatorvec[1..33]).unwrap_or_default();
+                if accountidoperator==signer {
+                    flag=1;
+                    if signingtype==0 {
+                        signingtype=3;             
+                    }
+                }
+                x=x+1;
+            }
+            ensure!(flag==1,Error::<T>::SignerIsNotAuthorizedForUnderwriterSubmissionOrRemoval);
+
+            //Check if Underwriter not already stored on chain
             ensure!(!Underwriters::<T>::contains_key(&underwriter_account), Error::<T>::UnderwriterAlreadyPresent);
+
+             // check for name
+             let name=json_get_value(info.clone(),"name".as_bytes().to_vec());
+             ensure!(name.len()>=3, Error::<T>::UnderwriterNameTooShort);
+
+            // check Website
+            let website=json_get_value(info.clone(),"website".as_bytes().to_vec());
+            ensure!(website.len()>=10,Error::<T>::UnderwriterWebSiteTooShort);
+            ensure!(website.len()<=64,Error::<T>::UnderwriterWebSiteTooLong);
+            ensure!(validate_weburl(website),Error::<T>::InvalidWebsite);
+
+
+             // Check for account ID for underwriter from info json match
+             let accountid_from_info=json_get_value(info.clone(),"accountid".as_bytes().to_vec());
+             ensure!(accountid_from_info.len() > 0,  Error::<T>::MissingUnderwriterAccountId);
+             if accountid_from_info.len()>0 {
+                 let accountid_from_info_vec=bs58::decode(accountid_from_info).into_vec().unwrap();
+                 let accountid_address=T::AccountId::decode(&mut &accountid_from_info_vec[1..33]).unwrap_or_default();
+                 ensure!(accountid_address == underwriter_account, Error::<T>::UnmatchingUderwriterAddress);
+             }
+
+            // Check infodocs 
+            let infodocs=json_get_value(info.clone(),"infodocuments".as_bytes().to_vec());
+            ensure!(infodocs.len()>=1, Error::<T>::MissingUnderwriterInfoDocuments);
 
             Underwriters::<T>::insert(underwriter_account.clone(),info.clone());
 
             // Generate event
-            Self::deposit_event(RawEvent::UnderwriterCreated(underwriter_account));
+            Self::deposit_event(RawEvent::UnderwriterCreated(underwriter_account, info));
             // Return a successful DispatchResult
             Ok(())
         }
@@ -1272,9 +1348,43 @@ decl_module! {
         /// Destroy an Underwriter
         #[weight = 1000]
         pub fn undwerwriter_destroy(origin, underwriter_account: T::AccountId) -> dispatch::DispatchResult {
-            ensure_signed(origin)?;
+            let signer =  ensure_signed(origin)?;
             // verify the underwriter  exists
             ensure!(Underwriters::<T>::contains_key(&underwriter_account), Error::<T>::UnderwriterAccountNotFound);
+
+            // check the signer is one of the manager or a member of the committee
+            let json:Vec<u8>=Settings::get("underwriterssubmission".as_bytes().to_vec()).unwrap();
+            let mut flag=0;
+            let mut signingtype=0;
+            let manager=json_get_value(json.clone(),"manager".as_bytes().to_vec());
+            if manager.len()>0 {
+                let managervec=bs58::decode(manager).into_vec().unwrap();
+                let accountidmanager=T::AccountId::decode(&mut &managervec[1..33]).unwrap_or_default();
+                if signer==accountidmanager {
+                    flag=1;       
+                    signingtype=1;             
+                }
+            }
+            let operators=json_get_complexarray(json.clone(),"committee".as_bytes().to_vec());
+            let mut x=0;
+            loop {  
+                let operator=json_get_arrayvalue(operators.clone(),x);
+                if operator.len()==0 {
+                    break;
+                }
+                let operatorvec=bs58::decode(operator).into_vec().unwrap();
+                let accountidoperator=T::AccountId::decode(&mut &operatorvec[1..33]).unwrap_or_default();
+                if accountidoperator==signer {
+                    flag=1;
+                    if signingtype==0 {
+                        signingtype=3;             
+                    }
+                }
+                x=x+1;
+            }
+            ensure!(flag==1,Error::<T>::SignerIsNotAuthorizedForUnderwriterSubmissionOrRemoval);
+
+
             // Remove the underwriter
             Underwriters::<T>::take(underwriter_account.clone());
             // Generate event
