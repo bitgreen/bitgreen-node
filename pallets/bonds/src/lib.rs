@@ -1,5 +1,5 @@
 #![cfg_attr(not(feature = "std"), no_std)]
-
+#![recursion_limit="256"]
 /// Module to manage the Bonds on BitGreen Blockchain
 
 use frame_support::{decl_module, decl_storage, decl_event, decl_error, dispatch, ensure, traits::Currency,codec::Decode};
@@ -41,6 +41,10 @@ decl_storage! {
         // Collaterals
         Collaterals get(fn get_collateral): double_map hasher(blake2_128_concat) u32, hasher(blake2_128_concat) u32 => Option<Vec<u8>>;
         CollateralsApproval get(fn get_collateral_approval): double_map hasher(blake2_128_concat) u32, hasher(blake2_128_concat) u32 => Option<Vec<u8>>;
+        // Funds
+        Funds get(fn get_fund): map hasher(blake2_128_concat) T::AccountId => Option<Vec<u8>>;
+        FundsSignatures get(fn get_fund_signatures): double_map hasher(blake2_128_concat) T::AccountId,hasher(blake2_128_concat) T::AccountId => Option<u32>;
+        FundsApproved get(fn get_fund_approved): map hasher(blake2_128_concat) T::AccountId => Option<u32>;
         // Standard Iso country code and official name
         IsoCountries get(fn get_iso_country): map hasher(blake2_128_concat) Vec<u8> => Option<Vec<u8>>;
         // Currencies data
@@ -67,6 +71,10 @@ decl_event!(
         CreditRatingStored(u32,Vec<u8>),                // New credit rating has been created
         CollateralsStored(u32,u32,Vec<u8>),             // A collaterals has been stored
         CollateralsApproved(u32,u32,Vec<u8>),           // A collaterals has been approved
+        FundStored(AccountId,Vec<u8>),                  // Fund data stored on chain
+        FundApproved(AccountId,AccountId),              // Fund approved with all the required signatures
+        FundSignedforApproval(AccountId,AccountId),     // Fund has been signed for approval
+
 	}
 );
 
@@ -113,10 +121,10 @@ decl_error! {
         CollateralVerificationManagerAccountIsWrong,
         /// Committe for collateral verification is wrong
         CollateralVerificationCommitteeIsWrong,
-        ///  Account for Hedge fund approval is wrong    
-        HedgeFundApprovalManagerAccountIsWrong,
-        /// Committe for Hedge fund approval  is wrong
-        HedgeFundApprovalCommitteeIsWrong,
+        ///  Account for  fund approval is wrong    
+        FundApprovalManagerAccountIsWrong,
+        /// Committe for fund approval  is wrong
+        FundApprovalCommitteeIsWrong,
         /// Info Documents is empty
         InfoDocumentsIsWrong,
         /// Kyc Id is wrong, it cannot be zero
@@ -303,6 +311,72 @@ decl_error! {
         CollateralIdAlreadyPresent,
         /// The signer cannot approve a collateral
         SignerIsNotAuthorizedForCollateralsApproval,
+        /// Signer is not authorized for fund creation/update
+        SignerIsNotAuthorizedForFundCreation,
+        /// Fund info is long, maximum 8192 bytes
+        FundInfoIsTooLong,
+        /// Fund name is too short
+        FundNameTooShort,
+        /// Fund name is too long
+        FundNameTooLong,
+        /// Fund address cannot be shorter of 10 bytes
+        FundAddressTooShort,
+        /// Fund address cannot be longer of 64 bytes
+        FundAddressTooLong,
+        /// Fund zip code cannot be shorter of 3 bytes
+        FundZipCodeTooShort,
+        /// Fund zip code cannot be longer of 6 bytes
+        FundZipCodeTooLong,
+        /// Fund city cannot be shorter of 3 bytes
+        FundCityTooShort,
+        /// Fund city cannot be longer of 64 bytes
+        FundCityTooLong,
+        /// Fund state cannot be shorter of 3 bytes
+        FundStateTooShort,
+        /// Fund state cannot be longer of 64 bytes
+        FundStateTooLong,
+        /// Fund country cannot be shorter of 3 bytes
+        FundCountryTooShort,
+        /// Fund country cannot be longer of 64 bytes
+        FundCountryTooLong,
+        /// Fund website is too short
+        FundWebSiteTooShort,
+        /// Fund website is too long
+        FundWebSiteTooLong,
+        /// Fund website is wrong
+        FundWebSiteIsWrong,
+        /// Fund phone is too short
+        FundPhoneTooShort,
+        /// Fund phone is too long
+        FundPhoneTooLong,
+        /// Fund phone is wrong, not international prefix is matching
+        FundPhoneIsWrong,
+        /// Document description is too short for the fund submission
+        FundDocumentDescriptionTooShort,
+        /// Document Ipfs address is too short
+        FundDocumentIpfsAddressTooShort,
+        /// Missing documents for the fund
+        FundMissingDocuments,
+        /// Fund initial fee cannot be zero
+        FundInitialFeesCannotBeZero,
+        /// Fund yearly fees cannot be zero
+        FundYearlyFeesCannotBeZero,
+        /// Fund performance fees cannot be zero
+        FundPerformanceFeesCannotBeZero,
+        /// Fund account id is wrong
+        FundAccountIdIsWrong,
+        /// Account id for deposit to the fund is wrong
+        FundDepositAccountIdIsWrong,
+        /// Account id for fund manager is wrong
+        FundManagerAccountIdIsWrong,
+        /// Fund manager account is missing
+        FundManagerAccountisMissing,
+        /// Fund under processing cannot be changed
+        FundUnderProcessItCannotBeChanged,
+        /// Fund signatures is already present on chain for the same signer
+        FundsSignatureAlreadyPresentrSameSigner,
+        /// Signer is not authorized for fund approval
+        SignerIsNotAuthorizedForFundApproval,
 	}
 }
 
@@ -339,7 +413,7 @@ decl_module! {
                 || key=="underwriterssubmission".as_bytes().to_vec()
                 || key=="creditratingagencies".as_bytes().to_vec()
                 || key=="collateralsverification".as_bytes().to_vec()
-                || key=="hedgefundapproval".as_bytes().to_vec()
+                || key=="fundapproval".as_bytes().to_vec()
                 || key=="infodocuments".as_bytes().to_vec(),
                 Error::<T>::SettingsKeyIsWrong);
             // check validity for kyc settings
@@ -453,9 +527,9 @@ decl_module! {
                 ensure!(x>0,Error::<T>::CollateralVerificationCommitteeIsWrong);
             }
             // check validity for hedge fund approval settings
-            if key=="hedgefundapproval".as_bytes().to_vec() {
+            if key=="fundapproval".as_bytes().to_vec() {
                 let manager=json_get_value(configuration.clone(),"manager".as_bytes().to_vec());
-                ensure!(manager.len()==48 || manager.len()==0, Error::<T>::HedgeFundApprovalManagerAccountIsWrong);
+                ensure!(manager.len()==48 || manager.len()==0, Error::<T>::FundApprovalManagerAccountIsWrong);
                 let committee=json_get_complexarray(configuration.clone(),"committee".as_bytes().to_vec());
                 let mut x=0;
                 if committee.len()>2 {
@@ -467,7 +541,7 @@ decl_module! {
                         x=x+1;
                     }
                 }
-                ensure!(x>0,Error::<T>::HedgeFundApprovalCommitteeIsWrong);
+                ensure!(x>0,Error::<T>::FundApprovalCommitteeIsWrong);
             }
             // check validity for info documents
             if key=="infodocuments".as_bytes().to_vec() {
@@ -699,6 +773,240 @@ decl_module! {
             }
             // generate event for the approval
             Self::deposit_event(RawEvent::KycSignedforApproval(accountid,signer));
+            // Return a successful DispatchResult
+            Ok(())
+        }  
+        // this function has the purpose to the insert or update data for a Fund (hedge or enterprise)
+        #[weight = 1000]
+        pub fn create_change_fund(origin, accountid: T::AccountId, info: Vec<u8>) -> dispatch::DispatchResult {
+            let signer = ensure_signed(origin)?;
+            // check the signer is one of the operators for kyc
+            let json:Vec<u8>=Settings::get("kyc".as_bytes().to_vec()).unwrap();
+            let mut flag=0;
+            let mut signingtype=0;
+            let manager=json_get_value(json.clone(),"manager".as_bytes().to_vec());
+            if manager.len()>0 {
+                let managervec=bs58::decode(manager).into_vec().unwrap();
+                let accountidmanager=T::AccountId::decode(&mut &managervec[1..33]).unwrap_or_default();
+                if signer==accountidmanager {
+                    flag=1;       
+                    signingtype=1;             
+                }
+            }
+            let supervisor=json_get_value(json.clone(),"supervisor".as_bytes().to_vec());
+            if supervisor.len()>0 {
+                let supervisorvec=bs58::decode(supervisor).into_vec().unwrap();
+                let accountidsupervisor=T::AccountId::decode(&mut &supervisorvec[1..33]).unwrap_or_default();
+                if signer==accountidsupervisor {
+                    flag=1;
+                    if signingtype==0 {
+                        signingtype=2;             
+                    }
+                }
+            }
+            let operators=json_get_complexarray(json.clone(),"operators".as_bytes().to_vec());
+            let mut x=0;
+            loop {  
+                let operator=json_get_arrayvalue(operators.clone(),x);
+                if operator.len()==0 {
+                    break;
+                }
+                let operatorvec=bs58::decode(operator).into_vec().unwrap();
+                let accountidoperator=T::AccountId::decode(&mut &operatorvec[1..33]).unwrap_or_default();
+                if accountidoperator==signer {
+                    flag=1;
+                    if signingtype==0 {
+                        signingtype=3;             
+                    }
+                }
+                x=x+1;
+            }
+            ensure!(flag==1,Error::<T>::SignerIsNotAuthorizedForFundCreation);
+            //check info length
+            ensure!(info.len() < 8192, Error::<T>::FundInfoIsTooLong); 
+            // check json validity
+            let js=info.clone();
+            ensure!(json_check_validity(js),Error::<T>::InvalidJson);
+            // check name
+            let name=json_get_value(info.clone(),"name".as_bytes().to_vec());
+            ensure!(name.len()>=10,Error::<T>::FundNameTooShort);
+            ensure!(name.len()<=64,Error::<T>::FundNameTooLong);
+            // check Address
+            let address=json_get_value(info.clone(),"address".as_bytes().to_vec());
+            ensure!(address.len()>=10,Error::<T>::FundAddressTooShort);
+            ensure!(address.len()<=64,Error::<T>::FundAddressTooLong);
+            // check Zip code
+            let zip=json_get_value(info.clone(),"zip".as_bytes().to_vec());
+            ensure!(zip.len()>3,Error::<T>::FundZipCodeTooShort);
+            ensure!(zip.len()<=6,Error::<T>::FundZipCodeTooLong);
+            // check City
+            let city=json_get_value(info.clone(),"city".as_bytes().to_vec());
+            ensure!(city.len()>3,Error::<T>::FundCityTooShort);
+            ensure!(city.len()<=64,Error::<T>::FundCityTooLong);
+            // check State
+            let state=json_get_value(info.clone(),"state".as_bytes().to_vec());
+            ensure!(state.len()>3,Error::<T>::FundStateTooShort);
+            ensure!(state.len()<=64,Error::<T>::FundStateTooLong);
+            // check Country
+            let country=json_get_value(info.clone(),"country".as_bytes().to_vec());
+            ensure!(country.len()>3,Error::<T>::FundCountryTooShort);
+            ensure!(country.len()<64,Error::<T>::FundCountryTooLong);
+            // check Website
+            let website=json_get_value(info.clone(),"website".as_bytes().to_vec());
+            ensure!(website.len()>=10,Error::<T>::FundWebSiteTooShort);
+            ensure!(website.len()<=64,Error::<T>::FundWebSiteTooLong);
+            ensure!(validate_weburl(website),Error::<T>::FundWebSiteIsWrong);
+            // check Phone 
+            let phone=json_get_value(info.clone(),"phone".as_bytes().to_vec());
+            ensure!(phone.len()>=10,Error::<T>::FundPhoneTooShort);
+            ensure!(phone.len()<=21,Error::<T>::FundPhoneTooLong);
+            ensure!(validate_phonenumber(phone),Error::<T>::FundPhoneIsWrong);
+            let ipfsdocs=json_get_complexarray(info.clone(),"ipfsdocs".as_bytes().to_vec());
+            if ipfsdocs.len()>2 {
+                let mut x=0;
+                loop {  
+                    let w=json_get_recordvalue(ipfsdocs.clone(),x);
+                    if w.len()==0 {
+                        break;
+                    }
+                    let description=json_get_value(w.clone(),"description".as_bytes().to_vec());
+                    ensure!(description.len()>5,Error::<T>::FundDocumentDescriptionTooShort);
+                    let ipfsaddress=json_get_value(w.clone(),"ipfsaddress".as_bytes().to_vec());
+                    ensure!(ipfsaddress.len()>20,Error::<T>::FundDocumentIpfsAddressTooShort);
+
+                    x=x+1;
+                }
+                ensure!(x>0,Error::<T>::FundMissingDocuments);
+            }
+            // check for Initial fees (considering 2 decimals as integer)
+            let initialfees=json_get_value(info.clone(),"initialfees".as_bytes().to_vec());
+            let initialfeesv=vecu8_to_u32(initialfees);
+            ensure!(initialfeesv>0,Error::<T>::FundInitialFeesCannotBeZero);
+            // check for yearly fees on capital (considering 2 decimals as integer)
+            let yearlyfees=json_get_value(info.clone(),"yearlyfees".as_bytes().to_vec());
+            let yearlyfeesv=vecu8_to_u32(yearlyfees);
+            ensure!(yearlyfeesv>0,Error::<T>::FundYearlyFeesCannotBeZero);
+            // check for performance fees on interest (considering 2 decimals as integer)
+            let performancefees=json_get_value(info.clone(),"performancefees".as_bytes().to_vec());
+            let performancefeesv=vecu8_to_u32(performancefees);
+            ensure!(performancefeesv>0,Error::<T>::FundPerformanceFeesCannotBeZero);
+            // check fund type E==Enterprise Fund  H==Hedge Fund
+            let fundtype=json_get_value(info.clone(),"fundtype".as_bytes().to_vec());
+            ensure!(fundtype[0]==b'E' || fundtype[0]==b'H',Error::<T>::BondInterestTypeIsWrong);
+            // check deposit account id for the fund
+            let depositaccountid=json_get_value(info.clone(),"depositaccountid".as_bytes().to_vec());
+            ensure!(depositaccountid.len()==48, Error::<T>::FundDepositAccountIdIsWrong);
+            let fundmanagers=json_get_complexarray(info.clone(),"fundmanagers".as_bytes().to_vec());
+            let mut x=0;
+            if fundmanagers.len()>2 {
+                loop {  
+                    let w=json_get_recordvalue(fundmanagers.clone(),x);
+                    if w.len()==0{
+                        break;
+                    }
+                    ensure!(w.len()==48, Error::<T>::FundManagerAccountIdIsWrong);
+                    x=x+1;
+                }
+            }
+            ensure!(x>0,Error::<T>::FundManagerAccountisMissing);
+            //store Fund on chain
+            if Funds::<T>::contains_key(&accountid)==false {
+                // Insert fund
+                Funds::<T>::insert(accountid.clone(),info.clone());
+            } else {
+                // check that is not already approved from anybody
+                let itr=FundsSignatures::<T>::iter_prefix(accountid.clone());
+                ensure!(itr.count()==0,Error::<T>::FundUnderProcessItCannotBeChanged);
+                // Replace Fund Data 
+                Funds::<T>::take(accountid.clone());
+                Funds::<T>::insert(accountid.clone(),info.clone());
+            }
+            // Generate event
+            Self::deposit_event(RawEvent::FundStored(accountid,info));
+            // Return a successful DispatchResult
+            Ok(())
+        }
+        #[weight = 1000]
+        pub fn fund_approve(origin, accountid: T::AccountId) -> dispatch::DispatchResult {
+            let signer = ensure_signed(origin)?;
+            let mut signingtype=0;
+            //check id >0
+            ensure!(Funds::<T>::contains_key(&accountid),Error::<T>::KycIdNotFound);
+            ensure!(!FundsSignatures::<T>::contains_key(&accountid,&signer),Error::<T>::FundsSignatureAlreadyPresentrSameSigner);
+            // check the signer is one of the operators for fundapproval
+            let json:Vec<u8>=Settings::get("fundapproval".as_bytes().to_vec()).unwrap();
+            let mut flag=0;
+            let manager=json_get_value(json.clone(),"manager".as_bytes().to_vec());
+            if manager.len()>0 {
+                let managervec=bs58::decode(manager).into_vec().unwrap();
+                let accountidmanager=T::AccountId::decode(&mut &managervec[1..33]).unwrap_or_default();
+                if signer==accountidmanager {
+                    flag=1;       
+                    signingtype=1;             
+                }
+            }
+            let supervisor=json_get_value(json.clone(),"supervisor".as_bytes().to_vec());
+            if supervisor.len()>0 {
+                let supervisorvec=bs58::decode(supervisor).into_vec().unwrap();
+                let accountidsupervisor=T::AccountId::decode(&mut &supervisorvec[1..33]).unwrap_or_default();
+                if signer==accountidsupervisor {
+                    flag=1;
+                    if signingtype==0 {
+                        signingtype=2;             
+                    }
+                }
+            }
+            let operators=json_get_complexarray(json.clone(),"operators".as_bytes().to_vec());
+            let mut x=0;
+            loop {  
+                let operator=json_get_arrayvalue(operators.clone(),x);
+                if operator.len()==0 {
+                    break;
+                }
+                let operatorvec=bs58::decode(operator).into_vec().unwrap();
+                let accountidoperator=T::AccountId::decode(&mut &operatorvec[1..33]).unwrap_or_default();
+                if accountidoperator==signer {
+                    flag=1;
+                    if signingtype==0 {
+                        signingtype=3;             
+                    }
+                }
+                x=x+1;
+            }
+            ensure!(flag==1,Error::<T>::SignerIsNotAuthorizedForFundApproval);
+            // write/update signature
+            FundsSignatures::<T>::insert(accountid.clone(),signer.clone(),signingtype);
+            // check for all the approval
+            let mut sigmanager=0;
+            let mut sigsupervisor=0;
+            let mut sigoperator=0;
+            let mut itr=FundsSignatures::<T>::iter_prefix(accountid.clone());
+            let mut result;
+            loop {
+                result=itr.next();
+                match result {
+                    Some(x) => {
+                        if x.1==1 {
+                            sigmanager=1;
+                        }
+                        if x.1==2 {
+                            sigsupervisor=1;
+                        }
+                        if x.1==3 {
+                            sigoperator=1;
+                        }
+                    },
+                    None => break,
+                }
+            }
+            // store approved flag if all signatures have been received
+            if sigmanager==1 && sigsupervisor==1 && sigoperator==1 {
+                FundsApproved::<T>::insert(accountid.clone(),1);
+                // generate event for approved
+                Self::deposit_event(RawEvent::FundApproved(accountid.clone(),signer.clone()));
+            }
+            // generate event for the approval
+            Self::deposit_event(RawEvent::FundSignedforApproval(accountid,signer));
             // Return a successful DispatchResult
             Ok(())
         }  
