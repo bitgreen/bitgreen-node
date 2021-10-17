@@ -5,7 +5,7 @@ use frame_support::error::BadOrigin;
 #[test]
 fn create_change_settings_works() {
 	new_test_ext().execute_with(|| {
-		assert_ok!(Bonds::create_change_settings(Origin::root(), b"kyc".to_vec(), b"[{'document':'Profit&Loss Previous year'}]".to_vec()));
+		assert_ok!(Bonds::create_change_settings(Origin::root(), b"kyc".to_vec(), b"{'manager':'5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY','supervisor':'5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY','operators':['5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY']}".to_vec()));
 	});
 }
 
@@ -20,7 +20,7 @@ fn create_change_settings_does_not_work_for_non_root() {
 }
 
 #[test]
-fn create_change_settings_does_not_work_for_invalid_json() {
+fn create_change_settings_does_not_work_for_invalid_key_input() {
 	new_test_ext().execute_with(|| {
 		assert_noop!(
 			Bonds::create_change_settings(Origin::root(), b"kyc".to_vec(), b"[]".to_vec()),
@@ -32,6 +32,11 @@ fn create_change_settings_does_not_work_for_invalid_json() {
 		// 	Bonds::create_change_settings(Origin::root(), b"kyc".to_vec(), b"[{'document':'Profit&Loss Previous year']".to_vec()),
 		// 	Error::<Test>::InvalidJson
 		// );
+
+		assert_noop!(
+			Bonds::create_change_settings(Origin::root(), b"kyc1".to_vec(), b"{'manager':'5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY','supervisor':'5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY','operators':['5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY']}".to_vec()),
+			Error::<Test>::SettingsKeyIsWrong
+		);
 
 	});
 }
