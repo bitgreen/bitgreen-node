@@ -53,6 +53,8 @@ decl_storage! {
         Currencies get(fn get_currency): map hasher(blake2_128_concat) Vec<u8> => Option<Vec<u8>>;
         // Underwriters data
         Underwriters get(fn get_underwriter): map hasher(blake2_128_concat) T::AccountId => Option<Vec<u8>>;
+        // Underwriters data
+        Insurers get(fn get_insurer): map hasher(blake2_128_concat) T::AccountId => Option<Vec<u8>>;
 	}
 }
 
@@ -73,14 +75,15 @@ decl_event!(
         BondSignedforApproval(u32,AccountId),           // A bond has been assigned for approval
         CreditRatingAgencyStored(AccountId,Vec<u8>),    // Credit rating agency has been stored/updated
         CreditRatingStored(u32,Vec<u8>),                // New credit rating has been created
-        UnderwriterCreated(AccountId, Vec<u8>),                // An underwriter has been created
-        UnderwriterDestroyed(AccountId),              // An underwriter has been destroyed
+        UnderwriterCreated(AccountId, Vec<u8>),         // An underwriter has been created
+        UnderwriterDestroyed(AccountId),                // An underwriter has been destroyed
         CollateralsStored(u32,u32,Vec<u8>),             // A collaterals has been stored
         CollateralsApproved(u32,u32,Vec<u8>),           // A collaterals has been approved
         FundStored(AccountId,Vec<u8>),                  // Fund data stored on chain
         FundApproved(AccountId,AccountId),              // Fund approved with all the required signatures
         FundSignedforApproval(AccountId,AccountId),     // Fund has been signed for approval
-
+        InsurerCreated(AccountId,Vec<u8>),              // Insurer has been stored/updated
+        InsurerDestroyed(AccountId),                    // Insuere has been destroyed
 	}
 
 );
@@ -182,6 +185,8 @@ decl_error! {
         KycIdNotFound,
         /// The signer has already signed the same kyc
         KycSignatureAlreadyPresentrSameSigner,
+        /// Kyc Settings not yet configured
+        KycSettingsNotConfigured,
         /// The signer is not authorized to approve a KYC
         SignerIsNotAuthorizedForKycApproval,
         /// Bond id cannot be zero
@@ -331,7 +336,7 @@ decl_error! {
         /// Invalid Website
         InvalidWebsite,
         /// The adrresses for the underwriter from json and passed paramenters did not match
-        UnmatchingUderwriterAddress,
+        UnmatchingUnderwriterAddress,
         /// Missing Underwriter Account ID from json input
         MissingUnderwriterAccountId,
         /// The committee enabled to submit Underwriter is wrong
@@ -340,6 +345,12 @@ decl_error! {
         SignerIsNotAuthorizedForUnderwriterSubmissionOrRemoval,
         /// Signer is not authorized for fund creation/update
         SignerIsNotAuthorizedForFundCreation,
+        /// Insurer manager is not set
+        InsurerSubmissionManagerAccountIsWrong,
+        /// Insurer committee is empty
+        InsurerSubmissionCommitteeIsWrong,
+        /// Signer has not authorization to submite Insurer
+        SignerIsNotAuthorizedForInsurerSubmissionOrRemoval,
         /// Fund info is long, maximum 8192 bytes
         FundInfoIsTooLong,
         /// Fund name is too short
@@ -404,7 +415,28 @@ decl_error! {
         FundsSignatureAlreadyPresentrSameSigner,
         /// Signer is not authorized for fund approval
         SignerIsNotAuthorizedForFundApproval,
-
+        /// Currency in the Insurance configuration is wrong
+        InsuranceCurrencyIsWrong,
+        /// Insurance Minimum Reserver Cannot Be Zero
+        InsuranceMinReserveCannotBeZero,
+        /// Insurer Settings is missing from the configuration
+        InsurerSettingIsMissing,
+        /// Insurer is already present
+        InsurerAlreadyPresent,
+        /// Insurer name is too short
+        InsurerNameTooShort,
+        /// Insurer web site is too short
+        InsurerWebSiteTooShort,
+        /// Insurer web site is too long
+        InsurerWebSiteTooLong,
+        /// The adrresses for the underwriter from json and passed paramenters did not match
+        UnmatchingInsurerAddress,
+        /// Insurer account not found
+        InsurerAccountNotFound,
+        /// Insurer account has not been found
+        MissingInsurerAccountId,
+        /// Info documents for the insurer are missing
+        MissingInsurerInfoDocuments,
 	}
 }
 
@@ -423,7 +455,7 @@ decl_module! {
         /// for example: {"manager":"5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY","committee":["5FLSigC9HGRKVhB9FiEo4Y3koPsNmBmLJbpXg2mp1hXcS59Y","5HpG9w8EBLe5XCrbczpwq5TSXvedjrBGCwqxK1iQ7qUsSWFc"],"mandatoryunderwriting":"Y","mandatorycreditrating":"Y","mandatorylegalopinion":"Y"}
         /// key=="underwriterssubmission" {"manager":"xxxaccountidxxx","committee":["xxxxaccountidxxxx","xxxxaccountidxxxx",...]}
         /// for example: {"manager":"5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY","committee":["5FLSigC9HGRKVhB9FiEo4Y3koPsNmBmLJbpXg2mp1hXcS59Y","5HpG9w8EBLe5XCrbczpwq5TSXvedjrBGCwqxK1iQ7qUsSWFc"]}
-        /// key=="infodocuments" [{"document":"xxxxdescription"},{"document":"xxxxdescription"}]
+        /// key=="infodocuments" {"documents:[{"document":"xxxxdescription"},{"document":"xxxxdescription"}]}
         /// for example: [{"document":"Profit&Loss Previous year"},{"document":"Board Members/Director List"}]
         #[weight = 1000]
 		pub fn create_change_settings(origin, key: Vec<u8>, configuration: Vec<u8>) -> dispatch::DispatchResult {
@@ -439,10 +471,12 @@ decl_module! {
             ensure!(key=="kyc".as_bytes().to_vec() 
                 || key=="bondapproval".as_bytes().to_vec() 
                 || key=="underwriterssubmission".as_bytes().to_vec()
+                || key=="insurerssubmission".as_bytes().to_vec()
                 || key=="creditratingagencies".as_bytes().to_vec()
                 || key=="collateralsverification".as_bytes().to_vec()
                 || key=="fundapproval".as_bytes().to_vec()
-                || key=="infodocuments".as_bytes().to_vec(),
+                || key=="infodocuments".as_bytes().to_vec()
+                || key=="insuranceminreserve".as_bytes().to_vec(),
                 Error::<T>::SettingsKeyIsWrong);
             // check validity for kyc settings
             if key=="kyc".as_bytes().to_vec() {
@@ -503,10 +537,10 @@ decl_module! {
                 }
                 ensure!(x>0,Error::<T>::UnderwritersSubmissionCommitteeIsWrong);
             }
-            // check validity for underwriters submission settings
-            if key=="underwriterssubmission".as_bytes().to_vec() {
+            // check validity for insurer submission settings
+            if key=="insurerssubmission".as_bytes().to_vec() {
                 let manager=json_get_value(configuration.clone(),"manager".as_bytes().to_vec());
-                ensure!(manager.len()==48 || manager.len()==0, Error::<T>::CreditRatingAgenciesSubmissionManagerAccountIsWrong);
+                ensure!(manager.len()==48 || manager.len()==0, Error::<T>::InsurerSubmissionManagerAccountIsWrong);
                 let committee=json_get_complexarray(configuration.clone(),"committee".as_bytes().to_vec());
                 let mut x=0;
                 if committee.len()>2 {
@@ -518,7 +552,7 @@ decl_module! {
                         x=x+1;
                     }
                 }
-                ensure!(x>0,Error::<T>::UnderwritersSubmissionCommitteeIsWrong);
+                ensure!(x>0,Error::<T>::InsurerSubmissionCommitteeIsWrong);
             }
             // check validity for lawyers submission settings
             if key=="lawyerssubmission".as_bytes().to_vec() {
@@ -586,6 +620,14 @@ decl_module! {
                 }
                 ensure!(x>0,Error::<T>::InfoDocumentsIsWrong);
             }
+            // check validity for collateral verification settings
+            if key=="insuranceminreserve".as_bytes().to_vec() {
+                let currency=json_get_value(configuration.clone(),"currency".as_bytes().to_vec());
+                ensure!(currency.len()>=3, Error::<T>::InsuranceCurrencyIsWrong);
+                let reserve=json_get_value(configuration.clone(),"reserve".as_bytes().to_vec());
+                let reservev=vecu8_to_u32(reserve);
+                ensure!(reservev>0,Error::<T>::InsuranceMinReserveCannotBeZero);
+            }
             //store settings on chain
             if Settings::contains_key(&key)==false {
                 // Insert settings
@@ -606,6 +648,7 @@ decl_module! {
         pub fn create_change_kyc(origin, accountid: T::AccountId, info: Vec<u8>) -> dispatch::DispatchResult {
             let signer = ensure_signed(origin)?;
             // check the signer is one of the operators for kyc
+            ensure!(Settings::contains_key("kyc".as_bytes().to_vec()),Error::<T>::KycSettingsNotConfigured);
             let json:Vec<u8>=Settings::get("kyc".as_bytes().to_vec()).unwrap();
             let mut flag=0;
             let mut signingtype=0;
@@ -1632,14 +1675,13 @@ decl_module! {
             ensure!(website.len()<=64,Error::<T>::UnderwriterWebSiteTooLong);
             ensure!(validate_weburl(website),Error::<T>::InvalidWebsite);
 
-
              // Check for account ID for underwriter from info json match
              let accountid_from_info=json_get_value(info.clone(),"accountid".as_bytes().to_vec());
              ensure!(accountid_from_info.len() > 0,  Error::<T>::MissingUnderwriterAccountId);
              if accountid_from_info.len()>0 {
                  let accountid_from_info_vec=bs58::decode(accountid_from_info).into_vec().unwrap();
                  let accountid_address=T::AccountId::decode(&mut &accountid_from_info_vec[1..33]).unwrap_or_default();
-                 ensure!(accountid_address == underwriter_account, Error::<T>::UnmatchingUderwriterAddress);
+                 ensure!(accountid_address == underwriter_account, Error::<T>::UnmatchingUnderwriterAddress);
              }
 
             // Check infodocs 
@@ -1692,12 +1734,126 @@ decl_module! {
                 x=x+1;
             }
             ensure!(flag==1,Error::<T>::SignerIsNotAuthorizedForUnderwriterSubmissionOrRemoval);
-
-
+            
             // Remove the underwriter
             Underwriters::<T>::take(underwriter_account.clone());
             // Generate event
             Self::deposit_event(RawEvent::UnderwriterDestroyed(underwriter_account));
+            // Return a successful DispatchResult
+            Ok(())
+        }
+        /// Create an Insurer
+        #[weight = 1000]
+        pub fn insurer_create(origin, insurer_account: T::AccountId, info: Vec<u8>) -> dispatch::DispatchResult {
+
+            let signer =  ensure_signed(origin)?;
+            // check for a valid json structure
+            ensure!(json_check_validity(info.clone()),Error::<T>::InvalidJson);
+            ensure!(Settings::contains_key("insurersubmission".as_bytes().to_vec()),Error::<T>::InsurerSettingIsMissing);
+            // check the signer is one of the manager or a member of the committee
+            let json:Vec<u8>=Settings::get("insurersubmission".as_bytes().to_vec()).unwrap();
+            let mut flag=0;
+            let mut signingtype=0;
+            let manager=json_get_value(json.clone(),"manager".as_bytes().to_vec());
+            if manager.len()>0 {
+                let managervec=bs58::decode(manager).into_vec().unwrap();
+                let accountidmanager=T::AccountId::decode(&mut &managervec[1..33]).unwrap_or_default();
+                if signer==accountidmanager {
+                    flag=1;       
+                    signingtype=1;             
+                }
+            }
+            let operators=json_get_complexarray(json.clone(),"committee".as_bytes().to_vec());
+            let mut x=0;
+            loop {  
+                let operator=json_get_arrayvalue(operators.clone(),x);
+                if operator.len()==0 {
+                    break;
+                }
+                let operatorvec=bs58::decode(operator).into_vec().unwrap();
+                let accountidoperator=T::AccountId::decode(&mut &operatorvec[1..33]).unwrap_or_default();
+                if accountidoperator==signer {
+                    flag=1;
+                    if signingtype==0 {
+                        signingtype=3;             
+                    }
+                }
+                x=x+1;
+            }
+            ensure!(flag==1,Error::<T>::SignerIsNotAuthorizedForInsurerSubmissionOrRemoval);
+
+            //Check if Insurer not already stored on chain
+            ensure!(!Insurers::<T>::contains_key(&insurer_account), Error::<T>::InsurerAlreadyPresent);
+             // check for name
+             let name=json_get_value(info.clone(),"name".as_bytes().to_vec());
+             ensure!(name.len()>=3, Error::<T>::InsurerNameTooShort);
+
+            // check Website
+            let website=json_get_value(info.clone(),"website".as_bytes().to_vec());
+            ensure!(website.len()>=10,Error::<T>::InsurerWebSiteTooShort);
+            ensure!(website.len()<=64,Error::<T>::UnderwriterWebSiteTooLong);
+            ensure!(validate_weburl(website),Error::<T>::InvalidWebsite);
+
+             // Check for account ID for insuere from info json match
+             let accountid_from_info=json_get_value(info.clone(),"accountid".as_bytes().to_vec());
+             ensure!(accountid_from_info.len() > 0,  Error::<T>::MissingInsurerAccountId);
+             if accountid_from_info.len()>0 {
+                 let accountid_from_info_vec=bs58::decode(accountid_from_info).into_vec().unwrap();
+                 let accountid_address=T::AccountId::decode(&mut &accountid_from_info_vec[1..33]).unwrap_or_default();
+                 ensure!(accountid_address == insurer_account, Error::<T>::UnmatchingInsurerAddress);
+             }
+            // Check infodocs 
+            let infodocs=json_get_value(info.clone(),"infodocuments".as_bytes().to_vec());
+            ensure!(infodocs.len()>=1, Error::<T>::MissingInsurerInfoDocuments);
+            Insurers::<T>::insert(insurer_account.clone(),info.clone());
+            // Generate event
+            Self::deposit_event(RawEvent::InsurerCreated(insurer_account, info));
+            // Return a successful DispatchResult
+            Ok(())
+        }
+        /// Destroy an Insurer
+        #[weight = 1000]
+        pub fn insurer_destroy(origin, insurer_account: T::AccountId) -> dispatch::DispatchResult {
+            let signer =  ensure_signed(origin)?;
+            // verify the underwriter  exists
+            ensure!(Underwriters::<T>::contains_key(&insurer_account), Error::<T>::InsurerAccountNotFound);
+
+            // check the signer is one of the manager or a member of the committee
+            let json:Vec<u8>=Settings::get("insurerssubmission".as_bytes().to_vec()).unwrap();
+            let mut flag=0;
+            let mut signingtype=0;
+            let manager=json_get_value(json.clone(),"manager".as_bytes().to_vec());
+            if manager.len()>0 {
+                let managervec=bs58::decode(manager).into_vec().unwrap();
+                let accountidmanager=T::AccountId::decode(&mut &managervec[1..33]).unwrap_or_default();
+                if signer==accountidmanager {
+                    flag=1;       
+                    signingtype=1;             
+                }
+            }
+            let operators=json_get_complexarray(json.clone(),"committee".as_bytes().to_vec());
+            let mut x=0;
+            loop {  
+                let operator=json_get_arrayvalue(operators.clone(),x);
+                if operator.len()==0 {
+                    break;
+                }
+                let operatorvec=bs58::decode(operator).into_vec().unwrap();
+                let accountidoperator=T::AccountId::decode(&mut &operatorvec[1..33]).unwrap_or_default();
+                if accountidoperator==signer {
+                    flag=1;
+                    if signingtype==0 {
+                        signingtype=3;             
+                    }
+                }
+                x=x+1;
+            }
+            ensure!(flag==1,Error::<T>::SignerIsNotAuthorizedForInsurerSubmissionOrRemoval);
+            
+            // Remove the Insurer
+            Insurers::<T>::take(insurer_account.clone());
+            // Generate event
+            Self::deposit_event(RawEvent::InsurerDestroyed(insurer_account));
             // Return a successful DispatchResult
             Ok(())
         }
