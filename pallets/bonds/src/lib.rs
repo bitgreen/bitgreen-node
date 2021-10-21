@@ -53,8 +53,11 @@ decl_storage! {
         Currencies get(fn get_currency): map hasher(blake2_128_concat) Vec<u8> => Option<Vec<u8>>;
         // Underwriters data
         Underwriters get(fn get_underwriter): map hasher(blake2_128_concat) T::AccountId => Option<Vec<u8>>;
-        // Underwriters data
+        // Insurer data
         Insurers get(fn get_insurer): map hasher(blake2_128_concat) T::AccountId => Option<Vec<u8>>;
+        // Insurance Data
+        Insurances get(fn get_insurance): map hasher(blake2_128_concat) u32 => Option<Vec<u8>>;
+
 	}
 }
 
@@ -83,7 +86,8 @@ decl_event!(
         FundApproved(AccountId,AccountId),              // Fund approved with all the required signatures
         FundSignedforApproval(AccountId,AccountId),     // Fund has been signed for approval
         InsurerCreated(AccountId,Vec<u8>),              // Insurer has been stored/updated
-        InsurerDestroyed(AccountId),                    // Insuere has been destroyed
+        InsurerDestroyed(AccountId),                    // Insurer has been destroyed
+        InsuranceCreated(u32,Vec<u8>),                  // Insurance has been created
 	}
 
 );
@@ -437,6 +441,20 @@ decl_error! {
         MissingInsurerAccountId,
         /// Info documents for the insurer are missing
         MissingInsurerInfoDocuments,
+        /// Signer is not an insurer
+        SignerIsNotInsurer,
+        /// Max Coverage cannot be zero
+        MaxCoverageCannotBeZero,
+        /// Payer account is wrong
+        PayerAccountIsWrong,
+        /// Beneficiary account is wrong
+        BeneficiaryAccountIsWrong,
+        /// Insurance premium cannot be zero.
+        InsurancePremiumCannotBeZero,
+        /// Information documents about the insurance are missing
+        MissingInsuranceInfoDocuments,
+        /// Insurance id is already present in the state
+        InsuranceIdAlreadyPresent,
 	}
 }
 
@@ -588,7 +606,7 @@ decl_module! {
                 }
                 ensure!(x>0,Error::<T>::CollateralVerificationCommitteeIsWrong);
             }
-            // check validity for hedge fund approval settings
+            // check validity for enterprise/edge fund approval settings
             if key=="fundapproval".as_bytes().to_vec() {
                 let manager=json_get_value(configuration.clone(),"manager".as_bytes().to_vec());
                 ensure!(manager.len()==48 || manager.len()==0, Error::<T>::FundApprovalManagerAccountIsWrong);
@@ -1154,10 +1172,10 @@ decl_module! {
             }
             // check subordinated field
             let subordinated=json_get_value(info.clone(),"subordinated".as_bytes().to_vec());
-            ensure!(subordinated[0]==b'Y'  || subordinated[0]==b'Y',Error::<T>::BondSubordinatedIsWrong);
+            ensure!(subordinated[0]==b'Y'  || subordinated[0]==b'N',Error::<T>::BondSubordinatedIsWrong);
             // check put option field
             let putoption=json_get_value(info.clone(),"putoption".as_bytes().to_vec());
-            ensure!(putoption[0]==b'Y'  || putoption[0]==b'Y',Error::<T>::BondPutOptionIsWrong);
+            ensure!(putoption[0]==b'Y'  || putoption[0]==b'N',Error::<T>::BondPutOptionIsWrong);
             // check vesting period for put option
             if putoption[0]==b'Y' {
                 let putvestingperiod=json_get_value(info.clone(),"putvestingperiod".as_bytes().to_vec());
@@ -1175,10 +1193,10 @@ decl_module! {
             }
             // check put convertible option field
             let putconvertibleoption=json_get_value(info.clone(),"putconvertibleoption".as_bytes().to_vec());
-            ensure!(putconvertibleoption[0]==b'Y'  || putconvertibleoption[0]==b'Y',Error::<T>::BondPutConvertibleOptionIsWrong);
+            ensure!(putconvertibleoption[0]==b'Y'  || putconvertibleoption[0]==b'N',Error::<T>::BondPutConvertibleOptionIsWrong);
              // check call convertible option field
              let callconvertibleoption=json_get_value(info.clone(),"callconvertibleoption".as_bytes().to_vec());
-             ensure!(callconvertibleoption[0]==b'Y'  || callconvertibleoption[0]==b'Y',Error::<T>::BondCallConvertibleOptionIsWrong);
+             ensure!(callconvertibleoption[0]==b'Y'  || callconvertibleoption[0]==b'N',Error::<T>::BondCallConvertibleOptionIsWrong);
             // check the info documents
             // get required documents          
             let mut settingdocs="".as_bytes().to_vec();
@@ -1384,7 +1402,7 @@ decl_module! {
              // Return a successful DispatchResult
              Ok(())
         }
-        // this function has the purpose to the insert or update data for Credit Rating Agency
+        // this function has the purpose to the insert or update data for Credit Rating 
         #[weight = 1000]
         pub fn create_credit_rating(origin, bondid: u32, info: Vec<u8>) -> dispatch::DispatchResult {
              let signer = ensure_signed(origin)?;
@@ -1854,6 +1872,48 @@ decl_module! {
             Insurers::<T>::take(insurer_account.clone());
             // Generate event
             Self::deposit_event(RawEvent::InsurerDestroyed(insurer_account));
+            // Return a successful DispatchResult
+            Ok(())
+        }
+        /// Create an Insurance - Initially as proposal, it's confirmed once signed and the premium paid from the payer
+        /// {"bondid":xxx,"maxcoverage":xxxx,"payer":"xxxxxxxxx","beneficiary":"xxxxoptionalxxxx","premium":xxxxxx,"infodocuments":"xxxxxx"}
+        #[weight = 1000]
+        pub fn insurance_create(origin, uid: u32, info: Vec<u8>) -> dispatch::DispatchResult {
+            let signer =  ensure_signed(origin)?;
+            // check for a valid json structure
+            ensure!(json_check_validity(info.clone()),Error::<T>::InvalidJson);
+            // check the signer is one of the insurers
+            ensure!(Insurers::<T>::contains_key(&signer), Error::<T>::SignerIsNotInsurer);
+            // check for bondid
+            let bondid=json_get_value(info.clone(),"bondid".as_bytes().to_vec());
+            ensure!(bondid.len()>0, Error::<T>::BondIdIsWrongCannotBeZero);
+            let bondidv=vecu8_to_u32(bondid);
+            ensure!(!Bonds::contains_key(&bondidv), Error::<T>::BondsIdNotFound);
+            // check max coverage
+            let maxcoverage=json_get_value(info.clone(),"maxcoverage".as_bytes().to_vec());
+            ensure!(maxcoverage.len()>0, Error::<T>::MaxCoverageCannotBeZero);
+            let maxcoveragev=vecu8_to_u32(maxcoverage);
+            ensure!(maxcoveragev>0,Error::<T>::MaxCoverageCannotBeZero);
+            // check payer account
+            let payer=json_get_value(info.clone(),"payer".as_bytes().to_vec());
+            ensure!(payer.len()==48,  Error::<T>::PayerAccountIsWrong);
+            // check beneficiary account
+            let beneficiary=json_get_value(info.clone(),"beneficiary".as_bytes().to_vec());
+            ensure!(beneficiary.len()==48,  Error::<T>::BeneficiaryAccountIsWrong);
+            // check premium amount
+            let premium=json_get_value(info.clone(),"premium".as_bytes().to_vec());
+            ensure!(premium.len()>0, Error::<T>::InsurancePremiumCannotBeZero);
+            let premiumv=vecu8_to_u32(premium);
+            ensure!(premiumv>0,Error::<T>::InsurancePremiumCannotBeZero);
+            // Check infodocuments 
+            let infodocuments=json_get_value(info.clone(),"infodocuments".as_bytes().to_vec());
+            ensure!(infodocuments.len()>=1, Error::<T>::MissingInsuranceInfoDocuments);
+            //check insurance Id is not already present
+            ensure!(!Insurances::contains_key(&uid), Error::<T>::InsuranceIdAlreadyPresent);
+            // store insurance
+            Insurances::insert(uid.clone(),info.clone());
+            // Generate event
+            Self::deposit_event(RawEvent::InsuranceCreated(uid, info));
             // Return a successful DispatchResult
             Ok(())
         }
