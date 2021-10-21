@@ -1,23 +1,45 @@
 use crate::{Error, mock::*};
 use frame_support::{assert_ok, assert_noop};
+use frame_support::error::BadOrigin;
 
 #[test]
-fn it_works_for_default_value() {
+fn create_change_settings_works() {
 	new_test_ext().execute_with(|| {
-		// Dispatch a signed extrinsic.
-		assert_ok!(TemplateModule::do_something(Origin::signed(1), 42));
-		// Read pallet storage and assert an expected result.
-		assert_eq!(TemplateModule::something(), Some(42));
+		assert_ok!(Bonds::create_change_settings(Origin::root(), b"kyc".to_vec(), b"{'manager':'5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY','supervisor':'5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY','operators':['5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY']}".to_vec()));
+	});
+
+	new_test_ext().execute_with(|| {
+		assert_ok!(Bonds::create_change_settings(Origin::root(), b"infodocuments".to_vec(), r#"{"documents":[{"document":"Profit&LossPreviousyear"}]}"#.as_bytes().to_vec()));
 	});
 }
 
 #[test]
-fn correct_error_for_none_value() {
+fn create_change_settings_does_not_work_for_non_root() {
 	new_test_ext().execute_with(|| {
-		// Ensure the expected error is thrown when no value is present.
 		assert_noop!(
-			TemplateModule::cause_error(Origin::signed(1)),
-			Error::<Test>::NoneValue
+			Bonds::create_change_settings(Origin::signed(1), b"kyc".to_vec(), b"[{'document':'Profit&Loss Previous year'}]".to_vec()),
+			BadOrigin
 		);
+	});
+}
+
+#[test]
+fn create_change_settings_does_not_work_for_invalid_key_input() {
+	new_test_ext().execute_with(|| {
+		assert_noop!(
+			Bonds::create_change_settings(Origin::root(), b"kyc".to_vec(), b"[]".to_vec()),
+			Error::<Test>::SettingsJsonTooShort
+		);
+
+		assert_noop!(
+			Bonds::create_change_settings(Origin::root(), b"kyc".to_vec(), r#"[{"document":"Profit&Loss Previous year"]"#.as_bytes().to_vec()),
+			Error::<Test>::InvalidJson
+		);
+
+		assert_noop!(
+			Bonds::create_change_settings(Origin::root(), b"kyc1".to_vec(), b"{'manager':'5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY','supervisor':'5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY','operators':['5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY']}".to_vec()),
+			Error::<Test>::SettingsKeyIsWrong
+		);
+
 	});
 }

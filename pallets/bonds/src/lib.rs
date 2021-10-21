@@ -1894,18 +1894,14 @@ fn json_check_validity(j:Vec<u8>) -> bool{
         if b==b']' && s && ps==false {
             ps=true;
         }
-        else if b==b']' && s && ps==true {
-            ps=false;
-        }
+
         if b==b'{' && s {
             pg=false;
         }
         if b==b'}' && s && pg==false {
             pg=true;
         }
-        else if b==b'}' && s && pg==true {
-            pg=false;
-        }
+
         if b == b'"' && s && bp != b'\\' {
             s=false;
             bp=b;
@@ -1925,6 +1921,7 @@ fn json_check_validity(j:Vec<u8>) -> bool{
         }
         bp=b;
     }
+
     //fields are not closed properly
     if !s {
         return false;
@@ -1935,6 +1932,10 @@ fn json_check_validity(j:Vec<u8>) -> bool{
     }
     //fields are not closed properly
     if !ps {
+        return false;
+    }
+    //fields are not closed properly
+    if !pg {
         return false;
     }
     // every ok returns true
