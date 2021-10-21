@@ -89,7 +89,6 @@ decl_event!(
         InsurerCreated(AccountId,Vec<u8>),              // Insurer has been stored/updated
         InsurerDestroyed(AccountId),                    // Insurer has been destroyed
         InsuranceCreated(u32,Vec<u8>),                  // Insurance has been created
-        InsurerDestroyed(AccountId),                    // Insuere has been destroyed,
         LawyerCreated(AccountId, Vec<u8>),              // A Lawyer has been created
         LawyerDestroyed(AccountId),                     // A Lawyer opinion has been destroyed
 	}
@@ -459,18 +458,14 @@ decl_error! {
         MissingInsuranceInfoDocuments,
         /// Insurance id is already present in the state
         InsuranceIdAlreadyPresent,
-        /// Signer is not authorized for fund approval
-        SignerIsNotAuthorizedForFundApproval,
-        // The data is already stored on chain
+        /// The data is already stored on chain
         AlreadyPresent,
         /// The name is too short
-        NameTooShort
+        NameTooShort,
         /// The website is too short
         WebSiteTooShort,
         /// The website is too short
         WebSiteTooLong,
-        /// The website url is invalid
-       InvalidWebsite,
        /// The account id is missing in the parameters passed
        MissingAccountId,
        /// The addresses did not match
@@ -478,7 +473,9 @@ decl_error! {
        /// The info documents is missing
        MissingInfoDocuments,
        /// Signer Is Not Authorized For Submission Or Removal
-       SignerIsNotAuthorizedForSubmissionOrRemoval
+       SignerIsNotAuthorizedForSubmissionOrRemoval,
+       /// Account if has not  been found
+       AccountNotFound,
 
 	}
 }
