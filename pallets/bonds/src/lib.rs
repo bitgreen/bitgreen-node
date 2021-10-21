@@ -57,7 +57,8 @@ decl_storage! {
         Insurers get(fn get_insurer): map hasher(blake2_128_concat) T::AccountId => Option<Vec<u8>>;
         // Insurance Data
         Insurances get(fn get_insurance): map hasher(blake2_128_concat) u32 => Option<Vec<u8>>;
-
+        // Lawyers data
+        Lawyers get(fn get_lawyer): map hasher(blake2_128_concat) T::AccountId => Option<Vec<u8>>;
 	}
 }
 
@@ -88,6 +89,9 @@ decl_event!(
         InsurerCreated(AccountId,Vec<u8>),              // Insurer has been stored/updated
         InsurerDestroyed(AccountId),                    // Insurer has been destroyed
         InsuranceCreated(u32,Vec<u8>),                  // Insurance has been created
+        InsurerDestroyed(AccountId),                    // Insuere has been destroyed,
+        LawyerCreated(AccountId, Vec<u8>),              // A Lawyer has been created
+        LawyerDestroyed(AccountId),                     // A Lawyer opinion has been destroyed
 	}
 
 );
@@ -455,6 +459,27 @@ decl_error! {
         MissingInsuranceInfoDocuments,
         /// Insurance id is already present in the state
         InsuranceIdAlreadyPresent,
+        /// Signer is not authorized for fund approval
+        SignerIsNotAuthorizedForFundApproval,
+        // The data is already stored on chain
+        AlreadyPresent,
+        /// The name is too short
+        NameTooShort
+        /// The website is too short
+        WebSiteTooShort,
+        /// The website is too short
+        WebSiteTooLong,
+        /// The website url is invalid
+       InvalidWebsite,
+       /// The account id is missing in the parameters passed
+       MissingAccountId,
+       /// The addresses did not match
+       UnmatchingAddress,
+       /// The info documents is missing
+       MissingInfoDocuments,
+       /// Signer Is Not Authorized For Submission Or Removal
+       SignerIsNotAuthorizedForSubmissionOrRemoval
+
 	}
 }
 
@@ -1917,6 +1942,129 @@ decl_module! {
             // Return a successful DispatchResult
             Ok(())
         }
+
+        /// Create a lawyer
+        #[weight = 1000]
+        pub fn lawyer_create(origin, lawyer_account: T::AccountId, info: Vec<u8>) -> dispatch::DispatchResult {
+
+          let signer =  ensure_signed(origin)?;
+
+          // check for a valid json structure
+          ensure!(json_check_validity(info.clone()),Error::<T>::InvalidJson);
+
+            // check the signer is one of the manager or a member of the committee
+            let json:Vec<u8>=Settings::get("lawyerssubmission".as_bytes().to_vec()).unwrap();
+            let mut flag=0;
+            let mut signingtype=0;
+            let manager=json_get_value(json.clone(),"manager".as_bytes().to_vec());
+            if manager.len()>0 {
+                let managervec=bs58::decode(manager).into_vec().unwrap();
+                let accountidmanager=T::AccountId::decode(&mut &managervec[1..33]).unwrap_or_default();
+                if signer==accountidmanager {
+                    flag=1;       
+                    signingtype=1;             
+                }
+            }
+            let operators=json_get_complexarray(json.clone(),"committee".as_bytes().to_vec());
+            let mut x=0;
+            loop {  
+                let operator=json_get_arrayvalue(operators.clone(),x);
+                if operator.len()==0 {
+                    break;
+                }
+                let operatorvec=bs58::decode(operator).into_vec().unwrap();
+                let accountidoperator=T::AccountId::decode(&mut &operatorvec[1..33]).unwrap_or_default();
+                if accountidoperator==signer {
+                    flag=1;
+                    if signingtype==0 {
+                        signingtype=3;             
+                    }
+                }
+                x=x+1;
+            }
+            ensure!(flag==1,Error::<T>::SignerIsNotAuthorizedForSubmissionOrRemoval);
+
+            //Check if lawyer not already stored on chain
+            ensure!(!Lawyers::<T>::contains_key(&lawyer_account), Error::<T>::AlreadyPresent);
+
+             // check for name
+             let name=json_get_value(info.clone(),"name".as_bytes().to_vec());
+             ensure!(name.len()>=3, Error::<T>::NameTooShort);
+
+            // check Website
+            let website=json_get_value(info.clone(),"website".as_bytes().to_vec());
+            ensure!(website.len()>=10,Error::<T>::WebSiteTooShort);
+            ensure!(website.len()<=64,Error::<T>::WebSiteTooLong);
+            ensure!(validate_weburl(website),Error::<T>::InvalidWebsite);
+
+             // Check for account ID for lawyer from info json match
+             let accountid_from_info=json_get_value(info.clone(),"accountid".as_bytes().to_vec());
+             ensure!(accountid_from_info.len() > 0,  Error::<T>::MissingAccountId);
+             if accountid_from_info.len()>0 {
+                 let accountid_from_info_vec=bs58::decode(accountid_from_info).into_vec().unwrap();
+                 let accountid_address=T::AccountId::decode(&mut &accountid_from_info_vec[1..33]).unwrap_or_default();
+                 ensure!(accountid_address == lawyer_account, Error::<T>::UnmatchingAddress);
+             }
+
+            // Check infodocs 
+            let infodocs=json_get_value(info.clone(),"infodocuments".as_bytes().to_vec());
+            ensure!(infodocs.len()>=1, Error::<T>::MissingInfoDocuments);
+
+            Lawyers::<T>::insert(lawyer_account.clone(),info.clone());
+
+            // Generate event LawyerCreated
+            Self::deposit_event(RawEvent::LawyerCreated(lawyer_account, info));
+            // Return a successful DispatchResult
+            Ok(())
+        }
+
+         /// Destroy a lawyer
+         #[weight = 1000]
+         pub fn lawyer_destroy(origin, lawyer_account: T::AccountId) -> dispatch::DispatchResult {
+             let signer =  ensure_signed(origin)?;
+             // verify the lawyer  exists
+             ensure!(Lawyers::<T>::contains_key(&lawyer_account), Error::<T>::AccountNotFound);
+ 
+             // check the signer is one of the manager or a member of the committee
+             let json:Vec<u8>=Settings::get("lawyerssubmission".as_bytes().to_vec()).unwrap();
+             let mut flag=0;
+             let mut signingtype=0;
+             let manager=json_get_value(json.clone(),"manager".as_bytes().to_vec());
+             if manager.len()>0 {
+                 let managervec=bs58::decode(manager).into_vec().unwrap();
+                 let accountidmanager=T::AccountId::decode(&mut &managervec[1..33]).unwrap_or_default();
+                 if signer==accountidmanager {
+                     flag=1;       
+                     signingtype=1;             
+                 }
+             }
+             let operators=json_get_complexarray(json.clone(),"committee".as_bytes().to_vec());
+             let mut x=0;
+             loop {  
+                 let operator=json_get_arrayvalue(operators.clone(),x);
+                 if operator.len()==0 {
+                     break;
+                 }
+                 let operatorvec=bs58::decode(operator).into_vec().unwrap();
+                 let accountidoperator=T::AccountId::decode(&mut &operatorvec[1..33]).unwrap_or_default();
+                 if accountidoperator==signer {
+                     flag=1;
+                     if signingtype==0 {
+                         signingtype=3;             
+                     }
+                 }
+                 x=x+1;
+             }
+             ensure!(flag==1,Error::<T>::SignerIsNotAuthorizedForSubmissionOrRemoval);
+ 
+             // Remove the lawyer
+             Lawyers::<T>::take(lawyer_account.clone());
+             // Generate event
+             Self::deposit_event(RawEvent::LawyerDestroyed(lawyer_account));
+             // Return a successful DispatchResult
+             Ok(())
+         }
+    
     }
 }
 // function to validate a json string for no/std. It does not allocate of memory
@@ -1954,18 +2102,14 @@ fn json_check_validity(j:Vec<u8>) -> bool{
         if b==b']' && s && ps==false {
             ps=true;
         }
-        else if b==b']' && s && ps==true {
-            ps=false;
-        }
+
         if b==b'{' && s {
             pg=false;
         }
         if b==b'}' && s && pg==false {
             pg=true;
         }
-        else if b==b'}' && s && pg==true {
-            pg=false;
-        }
+
         if b == b'"' && s && bp != b'\\' {
             s=false;
             bp=b;
@@ -1985,6 +2129,7 @@ fn json_check_validity(j:Vec<u8>) -> bool{
         }
         bp=b;
     }
+
     //fields are not closed properly
     if !s {
         return false;
@@ -1995,6 +2140,10 @@ fn json_check_validity(j:Vec<u8>) -> bool{
     }
     //fields are not closed properly
     if !ps {
+        return false;
+    }
+    //fields are not closed properly
+    if !pg {
         return false;
     }
     // every ok returns true
