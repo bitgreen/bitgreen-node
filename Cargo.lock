@@ -4493,6 +4493,7 @@ dependencies = [
  "parity-scale-codec",
  "primitive-types 0.7.3",
  "rand 0.7.3",
+ "regex",
  "serde",
  "sp-core",
  "sp-io",
