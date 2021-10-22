@@ -9,7 +9,6 @@ use frame_system::{ensure_root,ensure_signed};
 use sp_std::prelude::*;
 use core::str;
 use core::str::FromStr;
-use regex::Regex;
 #[cfg(test)]
 mod mock;
 

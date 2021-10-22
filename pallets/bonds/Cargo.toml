@@ -49,6 +49,5 @@ std = [
     'sp-io/std',
     'sp-core/std',
     'hex/std',
-    'bs58/std',
-    'regex/std'
+    'bs58/std'
 ]
