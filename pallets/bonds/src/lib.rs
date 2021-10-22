@@ -9,6 +9,7 @@ use frame_system::{ensure_root,ensure_signed};
 use sp_std::prelude::*;
 use core::str;
 use core::str::FromStr;
+
 #[cfg(test)]
 mod mock;
 
@@ -2113,7 +2114,7 @@ decl_module! {
          
         #[weight = 1000] 
         pub fn interbankrate_create(origin, country_code: Vec<u8>, date: Vec<u8>, rate: u32) -> dispatch::DispatchResult {
-            let signer =  ensure_root(origin)?;
+            ensure_root(origin)?;
            
             // check country
             ensure!(IsoCountries::contains_key(&country_code), Error::<T>::CountryCodeNotFound);
@@ -2131,7 +2132,7 @@ decl_module! {
         /// Create Interbank Rate
         #[weight = 1000]
         pub fn interbankrate_destroy(origin, country_code: Vec<u8>, date: Vec<u8>) -> dispatch::DispatchResult {
-            let signer =  ensure_root(origin)?;
+            ensure_root(origin)?;
             
             // check country
             ensure!(IsoCountries::contains_key(&country_code), Error::<T>::CountryCodeNotFound);            
@@ -2145,7 +2146,7 @@ decl_module! {
     
         #[weight = 1000] 
         pub fn inflationrate_create(origin, country_code: Vec<u8>, date: Vec<u8>, rate: u32) -> dispatch::DispatchResult {
-            let signer =  ensure_root(origin)?;
+            ensure_root(origin)?;
            
             // check country
             ensure!(IsoCountries::contains_key(&country_code), Error::<T>::CountryCodeNotFound);
@@ -2163,7 +2164,7 @@ decl_module! {
         /// Create Interbank Rate
         #[weight = 1000]
         pub fn inflationrate_destroy(origin, country_code: Vec<u8>, date: Vec<u8>) -> dispatch::DispatchResult {
-            let signer =  ensure_root(origin)?;
+            ensure_root(origin)?;
             
             // check country
             ensure!(IsoCountries::contains_key(&country_code), Error::<T>::CountryCodeNotFound);            
@@ -2174,8 +2175,6 @@ decl_module! {
             // Return a successful DispatchResult
             Ok(())
         }
-
-          
     }
 }
 // function to validate a json string for no/std. It does not allocate of memory
