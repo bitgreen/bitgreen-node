@@ -30,8 +30,6 @@ primitive-types =  { default-features = false, version = '0.7.3'}
 rand =  { default-features = false, version = '0.7.3'}
 hex = { default-features = false, version = '0.4'}
 bs58 = { default-features = false, version = '0.4.0',features=['alloc']}
-regex = { default-features = false, version = '1.5.4'} 
-
 
 [dev-dependencies]
 serde = { version = "1.0.119" }
@@ -52,5 +50,4 @@ std = [
     'sp-core/std',
     'hex/std',
     'bs58/std',
-    'regex/std'
 ]
