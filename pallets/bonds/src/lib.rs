@@ -9,6 +9,7 @@ use frame_system::{ensure_root,ensure_signed};
 use sp_std::prelude::*;
 use core::str;
 use core::str::FromStr;
+use regex::Regex;
 #[cfg(test)]
 mod mock;
 
@@ -55,13 +56,15 @@ decl_storage! {
         Underwriters get(fn get_underwriter): map hasher(blake2_128_concat) T::AccountId => Option<Vec<u8>>;
         // Insurer data
         Insurers get(fn get_insurer): map hasher(blake2_128_concat) T::AccountId => Option<Vec<u8>>;
-        // Insurance data
-        Insurances get(fn get_insurance): map hasher(blake2_128_concat) u32 => Option<Vec<u8>>;
+        // Insurance Data
+        Insurances get(fn get_insurance): double_map hasher(blake2_128_concat) T::AccountId, hasher(blake2_128_concat) u32 => Option<Vec<u8>>;
+        // Insurances Signed from Payer
+        InsurancesSigned get(fn get_insurance_signature): double_map hasher(blake2_128_concat) T::AccountId, hasher(blake2_128_concat) u32 => Option<T::AccountId>;
         // Lawyers data
         Lawyers get(fn get_lawyer): map hasher(blake2_128_concat) T::AccountId => Option<Vec<u8>>;
         // InterbankRate data
         InterbankRates get(fn get_interbank_rate): double_map hasher(blake2_128_concat) Vec<u8>, hasher(blake2_128_concat) Vec<u8> => Option<u32>;
-	    // InterbankRate data
+	     // InterbankRate data
         InflationRates get(fn get_inflation_rate): double_map hasher(blake2_128_concat) Vec<u8>, hasher(blake2_128_concat) Vec<u8> => Option<u32>;
     }
 }
@@ -92,14 +95,15 @@ decl_event!(
         FundSignedforApproval(AccountId,AccountId),     // Fund has been signed for approval
         InsurerCreated(AccountId,Vec<u8>),              // Insurer has been stored/updated
         InsurerDestroyed(AccountId),                    // Insurer has been destroyed
-        InsuranceCreated(u32,Vec<u8>),                  // Insurance has been created
+        InsuranceCreated(AccountId,u32,Vec<u8>),        // Insurance has been created
+        InsuranceDestroyed(AccountId,u32),              // Insurance has been destroyed
+        InsuranceSigned(AccountId,u32,AccountId),       // Insurance signed
         LawyerCreated(AccountId, Vec<u8>),              // A Lawyer has been created
         LawyerDestroyed(AccountId),                     // A Lawyer opinion has been destroyed
         InterbankRateCreated(Vec<u8>,Vec<u8>),          // An InterbankRate has been created
         InterbankRateDestroyed(Vec<u8>,Vec<u8>),        // An InterbankRate has been destroyed
         InflationRateCreated(Vec<u8>,Vec<u8>),          // An Inflation Rate has been created
         InflationRateDestroyed(Vec<u8>,Vec<u8>),        // An Inflation Rate has been destroyed
-        
 	}
 
 );
@@ -485,6 +489,10 @@ decl_error! {
        SignerIsNotAuthorizedForSubmissionOrRemoval,
        /// Account if has not  been found
        AccountNotFound,
+       /// Insurance cannot be found
+       InsuranceNotFound,
+       /// Insurance has been already signed
+       InsuranceAlreadySigned,
        /// The date format is not in  YYYY-MM-DD format
        InvalidDateFormat
 	}
@@ -1909,6 +1917,7 @@ decl_module! {
         }
         /// Create an Insurance - Initially as proposal, it's confirmed once signed and the premium paid from the payer
         /// {"bondid":xxx,"maxcoverage":xxxx,"payer":"xxxxxxxxx","beneficiary":"xxxxoptionalxxxx","premium":xxxxxx,"infodocuments":"xxxxxx"}
+        /// TODO: Check minimum reserve of staked deposit
         #[weight = 1000]
         pub fn insurance_create(origin, uid: u32, info: Vec<u8>) -> dispatch::DispatchResult {
             let signer =  ensure_signed(origin)?;
@@ -1941,11 +1950,40 @@ decl_module! {
             let infodocuments=json_get_value(info.clone(),"infodocuments".as_bytes().to_vec());
             ensure!(infodocuments.len()>=1, Error::<T>::MissingInsuranceInfoDocuments);
             //check insurance Id is not already present
-            ensure!(!Insurances::contains_key(&uid), Error::<T>::InsuranceIdAlreadyPresent);
+            ensure!(!Insurances::<T>::contains_key(signer.clone(),&uid), Error::<T>::InsuranceIdAlreadyPresent);
             // store insurance
-            Insurances::insert(uid.clone(),info.clone());
+            Insurances::<T>::insert(signer.clone(),uid.clone(),info.clone());
             // Generate event
-            Self::deposit_event(RawEvent::InsuranceCreated(uid, info));
+            Self::deposit_event(RawEvent::InsuranceCreated(signer,uid, info));
+            // Return a successful DispatchResult
+            Ok(())
+        }
+        /// Sign an Insurance
+        /// TODO - CHARGE THE SIGNER FOR THE PREMIUM
+        #[weight = 1000]
+        pub fn insurance_sign(origin, insurer_account: T::AccountId,uid: u32) -> dispatch::DispatchResult {
+            let signer =  ensure_signed(origin)?;
+            // verify the insurance existance
+            ensure!(Insurances::<T>::contains_key(insurer_account.clone(),uid.clone()), Error::<T>::InsuranceNotFound);
+            // verify not already signed
+            ensure!(!InsurancesSigned::<T>::contains_key(insurer_account.clone(),uid.clone()), Error::<T>::InsuranceAlreadySigned);
+            // store the signature
+            InsurancesSigned::<T>::insert(insurer_account.clone(),uid.clone(),signer.clone());
+            // Generate event
+            Self::deposit_event(RawEvent::InsuranceSigned(insurer_account,uid,signer));
+            // Return a successful DispatchResult
+            Ok(())
+        }
+        /// Destroy an Insurance
+        #[weight = 1000]
+        pub fn insurance_destroy(origin, uid: u32) -> dispatch::DispatchResult {
+            let signer =  ensure_signed(origin)?;
+            // verify the insurance existance
+            ensure!(Insurances::<T>::contains_key(signer.clone(),uid.clone()), Error::<T>::InsuranceNotFound);
+            // Remove the Insurance
+            Insurances::<T>::take(signer.clone(),uid.clone());
+            // Generate event
+            Self::deposit_event(RawEvent::InsuranceDestroyed(signer,uid));
             // Return a successful DispatchResult
             Ok(())
         }
@@ -2105,7 +2143,7 @@ decl_module! {
             // Return a successful DispatchResult
             Ok(())
         }
-  
+    
         #[weight = 1000] 
         pub fn inflationrate_create(origin, country_code: Vec<u8>, date: Vec<u8>, rate: u32) -> dispatch::DispatchResult {
             let signer =  ensure_root(origin)?;
@@ -2137,6 +2175,7 @@ decl_module! {
             // Return a successful DispatchResult
             Ok(())
         }
+
           
     }
 }
