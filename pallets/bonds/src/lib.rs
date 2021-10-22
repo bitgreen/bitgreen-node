@@ -9,7 +9,6 @@ use frame_system::{ensure_root,ensure_signed};
 use sp_std::prelude::*;
 use core::str;
 use core::str::FromStr;
-use regex::Regex;
 #[cfg(test)]
 mod mock;
 
@@ -64,7 +63,9 @@ decl_storage! {
         Lawyers get(fn get_lawyer): map hasher(blake2_128_concat) T::AccountId => Option<Vec<u8>>;
         // InterbankRate data
         InterbankRates get(fn get_interbank_rate): double_map hasher(blake2_128_concat) Vec<u8>, hasher(blake2_128_concat) Vec<u8> => Option<u32>;
-	}
+	     // InterbankRate data
+        InflationRates get(fn get_inflation_rate): double_map hasher(blake2_128_concat) Vec<u8>, hasher(blake2_128_concat) Vec<u8> => Option<u32>;
+    }
 }
 
 // We generate events to inform the users of succesfully actions.
@@ -98,8 +99,10 @@ decl_event!(
         InsuranceSigned(AccountId,u32,AccountId),       // Insurance signed
         LawyerCreated(AccountId, Vec<u8>),              // A Lawyer has been created
         LawyerDestroyed(AccountId),                     // A Lawyer opinion has been destroyed
-        InterbankRateCreated(Vec<u8>,Vec<u8>),      // An InterbankRate has been created
-        InterbankRateDestroyed(Vec<u8>,Vec<u8>),         // An InterbankRate has been destroyed
+        InterbankRateCreated(Vec<u8>,Vec<u8>),          // An InterbankRate has been created
+        InterbankRateDestroyed(Vec<u8>,Vec<u8>),        // An InterbankRate has been destroyed
+        InflationRateCreated(Vec<u8>,Vec<u8>),          // An Inflation Rate has been created
+        InflationRateDestroyed(Vec<u8>,Vec<u8>),        // An Inflation Rate has been destroyed
 	}
 
 );
@@ -489,7 +492,6 @@ decl_error! {
        InsuranceNotFound,
        /// Insurance has been already signed
        InsuranceAlreadySigned,
-
        /// The date format is not in  YYYY-MM-DD format
        InvalidDateFormat
 	}
@@ -2109,14 +2111,14 @@ decl_module! {
     
          /// Create Interbank Rate
          
-         #[weight = 1000] 
+        #[weight = 1000] 
         pub fn interbankrate_create(origin, country_code: Vec<u8>, date: Vec<u8>, rate: u32) -> dispatch::DispatchResult {
             let signer =  ensure_root(origin)?;
            
             // check country
             ensure!(IsoCountries::contains_key(&country_code), Error::<T>::CountryCodeNotFound);
            
-            ensure!(validate_date_format(&date), Error::<T>::InvalidDateFormat);
+            ensure!(validate_date(&date), Error::<T>::InvalidDateFormat);
 
             // Store Interbank info
             InterbankRates::insert(country_code.clone(),date.clone(),rate);
@@ -2140,7 +2142,39 @@ decl_module! {
             // Return a successful DispatchResult
             Ok(())
         }
-  
+    
+        #[weight = 1000] 
+        pub fn inflationrate_create(origin, country_code: Vec<u8>, date: Vec<u8>, rate: u32) -> dispatch::DispatchResult {
+            let signer =  ensure_root(origin)?;
+           
+            // check country
+            ensure!(IsoCountries::contains_key(&country_code), Error::<T>::CountryCodeNotFound);
+           
+            ensure!(validate_date(&date), Error::<T>::InvalidDateFormat);
+
+            // Store inflation rate info
+            InflationRates::insert(country_code.clone(),date.clone(),rate);
+            // Generate event
+            Self::deposit_event(RawEvent::InflationRateCreated(country_code,date));
+            // Return a successful DispatchResult
+            Ok(())
+        }
+
+        /// Create Interbank Rate
+        #[weight = 1000]
+        pub fn inflationrate_destroy(origin, country_code: Vec<u8>, date: Vec<u8>) -> dispatch::DispatchResult {
+            let signer =  ensure_root(origin)?;
+            
+            // check country
+            ensure!(IsoCountries::contains_key(&country_code), Error::<T>::CountryCodeNotFound);            
+            // Store Interbank info
+            InflationRates::take(country_code.clone(),date.clone());
+            // Generate event
+            Self::deposit_event(RawEvent::InflationRateDestroyed(country_code,date));
+            // Return a successful DispatchResult
+            Ok(())
+        }
+
           
     }
 }
@@ -2739,16 +2773,66 @@ fn validate_weburl(weburl:Vec<u8>) -> bool {
 }
 
 //function to validate YYYY-MM-DD date format
-fn validate_date_format(date: &Vec<u8>) -> bool {
-    let stringed_date =str::from_utf8(&date).unwrap();
+const DASH_AS_BYTE: u8 = 45;
 
-    let yyyymmdd_regex = Regex::new(r"(\d{4})-(\d{2})-(\d{2})").unwrap();
+fn validate_date(date_vec: &Vec<u8>) -> bool {
+
+    let str_date  = str::from_utf8(&date_vec).unwrap();
+   // check date length is correct YYYY-MM-DD
+   
+    if str_date.len() != 10 {return false}
+    if date_vec.clone()[4] != DASH_AS_BYTE ||
+     date_vec.clone()[7] != DASH_AS_BYTE  {return false}
     
-    let result = yyyymmdd_regex.captures(stringed_date);
+    let year = &str_date[0..=3];
+    let month = &str_date[5..=6];
+    let day = &str_date[8..=9];
+    if !is_year_valid(year) || !is_day_valid(day) || !is_month_valid(month) {
+        return false
+    }
     
-    if result.is_some(){
-    return true
-    } 
-    false
+    true
 }
 
+fn is_year_valid(year: &str) -> bool{
+
+    let year_u16_res = year.clone().parse();
+
+    if !year_u16_res.is_ok(){
+        return false
+    }
+    let year_u16: u16 = year_u16_res.unwrap();
+
+    if year_u16  < 1900 || year_u16 > 2100 {
+        return false
+    }
+    true
+}
+
+fn is_day_valid(day: &str) -> bool {
+
+    let day_u8_res = day.clone().parse();
+    if !day_u8_res.is_ok(){
+        return false
+    }
+    let day_u8: u8 = day_u8_res.unwrap();
+    
+    if day_u8 < 1 || day_u8 > 31 {
+        return false
+    }
+    true
+}
+
+fn is_month_valid(month: &str) -> bool {
+
+    let month_u8_res = month.clone().parse();
+    if !month_u8_res.is_ok(){
+        return false
+    }
+    let month_u8: u8 = month_u8_res.unwrap();
+    
+    if month_u8 <1 || month_u8 > 12 {
+        return false
+    }
+    true
+}
