@@ -9,6 +9,7 @@ use frame_system::{ensure_root,ensure_signed};
 use sp_std::prelude::*;
 use core::str;
 use core::str::FromStr;
+use regex::Regex;
 #[cfg(test)]
 mod mock;
 
@@ -55,10 +56,12 @@ decl_storage! {
         Underwriters get(fn get_underwriter): map hasher(blake2_128_concat) T::AccountId => Option<Vec<u8>>;
         // Insurer data
         Insurers get(fn get_insurer): map hasher(blake2_128_concat) T::AccountId => Option<Vec<u8>>;
-        // Insurance Data
+        // Insurance data
         Insurances get(fn get_insurance): map hasher(blake2_128_concat) u32 => Option<Vec<u8>>;
         // Lawyers data
         Lawyers get(fn get_lawyer): map hasher(blake2_128_concat) T::AccountId => Option<Vec<u8>>;
+        // InterbankRate data
+        InterbankRates get(fn get_interbank_rate): double_map hasher(blake2_128_concat) Vec<u8>, hasher(blake2_128_concat) Vec<u8> => Option<u32>;
 	}
 }
 
@@ -91,6 +94,8 @@ decl_event!(
         InsuranceCreated(u32,Vec<u8>),                  // Insurance has been created
         LawyerCreated(AccountId, Vec<u8>),              // A Lawyer has been created
         LawyerDestroyed(AccountId),                     // A Lawyer opinion has been destroyed
+        InterbankRateCreated(Vec<u8>,Vec<u8>),      // An InterbankRate has been created
+        InterbankRateDestroyed(Vec<u8>,Vec<u8>),         // An InterbankRate has been destroyed
 	}
 
 );
@@ -476,7 +481,8 @@ decl_error! {
        SignerIsNotAuthorizedForSubmissionOrRemoval,
        /// Account if has not  been found
        AccountNotFound,
-
+       /// The date format is not in  YYYY-MM-DD format
+       InvalidDateFormat
 	}
 }
 
@@ -2062,6 +2068,41 @@ decl_module! {
              Ok(())
          }
     
+         /// Create Interbank Rate
+         
+         #[weight = 1000] 
+        pub fn interbankrate_create(origin, country_code: Vec<u8>, date: Vec<u8>, rate: u32) -> dispatch::DispatchResult {
+            let signer =  ensure_root(origin)?;
+           
+            // check country
+            ensure!(IsoCountries::contains_key(&country_code), Error::<T>::CountryCodeNotFound);
+           
+            ensure!(validate_date_format(&date), Error::<T>::InvalidDateFormat);
+
+            // Store Interbank info
+            InterbankRates::insert(country_code.clone(),date.clone(),rate);
+            // Generate event
+            Self::deposit_event(RawEvent::InterbankRateCreated(country_code,date));
+            // Return a successful DispatchResult
+            Ok(())
+        }
+
+        /// Create Interbank Rate
+        #[weight = 1000]
+        pub fn interbankrate_destroy(origin, country_code: Vec<u8>, date: Vec<u8>) -> dispatch::DispatchResult {
+            let signer =  ensure_root(origin)?;
+            
+            // check country
+            ensure!(IsoCountries::contains_key(&country_code), Error::<T>::CountryCodeNotFound);            
+            // Store Interbank info
+            InterbankRates::take(country_code.clone(),date.clone());
+            // Generate event
+            Self::deposit_event(RawEvent::InterbankRateDestroyed(country_code,date));
+            // Return a successful DispatchResult
+            Ok(())
+        }
+  
+          
     }
 }
 // function to validate a json string for no/std. It does not allocate of memory
@@ -2658,4 +2699,17 @@ fn validate_weburl(weburl:Vec<u8>) -> bool {
     return valid;
 }
 
+//function to validate YYYY-MM-DD date format
+fn validate_date_format(date: &Vec<u8>) -> bool {
+    let stringed_date =str::from_utf8(&date).unwrap();
+
+    let yyyymmdd_regex = Regex::new(r"(\d{4})-(\d{2})-(\d{2})").unwrap();
+    
+    let result = yyyymmdd_regex.captures(stringed_date);
+    
+    if result.is_some(){
+    return true
+    } 
+    false
+}
 
