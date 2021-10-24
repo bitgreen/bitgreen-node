@@ -58,6 +58,8 @@ decl_storage! {
 	trait Store for Module<T: Config> as VCUModule {
 		/// VCUs stored in system
 		VCUs get(fn get_vcu): map hasher(blake2_128_concat) u32 => Vec<VCU>;
+		/// Settings configuration, we define some administrator accounts for the pallet VCU without using th super user account.
+		Settings get(fn get_settings): map hasher(blake2_128_concat) Vec<u8> => Option<Vec<u8>>;
 	}
 }
 
@@ -67,6 +69,10 @@ decl_event!(
 		VCUStored(u32),
 		/// A VCU was updated.
 		VCUUpdated(u32, AccountId),
+		/// New proxy setting has been created.
+		SettingsCreated(Vec<u8>,Vec<u8>),
+		/// Proxy setting has been destroyed.
+        SettingsDestroyed(Vec<u8>),
 	}
 );
 
@@ -76,6 +82,14 @@ decl_error! {
 		InvalidIPFSHash,
 		/// Invalid Project id
 		InvalidPidLength,
+        /// Settings Key has not been found on the blockchain
+        SettingsKeyNotFound,
+        /// Settings data is too short to be valid
+        SettingsJsonTooShort,
+        /// Settings data is too long to be valid
+        SettingsJsonTooLong,
+        /// Invalid Json structure
+        InvalidJson,
 	}
 }
 
@@ -113,5 +127,117 @@ decl_module! {
 			Self::deposit_event(RawEvent::VCUStored(pid));
 			Ok(())
 		}
+
+		/// Create new proxy setting
+		///
+		/// `create_proxy_settings` will accept `accounts` as parameter
+		/// and create new proxy setting in system with key `admin`
+		///
+		/// The dispatch origin for this call must be `Signed` by the Root.
+		#[weight = 10_000 + T::DbWeight::get().writes(1)]
+		pub fn create_proxy_settings(origin, accounts: Vec<u8>) -> DispatchResult {
+
+			ensure_root(origin)?;
+
+			//check accounts json length
+			ensure!(accounts.len() > 12, Error::<T>::SettingsJsonTooShort);
+            ensure!(accounts.len() < 8192, Error::<T>::SettingsJsonTooLong);
+
+			// check json validity
+			let js=accounts.clone();
+			ensure!(Self::json_check_validity(js),Error::<T>::InvalidJson);
+
+			 // Generate event
+			Self::deposit_event(RawEvent::SettingsCreated(key,accounts));
+			// Return a successful DispatchResult
+			Ok(())
+		}
+
+	}
+}
+
+impl<T: Config> Module<T> {
+
+	// function to validate a json string for no/std. It does not allocate of memory
+	fn json_check_validity(j:Vec<u8>) -> bool{
+		// minimum lenght of 2
+		if j.len()<2 {
+			return false;
+		}
+		// checks star/end with {}
+		if *j.get(0).unwrap()==b'{' && *j.get(j.len()-1).unwrap()!=b'}' {
+			return false;
+		}
+		// checks start/end with []
+		if *j.get(0).unwrap()==b'[' && *j.get(j.len()-1).unwrap()!=b']' {
+			return false;
+		}
+		// check that the start is { or [
+		if *j.get(0).unwrap()!=b'{' && *j.get(0).unwrap()!=b'[' {
+			return false;
+		}
+		//checks that end is } or ]
+		if *j.get(j.len()-1).unwrap()!=b'}' && *j.get(j.len()-1).unwrap()!=b']' {
+			return false;
+		}
+		//checks " opening/closing and : as separator between name and values
+		let mut s:bool=true;
+		let mut d:bool=true;
+		let mut pg:bool=true;
+		let mut ps:bool=true;
+		let mut bp = b' ';
+		for b in j {
+			if b==b'[' && s {
+				ps=false;
+			}
+			if b==b']' && s && ps==false {
+				ps=true;
+			}
+
+			if b==b'{' && s {
+				pg=false;
+			}
+			if b==b'}' && s && pg==false {
+				pg=true;
+			}
+
+			if b == b'"' && s && bp != b'\\' {
+				s=false;
+				bp=b;
+				d=false;
+				continue;
+			}
+			if b == b':' && s {
+				d=true;
+				bp=b;
+				continue;
+			}
+			if b == b'"' && !s && bp != b'\\' {
+				s=true;
+				bp=b;
+				d=true;
+				continue;
+			}
+			bp=b;
+		}
+
+		//fields are not closed properly
+		if !s {
+			return false;
+		}
+		//fields are not closed properly
+		if !d {
+			return false;
+		}
+		//fields are not closed properly
+		if !ps {
+			return false;
+		}
+		//fields are not closed properly
+		if !pg {
+			return false;
+		}
+		// every ok returns true
+		return true;
 	}
 }
