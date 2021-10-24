@@ -82,6 +82,8 @@ decl_error! {
 		InvalidIPFSHash,
 		/// Invalid Project id
 		InvalidPidLength,
+		/// Settings Key already exists
+        SettingsKeyExists,
         /// Settings Key has not been found on the blockchain
         SettingsKeyNotFound,
         /// Settings data is too short to be valid
@@ -130,6 +132,7 @@ decl_module! {
 
 		/// Create new proxy setting
 		///
+		/// key=="admin" {"accounts": ["accountid1", "accountid2"] }
 		/// `create_proxy_settings` will accept `accounts` as parameter
 		/// and create new proxy setting in system with key `admin`
 		///
@@ -147,12 +150,38 @@ decl_module! {
 			let js=accounts.clone();
 			ensure!(Self::json_check_validity(js),Error::<T>::InvalidJson);
 
-			 // Generate event
+			let key = "admin".as_bytes().to_vec();
+
+			// check whether setting key already exists
+			ensure!(!Settings::contains_key(&key), Error::<T>::SettingsKeyExists);
+
+			Settings::insert(key.clone(),accounts.clone());
+			// Generate event
 			Self::deposit_event(RawEvent::SettingsCreated(key,accounts));
 			// Return a successful DispatchResult
 			Ok(())
 		}
 
+		/// Destroy proxy setting
+		///
+		/// The dispatch origin for this call must be `Signed` by the Root.
+		#[weight = 10_000 + T::DbWeight::get().writes(1)]
+		pub fn destroy_proxy_settings(origin) -> DispatchResult {
+
+			ensure_root(origin)?;
+
+			let key = "admin".as_bytes().to_vec();
+
+			// check whether setting key exists or not
+			ensure!(Settings::contains_key(&key), Error::<T>::SettingsKeyNotFound);
+
+			Settings::remove(key.clone());
+
+			// Generate event
+			Self::deposit_event(RawEvent::SettingsDestroyed(key));
+			// Return a successful DispatchResult
+			Ok(())
+		}
 	}
 }
 
