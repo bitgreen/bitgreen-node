@@ -87,3 +87,54 @@ fn destroy_proxy_settings_should_not_work_for_non_existing_key() {
 		);
 	});
 }
+
+#[test]
+fn add_new_authorized_accounts_should_work() {
+	new_test_ext().execute_with(|| {
+		assert_ok!(VCU::add_authorized_account(Origin::root(), 1, b"Verra".to_vec()));
+		assert_eq!(VCU::get_authorized_accounts(1), b"Verra".to_vec());
+	});
+}
+
+#[test]
+fn update_existing_authorized_accounts_should_work() {
+	new_test_ext().execute_with(|| {
+		assert_ok!(VCU::add_authorized_account(Origin::root(), 1, b"Verra".to_vec()));
+		assert_eq!(VCU::get_authorized_accounts(1), b"Verra".to_vec());
+
+		assert_ok!(VCU::add_authorized_account(Origin::root(), 1, b"Verra22".to_vec()));
+		assert_eq!(VCU::get_authorized_accounts(1), b"Verra22".to_vec());
+
+	});
+}
+
+#[test]
+fn add_authorized_accounts_should_not_work_for_invalid_description() {
+	new_test_ext().execute_with(|| {
+		assert_noop!(
+			VCU::add_authorized_account(Origin::root(), 1, b"".to_vec()),
+			Error::<Test>::InvalidDescription
+		);
+	});
+}
+
+#[test]
+fn destroy_authorized_accounts_should_work() {
+	new_test_ext().execute_with(|| {
+		assert_ok!(VCU::add_authorized_account(Origin::root(), 1, b"Verra".to_vec()));
+		assert_eq!(VCU::get_authorized_accounts(1), b"Verra".to_vec());
+
+		assert_ok!(VCU::destroy_authorized_account(Origin::root(), 1));
+		assert_eq!(VCU::get_authorized_accounts(1), b"".to_vec());
+	});
+}
+
+#[test]
+fn destroy_authorized_accounts_should_not_work_for_non_existing_account() {
+	new_test_ext().execute_with(|| {
+		assert_noop!(
+			VCU::destroy_authorized_account(Origin::root(), 1),
+			Error::<Test>::AuthorizedAccountsAGVNotFound
+		);
+	});
+}
