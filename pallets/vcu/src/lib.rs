@@ -58,8 +58,10 @@ decl_storage! {
 	trait Store for Module<T: Config> as VCUModule {
 		/// VCUs stored in system
 		VCUs get(fn get_vcu): map hasher(blake2_128_concat) u32 => Vec<VCU>;
-		/// Settings configuration, we define some administrator accounts for the pallet VCU without using th super user account.
+		/// Settings configuration, we define some administrator accounts for the pallet VCU without using the super user account.
 		Settings get(fn get_settings): map hasher(blake2_128_concat) Vec<u8> => Option<Vec<u8>>;
+		/// AuthorizedAccountsAGV, we define authorized accounts to store/change the Assets Generating VCU (Verified Carbon Credit).
+		AuthorizedAccountsAGV get(fn get_authorized_accounts): map hasher(blake2_128_concat) T::AccountId => Vec<u8>;
 	}
 }
 
@@ -73,6 +75,10 @@ decl_event!(
 		SettingsCreated(Vec<u8>,Vec<u8>),
 		/// Proxy setting has been destroyed.
         SettingsDestroyed(Vec<u8>),
+		/// Added authorized account.
+        AuthorizedAccountAdded(AccountId),
+		/// Destroyed authorized account.
+        AuthorizedAccountsAGVDestroyed(AccountId),
 	}
 );
 
@@ -92,6 +98,10 @@ decl_error! {
         SettingsJsonTooLong,
         /// Invalid Json structure
         InvalidJson,
+		/// Invalid Description
+		InvalidDescription,
+		/// AuthorizedAccountsAGV has not been found on the blockchain
+		AuthorizedAccountsAGVNotFound,
 	}
 }
 
@@ -179,6 +189,46 @@ decl_module! {
 
 			// Generate event
 			Self::deposit_event(RawEvent::SettingsDestroyed(key));
+			// Return a successful DispatchResult
+			Ok(())
+		}
+
+		/// Store/update an AuthorizedAccountsAGV
+		///
+		/// `add_authorized_accounts` will accept `account_id` and `description` as parameter
+		///
+		/// The dispatch origin for this call must be `Signed` by the Root.
+		#[weight = 10_000 + T::DbWeight::get().writes(1)]
+		pub fn add_authorized_account(origin, account_id: T::AccountId, description: Vec<u8>) -> DispatchResult {
+
+			ensure_root(origin)?;
+			ensure!(description.len()!=0, Error::<T>::InvalidDescription);
+
+			AuthorizedAccountsAGV::<T>::try_mutate_exists(account_id.clone(), |desc| {
+				*desc = Some(description);
+
+				// Generate event
+				Self::deposit_event(RawEvent::AuthorizedAccountAdded(account_id));
+				// Return a successful DispatchResult
+				Ok(())
+			})
+		}
+
+		/// Destroy an AuthorizedAccountsAGV
+		///
+		/// The dispatch origin for this call must be `Signed` by the Root.
+		#[weight = 10_000 + T::DbWeight::get().writes(1)]
+		pub fn destroy_authorized_account(origin, account_id: T::AccountId) -> DispatchResult {
+
+			ensure_root(origin)?;
+
+			// check whether authorized account exists or not
+			ensure!(AuthorizedAccountsAGV::<T>::contains_key(&account_id), Error::<T>::AuthorizedAccountsAGVNotFound);
+
+			AuthorizedAccountsAGV::<T>::remove(account_id.clone());
+
+			// Generate event
+			Self::deposit_event(RawEvent::AuthorizedAccountsAGVDestroyed(account_id));
 			// Return a successful DispatchResult
 			Ok(())
 		}
