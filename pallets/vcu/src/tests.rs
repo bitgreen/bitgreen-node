@@ -1,5 +1,6 @@
 use crate::{Error, mock::*};
 use frame_support::{assert_ok, assert_noop};
+use sp_runtime::DispatchError::BadOrigin;
 
 #[test]
 fn create_vcu_should_work() {
@@ -135,6 +136,27 @@ fn destroy_authorized_accounts_should_not_work_for_non_existing_account() {
 		assert_noop!(
 			VCU::destroy_authorized_account(Origin::root(), 1),
 			Error::<Test>::AuthorizedAccountsAGVNotFound
+		);
+	});
+}
+
+#[test]
+fn create_asset_generating_vcu_should_work_if_signed_by_root_or_authorized_user() {
+	new_test_ext().execute_with(|| {
+		assert_ok!(VCU::create_asset_generating_vcu(Origin::root(), 1, 1, b"Verra".to_vec()));
+		assert_eq!(VCU::asset_generating_vcu(1, 1), b"Verra".to_vec());
+
+		assert_ok!(VCU::add_authorized_account(Origin::root(), 11, b"Verra".to_vec()));
+		assert_ok!(VCU::create_asset_generating_vcu(Origin::signed(11), 1, 1, b"Verra".to_vec()));
+	});
+}
+
+#[test]
+fn create_asset_generating_vcu_should_not_work_if_not_signed_by_root_or_authorized_user() {
+	new_test_ext().execute_with(|| {
+		assert_noop!(
+			VCU::create_asset_generating_vcu(Origin::signed(11), 1, 1, b"Verra".to_vec()),
+			BadOrigin
 		);
 	});
 }

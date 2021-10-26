@@ -19,7 +19,7 @@
 use frame_support::{decl_module, decl_storage, decl_event, decl_error, ensure, traits::Get};
 use primitives::Balance;
 use codec::{Decode, Encode};
-use frame_system::ensure_root;
+use frame_system::{ensure_root, ensure_signed};
 use frame_support::dispatch::DispatchResult;
 use frame_support::traits::Vec;
 #[cfg(feature = "std")]
@@ -62,6 +62,8 @@ decl_storage! {
 		Settings get(fn get_settings): map hasher(blake2_128_concat) Vec<u8> => Option<Vec<u8>>;
 		/// AuthorizedAccountsAGV, we define authorized accounts to store/change the Assets Generating VCU (Verified Carbon Credit).
 		AuthorizedAccountsAGV get(fn get_authorized_accounts): map hasher(blake2_128_concat) T::AccountId => Vec<u8>;
+		/// AssetsGeneratingVCU (Verified Carbon Credit) should be stored on chain from the authorized accounts.
+		AssetsGeneratingVCU get(fn asset_generating_vcu): double_map hasher(blake2_128_concat) T::AccountId, hasher(blake2_128_concat) u32 => Vec<u8>;
 	}
 }
 
@@ -79,6 +81,8 @@ decl_event!(
         AuthorizedAccountAdded(AccountId),
 		/// Destroyed authorized account.
         AuthorizedAccountsAGVDestroyed(AccountId),
+		/// AssetsGeneratingVCU has been stored.
+        AssetsGeneratingVCUCreated(u32),
 	}
 );
 
@@ -231,6 +235,37 @@ decl_module! {
 			Self::deposit_event(RawEvent::AuthorizedAccountsAGVDestroyed(account_id));
 			// Return a successful DispatchResult
 			Ok(())
+		}
+
+		/// Create new Assets Generating VCU on chain
+		///
+		/// `create_asset_generating_vcu` will accept `authorized_account`, `signer` and `json content` as parameter
+		/// and create new Assets Generating VCU in system
+		///
+		/// The dispatch origin for this call must be `Signed` either by the Root or authorized account.
+		#[weight = 10_000 + T::DbWeight::get().writes(1)]
+		pub fn create_asset_generating_vcu(origin, authorized_account: T::AccountId, signer: u32, content: Vec<u8>) -> DispatchResult {
+
+			match ensure_root(origin.clone()) {
+				Ok(()) => Ok(()),
+				Err(e) => {
+					ensure_signed(origin).and_then(|o: T::AccountId| {
+						if AuthorizedAccountsAGV::<T>::contains_key(&o) {
+							Ok(())
+						} else {
+							Err(e)
+						}
+					})
+				}
+			}?;
+			AssetsGeneratingVCU::<T>::try_mutate_exists(authorized_account, signer.clone(), |desc| {
+				*desc = Some(content);
+
+				// Generate event
+				Self::deposit_event(RawEvent::AssetsGeneratingVCUCreated(signer));
+				// Return a successful DispatchResult
+				Ok(())
+			})
 		}
 	}
 }
