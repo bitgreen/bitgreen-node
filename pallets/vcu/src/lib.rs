@@ -83,6 +83,8 @@ decl_event!(
         AuthorizedAccountsAGVDestroyed(AccountId),
 		/// AssetsGeneratingVCU has been stored.
         AssetsGeneratingVCUCreated(u32),
+		/// Destroyed AssetGeneratedVCU.
+        AssetGeneratedVCUDestroyed(u32),
 	}
 );
 
@@ -106,6 +108,18 @@ decl_error! {
 		InvalidDescription,
 		/// AuthorizedAccountsAGV has not been found on the blockchain
 		AuthorizedAccountsAGVNotFound,
+		/// Settings data is too short to be valid
+        AssetGeneratingJsonTooShort,
+        /// Settings data is too long to be valid
+        AssetGeneratingJsonTooLong,
+		/// ProofOwnership Not found
+		ProofOwnershipNotFound,
+		/// NumberofShares not found
+		NumberofSharesNotFound,
+		/// Too many NumberofShares
+		TooManyNumberofShares,
+		/// AssetGeneratedVCU has not been found on the blockchain
+		AssetGeneratedVCUNotFound,
 	}
 }
 
@@ -242,6 +256,15 @@ decl_module! {
 		/// `create_asset_generating_vcu` will accept `authorized_account`, `signer` and `json content` as parameter
 		/// and create new Assets Generating VCU in system
 		///
+		/// a value: json structure as follows:
+		/// {
+		///     Description: Vec<u8> (max 64 bytes) (mandatory)
+		///     ProofOwnership: ipfs link to a folder with the proof of ownership (mandatory)
+		///     OtherDocuments: [{description:string,ipfs:hash},{....}], (Optional)
+		///     ExpiringDateTime: DateTime, (YYYY-MM-DD hh:mm:ss) (optional)
+		///     NumberofShares: Integer (maximum 10000 shares mandatory)
+		/// }
+		///
 		/// The dispatch origin for this call must be `Signed` either by the Root or authorized account.
 		#[weight = 10_000 + T::DbWeight::get().writes(1)]
 		pub fn create_asset_generating_vcu(origin, authorized_account: T::AccountId, signer: u32, content: Vec<u8>) -> DispatchResult {
@@ -258,6 +281,25 @@ decl_module! {
 					})
 				}
 			}?;
+
+			//check accounts json length
+			ensure!(content.len() > 12, Error::<T>::AssetGeneratingJsonTooShort);
+            ensure!(content.len() < 8192, Error::<T>::AssetGeneratingJsonTooLong);
+
+			// check json validity
+			let js = content.clone();
+			ensure!(Self::json_check_validity(js),Error::<T>::InvalidJson);
+
+			let description = Self::json_get_value(content.clone(),"description".as_bytes().to_vec());
+            ensure!(description.len()!=0 && description.len()<=64 , Error::<T>::InvalidDescription);
+
+			let proof_ownership = Self::json_get_value(content.clone(),"proofOwnership".as_bytes().to_vec());
+            ensure!(proof_ownership.len()!=0 , Error::<T>::ProofOwnershipNotFound);
+
+			let number_of_shares = Self::json_get_value(content.clone(),"numberOfShares".as_bytes().to_vec());
+            ensure!(number_of_shares.len()!=0 , Error::<T>::NumberofSharesNotFound);
+			ensure!(number_of_shares.len()>10000 , Error::<T>::TooManyNumberofShares);
+
 			AssetsGeneratingVCU::<T>::try_mutate_exists(authorized_account, signer.clone(), |desc| {
 				*desc = Some(content);
 
@@ -266,6 +308,37 @@ decl_module! {
 				// Return a successful DispatchResult
 				Ok(())
 			})
+		}
+
+		/// Destroy an Asset Generated VCU
+		///
+		/// The dispatch origin for this call must be `Signed` either by the Root or authorized account.
+		#[weight = 10_000 + T::DbWeight::get().writes(1)]
+		pub fn destroy_asset_generated_vcu(origin, account_id: T::AccountId, signer: u32) -> DispatchResult {
+
+			match ensure_root(origin.clone()) {
+				Ok(()) => Ok(()),
+				Err(e) => {
+					ensure_signed(origin).and_then(|o: T::AccountId| {
+						if AuthorizedAccountsAGV::<T>::contains_key(&o) {
+							Ok(())
+						} else {
+							Err(e)
+						}
+					})
+				}
+			}?;
+
+			// check whether asset generated VCU exists or not
+			ensure!(AssetsGeneratingVCU::<T>::contains_key(&account_id, &signer), Error::<T>::AssetGeneratedVCUNotFound);
+
+			AssetsGeneratingVCU::<T>::remove(account_id, signer.clone());
+
+			// Generate event
+			Self::deposit_event(RawEvent::AssetGeneratedVCUDestroyed(signer));
+			// Return a successful DispatchResult
+			Ok(())
+
 		}
 	}
 }
@@ -353,5 +426,69 @@ impl<T: Config> Module<T> {
 		}
 		// every ok returns true
 		return true;
+	}
+
+	// function to get value of a field for Substrate runtime (no std library and no variable allocation)
+	fn json_get_value(j:Vec<u8>,key:Vec<u8>) -> Vec<u8> {
+		let mut result=Vec::new();
+		let mut k=Vec::new();
+		let keyl = key.len();
+		let jl = j.len();
+		k.push(b'"');
+		for xk in 0..keyl{
+			k.push(*key.get(xk).unwrap());
+		}
+		k.push(b'"');
+		k.push(b':');
+		let kl = k.len();
+		for x in  0..jl {
+			let mut m=0;
+			let mut xx=0;
+			if x+kl>jl {
+				break;
+			}
+			for i in x..x+kl {
+				if *j.get(i).unwrap()== *k.get(xx).unwrap() {
+					m=m+1;
+				}
+				xx=xx+1;
+			}
+			if m==kl{
+				let mut lb=b' ';
+				let mut op=true;
+				let mut os=true;
+				for i in x+kl..jl-1 {
+					if *j.get(i).unwrap()==b'[' && op==true && os==true{
+						os=false;
+					}
+					if *j.get(i).unwrap()==b'}' && op==true && os==false{
+						os=true;
+					}
+					if *j.get(i).unwrap()==b':' && op==true{
+						continue;
+					}
+					if *j.get(i).unwrap()==b'"' && op==true && lb!=b'\\' {
+						op=false;
+						continue
+					}
+					if *j.get(i).unwrap()==b'"' && op==false && lb!=b'\\' {
+						break;
+					}
+					if *j.get(i).unwrap()==b'}' && op==true{
+						break;
+					}
+					if *j.get(i).unwrap()==b']' && op==true{
+						break;
+					}
+					if *j.get(i).unwrap()==b',' && op==true && os==true{
+						break;
+					}
+					result.push(j.get(i).unwrap().clone());
+					lb=j.get(i).unwrap().clone();
+				}
+				break;
+			}
+		}
+		return result;
 	}
 }
