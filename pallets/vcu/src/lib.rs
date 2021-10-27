@@ -298,7 +298,7 @@ decl_module! {
 
 			let number_of_shares = Self::json_get_value(content.clone(),"numberOfShares".as_bytes().to_vec());
             ensure!(number_of_shares.len()!=0 , Error::<T>::NumberofSharesNotFound);
-			ensure!(number_of_shares.len()>10000 , Error::<T>::TooManyNumberofShares);
+			ensure!(number_of_shares.len()<10000 , Error::<T>::TooManyNumberofShares);
 
 			AssetsGeneratingVCU::<T>::try_mutate_exists(authorized_account, signer.clone(), |desc| {
 				*desc = Some(content);
