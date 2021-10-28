@@ -297,8 +297,10 @@ decl_module! {
             ensure!(proof_ownership.len()!=0 , Error::<T>::ProofOwnershipNotFound);
 
 			let number_of_shares = Self::json_get_value(content.clone(),"numberOfShares".as_bytes().to_vec());
+
             ensure!(number_of_shares.len()!=0 , Error::<T>::NumberofSharesNotFound);
-			ensure!(number_of_shares.len()<10000 , Error::<T>::TooManyNumberofShares);
+
+			ensure!(str::parse::<i32>(std::str::from_utf8(&number_of_shares).unwrap()).unwrap() <= 10000 , Error::<T>::TooManyNumberofShares);
 
 			AssetsGeneratingVCU::<T>::try_mutate_exists(authorized_account, signer.clone(), |desc| {
 				*desc = Some(content);
