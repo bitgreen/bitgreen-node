@@ -316,7 +316,7 @@ decl_module! {
 		///
 		/// The dispatch origin for this call must be `Signed` either by the Root or authorized account.
 		#[weight = 10_000 + T::DbWeight::get().writes(1)]
-		pub fn destroy_asset_generated_vcu(origin, account_id: T::AccountId, signer: u32) -> DispatchResult {
+		pub fn destroy_asset_generating_vcu(origin, account_id: T::AccountId, signer: u32) -> DispatchResult {
 
 			match ensure_root(origin.clone()) {
 				Ok(()) => Ok(()),
