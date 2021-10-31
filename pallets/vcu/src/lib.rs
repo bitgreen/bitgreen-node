@@ -64,6 +64,10 @@ decl_storage! {
 		AuthorizedAccountsAGV get(fn get_authorized_accounts): map hasher(blake2_128_concat) T::AccountId => Vec<u8>;
 		/// AssetsGeneratingVCU (Verified Carbon Credit) should be stored on chain from the authorized accounts.
 		AssetsGeneratingVCU get(fn asset_generating_vcu): double_map hasher(blake2_128_concat) T::AccountId, hasher(blake2_128_concat) u32 => Vec<u8>;
+		/// AssetsGeneratingVCUShares The AVG shares can be minted/burned from the Authorized account up to the maximum number set in the AssetsGeneratingVCU.
+		AssetsGeneratingVCUShares get(fn asset_generating_vcu_shares): double_map hasher(blake2_128_concat) T::AccountId, hasher(blake2_128_concat) Vec<u8>  => u32;
+		/// AssetsGeneratingVCUShares The AVG shares can be minted/burned from the Authorized account up to the maximum number set in the AssetsGeneratingVCU.
+		AssetsGeneratingVCUSharesMinted get(fn asset_generating_vcu_shares_minted): double_map hasher(blake2_128_concat) T::AccountId, hasher(blake2_128_concat) u32  => u32;
 	}
 }
 
@@ -84,7 +88,9 @@ decl_event!(
 		/// AssetsGeneratingVCU has been stored.
         AssetsGeneratingVCUCreated(u32),
 		/// Destroyed AssetGeneratedVCU.
-        AssetGeneratedVCUDestroyed(u32),
+        AssetGeneratingVCUDestroyed(u32),
+		/// Destroyed AssetGeneratedVCU.
+        AssetsGeneratingVCUSharesMinted(AccountId, u32),
 	}
 );
 
@@ -120,6 +126,8 @@ decl_error! {
 		TooManyNumberofShares,
 		/// AssetGeneratedVCU has not been found on the blockchain
 		AssetGeneratedVCUNotFound,
+		/// Invalid AVGId
+		InvalidAVGId
 	}
 }
 
@@ -264,7 +272,7 @@ decl_module! {
 		///     ExpiringDateTime: DateTime, (YYYY-MM-DD hh:mm:ss) (optional)
 		///     NumberofShares: Integer (maximum 10000 shares mandatory)
 		/// }
-		///
+		/// ex: {"description":"Description", "proofOwnership":"ipfslink", "numberOfShares":10000}
 		/// The dispatch origin for this call must be `Signed` either by the Root or authorized account.
 		#[weight = 10_000 + T::DbWeight::get().writes(1)]
 		pub fn create_asset_generating_vcu(origin, authorized_account: T::AccountId, signer: u32, content: Vec<u8>) -> DispatchResult {
@@ -300,7 +308,7 @@ decl_module! {
 
             ensure!(number_of_shares.len()!=0 , Error::<T>::NumberofSharesNotFound);
 
-			ensure!(str::parse::<i32>(std::str::from_utf8(&number_of_shares).unwrap()).unwrap() <= 10000 , Error::<T>::TooManyNumberofShares);
+			ensure!(str::parse::<i32>(sp_std::str::from_utf8(&number_of_shares).unwrap()).unwrap() <= 10000 , Error::<T>::TooManyNumberofShares);
 
 			AssetsGeneratingVCU::<T>::try_mutate_exists(authorized_account, signer.clone(), |desc| {
 				*desc = Some(content);
@@ -337,10 +345,57 @@ decl_module! {
 			AssetsGeneratingVCU::<T>::remove(account_id, signer.clone());
 
 			// Generate event
-			Self::deposit_event(RawEvent::AssetGeneratedVCUDestroyed(signer));
+			Self::deposit_event(RawEvent::AssetGeneratingVCUDestroyed(signer));
 			// Return a successful DispatchResult
 			Ok(())
 
+		}
+
+		/// To mint the shares
+		///
+		/// ex: avg_id: 5Hdr4DQufkxmhFcymTR71jqYtTnfkfG5jTs6p6MSnsAcy5ui-1
+		/// The dispatch origin for this call must be `Signed` either by the Root or authorized account.
+		#[weight = 10_000 + T::DbWeight::get().writes(1)]
+		pub fn mint_shares_asset_generating_vcu(origin, recipient: T::AccountId, agv_id: Vec<u8>, number_of_shares: u32) -> DispatchResult {
+
+			match ensure_root(origin.clone()) {
+				Ok(()) => Ok(()),
+				Err(e) => {
+					ensure_signed(origin).and_then(|o: T::AccountId| {
+						if AuthorizedAccountsAGV::<T>::contains_key(&o) {
+							Ok(())
+						} else {
+							Err(e)
+						}
+					})
+				}
+			}?;
+
+			let avg_id_vec: Vec<&str> = sp_std::str::from_utf8(&agv_id).unwrap().split("-").collect();
+			ensure!(avg_id_vec.len() == 2, Error::<T>::InvalidAVGId);
+
+
+			let (str_account_id, signer): (&str, u32) = (avg_id_vec[0], str::parse::<u32>(avg_id_vec[1]).unwrap());
+
+			let account_id = T::AccountId::decode(&mut &str_account_id.as_bytes().to_vec()[1..33]).unwrap_or_default();
+
+			// check whether asset generated VCU exists or not
+			ensure!(AssetsGeneratingVCU::<T>::contains_key(&account_id, &signer), Error::<T>::AssetGeneratedVCUNotFound);
+
+			AssetsGeneratingVCUShares::<T>::try_mutate(&recipient, &agv_id, |share| -> DispatchResult {
+				*share = number_of_shares;
+				Ok(())
+			})?;
+
+			AssetsGeneratingVCUSharesMinted::<T>::try_mutate(&account_id, &signer, |share| -> DispatchResult {
+				*share = number_of_shares;
+				Ok(())
+			})?;
+
+			// Generate event
+			Self::deposit_event(RawEvent::AssetsGeneratingVCUSharesMinted(recipient, signer));
+			// Return a successful DispatchResult
+			Ok(())
 		}
 	}
 }
