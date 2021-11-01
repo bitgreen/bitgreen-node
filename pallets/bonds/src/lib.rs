@@ -533,6 +533,7 @@ decl_module! {
                 || key=="creditratingagencies".as_bytes().to_vec()
                 || key=="collateralsverification".as_bytes().to_vec()
                 || key=="fundapproval".as_bytes().to_vec()
+                || key=="lawyerssubmission".as_bytes().to_vec()
                 || key=="infodocuments".as_bytes().to_vec()
                 || key=="insuranceminreserve".as_bytes().to_vec(),
                 Error::<T>::SettingsKeyIsWrong);
@@ -611,6 +612,23 @@ decl_module! {
                     }
                 }
                 ensure!(x>0,Error::<T>::InsurerSubmissionCommitteeIsWrong);
+            }
+            // check validity for the submission settings of credit rating agencies
+            if key=="creditratingagencies".as_bytes().to_vec() {
+                let manager=json_get_value(configuration.clone(),"manager".as_bytes().to_vec());
+                ensure!(manager.len()==48 || manager.len()==0, Error::<T>::CreditRatingAgenciesSubmissionManagerAccountIsWrong);
+                let committee=json_get_complexarray(configuration.clone(),"committee".as_bytes().to_vec());
+                let mut x=0;
+                if committee.len()>2 {
+                    loop {  
+                        let w=json_get_recordvalue(committee.clone(),x);
+                        if w.len()==0 {
+                            break;
+                        }
+                        x=x+1;
+                    }
+                }
+                ensure!(x>0,Error::<T>::CreditRatingAgenciesSubmissionCommitteeIsWrong);
             }
             // check validity for lawyers submission settings
             if key=="lawyerssubmission".as_bytes().to_vec() {
@@ -755,11 +773,11 @@ decl_module! {
             ensure!(json_check_validity(js),Error::<T>::InvalidJson);
             // check name
             let name=json_get_value(info.clone(),"name".as_bytes().to_vec());
-            ensure!(name.len()>=10,Error::<T>::KycNameTooShort);
+            ensure!(name.len()>=3,Error::<T>::KycNameTooShort);
             ensure!(name.len()<=64,Error::<T>::KycNameTooLong);
             // check Address
             let address=json_get_value(info.clone(),"address".as_bytes().to_vec());
-            ensure!(address.len()>=10,Error::<T>::KycAddressTooShort);
+            ensure!(address.len()>=3,Error::<T>::KycAddressTooShort);
             ensure!(address.len()<=64,Error::<T>::KycAddressTooLong);
             // check Zip code
             let zip=json_get_value(info.clone(),"zip".as_bytes().to_vec());
@@ -775,11 +793,11 @@ decl_module! {
             ensure!(state.len()<=64,Error::<T>::KycStateTooLong);
             // check Country
             let country=json_get_value(info.clone(),"country".as_bytes().to_vec());
-            ensure!(country.len()>3,Error::<T>::KycCountryTooShort);
+            ensure!(country.len()>2,Error::<T>::KycCountryTooShort);
             ensure!(country.len()<64,Error::<T>::KycCountryTooLong);
             // check Website
             let website=json_get_value(info.clone(),"website".as_bytes().to_vec());
-            ensure!(website.len()>=10,Error::<T>::KycWebSiteTooShort);
+            ensure!(website.len()>=5,Error::<T>::KycWebSiteTooShort);
             ensure!(website.len()<=64,Error::<T>::KycWebSiteTooLong);
             ensure!(validate_weburl(website),Error::<T>::KycWebSiteIsWrong);
             // check Phone 
@@ -828,7 +846,7 @@ decl_module! {
             //check id >0
             ensure!(Kyc::<T>::contains_key(&accountid),Error::<T>::KycIdNotFound);
             ensure!(!KycSignatures::<T>::contains_key(&accountid,&signer),Error::<T>::KycSignatureAlreadyPresentrSameSigner);
-            // check the signer is one of the operators for kyc
+            // check the signer is one of the supervisors or manager for kyc
             let json:Vec<u8>=Settings::get("kyc".as_bytes().to_vec()).unwrap();
             let mut flag=0;
             let manager=json_get_value(json.clone(),"manager".as_bytes().to_vec());
