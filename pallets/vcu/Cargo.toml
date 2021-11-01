@@ -24,6 +24,7 @@ frame-system = { default-features = false, version = '3.0.0' }
 primitives = { package = 'bitg-primitives', path = '../../primitives', default-features = false }
 serde = { version = '1', features = ['derive'], optional = true }
 sp-runtime = { default-features = false, version = '3.0.0' }
+sp-std = { default-features = false, version = '3.0.0' }
 
 [dev-dependencies]
 serde = { version = "1.0.119" }
@@ -40,4 +41,5 @@ std = [
     'frame-system/std',
     'primitives/std',
     'sp-runtime/std',
+    'sp-std/std',
 ]

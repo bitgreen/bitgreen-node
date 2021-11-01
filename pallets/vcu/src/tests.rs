@@ -189,33 +189,33 @@ fn create_asset_generating_vcu_should_not_work_if_not_signed_by_root_or_authoriz
 }
 
 #[test]
-fn destroy_asset_generated_vcu_should_work_if_signed_by_root_or_authorized_user() {
+fn destroy_asset_generating_vcu_should_work_if_signed_by_root_or_authorized_user() {
 	new_test_ext().execute_with(|| {
 		let input = r#"{"description":"Description", "proofOwnership":"ipfslink", "numberOfShares":"1000"}"#.as_bytes().to_vec();
 
 		assert_ok!(VCU::create_asset_generating_vcu(Origin::root(), 1, 1, input.clone()));
 		assert_eq!(VCU::asset_generating_vcu(1, 1), input);
 
-		assert_ok!(VCU::destroy_asset_generated_vcu(Origin::root(), 1, 1));
+		assert_ok!(VCU::destroy_asset_generating_vcu(Origin::root(), 1, 1));
 		assert_eq!(VCU::asset_generating_vcu(1, 1), b"".to_vec());
 	});
 }
 
 #[test]
-fn destroy_asset_generated_vcu_should_not_work_if_not_signed_by_root_or_authorized_user() {
+fn destroy_asset_generating_vcu_should_not_work_if_not_signed_by_root_or_authorized_user() {
 	new_test_ext().execute_with(|| {
 		assert_noop!(
-			VCU::destroy_asset_generated_vcu(Origin::signed(11), 1, 1),
+			VCU::destroy_asset_generating_vcu(Origin::signed(11), 1, 1),
 			BadOrigin
 		);
 	});
 }
 
 #[test]
-fn destroy_asset_generated_vcu_should_not_work_if_not_exists() {
+fn destroy_asset_generating_vcu_should_not_work_if_not_exists() {
 	new_test_ext().execute_with(|| {
 		assert_noop!(
-			VCU::destroy_asset_generated_vcu(Origin::root(), 1, 1),
+			VCU::destroy_asset_generating_vcu(Origin::root(), 1, 1),
 			Error::<Test>::AssetGeneratedVCUNotFound
 		);
 	});
