@@ -89,8 +89,10 @@ decl_event!(
         AssetsGeneratingVCUCreated(u32),
 		/// Destroyed AssetGeneratedVCU.
         AssetGeneratingVCUDestroyed(u32),
-		/// Destroyed AssetGeneratedVCU.
+		/// Minted AssetGeneratedVCU.
         AssetsGeneratingVCUSharesMinted(AccountId, u32),
+		/// Burned AssetGeneratedVCU.
+        AssetsGeneratingVCUSharesBurned(AccountId, u32),
 	}
 );
 
@@ -127,7 +129,9 @@ decl_error! {
 		/// AssetGeneratedVCU has not been found on the blockchain
 		AssetGeneratedVCUNotFound,
 		/// Invalid AVGId
-		InvalidAVGId
+		InvalidAVGId,
+		/// Too less NumberofShares
+		TooLessShares,
 	}
 }
 
@@ -382,6 +386,11 @@ decl_module! {
 			// check whether asset generated VCU exists or not
 			ensure!(AssetsGeneratingVCU::<T>::contains_key(&account_id, &signer), Error::<T>::AssetGeneratedVCUNotFound);
 
+			let content: Vec<u8> = AssetsGeneratingVCU::<T>::get(&account_id, &signer);
+			let total_shares = Self::json_get_value(content.clone(),"numberOfShares".as_bytes().to_vec());
+
+			ensure!((str::parse::<u32>(sp_std::str::from_utf8(&total_shares).unwrap()).unwrap() + number_of_shares) <= 10000 , Error::<T>::TooManyNumberofShares);
+
 			AssetsGeneratingVCUShares::<T>::try_mutate(&recipient, &agv_id, |share| -> DispatchResult {
 				*share = number_of_shares;
 				Ok(())
@@ -394,6 +403,58 @@ decl_module! {
 
 			// Generate event
 			Self::deposit_event(RawEvent::AssetsGeneratingVCUSharesMinted(recipient, signer));
+			// Return a successful DispatchResult
+			Ok(())
+		}
+
+		/// To burn the shares
+		///
+		/// ex: avg_id: 5Hdr4DQufkxmhFcymTR71jqYtTnfkfG5jTs6p6MSnsAcy5ui-1
+		/// The dispatch origin for this call must be `Signed` either by the Root or authorized account.
+		#[weight = 10_000 + T::DbWeight::get().writes(1)]
+		pub fn burn_shares_asset_generating_vcu(origin, recipient: T::AccountId, agv_id: Vec<u8>, number_of_shares: u32) -> DispatchResult {
+
+			match ensure_root(origin.clone()) {
+				Ok(()) => Ok(()),
+				Err(e) => {
+					ensure_signed(origin).and_then(|o: T::AccountId| {
+						if AuthorizedAccountsAGV::<T>::contains_key(&o) {
+							Ok(())
+						} else {
+							Err(e)
+						}
+					})
+				}
+			}?;
+
+			let avg_id_vec: Vec<&str> = sp_std::str::from_utf8(&agv_id).unwrap().split("-").collect();
+			ensure!(avg_id_vec.len() == 2, Error::<T>::InvalidAVGId);
+
+
+			let (str_account_id, signer): (&str, u32) = (avg_id_vec[0], str::parse::<u32>(avg_id_vec[1]).unwrap());
+
+			let account_id = T::AccountId::decode(&mut &str_account_id.as_bytes().to_vec()[1..33]).unwrap_or_default();
+
+			// check whether asset generated VCU exists or not
+			ensure!(AssetsGeneratingVCU::<T>::contains_key(&account_id, &signer), Error::<T>::AssetGeneratedVCUNotFound);
+
+			let content: Vec<u8> = AssetsGeneratingVCU::<T>::get(&account_id, &signer);
+			let total_shares = Self::json_get_value(content.clone(),"numberOfShares".as_bytes().to_vec());
+
+			ensure!((str::parse::<u32>(sp_std::str::from_utf8(&total_shares).unwrap()).unwrap() - number_of_shares) > 0 , Error::<T>::TooLessShares);
+
+			AssetsGeneratingVCUShares::<T>::try_mutate(&recipient, &agv_id, |share| -> DispatchResult {
+				*share = number_of_shares;
+				Ok(())
+			})?;
+
+			AssetsGeneratingVCUSharesMinted::<T>::try_mutate(&account_id, &signer, |share| -> DispatchResult {
+				*share = number_of_shares;
+				Ok(())
+			})?;
+
+			// Generate event
+			Self::deposit_event(RawEvent::AssetsGeneratingVCUSharesBurned(recipient, signer));
 			// Return a successful DispatchResult
 			Ok(())
 		}
