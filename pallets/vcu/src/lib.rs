@@ -397,9 +397,14 @@ decl_module! {
 				Ok(())
 			})?;
 
+			let content: Vec<u8> = AssetsGeneratingVCU::<T>::get(&account_id, &signer);
+			let total_shares = Self::json_get_value(content.clone(),"numberOfShares".as_bytes().to_vec());
+			let int_shares = str::parse::<u32>(sp_std::str::from_utf8(&total_shares).unwrap()).unwrap();
+
+
 			AssetsGeneratingVCUSharesMinted::<T>::try_mutate(&account_id, &signer, |share| -> DispatchResult {
 				let total_sh = share.checked_add(number_of_shares).ok_or(Error::<T>::Overflow)?;
-				ensure!(total_sh <= 10000, Error::<T>::TooManyNumberofShares);
+				ensure!(total_sh <= int_shares, Error::<T>::TooManyNumberofShares);
 				*share = total_sh;
 				Ok(())
 			})?;
