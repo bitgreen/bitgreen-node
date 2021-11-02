@@ -135,7 +135,11 @@ decl_error! {
 		/// Too less NumberofShares
 		TooLessShares,
 		/// InsufficientShares
-		InsufficientShares
+		InsufficientShares,
+		/// Got an overflow after adding
+		Overflow,
+		/// AssetGeneratedShares has not been found on the blockchain
+		AssetGeneratedSharesNotFound,
 	}
 }
 
@@ -390,18 +394,20 @@ decl_module! {
 			// check whether asset generated VCU exists or not
 			ensure!(AssetsGeneratingVCU::<T>::contains_key(&account_id, &signer), Error::<T>::AssetGeneratedVCUNotFound);
 
-			let content: Vec<u8> = AssetsGeneratingVCU::<T>::get(&account_id, &signer);
-			let total_shares = Self::json_get_value(content.clone(),"numberOfShares".as_bytes().to_vec());
-
-			ensure!((str::parse::<u32>(sp_std::str::from_utf8(&total_shares).unwrap()).unwrap() + number_of_shares) <= 10000 , Error::<T>::TooManyNumberofShares);
-
 			AssetsGeneratingVCUShares::<T>::try_mutate(&recipient, &agv_id, |share| -> DispatchResult {
 				*share = number_of_shares;
 				Ok(())
 			})?;
 
+			let content: Vec<u8> = AssetsGeneratingVCU::<T>::get(&account_id, &signer);
+			let total_shares = Self::json_get_value(content.clone(),"numberOfShares".as_bytes().to_vec());
+			let int_shares = str::parse::<u32>(sp_std::str::from_utf8(&total_shares).unwrap()).unwrap();
+
+
 			AssetsGeneratingVCUSharesMinted::<T>::try_mutate(&account_id, &signer, |share| -> DispatchResult {
-				*share = number_of_shares;
+				let total_sh = share.checked_add(number_of_shares).ok_or(Error::<T>::Overflow)?;
+				ensure!(total_sh <= int_shares, Error::<T>::TooManyNumberofShares);
+				*share = total_sh;
 				Ok(())
 			})?;
 
@@ -442,18 +448,15 @@ decl_module! {
 			// check whether asset generated VCU exists or not
 			ensure!(AssetsGeneratingVCU::<T>::contains_key(&account_id, &signer), Error::<T>::AssetGeneratedVCUNotFound);
 
-			let content: Vec<u8> = AssetsGeneratingVCU::<T>::get(&account_id, &signer);
-			let total_shares = Self::json_get_value(content.clone(),"numberOfShares".as_bytes().to_vec());
-
-			ensure!((str::parse::<u32>(sp_std::str::from_utf8(&total_shares).unwrap()).unwrap() - number_of_shares) > 0 , Error::<T>::TooLessShares);
-
 			AssetsGeneratingVCUShares::<T>::try_mutate(&recipient, &agv_id, |share| -> DispatchResult {
 				*share = number_of_shares;
 				Ok(())
 			})?;
 
 			AssetsGeneratingVCUSharesMinted::<T>::try_mutate(&account_id, &signer, |share| -> DispatchResult {
-				*share = number_of_shares;
+				let total_sh = share.checked_sub(number_of_shares).ok_or(Error::<T>::InsufficientShares)?;
+				ensure!(total_sh >0, Error::<T>::TooLessShares);
+				*share = total_sh;
 				Ok(())
 			})?;
 
@@ -468,7 +471,7 @@ decl_module! {
 	   /// ex: avg_id: 5Hdr4DQufkxmhFcymTR71jqYtTnfkfG5jTs6p6MSnsAcy5ui-1
 	   /// The dispatch origin for this call must be `Signed` either by the Root or authorized account.
 		#[weight = 10_000 + T::DbWeight::get().writes(1)]
-		pub fn transfer_shares_asset_generating_vcu(origin, recipient: T::AccountId, agv_id: Vec<u8>, number_of_shares: u32) -> DispatchResult {
+		pub fn transfer_shares_asset_generating_vcu(origin, sender: T::AccountId, recipient: T::AccountId, agv_id: Vec<u8>, number_of_shares: u32) -> DispatchResult {
 
 			match ensure_root(origin.clone()) {
 				Ok(()) => Ok(()),
@@ -483,24 +486,22 @@ decl_module! {
 				}
 			}?;
 
-			let avg_id_vec: Vec<&str> = sp_std::str::from_utf8(&agv_id).unwrap().split("-").collect();
-			ensure!(avg_id_vec.len() == 2, Error::<T>::InvalidAVGId);
+			ensure!(AssetsGeneratingVCUShares::<T>::contains_key(&sender, &agv_id), Error::<T>::AssetGeneratedSharesNotFound);
 
+			let sender_shares = AssetsGeneratingVCUShares::<T>::get(&sender, &agv_id);
 
-			let (str_account_id, signer): (&str, u32) = (avg_id_vec[0], str::parse::<u32>(avg_id_vec[1]).unwrap());
+			// check whether asset generated shares exists or not
+			ensure!(number_of_shares >= sender_shares, Error::<T>::NumberofSharesNotFound);
 
-			let account_id = T::AccountId::decode(&mut &str_account_id.as_bytes().to_vec()[1..33]).unwrap_or_default();
-
-			// check whether asset generated VCU exists or not
-			ensure!(AssetsGeneratingVCU::<T>::contains_key(&account_id, &signer), Error::<T>::AssetGeneratedVCUNotFound);
-
-			AssetsGeneratingVCUSharesMinted::<T>::try_mutate(&account_id, &signer, |share| -> DispatchResult {
-				*share = share.checked_sub(number_of_shares).ok_or(Error::<T>::InsufficientShares)?;
+			AssetsGeneratingVCUShares::<T>::try_mutate(&sender, &agv_id, |share| -> DispatchResult {
+				let total_sh = share.checked_sub(number_of_shares).ok_or(Error::<T>::TooLessShares)?;
+				*share = total_sh;
 				Ok(())
 			})?;
 
 			AssetsGeneratingVCUShares::<T>::try_mutate(&recipient, &agv_id, |share| -> DispatchResult {
-				*share = number_of_shares;
+				let total_sh = share.checked_add(number_of_shares).ok_or(Error::<T>::Overflow)?;
+				*share = total_sh;
 				Ok(())
 			})?;
 
