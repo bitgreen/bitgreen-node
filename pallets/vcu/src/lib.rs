@@ -135,7 +135,9 @@ decl_error! {
 		/// Too less NumberofShares
 		TooLessShares,
 		/// InsufficientShares
-		InsufficientShares
+		InsufficientShares,
+		/// Got an overflow after adding
+		Overflow,
 	}
 }
 
@@ -390,18 +392,15 @@ decl_module! {
 			// check whether asset generated VCU exists or not
 			ensure!(AssetsGeneratingVCU::<T>::contains_key(&account_id, &signer), Error::<T>::AssetGeneratedVCUNotFound);
 
-			let content: Vec<u8> = AssetsGeneratingVCU::<T>::get(&account_id, &signer);
-			let total_shares = Self::json_get_value(content.clone(),"numberOfShares".as_bytes().to_vec());
-
-			ensure!((str::parse::<u32>(sp_std::str::from_utf8(&total_shares).unwrap()).unwrap() + number_of_shares) <= 10000 , Error::<T>::TooManyNumberofShares);
-
 			AssetsGeneratingVCUShares::<T>::try_mutate(&recipient, &agv_id, |share| -> DispatchResult {
 				*share = number_of_shares;
 				Ok(())
 			})?;
 
 			AssetsGeneratingVCUSharesMinted::<T>::try_mutate(&account_id, &signer, |share| -> DispatchResult {
-				*share = number_of_shares;
+				let total_sh = share.checked_add(number_of_shares).ok_or(Error::<T>::Overflow)?;
+				ensure!(total_sh <= 10000, Error::<T>::TooManyNumberofShares);
+				*share = total_sh;
 				Ok(())
 			})?;
 
@@ -442,18 +441,15 @@ decl_module! {
 			// check whether asset generated VCU exists or not
 			ensure!(AssetsGeneratingVCU::<T>::contains_key(&account_id, &signer), Error::<T>::AssetGeneratedVCUNotFound);
 
-			let content: Vec<u8> = AssetsGeneratingVCU::<T>::get(&account_id, &signer);
-			let total_shares = Self::json_get_value(content.clone(),"numberOfShares".as_bytes().to_vec());
-
-			ensure!((str::parse::<u32>(sp_std::str::from_utf8(&total_shares).unwrap()).unwrap() - number_of_shares) > 0 , Error::<T>::TooLessShares);
-
 			AssetsGeneratingVCUShares::<T>::try_mutate(&recipient, &agv_id, |share| -> DispatchResult {
 				*share = number_of_shares;
 				Ok(())
 			})?;
 
 			AssetsGeneratingVCUSharesMinted::<T>::try_mutate(&account_id, &signer, |share| -> DispatchResult {
-				*share = number_of_shares;
+				let total_sh = share.checked_sub(number_of_shares).ok_or(Error::<T>::InsufficientShares)?;
+				ensure!(total_sh >0, Error::<T>::TooLessShares);
+				*share = total_sh;
 				Ok(())
 			})?;
 
