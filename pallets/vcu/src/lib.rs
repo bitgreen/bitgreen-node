@@ -56,8 +56,6 @@ pub struct VCU {
 decl_storage! {
 
 	trait Store for Module<T: Config> as VCUModule {
-		/// VCUs stored in system
-		VCUs get(fn get_vcu): map hasher(blake2_128_concat) u32 => Vec<VCU>;
 		/// Settings configuration, we define some administrator accounts for the pallet VCU without using the super user account.
 		Settings get(fn get_settings): map hasher(blake2_128_concat) Vec<u8> => Option<Vec<u8>>;
 		/// AuthorizedAccountsAGV, we define authorized accounts to store/change the Assets Generating VCU (Verified Carbon Credit).
@@ -66,17 +64,15 @@ decl_storage! {
 		AssetsGeneratingVCU get(fn asset_generating_vcu): double_map hasher(blake2_128_concat) T::AccountId, hasher(blake2_128_concat) u32 => Vec<u8>;
 		/// AssetsGeneratingVCUShares The AVG shares can be minted/burned from the Authorized account up to the maximum number set in the AssetsGeneratingVCU.
 		AssetsGeneratingVCUShares get(fn asset_generating_vcu_shares): double_map hasher(blake2_128_concat) T::AccountId, hasher(blake2_128_concat) Vec<u8>  => u32;
-		/// AssetsGeneratingVCUShares The AVG shares can be minted/burned from the Authorized account up to the maximum number set in the AssetsGeneratingVCU.
+		/// AssetsGeneratingVCUSharesMinted
 		AssetsGeneratingVCUSharesMinted get(fn asset_generating_vcu_shares_minted): double_map hasher(blake2_128_concat) T::AccountId, hasher(blake2_128_concat) u32  => u32;
+		/// AssetsGeneratingVCUSchedule (Verified Carbon Credit) should be stored on chain from the authorized accounts.
+		AssetsGeneratingVCUSchedule get(fn asset_generating_vcu_schedule): double_map hasher(blake2_128_concat) T::AccountId, hasher(blake2_128_concat) u32 => Vec<u8>;
 	}
 }
 
 decl_event!(
 	pub enum Event<T> where AccountId = <T as frame_system::Config>::AccountId {
-		/// A VCU was stored with a serial number.
-		VCUStored(u32),
-		/// A VCU was updated.
-		VCUUpdated(u32, AccountId),
 		/// New proxy setting has been created.
 		SettingsCreated(Vec<u8>,Vec<u8>),
 		/// Proxy setting has been destroyed.
@@ -100,10 +96,6 @@ decl_event!(
 
 decl_error! {
 	pub enum Error for Module<T: Config> {
-		/// Invalid IPFS Hash
-		InvalidIPFSHash,
-		/// Invalid Project id
-		InvalidPidLength,
 		/// Settings Key already exists
         SettingsKeyExists,
         /// Settings Key has not been found on the blockchain
@@ -150,33 +142,6 @@ decl_module! {
 
 		// Events must be initialized if they are used by the pallet.
 		fn deposit_event() = default;
-
-		/// Create new VCU on chain
-		///
-		/// `create_vcu` will accept `pid`, `amount_co2` and `ipfs_hash` as parameter
-		/// and create new VCU in system
-		///
-		/// The dispatch origin for this call must be `Signed` by the Root.
-		#[weight = 10_000 + T::DbWeight::get().writes(1)]
-		pub fn create_vcu(origin, pid: u32, amount_co2: Balance, ipfs_hash: Vec<u8>) -> DispatchResult {
-
-			ensure_root(origin)?;
-
-			ensure!(ipfs_hash.len() == T::IpfsHashLength::get() as usize, Error::<T>::InvalidIPFSHash);
-			ensure!(pid > T::MinPIDLength::get(), Error::<T>::InvalidPidLength);
-			VCUs::try_mutate(pid, |vcu_details| -> DispatchResult {
-				let vcu = VCU {
-					amount_co2,
-					ipfs_hash
-				};
-				vcu_details.push(vcu);
-
-				Ok(())
-			})?;
-
-			Self::deposit_event(RawEvent::VCUStored(pid));
-			Ok(())
-		}
 
 		/// Create new proxy setting
 		///
