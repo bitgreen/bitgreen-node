@@ -48,9 +48,10 @@ pub trait Config: frame_system::Config {
 /// IPFS uses a unique hash of 32 bytes to pull the data when necessary.
 #[derive(Encode, Decode, Eq, PartialEq, Clone, RuntimeDebug, PartialOrd, Ord, Default)]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
-pub struct VCU {
-	pub amount_co2: Balance,
-	pub ipfs_hash: Vec<u8>,
+pub struct VCUSchedule {
+	pub period_days: u32,
+	pub amount_vcu: Balance,
+	pub token_id: u32,
 }
 
 decl_storage! {
@@ -91,6 +92,10 @@ decl_event!(
         AssetsGeneratingVCUSharesBurned(AccountId, u32),
 		/// Transferred AssetGeneratedVCU.
         AssetsGeneratingVCUSharesTransferred(AccountId),
+		/// Added AssetsGeneratingVCUSchedule
+		AssetsGeneratingVCUScheduleAdded(AccountId, u32),
+		/// Destroyed AssetsGeneratingVCUSchedule
+		AssetsGeneratingVCUScheduleDestroyed(AccountId, u32),
 	}
 );
 
@@ -132,6 +137,8 @@ decl_error! {
 		Overflow,
 		/// AssetGeneratedShares has not been found on the blockchain
 		AssetGeneratedSharesNotFound,
+		/// Invalid VCU Amount
+		InvalidVCUAmount,
 	}
 }
 
@@ -475,6 +482,78 @@ decl_module! {
 			// Return a successful DispatchResult
 			Ok(())
 		}
+
+		/// To store asset generating vcu schedule
+		///
+		/// ex: avg_id: 5Hdr4DQufkxmhFcymTR71jqYtTnfkfG5jTs6p6MSnsAcy5ui-1
+		/// The dispatch origin for this call must be `Signed` either by the Root or authorized account.
+		#[weight = 10_000 + T::DbWeight::get().writes(1)]
+		pub fn create_asset_generating_vcu_schedule(origin, account_id: T::AccountId, signer: u32, period_days: u32, amount_vcu: Balance, token_id: u32) -> DispatchResult {
+
+			match ensure_root(origin.clone()) {
+				Ok(()) => Ok(()),
+				Err(e) => {
+					ensure_signed(origin).and_then(|o: T::AccountId| {
+						if AuthorizedAccountsAGV::<T>::contains_key(&o) {
+							Ok(())
+						} else {
+							Err(e)
+						}
+					})
+				}
+			}?;
+
+			// check whether asset generated VCU exists or not
+			ensure!(AssetsGeneratingVCU::<T>::contains_key(&account_id, &signer), Error::<T>::AssetGeneratedVCUNotFound);
+			ensure!(amount_vcu > 0, Error::<T>::InvalidVCUAmount);
+
+			let vcu = VCUSchedule {
+        				period_days,
+        				amount_vcu,
+        				token_id,
+    				};
+    		let json = serde_json::to_string(&vcu).unwrap();
+
+			AssetsGeneratingVCUSchedule::insert(account_id, signer, json.as_bytes().to_vec());
+
+			// Generate event
+			Self::deposit_event(RawEvent::AssetsGeneratingVCUScheduleAdded(account_id, signer));
+			// Return a successful DispatchResult
+			Ok(())
+		}
+
+		/// To destroy asset generating vcu schedule
+		///
+		/// ex: avg_id: 5Hdr4DQufkxmhFcymTR71jqYtTnfkfG5jTs6p6MSnsAcy5ui-1
+		/// The dispatch origin for this call must be `Signed` either by the Root or authorized account.
+		#[weight = 10_000 + T::DbWeight::get().writes(1)]
+		pub fn destroy_asset_generating_vcu_schedule(origin, account_id: T::AccountId, signer: u32) -> DispatchResult {
+
+			match ensure_root(origin.clone()) {
+				Ok(()) => Ok(()),
+				Err(e) => {
+					ensure_signed(origin).and_then(|o: T::AccountId| {
+						if AuthorizedAccountsAGV::<T>::contains_key(&o) {
+							Ok(())
+						} else {
+							Err(e)
+						}
+					})
+				}
+			}?;
+
+			// check whether asset generated VCU exists or not
+
+			ensure!(AssetsGeneratingVCUSchedule::<T>::contains_key(&account_id, &signer), Error::<T>::AssetGeneratedVCUNotFound);
+
+			AssetsGeneratingVCUSchedule::<T>::remove(account_id, signer.clone());
+
+			// Generate event
+			Self::deposit_event(RawEvent::AssetsGeneratingVCUScheduleDestroyed(account_id, signer));
+			// Return a successful DispatchResult
+			Ok(())
+		}
+
 	}
 }
 
