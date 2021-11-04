@@ -16,15 +16,15 @@
 
 
 #![cfg_attr(not(feature = "std"), no_std)]
+extern crate alloc;
 use frame_support::{decl_module, decl_storage, decl_event, decl_error, ensure, traits::Get};
 use primitives::Balance;
-use codec::{Decode, Encode};
+use codec::Decode;
 use frame_system::{ensure_root, ensure_signed};
 use frame_support::dispatch::DispatchResult;
 use frame_support::traits::Vec;
-#[cfg(feature = "std")]
-use serde::{Deserialize, Serialize};
-use sp_runtime::RuntimeDebug;
+use sp_std::vec;
+use alloc::string::ToString;
 #[cfg(test)]
 mod mock;
 
@@ -43,21 +43,9 @@ pub trait Config: frame_system::Config {
 	type MinPIDLength: Get<u32>;
 }
 
-/// Verified Carbon Units (VCU) The VCU data (serial number, project, amount of CO2 in tons,
-/// photos, videos, documentation) will  be stored off-chain on IPFS (www.ipfs.io).
-/// IPFS uses a unique hash of 32 bytes to pull the data when necessary.
-#[derive(Encode, Decode, Eq, PartialEq, Clone, RuntimeDebug, PartialOrd, Ord, Default)]
-#[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
-pub struct VCU {
-	pub amount_co2: Balance,
-	pub ipfs_hash: Vec<u8>,
-}
-
 decl_storage! {
 
 	trait Store for Module<T: Config> as VCUModule {
-		/// VCUs stored in system
-		VCUs get(fn get_vcu): map hasher(blake2_128_concat) u32 => Vec<VCU>;
 		/// Settings configuration, we define some administrator accounts for the pallet VCU without using the super user account.
 		Settings get(fn get_settings): map hasher(blake2_128_concat) Vec<u8> => Option<Vec<u8>>;
 		/// AuthorizedAccountsAGV, we define authorized accounts to store/change the Assets Generating VCU (Verified Carbon Credit).
@@ -66,17 +54,15 @@ decl_storage! {
 		AssetsGeneratingVCU get(fn asset_generating_vcu): double_map hasher(blake2_128_concat) T::AccountId, hasher(blake2_128_concat) u32 => Vec<u8>;
 		/// AssetsGeneratingVCUShares The AVG shares can be minted/burned from the Authorized account up to the maximum number set in the AssetsGeneratingVCU.
 		AssetsGeneratingVCUShares get(fn asset_generating_vcu_shares): double_map hasher(blake2_128_concat) T::AccountId, hasher(blake2_128_concat) Vec<u8>  => u32;
-		/// AssetsGeneratingVCUShares The AVG shares can be minted/burned from the Authorized account up to the maximum number set in the AssetsGeneratingVCU.
+		/// AssetsGeneratingVCUSharesMinted
 		AssetsGeneratingVCUSharesMinted get(fn asset_generating_vcu_shares_minted): double_map hasher(blake2_128_concat) T::AccountId, hasher(blake2_128_concat) u32  => u32;
+		/// AssetsGeneratingVCUSchedule (Verified Carbon Credit) should be stored on chain from the authorized accounts.
+		AssetsGeneratingVCUSchedule get(fn asset_generating_vcu_schedule): double_map hasher(blake2_128_concat) T::AccountId, hasher(blake2_128_concat) u32 => Vec<u8>;
 	}
 }
 
 decl_event!(
 	pub enum Event<T> where AccountId = <T as frame_system::Config>::AccountId {
-		/// A VCU was stored with a serial number.
-		VCUStored(u32),
-		/// A VCU was updated.
-		VCUUpdated(u32, AccountId),
 		/// New proxy setting has been created.
 		SettingsCreated(Vec<u8>,Vec<u8>),
 		/// Proxy setting has been destroyed.
@@ -95,15 +81,15 @@ decl_event!(
         AssetsGeneratingVCUSharesBurned(AccountId, u32),
 		/// Transferred AssetGeneratedVCU.
         AssetsGeneratingVCUSharesTransferred(AccountId),
+		/// Added AssetsGeneratingVCUSchedule
+		AssetsGeneratingVCUScheduleAdded(AccountId, u32),
+		/// Destroyed AssetsGeneratingVCUSchedule
+		AssetsGeneratingVCUScheduleDestroyed(AccountId, u32),
 	}
 );
 
 decl_error! {
 	pub enum Error for Module<T: Config> {
-		/// Invalid IPFS Hash
-		InvalidIPFSHash,
-		/// Invalid Project id
-		InvalidPidLength,
 		/// Settings Key already exists
         SettingsKeyExists,
         /// Settings Key has not been found on the blockchain
@@ -140,6 +126,10 @@ decl_error! {
 		Overflow,
 		/// AssetGeneratedShares has not been found on the blockchain
 		AssetGeneratedSharesNotFound,
+		/// Invalid VCU Amount
+		InvalidVCUAmount,
+		/// AssetGeneratedVCUSchedule has not been found on the blockchain
+		AssetGeneratedVCUSchedule,
 	}
 }
 
@@ -150,33 +140,6 @@ decl_module! {
 
 		// Events must be initialized if they are used by the pallet.
 		fn deposit_event() = default;
-
-		/// Create new VCU on chain
-		///
-		/// `create_vcu` will accept `pid`, `amount_co2` and `ipfs_hash` as parameter
-		/// and create new VCU in system
-		///
-		/// The dispatch origin for this call must be `Signed` by the Root.
-		#[weight = 10_000 + T::DbWeight::get().writes(1)]
-		pub fn create_vcu(origin, pid: u32, amount_co2: Balance, ipfs_hash: Vec<u8>) -> DispatchResult {
-
-			ensure_root(origin)?;
-
-			ensure!(ipfs_hash.len() == T::IpfsHashLength::get() as usize, Error::<T>::InvalidIPFSHash);
-			ensure!(pid > T::MinPIDLength::get(), Error::<T>::InvalidPidLength);
-			VCUs::try_mutate(pid, |vcu_details| -> DispatchResult {
-				let vcu = VCU {
-					amount_co2,
-					ipfs_hash
-				};
-				vcu_details.push(vcu);
-
-				Ok(())
-			})?;
-
-			Self::deposit_event(RawEvent::VCUStored(pid));
-			Ok(())
-		}
 
 		/// Create new proxy setting
 		///
@@ -510,6 +473,72 @@ decl_module! {
 			// Return a successful DispatchResult
 			Ok(())
 		}
+
+		/// To store asset generating vcu schedule
+		///
+		/// ex: avg_id: 5Hdr4DQufkxmhFcymTR71jqYtTnfkfG5jTs6p6MSnsAcy5ui-1
+		/// The dispatch origin for this call must be `Signed` either by the Root or authorized account.
+		#[weight = 10_000 + T::DbWeight::get().writes(1)]
+		pub fn create_asset_generating_vcu_schedule(origin, account_id: T::AccountId, signer: u32, period_days: u32, amount_vcu: Balance, token_id: u32) -> DispatchResult {
+
+			match ensure_root(origin.clone()) {
+				Ok(()) => Ok(()),
+				Err(e) => {
+					ensure_signed(origin).and_then(|o: T::AccountId| {
+						if AuthorizedAccountsAGV::<T>::contains_key(&o) {
+							Ok(())
+						} else {
+							Err(e)
+						}
+					})
+				}
+			}?;
+
+			// check whether asset generated VCU exists or not
+			ensure!(AssetsGeneratingVCU::<T>::contains_key(&account_id, &signer), Error::<T>::AssetGeneratedVCUNotFound);
+			ensure!(amount_vcu > 0, Error::<T>::InvalidVCUAmount);
+
+    		let json = Self::create_json_string(vec![("period_days",&mut period_days.to_string().as_bytes().to_vec()), ("amount_vcu",&mut  amount_vcu.to_string().as_bytes().to_vec()), ("token_id",&mut  token_id.to_string().as_bytes().to_vec())]);
+
+			AssetsGeneratingVCUSchedule::<T>::insert(&account_id, &signer, json);
+
+			// Generate event
+			Self::deposit_event(RawEvent::AssetsGeneratingVCUScheduleAdded(account_id, signer));
+			// Return a successful DispatchResult
+			Ok(())
+		}
+
+		/// To destroy asset generating vcu schedule
+		///
+		/// ex: avg_id: 5Hdr4DQufkxmhFcymTR71jqYtTnfkfG5jTs6p6MSnsAcy5ui-1
+		/// The dispatch origin for this call must be `Signed` either by the Root or authorized account.
+		#[weight = 10_000 + T::DbWeight::get().writes(1)]
+		pub fn destroy_asset_generating_vcu_schedule(origin, account_id: T::AccountId, signer: u32) -> DispatchResult {
+
+			match ensure_root(origin.clone()) {
+				Ok(()) => Ok(()),
+				Err(e) => {
+					ensure_signed(origin).and_then(|o: T::AccountId| {
+						if AuthorizedAccountsAGV::<T>::contains_key(&o) {
+							Ok(())
+						} else {
+							Err(e)
+						}
+					})
+				}
+			}?;
+
+			// check whether asset generated VCU exists or not
+
+			ensure!(AssetsGeneratingVCUSchedule::<T>::contains_key(&account_id, &signer), Error::<T>::AssetGeneratedVCUSchedule);
+
+			AssetsGeneratingVCUSchedule::<T>::remove(&account_id, &signer);
+			// Generate event
+			Self::deposit_event(RawEvent::AssetsGeneratingVCUScheduleDestroyed(account_id, signer));
+			// Return a successful DispatchResult
+			Ok(())
+		}
+
 	}
 }
 
@@ -660,5 +689,27 @@ impl<T: Config> Module<T> {
 			}
 		}
 		return result;
+	}
+
+	fn create_json_string(inputs: Vec<(&str, &mut Vec<u8>)>) -> Vec<u8> {
+		let mut v:Vec<u8>= Vec::new();
+		v.push(b'{');
+		let mut flag = false;
+
+		for (arg, val) in  inputs{
+			if flag {
+				v.push(b',');
+			}
+			v.push(b'"');
+			for i in arg.as_bytes().to_vec().iter() {
+				v.push(i.clone());
+			}
+			v.push(b'"');
+			v.push(b':');
+			v.append(val);
+			flag = true;
+		}
+		v.push(b'}');
+		v
 	}
 }
