@@ -16,15 +16,15 @@
 
 
 #![cfg_attr(not(feature = "std"), no_std)]
+extern crate alloc;
 use frame_support::{decl_module, decl_storage, decl_event, decl_error, ensure, traits::Get};
 use primitives::Balance;
-use codec::{Decode, Encode};
+use codec::Decode;
 use frame_system::{ensure_root, ensure_signed};
 use frame_support::dispatch::DispatchResult;
 use frame_support::traits::Vec;
-#[cfg(feature = "std")]
-use serde::{Deserialize, Serialize};
-use sp_runtime::RuntimeDebug;
+use sp_std::vec;
+use alloc::string::ToString;
 #[cfg(test)]
 mod mock;
 
@@ -41,17 +41,6 @@ pub trait Config: frame_system::Config {
 
 	/// Veera project id minimum length
 	type MinPIDLength: Get<u32>;
-}
-
-/// Verified Carbon Units (VCU) The VCU data (serial number, project, amount of CO2 in tons,
-/// photos, videos, documentation) will  be stored off-chain on IPFS (www.ipfs.io).
-/// IPFS uses a unique hash of 32 bytes to pull the data when necessary.
-#[derive(Encode, Decode, Eq, PartialEq, Clone, RuntimeDebug, PartialOrd, Ord, Default)]
-#[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
-pub struct VCUSchedule {
-	pub period_days: u32,
-	pub amount_vcu: Balance,
-	pub token_id: u32,
 }
 
 decl_storage! {
@@ -139,6 +128,8 @@ decl_error! {
 		AssetGeneratedSharesNotFound,
 		/// Invalid VCU Amount
 		InvalidVCUAmount,
+		/// AssetGeneratedVCUSchedule has not been found on the blockchain
+		AssetGeneratedVCUSchedule,
 	}
 }
 
@@ -507,14 +498,9 @@ decl_module! {
 			ensure!(AssetsGeneratingVCU::<T>::contains_key(&account_id, &signer), Error::<T>::AssetGeneratedVCUNotFound);
 			ensure!(amount_vcu > 0, Error::<T>::InvalidVCUAmount);
 
-			let vcu = VCUSchedule {
-        				period_days,
-        				amount_vcu,
-        				token_id,
-    				};
-    		let json = serde_json::to_string(&vcu).unwrap();
+    		let json = Self::create_json_string(vec![("period_days",&mut period_days.to_string().as_bytes().to_vec()), ("amount_vcu",&mut  amount_vcu.to_string().as_bytes().to_vec()), ("token_id",&mut  token_id.to_string().as_bytes().to_vec())]);
 
-			AssetsGeneratingVCUSchedule::insert(account_id, signer, json.as_bytes().to_vec());
+			AssetsGeneratingVCUSchedule::<T>::insert(&account_id, &signer, json);
 
 			// Generate event
 			Self::deposit_event(RawEvent::AssetsGeneratingVCUScheduleAdded(account_id, signer));
@@ -544,10 +530,9 @@ decl_module! {
 
 			// check whether asset generated VCU exists or not
 
-			ensure!(AssetsGeneratingVCUSchedule::<T>::contains_key(&account_id, &signer), Error::<T>::AssetGeneratedVCUNotFound);
+			ensure!(AssetsGeneratingVCUSchedule::<T>::contains_key(&account_id, &signer), Error::<T>::AssetGeneratedVCUSchedule);
 
-			AssetsGeneratingVCUSchedule::<T>::remove(account_id, signer.clone());
-
+			AssetsGeneratingVCUSchedule::<T>::remove(&account_id, &signer);
 			// Generate event
 			Self::deposit_event(RawEvent::AssetsGeneratingVCUScheduleDestroyed(account_id, signer));
 			// Return a successful DispatchResult
@@ -704,5 +689,27 @@ impl<T: Config> Module<T> {
 			}
 		}
 		return result;
+	}
+
+	fn create_json_string(inputs: Vec<(&str, &mut Vec<u8>)>) -> Vec<u8> {
+		let mut v:Vec<u8>= Vec::new();
+		v.push(b'{');
+		let mut flag = false;
+
+		for (arg, val) in  inputs{
+			if flag {
+				v.push(b',');
+			}
+			v.push(b'"');
+			for i in arg.as_bytes().to_vec().iter() {
+				v.push(i.clone());
+			}
+			v.push(b'"');
+			v.push(b':');
+			v.append(val);
+			flag = true;
+		}
+		v.push(b'}');
+		v
 	}
 }

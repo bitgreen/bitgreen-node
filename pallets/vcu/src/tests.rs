@@ -192,3 +192,68 @@ fn destroy_asset_generating_vcu_should_not_work_if_not_exists() {
 		);
 	});
 }
+
+#[test]
+fn create_asset_generating_vcu_schedule_should_work_if_signed_by_root_or_authorized_user() {
+	new_test_ext().execute_with(|| {
+		let input = r#"{"description":"Description", "proofOwnership":"ipfslink", "numberOfShares":"1000"}"#.as_bytes().to_vec();
+		let j =r#"{"period_days":1,"amount_vcu":1,"token_id":1}"#;
+		assert_ok!(VCU::create_asset_generating_vcu(Origin::root(), 1, 1, input.clone()));
+		assert_eq!(VCU::asset_generating_vcu(1, 1), input);
+
+		assert_ok!(VCU::create_asset_generating_vcu_schedule(Origin::root(), 1, 1, 1, 1, 1));
+
+		let v: Vec<u8> = VCU::asset_generating_vcu_schedule(1, 1);
+		assert_eq!(sp_std::str::from_utf8(&v).unwrap(), j);
+	});
+}
+
+#[test]
+fn create_asset_generating_vcu_schedule_should_not_work_if_not_exists() {
+	new_test_ext().execute_with(|| {
+		assert_noop!(
+			VCU::create_asset_generating_vcu_schedule(Origin::root(), 1, 1, 1, 1, 1),
+			Error::<Test>::AssetGeneratedVCUNotFound
+		);
+	});
+}
+
+#[test]
+fn create_asset_generating_vcu_schedule_should_not_work_if_amount_is_zero() {
+	new_test_ext().execute_with(|| {
+		let input = r#"{"description":"Description", "proofOwnership":"ipfslink", "numberOfShares":"1000"}"#.as_bytes().to_vec();
+		assert_ok!(VCU::create_asset_generating_vcu(Origin::root(), 1, 1, input.clone()));
+		assert_noop!(
+			VCU::create_asset_generating_vcu_schedule(Origin::root(), 1, 1, 1, 0, 1),
+			Error::<Test>::InvalidVCUAmount
+		);
+	});
+}
+
+#[test]
+fn destroy_asset_generating_vcu_schedule_should_work_if_signed_by_root_or_authorized_user() {
+	new_test_ext().execute_with(|| {
+		let input = r#"{"description":"Description", "proofOwnership":"ipfslink", "numberOfShares":"1000"}"#.as_bytes().to_vec();
+		let j =r#"{"period_days":1,"amount_vcu":1,"token_id":1}"#;
+		assert_ok!(VCU::create_asset_generating_vcu(Origin::root(), 1, 1, input.clone()));
+		assert_eq!(VCU::asset_generating_vcu(1, 1), input);
+
+		assert_ok!(VCU::create_asset_generating_vcu_schedule(Origin::root(), 1, 1, 1, 1, 1));
+
+		let v: Vec<u8> = VCU::asset_generating_vcu_schedule(1, 1);
+		assert_eq!(sp_std::str::from_utf8(&v).unwrap(), j);
+
+		assert_ok!(VCU::destroy_asset_generating_vcu_schedule(Origin::root(), 1, 1));
+		assert_eq!(VCU::asset_generating_vcu_schedule(1, 1), b"".to_vec());
+	});
+}
+
+#[test]
+fn destroy_asset_generating_vcu_schedule_should_not_work_if_not_exists() {
+	new_test_ext().execute_with(|| {
+		assert_noop!(
+			VCU::destroy_asset_generating_vcu_schedule(Origin::root(), 1, 1),
+			Error::<Test>::AssetGeneratedVCUSchedule
+		);
+	});
+}
