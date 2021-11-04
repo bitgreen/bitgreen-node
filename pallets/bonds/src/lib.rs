@@ -2690,7 +2690,6 @@ fn validate_phonenumber(phonenumber:Vec<u8>) -> bool {
     p.push("670".into());
     p.push("58".into());
     p.push("84".into());
-
     // normalis number
     let mut startpoint=0;
     if phonenumber[0]==b'0' && phonenumber[1]==b'0' {
