@@ -132,6 +132,18 @@ pub enum TokenSymbol {
 	USDG = 1,
 }
 
+impl TryFrom<u32> for TokenSymbol {
+	type Error = ();
+
+	fn try_from(v: u32) -> Result<Self, Self::Error> {
+		match v {
+			0 => Ok(TokenSymbol::BITG),
+			1 => Ok(TokenSymbol::USDG),
+			_ => Err(()),
+		}
+	}
+}
+
 impl TryFrom<u8> for TokenSymbol {
 	type Error = ();
 
@@ -182,6 +194,30 @@ impl CurrencyId {
 
 /// Note the pre-deployed ERC20 contracts depend on `CurrencyId` implementation,
 /// and need to be updated if any change.
+impl TryFrom<[u32; 32]> for CurrencyId {
+	type Error = ();
+
+	fn try_from(v: [u32; 32]) -> Result<Self, Self::Error> {
+		if !v.starts_with(&[0u32; 29][..]) {
+			return Err(());
+		}
+
+		// token
+		if v[29] == 0 && v[31] == 0 {
+			return v[30].try_into().map(CurrencyId::Token);
+		}
+
+		// DEX share
+		if v[29] == 1 {
+			let left = v[30].try_into()?;
+			let right = v[31].try_into()?;
+			return Ok(CurrencyId::DEXShare(left, right));
+		}
+
+		Err(())
+	}
+}
+
 impl TryFrom<[u8; 32]> for CurrencyId {
 	type Error = ();
 
@@ -208,6 +244,24 @@ impl TryFrom<[u8; 32]> for CurrencyId {
 
 /// Note the pre-deployed ERC20 contracts depend on `CurrencyId` implementation,
 /// and need to be updated if any change.
+impl From<CurrencyId> for [u32; 32] {
+	fn from(val: CurrencyId) -> Self {
+		let mut bytes = [0u32; 32];
+		match val {
+			CurrencyId::Token(token) => {
+				bytes[30] = token as u32;
+			}
+			CurrencyId::DEXShare(left, right) => {
+				bytes[29] = 1;
+				bytes[30] = left as u32;
+				bytes[31] = right as u32;
+			}
+			_ => {}
+		}
+		bytes
+	}
+}
+
 impl From<CurrencyId> for [u8; 32] {
 	fn from(val: CurrencyId) -> Self {
 		let mut bytes = [0u8; 32];

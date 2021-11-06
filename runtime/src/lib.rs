@@ -902,8 +902,9 @@ parameter_types! {
 
 impl pallet_vcu::Config for Runtime {
 	type Event = Event;
-	type IpfsHashLength = IpfsHashLength;
+	type Currency = Currencies;
 	type MinPIDLength = MinPIDLength;
+	type UnixTime = Timestamp;
 }
 
 // TODO: Implementation of `From` is preferred since it gives you `Into<_>` for free where the reverse isn't true.
