@@ -31,7 +31,8 @@ pallet-assets = { version = "3.0.0", default-features = false, path = "../assets
 serde = { version = "1.0.119" }
 sp-core = { default-features = false, version = '3.0.0' }
 sp-io = { default-features = false, version = '3.0.0' }
-
+pallet-balances = "3.0.0"
+pallet-timestamp = "3.0.0"
 
 [features]
 default = ['std']

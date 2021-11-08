@@ -257,3 +257,16 @@ fn destroy_asset_generating_vcu_schedule_should_not_work_if_not_exists() {
 		);
 	});
 }
+
+#[test]
+fn mint_scheduled_vcu_should_work_if_signed_by_root_or_authorized_user() {
+	new_test_ext().execute_with(|| {
+		let input = r#"{"description":"Description", "proofOwnership":"ipfslink", "numberOfShares":"1000"}"#.as_bytes().to_vec();
+		assert_ok!(VCU::add_authorized_account(Origin::root(), 11, b"Verra".to_vec()));
+		assert_ok!(VCU::create_asset_generating_vcu(Origin::signed(11), 1, 1, input.clone()));
+		assert_eq!(VCU::asset_generating_vcu(1, 1), input);
+		assert_ok!(VCU::create_asset_generating_vcu_schedule(Origin::signed(11), 1, 1, 0, 1, 1));
+
+		assert_ok!(VCU::mint_scheduled_vcu(Origin::signed(11), 1, 1));
+	});
+}
