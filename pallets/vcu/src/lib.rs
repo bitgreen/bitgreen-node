@@ -22,9 +22,11 @@ use primitives::Balance;
 use codec::Decode;
 use frame_system::{ensure_root, ensure_signed};
 use frame_support::dispatch::DispatchResult;
+use frame_support::pallet_prelude::DispatchResultWithPostInfo;
 use frame_support::traits::{Vec, UnixTime};
 use sp_std::vec;
 use alloc::string::ToString;
+use sp_runtime::traits::StaticLookup;
 #[cfg(test)]
 mod mock;
 
@@ -32,7 +34,7 @@ mod mock;
 mod tests;
 
 /// Configure the pallet by specifying the parameters and types on which it depends.
-pub trait Config: frame_system::Config {
+pub trait Config: frame_system::Config + pallet_assets::Config<AssetId = u32, Balance = u128> {
 	/// The overarching event type.
 	type Event: From<Event<Self>> + Into<<Self as frame_system::Config>::Event>;
 
@@ -547,12 +549,12 @@ decl_module! {
 		///
 		/// The dispatch origin for this call must be `Signed` either by the Root or authorized account.
 		#[weight = 10_000 + T::DbWeight::get().writes(1)]
-		pub fn mint_scheduled_vcu(origin, account_id: T::AccountId, signer: u32) -> DispatchResult {
+		pub fn mint_scheduled_vcu(origin, account_id: T::AccountId, signer: u32) -> DispatchResultWithPostInfo {
 
 			match ensure_root(origin.clone()) {
 				Ok(()) => Ok(()),
 				Err(e) => {
-					ensure_signed(origin).and_then(|o: T::AccountId| {
+					ensure_signed(origin.clone()).and_then(|o: T::AccountId| {
 						if AuthorizedAccountsAGV::<T>::contains_key(&o) {
 							Ok(())
 						} else {
@@ -562,7 +564,7 @@ decl_module! {
 				}
 			}?;
 
-			AssetsGeneratingVCUGenerated::<T>::try_mutate_exists(account_id.clone(), signer.clone(), |vcus| -> DispatchResult {
+			AssetsGeneratingVCUGenerated::<T>::try_mutate_exists(account_id.clone(), signer.clone(), |vcus| -> DispatchResultWithPostInfo {
 				ensure!(AssetsGeneratingVCUSchedule::<T>::contains_key(&account_id, &signer), Error::<T>::AssetGeneratedVCUSchedule);
 				let content: Vec<u8> = AssetsGeneratingVCUSchedule::<T>::get(account_id.clone(), &signer);
 
@@ -575,7 +577,7 @@ decl_module! {
 
 				let now:u64 = T::UnixTime::now().as_secs();
 				if period_days == now {
-						//T::Currency::deposit(CurrencyId::Token(token_id.try_into().unwrap()), &account_id, amount_vcu)?;
+						pallet_assets::Module::<T>::mint(origin, token_id, T::Lookup::unlookup(account_id.clone()), amount_vcu)?;
 					}
 				if vcus.is_none() {
 					let json = Self::create_json_string(vec![("period_days",&mut period_days.to_string().as_bytes().to_vec()), ("amount_vcu",&mut  amount_vcu.to_string().as_bytes().to_vec())]);
@@ -583,7 +585,7 @@ decl_module! {
 				}
 				Self::deposit_event(RawEvent::AssetsGeneratingVCUGenerated(account_id, signer));
 
-            	Ok(())
+            	Ok(().into())
         	})
 		}
 
