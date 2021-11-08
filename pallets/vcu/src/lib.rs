@@ -27,6 +27,9 @@ use frame_support::traits::{Vec, UnixTime};
 use sp_std::vec;
 use alloc::string::ToString;
 use sp_runtime::traits::StaticLookup;
+use sp_runtime::traits::One;
+use pallet_assets::Asset;
+use frame_system::RawOrigin;
 #[cfg(test)]
 mod mock;
 
@@ -576,9 +579,13 @@ decl_module! {
 				let amount_vcu = str::parse::<Balance>(sp_std::str::from_utf8(&amount_vcu).unwrap()).unwrap();
 
 				let now:u64 = T::UnixTime::now().as_secs();
+
+                if !Asset::<T>::contains_key(token_id.clone()) {
+					pallet_assets::Module::<T>::force_create(RawOrigin::Root.into(), token_id, T::Lookup::unlookup(account_id.clone()), One::one(), One::one())?;
+				}
 				if period_days == now {
-						pallet_assets::Module::<T>::mint(origin, token_id, T::Lookup::unlookup(account_id.clone()), amount_vcu)?;
-					}
+					pallet_assets::Module::<T>::mint(RawOrigin::Signed(account_id.clone()).into(), token_id, T::Lookup::unlookup(account_id.clone()), amount_vcu)?;
+				}
 				if vcus.is_none() {
 					let json = Self::create_json_string(vec![("period_days",&mut period_days.to_string().as_bytes().to_vec()), ("amount_vcu",&mut  amount_vcu.to_string().as_bytes().to_vec())]);
 					*vcus = Some(json);

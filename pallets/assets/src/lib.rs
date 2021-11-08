@@ -270,7 +270,7 @@ pub mod pallet {
 		///
 		/// Weight: `O(1)`
 		#[pallet::weight(T::WeightInfo::force_create())]
-		pub(super) fn force_create(
+		pub fn force_create(
 			origin: OriginFor<T>,
 			#[pallet::compact] id: T::AssetId,
 			owner: <T::Lookup as StaticLookup>::Source,
@@ -987,7 +987,7 @@ pub mod pallet {
 
 	#[pallet::storage]
 	/// Details of an asset.
-	pub(super) type Asset<T: Config> = StorageMap<
+	pub type Asset<T: Config> = StorageMap<
 		_,
 		Blake2_128Concat,
 		T::AssetId,
