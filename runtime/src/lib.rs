@@ -902,7 +902,6 @@ parameter_types! {
 
 impl pallet_vcu::Config for Runtime {
 	type Event = Event;
-	type Currency = Currencies;
 	type MinPIDLength = MinPIDLength;
 	type UnixTime = Timestamp;
 }

@@ -18,15 +18,13 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 extern crate alloc;
 use frame_support::{decl_module, decl_storage, decl_event, decl_error, ensure, traits::Get};
-use primitives::{Balance, CurrencyId};
+use primitives::Balance;
 use codec::Decode;
 use frame_system::{ensure_root, ensure_signed};
 use frame_support::dispatch::DispatchResult;
 use frame_support::traits::{Vec, UnixTime};
 use sp_std::vec;
 use alloc::string::ToString;
-use orml_traits::{MultiCurrency, MultiCurrencyExtended};
-use sp_std::convert::TryInto;
 #[cfg(test)]
 mod mock;
 
@@ -37,9 +35,6 @@ mod tests;
 pub trait Config: frame_system::Config {
 	/// The overarching event type.
 	type Event: From<Event<Self>> + Into<<Self as frame_system::Config>::Event>;
-
-	/// Currency for transfer currencies
-	type Currency: MultiCurrencyExtended<Self::AccountId, CurrencyId = CurrencyId, Balance = Balance>;
 
 	/// Veera project id minimum length
 	type MinPIDLength: Get<u32>;
@@ -580,7 +575,7 @@ decl_module! {
 
 				let now:u64 = T::UnixTime::now().as_secs();
 				if period_days == now {
-						T::Currency::deposit(CurrencyId::Token(token_id.try_into().unwrap()), &account_id, amount_vcu)?;
+						//T::Currency::deposit(CurrencyId::Token(token_id.try_into().unwrap()), &account_id, amount_vcu)?;
 					}
 				if vcus.is_none() {
 					let json = Self::create_json_string(vec![("period_days",&mut period_days.to_string().as_bytes().to_vec()), ("amount_vcu",&mut  amount_vcu.to_string().as_bytes().to_vec())]);
