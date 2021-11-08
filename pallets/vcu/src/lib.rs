@@ -22,9 +22,11 @@ use primitives::Balance;
 use codec::Decode;
 use frame_system::{ensure_root, ensure_signed};
 use frame_support::dispatch::DispatchResult;
-use frame_support::traits::Vec;
+use frame_support::pallet_prelude::DispatchResultWithPostInfo;
+use frame_support::traits::{Vec, UnixTime};
 use sp_std::vec;
 use alloc::string::ToString;
+use sp_runtime::traits::StaticLookup;
 #[cfg(test)]
 mod mock;
 
@@ -32,15 +34,15 @@ mod mock;
 mod tests;
 
 /// Configure the pallet by specifying the parameters and types on which it depends.
-pub trait Config: frame_system::Config {
+pub trait Config: frame_system::Config + pallet_assets::Config<AssetId = u32, Balance = u128> {
 	/// The overarching event type.
 	type Event: From<Event<Self>> + Into<<Self as frame_system::Config>::Event>;
 
-	/// IPFS content valid length.
-	type IpfsHashLength: Get<u32>;
-
 	/// Veera project id minimum length
 	type MinPIDLength: Get<u32>;
+
+	/// Unix time
+	type UnixTime: UnixTime;
 }
 
 decl_storage! {
@@ -58,6 +60,8 @@ decl_storage! {
 		AssetsGeneratingVCUSharesMinted get(fn asset_generating_vcu_shares_minted): double_map hasher(blake2_128_concat) T::AccountId, hasher(blake2_128_concat) u32  => u32;
 		/// AssetsGeneratingVCUSchedule (Verified Carbon Credit) should be stored on chain from the authorized accounts.
 		AssetsGeneratingVCUSchedule get(fn asset_generating_vcu_schedule): double_map hasher(blake2_128_concat) T::AccountId, hasher(blake2_128_concat) u32 => Vec<u8>;
+		/// AssetsGeneratingVCUGenerated Minting of Scheduled VCU
+		AssetsGeneratingVCUGenerated get(fn vcu_generated): double_map hasher(blake2_128_concat) T::AccountId, hasher(blake2_128_concat) u32 => Vec<u8>;
 	}
 }
 
@@ -85,6 +89,8 @@ decl_event!(
 		AssetsGeneratingVCUScheduleAdded(AccountId, u32),
 		/// Destroyed AssetsGeneratingVCUSchedule
 		AssetsGeneratingVCUScheduleDestroyed(AccountId, u32),
+		/// Added AssetsGeneratingVCUGenerated.
+        AssetsGeneratingVCUGenerated(AccountId, u32),
 	}
 );
 
@@ -479,7 +485,7 @@ decl_module! {
 		/// ex: avg_id: 5Hdr4DQufkxmhFcymTR71jqYtTnfkfG5jTs6p6MSnsAcy5ui-1
 		/// The dispatch origin for this call must be `Signed` either by the Root or authorized account.
 		#[weight = 10_000 + T::DbWeight::get().writes(1)]
-		pub fn create_asset_generating_vcu_schedule(origin, account_id: T::AccountId, signer: u32, period_days: u32, amount_vcu: Balance, token_id: u32) -> DispatchResult {
+		pub fn create_asset_generating_vcu_schedule(origin, account_id: T::AccountId, signer: u32, period_days: u64, amount_vcu: Balance, token_id: u32) -> DispatchResult {
 
 			match ensure_root(origin.clone()) {
 				Ok(()) => Ok(()),
@@ -537,6 +543,50 @@ decl_module! {
 			Self::deposit_event(RawEvent::AssetsGeneratingVCUScheduleDestroyed(account_id, signer));
 			// Return a successful DispatchResult
 			Ok(())
+		}
+
+		/// Mint Scheduled VCU
+		///
+		/// The dispatch origin for this call must be `Signed` either by the Root or authorized account.
+		#[weight = 10_000 + T::DbWeight::get().writes(1)]
+		pub fn mint_scheduled_vcu(origin, account_id: T::AccountId, signer: u32) -> DispatchResultWithPostInfo {
+
+			match ensure_root(origin.clone()) {
+				Ok(()) => Ok(()),
+				Err(e) => {
+					ensure_signed(origin.clone()).and_then(|o: T::AccountId| {
+						if AuthorizedAccountsAGV::<T>::contains_key(&o) {
+							Ok(())
+						} else {
+							Err(e)
+						}
+					})
+				}
+			}?;
+
+			AssetsGeneratingVCUGenerated::<T>::try_mutate_exists(account_id.clone(), signer.clone(), |vcus| -> DispatchResultWithPostInfo {
+				ensure!(AssetsGeneratingVCUSchedule::<T>::contains_key(&account_id, &signer), Error::<T>::AssetGeneratedVCUSchedule);
+				let content: Vec<u8> = AssetsGeneratingVCUSchedule::<T>::get(account_id.clone(), &signer);
+
+				let period_days = Self::json_get_value(content.clone(),"period_days".as_bytes().to_vec());
+				let period_days = str::parse::<u64>(sp_std::str::from_utf8(&period_days).unwrap()).unwrap();
+				let token_id = Self::json_get_value(content.clone(),"token_id".as_bytes().to_vec());
+				let token_id = str::parse::<u32>(sp_std::str::from_utf8(&token_id).unwrap()).unwrap();
+				let amount_vcu = Self::json_get_value(content.clone(),"amount_vcu".as_bytes().to_vec());
+				let amount_vcu = str::parse::<Balance>(sp_std::str::from_utf8(&amount_vcu).unwrap()).unwrap();
+
+				let now:u64 = T::UnixTime::now().as_secs();
+				if period_days == now {
+						pallet_assets::Module::<T>::mint(origin, token_id, T::Lookup::unlookup(account_id.clone()), amount_vcu)?;
+					}
+				if vcus.is_none() {
+					let json = Self::create_json_string(vec![("period_days",&mut period_days.to_string().as_bytes().to_vec()), ("amount_vcu",&mut  amount_vcu.to_string().as_bytes().to_vec())]);
+					*vcus = Some(json);
+				}
+				Self::deposit_event(RawEvent::AssetsGeneratingVCUGenerated(account_id, signer));
+
+            	Ok(().into())
+        	})
 		}
 
 	}

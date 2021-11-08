@@ -106,7 +106,7 @@ orml-benchmarking = { path = "../orml/benchmarking", default-features = false, o
 module-currencies = { path = "../modules/currencies", default-features = false }
 
 # ERC 20 tokens
-pallet-assets = { version = "3.0.0", default-features = false }
+pallet-assets = { version = "3.0.0", default-features = false, path = "../pallets/assets" }
 
 # Ethereum Virtual Machine
 module-evm = { path = "../modules/evm", default-features = false }
@@ -157,7 +157,7 @@ std = [
 	"pallet-im-online/std",
 	"pallet-offences/std",
 	"pallet-identity/std",
-
+	"pallet-assets/std",
 	"sp-api/std",
 	"sp-block-builder/std",
 	"sp-core/std",

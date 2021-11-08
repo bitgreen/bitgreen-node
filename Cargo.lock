@@ -4397,12 +4397,15 @@ dependencies = [
 [[package]]
 name = "pallet-assets"
 version = "3.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "87e4ad8ad50df73d1bc99f6a67bfbe84e8be1554019a798ba37db958f9ad4cc9"
 dependencies = [
+ "frame-benchmarking",
  "frame-support",
  "frame-system",
+ "pallet-balances",
  "parity-scale-codec",
+ "serde",
+ "sp-core",
+ "sp-io",
  "sp-runtime",
  "sp-std",
 ]
@@ -4961,6 +4964,7 @@ dependencies = [
  "bitg-primitives",
  "frame-support",
  "frame-system",
+ "pallet-assets",
  "parity-scale-codec",
  "serde",
  "sp-core",
