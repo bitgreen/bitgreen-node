@@ -425,7 +425,7 @@ pub mod pallet {
 		/// Weight: `O(1)`
 		/// Modes: Post-existence of `who`; Pre & post Zombie-status of `who`.
 		#[pallet::weight(T::WeightInfo::burn())]
-		pub(super) fn burn(
+		pub fn burn(
 			origin: OriginFor<T>,
 			#[pallet::compact] id: T::AssetId,
 			who: <T::Lookup as StaticLookup>::Source,

@@ -65,6 +65,10 @@ decl_storage! {
 		AssetsGeneratingVCUSchedule get(fn asset_generating_vcu_schedule): double_map hasher(blake2_128_concat) T::AccountId, hasher(blake2_128_concat) u32 => Vec<u8>;
 		/// AssetsGeneratingVCUGenerated Minting of Scheduled VCU
 		AssetsGeneratingVCUGenerated get(fn vcu_generated): double_map hasher(blake2_128_concat) T::AccountId, hasher(blake2_128_concat) u32 => Vec<u8>;
+		/// VCUsBurnedAccounts: store the burned vcu for each account
+		VCUsBurnedAccounts get(fn vcu_burned_account): double_map hasher(blake2_128_concat) T::AccountId, hasher(blake2_128_concat) u32 => u128;
+		/// VCUsBurned: store the burned VCU for each type of VCU token
+		VCUsBurned get(fn vcu_burned):map hasher(blake2_128_concat) u32 => u128;
 	}
 }
 
@@ -94,6 +98,8 @@ decl_event!(
 		AssetsGeneratingVCUScheduleDestroyed(AccountId, u32),
 		/// Added AssetsGeneratingVCUGenerated.
         AssetsGeneratingVCUGenerated(AccountId, u32),
+		/// Added VCUBurned.
+        VCUsBurnedAdded(AccountId, u32, u32),
 	}
 );
 
@@ -139,6 +145,8 @@ decl_error! {
 		InvalidVCUAmount,
 		/// AssetGeneratedVCUSchedule has not been found on the blockchain
 		AssetGeneratedVCUSchedule,
+		/// Asset does not exist,
+		AssetDoesNotExist,
 	}
 }
 
@@ -596,6 +604,45 @@ decl_module! {
         	})
 		}
 
+		/// To retire_vcu
+		///
+		/// The dispatch origin for this call must be `Signed` either by the Root or authorized account.
+		#[weight = 10_000 + T::DbWeight::get().writes(1)]
+		pub fn retire_vcu(origin, account_id: T::AccountId, signer: u32, asset_id: u32, amount: u128) -> DispatchResultWithPostInfo {
+
+			match ensure_root(origin.clone()) {
+				Ok(()) => Ok(()),
+				Err(e) => {
+					ensure_signed(origin).and_then(|o: T::AccountId| {
+						if AuthorizedAccountsAGV::<T>::contains_key(&o) {
+							Ok(())
+						} else {
+							Err(e)
+						}
+					})
+				}
+			}?;
+
+			// check whether asset exists or not
+			ensure!(Asset::<T>::contains_key(asset_id.clone()), Error::<T>::AssetDoesNotExist);
+
+			pallet_assets::Module::<T>::burn(RawOrigin::Signed(account_id.clone()).into(), asset_id.clone(), T::Lookup::unlookup(account_id.clone()), amount)?;
+
+			VCUsBurnedAccounts::<T>::try_mutate(&account_id, &signer, |vcu| -> DispatchResult {
+				*vcu = amount;
+				Ok(())
+			})?;
+
+			VCUsBurned::try_mutate(&asset_id, |vcu| -> DispatchResult {
+				*vcu = amount;
+				Ok(())
+			})?;
+
+			// Generate event
+			Self::deposit_event(RawEvent::VCUsBurnedAdded(account_id, signer, asset_id));
+			// Return a successful DispatchResult
+			Ok(().into())
+		}
 	}
 }
 
