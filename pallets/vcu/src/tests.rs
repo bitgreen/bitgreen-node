@@ -2,7 +2,6 @@ use crate::{Error, mock::*};
 use frame_support::{assert_ok, assert_noop};
 use sp_runtime::DispatchError::BadOrigin;
 
-
 #[test]
 fn create_proxy_settings_should_work() {
 	new_test_ext().execute_with(|| {
@@ -261,12 +260,56 @@ fn destroy_asset_generating_vcu_schedule_should_not_work_if_not_exists() {
 #[test]
 fn mint_scheduled_vcu_should_work_if_signed_by_root_or_authorized_user() {
 	new_test_ext().execute_with(|| {
+
 		let input = r#"{"description":"Description", "proofOwnership":"ipfslink", "numberOfShares":"1000"}"#.as_bytes().to_vec();
 		assert_ok!(VCU::add_authorized_account(Origin::root(), 11, b"Verra".to_vec()));
 		assert_ok!(VCU::create_asset_generating_vcu(Origin::signed(11), 1, 1, input.clone()));
 		assert_eq!(VCU::asset_generating_vcu(1, 1), input);
-		assert_ok!(VCU::create_asset_generating_vcu_schedule(Origin::signed(11), 1, 1, 0, 1, 1));
+
+		let token_id:u32 = 1;
+		let amount_vcu: u128 = 1000;
+
+		assert_ok!(VCU::create_asset_generating_vcu_schedule(Origin::signed(11), 1, 1, 0, amount_vcu, token_id));
+
+		assert_eq!(Assets::total_supply(token_id), 0);
 
 		assert_ok!(VCU::mint_scheduled_vcu(Origin::signed(11), 1, 1));
+
+		assert_eq!(Assets::total_supply(token_id), amount_vcu);
+
+	});
+}
+
+#[test]
+fn mint_scheduled_vcu_should_not_work_if_not_exists() {
+	new_test_ext().execute_with(|| {
+		assert_noop!(
+			VCU::mint_scheduled_vcu(Origin::root(), 1, 1),
+			Error::<Test>::AssetGeneratedVCUSchedule
+		);
+	});
+}
+
+#[test]
+fn mint_scheduled_vcu_should_not_mint_if_schedule_has_been_expired() {
+	new_test_ext().execute_with(|| {
+		let input = r#"{"description":"Description", "proofOwnership":"ipfslink", "numberOfShares":"1000"}"#.as_bytes().to_vec();
+		assert_ok!(VCU::add_authorized_account(Origin::root(), 11, b"Verra".to_vec()));
+		assert_ok!(VCU::create_asset_generating_vcu(Origin::signed(11), 1, 1, input.clone()));
+		assert_eq!(VCU::asset_generating_vcu(1, 1), input);
+
+		let token_id:u32 = 1;
+		let amount_vcu: u128 = 1000;
+
+		assert_ok!(VCU::create_asset_generating_vcu_schedule(Origin::signed(11), 1, 1, 1, amount_vcu, token_id));
+
+		assert_eq!(Assets::total_supply(token_id), 0);
+
+		assert_noop!(
+			VCU::mint_scheduled_vcu(Origin::signed(11), 1, 1),
+			Error::<Test>::AssetGeneratedScheduleExpired
+		);
+
+		assert_eq!(Assets::total_supply(token_id), 0);
 	});
 }
