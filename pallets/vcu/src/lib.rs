@@ -633,12 +633,14 @@ decl_module! {
 			pallet_assets::Module::<T>::burn(RawOrigin::Signed(account_id.clone()).into(), asset_id.clone(), T::Lookup::unlookup(account_id.clone()), amount)?;
 
 			VCUsBurnedAccounts::<T>::try_mutate(&account_id, &signer, |vcu| -> DispatchResult {
-				*vcu = amount;
+				let total_vcu = vcu.checked_add(amount).ok_or(Error::<T>::Overflow)?;
+				*vcu = total_vcu;
 				Ok(())
 			})?;
 
 			VCUsBurned::try_mutate(&asset_id, |vcu| -> DispatchResult {
-				*vcu = amount;
+				let total_vcu = vcu.checked_add(amount).ok_or(Error::<T>::Overflow)?;
+				*vcu = total_vcu;
 				Ok(())
 			})?;
 
