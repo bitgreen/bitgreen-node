@@ -69,6 +69,8 @@ decl_storage! {
 		VCUsBurnedAccounts get(fn vcu_burned_account): double_map hasher(blake2_128_concat) T::AccountId, hasher(blake2_128_concat) u32 => u128;
 		/// VCUsBurned: store the burned VCU for each type of VCU token
 		VCUsBurned get(fn vcu_burned):map hasher(blake2_128_concat) u32 => u128;
+		/// OraclesAccountMintingVCU: allow the account of the Oracle to mint the VCU for his AVG
+		OraclesAccountMintingVCU get(fn oracle_generating_vcu): double_map hasher(blake2_128_concat) T::AccountId, hasher(blake2_128_concat) u32 => T::AccountId;
 	}
 }
 
@@ -100,6 +102,12 @@ decl_event!(
         AssetsGeneratingVCUGenerated(AccountId, u32),
 		/// Added VCUBurned.
         VCUsBurnedAdded(AccountId, u32, u32),
+		/// Added OraclesAccountMintingVCU
+        OraclesAccountMintingVCUAdded(AccountId, u32, AccountId),
+		/// Destroyed OraclesAccountMintingVCUDestroyed
+		OraclesAccountMintingVCUDestroyed(AccountId, u32),
+		/// OracleAccountVCUMinted
+		OracleAccountVCUMinted(AccountId, u32, AccountId),
 	}
 );
 
@@ -144,11 +152,13 @@ decl_error! {
 		/// Invalid VCU Amount
 		InvalidVCUAmount,
 		/// AssetGeneratedVCUSchedule has not been found on the blockchain
-		AssetGeneratedVCUSchedule,
+		AssetGeneratedVCUScheduleNotFound,
 		/// Asset does not exist,
 		AssetDoesNotExist,
 		/// AssetGeneratingSchedule has been Expired
 		AssetGeneratedScheduleExpired,
+		/// AOraclesAccountMintingVCU Not Found
+		OraclesAccountMintingVCUNotFound,
   }
 }
 
@@ -549,7 +559,7 @@ decl_module! {
 
 			// check whether asset generated VCU exists or not
 
-			ensure!(AssetsGeneratingVCUSchedule::<T>::contains_key(&account_id, &signer), Error::<T>::AssetGeneratedVCUSchedule);
+			ensure!(AssetsGeneratingVCUSchedule::<T>::contains_key(&account_id, &signer), Error::<T>::AssetGeneratedVCUScheduleNotFound);
 
 			AssetsGeneratingVCUSchedule::<T>::remove(&account_id, &signer);
 			// Generate event
@@ -578,7 +588,7 @@ decl_module! {
 			}?;
 
 			AssetsGeneratingVCUGenerated::<T>::try_mutate_exists(account_id.clone(), signer.clone(), |vcus| -> DispatchResultWithPostInfo {
-				ensure!(AssetsGeneratingVCUSchedule::<T>::contains_key(&account_id, &signer), Error::<T>::AssetGeneratedVCUSchedule);
+				ensure!(AssetsGeneratingVCUSchedule::<T>::contains_key(&account_id, &signer), Error::<T>::AssetGeneratedVCUScheduleNotFound);
 				let content: Vec<u8> = AssetsGeneratingVCUSchedule::<T>::get(account_id.clone(), &signer);
 
 				let period_days = Self::json_get_value(content.clone(),"period_days".as_bytes().to_vec());
@@ -647,6 +657,103 @@ decl_module! {
 			// Generate event
 			Self::deposit_event(RawEvent::VCUsBurnedAdded(account_id, signer, asset_id));
 			// Return a successful DispatchResult
+			Ok(().into())
+		}
+
+		/// Store/update an OraclesAccountMintingVCU
+		///
+		/// The dispatch origin for this call must be `Signed` either by the Root or authorized account.
+		#[weight = 10_000 + T::DbWeight::get().writes(1)]
+		pub fn create_oracle_account_minting_vcu(origin, avg_account_id: T::AccountId, signer: u32, oracle_account_id: T::AccountId) -> DispatchResult {
+
+			match ensure_root(origin.clone()) {
+				Ok(()) => Ok(()),
+				Err(e) => {
+					ensure_signed(origin).and_then(|o: T::AccountId| {
+						if AuthorizedAccountsAGV::<T>::contains_key(&o) {
+							Ok(())
+						} else {
+							Err(e)
+						}
+					})
+				}
+			}?;
+
+			OraclesAccountMintingVCU::<T>::try_mutate_exists(avg_account_id.clone(), signer.clone(), |oracle| {
+				*oracle = Some(oracle_account_id.clone());
+
+				// Generate event
+				Self::deposit_event(RawEvent::OraclesAccountMintingVCUAdded(avg_account_id, signer, oracle_account_id));
+				// Return a successful DispatchResult
+				Ok(())
+			})
+		}
+
+		/// Destroy an OraclesAccountMintingVCU
+		///
+		/// The dispatch origin for this call must be `Signed` either by the Root or authorized account.
+		#[weight = 10_000 + T::DbWeight::get().writes(1)]
+		pub fn destroy_oracle_account_minting_vcu(origin, account_id: T::AccountId, signer: u32) -> DispatchResult {
+
+			match ensure_root(origin.clone()) {
+				Ok(()) => Ok(()),
+				Err(e) => {
+					ensure_signed(origin).and_then(|o: T::AccountId| {
+						if AuthorizedAccountsAGV::<T>::contains_key(&o) {
+							Ok(())
+						} else {
+							Err(e)
+						}
+					})
+				}
+			}?;
+
+			ensure!(OraclesAccountMintingVCU::<T>::contains_key(&account_id, &signer), Error::<T>::OraclesAccountMintingVCUNotFound);
+
+			OraclesAccountMintingVCU::<T>::remove(account_id.clone(), signer.clone());
+
+			// Generate event
+			Self::deposit_event(RawEvent::OraclesAccountMintingVCUDestroyed(account_id, signer));
+			// Return a successful DispatchResult
+			Ok(())
+		}
+
+		/// mint_vcu_from_oracle
+		///
+		/// The dispatch origin for this call must be `Signed` either by the Root or authorized account.
+		#[weight = 10_000 + T::DbWeight::get().writes(1)]
+		pub fn mint_vcu_from_oracle(origin, avg_account_id: T::AccountId, signer: u32, amount_vcu: Balance) -> DispatchResultWithPostInfo {
+
+			match ensure_root(origin.clone()) {
+				Ok(()) => Ok(()),
+				Err(e) => {
+					ensure_signed(origin).and_then(|o: T::AccountId| {
+						if AuthorizedAccountsAGV::<T>::contains_key(&o) {
+							Ok(())
+						} else {
+							Err(e)
+						}
+					})
+				}
+			}?;
+			ensure!(OraclesAccountMintingVCU::<T>::contains_key(&avg_account_id, &signer), Error::<T>::OraclesAccountMintingVCUNotFound);
+
+			let oracle_account: T::AccountId = OraclesAccountMintingVCU::<T>::get(&avg_account_id, &signer);
+
+			ensure!(AssetsGeneratingVCUSchedule::<T>::contains_key(&avg_account_id, &signer), Error::<T>::AssetGeneratedVCUScheduleNotFound);
+			let content: Vec<u8> = AssetsGeneratingVCUSchedule::<T>::get(avg_account_id.clone(), &signer);
+
+			let token_id = Self::json_get_value(content.clone(),"token_id".as_bytes().to_vec());
+			let token_id = str::parse::<u32>(sp_std::str::from_utf8(&token_id).unwrap()).unwrap();
+
+			if !Asset::<T>::contains_key(token_id.clone()) {
+				pallet_assets::Module::<T>::force_create(RawOrigin::Root.into(), token_id, T::Lookup::unlookup(oracle_account.clone()), One::one(), One::one())?;
+			}
+
+			pallet_assets::Module::<T>::mint(RawOrigin::Signed(oracle_account.clone()).into(), token_id, T::Lookup::unlookup(avg_account_id.clone()), amount_vcu)?;
+
+			Self::deposit_event(RawEvent::OracleAccountVCUMinted(avg_account_id, signer, oracle_account));
+
 			Ok(().into())
 		}
 	}

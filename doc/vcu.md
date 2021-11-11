@@ -211,3 +211,33 @@ This function also -
 - Burn the amount of tokens from pallet “Assets” and
 - Update the number of burned VCU for the signer in VCUsBurnedAccounts
 - Update the total of burned VCU for vcu type (assetsid) in VCUsBurned
+
+## Create Oracles Generating VCU
+
+The VCUs may be generated from Oracle collecting data from off-chain. For example a Solar Panel field may have an Oracle collecting the 
+output power and generating the VCUs periodically on Chain. We have allowed the account of the Oracle to mint the VCU for his AVG.
+
+The function must be accessible only from SUDO account or one of the accounts stored in AuthorizedAccountsAGV.
+
+```rust
+create_oracle_account_minting_vcu(avg_account_id: T::AccountId, signer: u32, oracle_account_id: T::AccountId)
+```
+
+This function stores data in `OraclesAccountMintingVCU`.
+
+
+## Destroy Oracles Generating VCU
+
+This function removes Oracles Generating VCU from storage. The function must be accessible only from SUDO account or one of the accounts stored in AuthorizedAccountsAGV.
+
+```rust
+destroy_oracle_account_minting_vcu(account_id: T::AccountId, signer: u32)
+```
+
+## Mint Oracles Generating VCU
+
+This function mints Oracles Generating VCUs. The function must be accessible only from SUDO account or one of the accounts stored in AuthorizedAccountsAGV.
+
+```rust
+mint_vcu_from_oracle(avg_account_id: T::AccountId, signer: u32, amount_vcu: Balance)
+```
