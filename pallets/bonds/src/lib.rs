@@ -9,6 +9,7 @@ use frame_system::{ensure_root,ensure_signed};
 use sp_std::prelude::*;
 use core::str;
 use core::str::FromStr;
+
 #[cfg(test)]
 mod mock;
 
@@ -53,7 +54,19 @@ decl_storage! {
         Currencies get(fn get_currency): map hasher(blake2_128_concat) Vec<u8> => Option<Vec<u8>>;
         // Underwriters data
         Underwriters get(fn get_underwriter): map hasher(blake2_128_concat) T::AccountId => Option<Vec<u8>>;
-	}
+        // Insurer data
+        Insurers get(fn get_insurer): map hasher(blake2_128_concat) T::AccountId => Option<Vec<u8>>;
+        // Insurance Data
+        Insurances get(fn get_insurance): double_map hasher(blake2_128_concat) T::AccountId, hasher(blake2_128_concat) u32 => Option<Vec<u8>>;
+        // Insurances Signed from Payer
+        InsurancesSigned get(fn get_insurance_signature): double_map hasher(blake2_128_concat) T::AccountId, hasher(blake2_128_concat) u32 => Option<T::AccountId>;
+        // Lawyers data
+        Lawyers get(fn get_lawyer): map hasher(blake2_128_concat) T::AccountId => Option<Vec<u8>>;
+        // InterbankRate data
+        InterbankRates get(fn get_interbank_rate): double_map hasher(blake2_128_concat) Vec<u8>, hasher(blake2_128_concat) Vec<u8> => Option<u32>;
+	     // InterbankRate data
+        InflationRates get(fn get_inflation_rate): double_map hasher(blake2_128_concat) Vec<u8>, hasher(blake2_128_concat) Vec<u8> => Option<u32>;
+    }
 }
 
 // We generate events to inform the users of succesfully actions.
@@ -73,14 +86,24 @@ decl_event!(
         BondSignedforApproval(u32,AccountId),           // A bond has been assigned for approval
         CreditRatingAgencyStored(AccountId,Vec<u8>),    // Credit rating agency has been stored/updated
         CreditRatingStored(u32,Vec<u8>),                // New credit rating has been created
-        UnderwriterCreated(AccountId, Vec<u8>),                // An underwriter has been created
-        UnderwriterDestroyed(AccountId),              // An underwriter has been destroyed
+        UnderwriterCreated(AccountId, Vec<u8>),         // An underwriter has been created
+        UnderwriterDestroyed(AccountId),                // An underwriter has been destroyed
         CollateralsStored(u32,u32,Vec<u8>),             // A collaterals has been stored
         CollateralsApproved(u32,u32,Vec<u8>),           // A collaterals has been approved
         FundStored(AccountId,Vec<u8>),                  // Fund data stored on chain
         FundApproved(AccountId,AccountId),              // Fund approved with all the required signatures
         FundSignedforApproval(AccountId,AccountId),     // Fund has been signed for approval
-
+        InsurerCreated(AccountId,Vec<u8>),              // Insurer has been stored/updated
+        InsurerDestroyed(AccountId),                    // Insurer has been destroyed
+        InsuranceCreated(AccountId,u32,Vec<u8>),        // Insurance has been created
+        InsuranceDestroyed(AccountId,u32),              // Insurance has been destroyed
+        InsuranceSigned(AccountId,u32,AccountId),       // Insurance signed
+        LawyerCreated(AccountId, Vec<u8>),              // A Lawyer has been created
+        LawyerDestroyed(AccountId),                     // A Lawyer opinion has been destroyed
+        InterbankRateCreated(Vec<u8>,Vec<u8>),          // An InterbankRate has been created
+        InterbankRateDestroyed(Vec<u8>,Vec<u8>),        // An InterbankRate has been destroyed
+        InflationRateCreated(Vec<u8>,Vec<u8>),          // An Inflation Rate has been created
+        InflationRateDestroyed(Vec<u8>,Vec<u8>),        // An Inflation Rate has been destroyed
 	}
 
 );
@@ -182,6 +205,8 @@ decl_error! {
         KycIdNotFound,
         /// The signer has already signed the same kyc
         KycSignatureAlreadyPresentrSameSigner,
+        /// Kyc Settings not yet configured
+        KycSettingsNotConfigured,
         /// The signer is not authorized to approve a KYC
         SignerIsNotAuthorizedForKycApproval,
         /// Bond id cannot be zero
@@ -331,7 +356,7 @@ decl_error! {
         /// Invalid Website
         InvalidWebsite,
         /// The adrresses for the underwriter from json and passed paramenters did not match
-        UnmatchingUderwriterAddress,
+        UnmatchingUnderwriterAddress,
         /// Missing Underwriter Account ID from json input
         MissingUnderwriterAccountId,
         /// The committee enabled to submit Underwriter is wrong
@@ -340,6 +365,12 @@ decl_error! {
         SignerIsNotAuthorizedForUnderwriterSubmissionOrRemoval,
         /// Signer is not authorized for fund creation/update
         SignerIsNotAuthorizedForFundCreation,
+        /// Insurer manager is not set
+        InsurerSubmissionManagerAccountIsWrong,
+        /// Insurer committee is empty
+        InsurerSubmissionCommitteeIsWrong,
+        /// Signer has not authorization to submite Insurer
+        SignerIsNotAuthorizedForInsurerSubmissionOrRemoval,
         /// Fund info is long, maximum 8192 bytes
         FundInfoIsTooLong,
         /// Fund name is too short
@@ -404,7 +435,66 @@ decl_error! {
         FundsSignatureAlreadyPresentrSameSigner,
         /// Signer is not authorized for fund approval
         SignerIsNotAuthorizedForFundApproval,
-
+        /// Currency in the Insurance configuration is wrong
+        InsuranceCurrencyIsWrong,
+        /// Insurance Minimum Reserver Cannot Be Zero
+        InsuranceMinReserveCannotBeZero,
+        /// Insurer Settings is missing from the configuration
+        InsurerSettingIsMissing,
+        /// Insurer is already present
+        InsurerAlreadyPresent,
+        /// Insurer name is too short
+        InsurerNameTooShort,
+        /// Insurer web site is too short
+        InsurerWebSiteTooShort,
+        /// Insurer web site is too long
+        InsurerWebSiteTooLong,
+        /// The adrresses for the underwriter from json and passed paramenters did not match
+        UnmatchingInsurerAddress,
+        /// Insurer account not found
+        InsurerAccountNotFound,
+        /// Insurer account has not been found
+        MissingInsurerAccountId,
+        /// Info documents for the insurer are missing
+        MissingInsurerInfoDocuments,
+        /// Signer is not an insurer
+        SignerIsNotInsurer,
+        /// Max Coverage cannot be zero
+        MaxCoverageCannotBeZero,
+        /// Payer account is wrong
+        PayerAccountIsWrong,
+        /// Beneficiary account is wrong
+        BeneficiaryAccountIsWrong,
+        /// Insurance premium cannot be zero.
+        InsurancePremiumCannotBeZero,
+        /// Information documents about the insurance are missing
+        MissingInsuranceInfoDocuments,
+        /// Insurance id is already present in the state
+        InsuranceIdAlreadyPresent,
+        /// The data is already stored on chain
+        AlreadyPresent,
+        /// The name is too short
+        NameTooShort,
+        /// The website is too short
+        WebSiteTooShort,
+        /// The website is too short
+        WebSiteTooLong,
+       /// The account id is missing in the parameters passed
+       MissingAccountId,
+       /// The addresses did not match
+       UnmatchingAddress,
+       /// The info documents is missing
+       MissingInfoDocuments,
+       /// Signer Is Not Authorized For Submission Or Removal
+       SignerIsNotAuthorizedForSubmissionOrRemoval,
+       /// Account if has not  been found
+       AccountNotFound,
+       /// Insurance cannot be found
+       InsuranceNotFound,
+       /// Insurance has been already signed
+       InsuranceAlreadySigned,
+       /// The date format is not in  YYYY-MM-DD format
+       InvalidDateFormat
 	}
 }
 
@@ -423,7 +513,7 @@ decl_module! {
         /// for example: {"manager":"5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY","committee":["5FLSigC9HGRKVhB9FiEo4Y3koPsNmBmLJbpXg2mp1hXcS59Y","5HpG9w8EBLe5XCrbczpwq5TSXvedjrBGCwqxK1iQ7qUsSWFc"],"mandatoryunderwriting":"Y","mandatorycreditrating":"Y","mandatorylegalopinion":"Y"}
         /// key=="underwriterssubmission" {"manager":"xxxaccountidxxx","committee":["xxxxaccountidxxxx","xxxxaccountidxxxx",...]}
         /// for example: {"manager":"5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY","committee":["5FLSigC9HGRKVhB9FiEo4Y3koPsNmBmLJbpXg2mp1hXcS59Y","5HpG9w8EBLe5XCrbczpwq5TSXvedjrBGCwqxK1iQ7qUsSWFc"]}
-        /// key=="infodocuments" [{"document":"xxxxdescription"},{"document":"xxxxdescription"}]
+        /// key=="infodocuments" {"documents:[{"document":"xxxxdescription"},{"document":"xxxxdescription"}]}
         /// for example: [{"document":"Profit&Loss Previous year"},{"document":"Board Members/Director List"}]
         #[weight = 1000]
 		pub fn create_change_settings(origin, key: Vec<u8>, configuration: Vec<u8>) -> dispatch::DispatchResult {
@@ -439,10 +529,13 @@ decl_module! {
             ensure!(key=="kyc".as_bytes().to_vec() 
                 || key=="bondapproval".as_bytes().to_vec() 
                 || key=="underwriterssubmission".as_bytes().to_vec()
+                || key=="insurerssubmission".as_bytes().to_vec()
                 || key=="creditratingagencies".as_bytes().to_vec()
                 || key=="collateralsverification".as_bytes().to_vec()
                 || key=="fundapproval".as_bytes().to_vec()
-                || key=="infodocuments".as_bytes().to_vec(),
+                || key=="lawyerssubmission".as_bytes().to_vec()
+                || key=="infodocuments".as_bytes().to_vec()
+                || key=="insuranceminreserve".as_bytes().to_vec(),
                 Error::<T>::SettingsKeyIsWrong);
             // check validity for kyc settings
             if key=="kyc".as_bytes().to_vec() {
@@ -503,8 +596,25 @@ decl_module! {
                 }
                 ensure!(x>0,Error::<T>::UnderwritersSubmissionCommitteeIsWrong);
             }
-            // check validity for underwriters submission settings
-            if key=="underwriterssubmission".as_bytes().to_vec() {
+            // check validity for insurer submission settings
+            if key=="insurerssubmission".as_bytes().to_vec() {
+                let manager=json_get_value(configuration.clone(),"manager".as_bytes().to_vec());
+                ensure!(manager.len()==48 || manager.len()==0, Error::<T>::InsurerSubmissionManagerAccountIsWrong);
+                let committee=json_get_complexarray(configuration.clone(),"committee".as_bytes().to_vec());
+                let mut x=0;
+                if committee.len()>2 {
+                    loop {  
+                        let w=json_get_recordvalue(committee.clone(),x);
+                        if w.len()==0 {
+                            break;
+                        }
+                        x=x+1;
+                    }
+                }
+                ensure!(x>0,Error::<T>::InsurerSubmissionCommitteeIsWrong);
+            }
+            // check validity for the submission settings of credit rating agencies
+            if key=="creditratingagencies".as_bytes().to_vec() {
                 let manager=json_get_value(configuration.clone(),"manager".as_bytes().to_vec());
                 ensure!(manager.len()==48 || manager.len()==0, Error::<T>::CreditRatingAgenciesSubmissionManagerAccountIsWrong);
                 let committee=json_get_complexarray(configuration.clone(),"committee".as_bytes().to_vec());
@@ -518,7 +628,7 @@ decl_module! {
                         x=x+1;
                     }
                 }
-                ensure!(x>0,Error::<T>::UnderwritersSubmissionCommitteeIsWrong);
+                ensure!(x>0,Error::<T>::CreditRatingAgenciesSubmissionCommitteeIsWrong);
             }
             // check validity for lawyers submission settings
             if key=="lawyerssubmission".as_bytes().to_vec() {
@@ -554,7 +664,7 @@ decl_module! {
                 }
                 ensure!(x>0,Error::<T>::CollateralVerificationCommitteeIsWrong);
             }
-            // check validity for hedge fund approval settings
+            // check validity for enterprise/edge fund approval settings
             if key=="fundapproval".as_bytes().to_vec() {
                 let manager=json_get_value(configuration.clone(),"manager".as_bytes().to_vec());
                 ensure!(manager.len()==48 || manager.len()==0, Error::<T>::FundApprovalManagerAccountIsWrong);
@@ -586,6 +696,14 @@ decl_module! {
                 }
                 ensure!(x>0,Error::<T>::InfoDocumentsIsWrong);
             }
+            // check validity for collateral verification settings
+            if key=="insuranceminreserve".as_bytes().to_vec() {
+                let currency=json_get_value(configuration.clone(),"currency".as_bytes().to_vec());
+                ensure!(currency.len()>=3, Error::<T>::InsuranceCurrencyIsWrong);
+                let reserve=json_get_value(configuration.clone(),"reserve".as_bytes().to_vec());
+                let reservev=vecu8_to_u32(reserve);
+                ensure!(reservev>0,Error::<T>::InsuranceMinReserveCannotBeZero);
+            }
             //store settings on chain
             if Settings::contains_key(&key)==false {
                 // Insert settings
@@ -606,6 +724,7 @@ decl_module! {
         pub fn create_change_kyc(origin, accountid: T::AccountId, info: Vec<u8>) -> dispatch::DispatchResult {
             let signer = ensure_signed(origin)?;
             // check the signer is one of the operators for kyc
+            ensure!(Settings::contains_key("kyc".as_bytes().to_vec()),Error::<T>::KycSettingsNotConfigured);
             let json:Vec<u8>=Settings::get("kyc".as_bytes().to_vec()).unwrap();
             let mut flag=0;
             let mut signingtype=0;
@@ -654,11 +773,11 @@ decl_module! {
             ensure!(json_check_validity(js),Error::<T>::InvalidJson);
             // check name
             let name=json_get_value(info.clone(),"name".as_bytes().to_vec());
-            ensure!(name.len()>=10,Error::<T>::KycNameTooShort);
+            ensure!(name.len()>=3,Error::<T>::KycNameTooShort);
             ensure!(name.len()<=64,Error::<T>::KycNameTooLong);
             // check Address
             let address=json_get_value(info.clone(),"address".as_bytes().to_vec());
-            ensure!(address.len()>=10,Error::<T>::KycAddressTooShort);
+            ensure!(address.len()>=3,Error::<T>::KycAddressTooShort);
             ensure!(address.len()<=64,Error::<T>::KycAddressTooLong);
             // check Zip code
             let zip=json_get_value(info.clone(),"zip".as_bytes().to_vec());
@@ -674,11 +793,11 @@ decl_module! {
             ensure!(state.len()<=64,Error::<T>::KycStateTooLong);
             // check Country
             let country=json_get_value(info.clone(),"country".as_bytes().to_vec());
-            ensure!(country.len()>3,Error::<T>::KycCountryTooShort);
+            ensure!(country.len()>2,Error::<T>::KycCountryTooShort);
             ensure!(country.len()<64,Error::<T>::KycCountryTooLong);
             // check Website
             let website=json_get_value(info.clone(),"website".as_bytes().to_vec());
-            ensure!(website.len()>=10,Error::<T>::KycWebSiteTooShort);
+            ensure!(website.len()>=5,Error::<T>::KycWebSiteTooShort);
             ensure!(website.len()<=64,Error::<T>::KycWebSiteTooLong);
             ensure!(validate_weburl(website),Error::<T>::KycWebSiteIsWrong);
             // check Phone 
@@ -727,7 +846,7 @@ decl_module! {
             //check id >0
             ensure!(Kyc::<T>::contains_key(&accountid),Error::<T>::KycIdNotFound);
             ensure!(!KycSignatures::<T>::contains_key(&accountid,&signer),Error::<T>::KycSignatureAlreadyPresentrSameSigner);
-            // check the signer is one of the operators for kyc
+            // check the signer is one of the supervisors or manager for kyc
             let json:Vec<u8>=Settings::get("kyc".as_bytes().to_vec()).unwrap();
             let mut flag=0;
             let manager=json_get_value(json.clone(),"manager".as_bytes().to_vec());
@@ -1111,10 +1230,10 @@ decl_module! {
             }
             // check subordinated field
             let subordinated=json_get_value(info.clone(),"subordinated".as_bytes().to_vec());
-            ensure!(subordinated[0]==b'Y'  || subordinated[0]==b'Y',Error::<T>::BondSubordinatedIsWrong);
+            ensure!(subordinated[0]==b'Y'  || subordinated[0]==b'N',Error::<T>::BondSubordinatedIsWrong);
             // check put option field
             let putoption=json_get_value(info.clone(),"putoption".as_bytes().to_vec());
-            ensure!(putoption[0]==b'Y'  || putoption[0]==b'Y',Error::<T>::BondPutOptionIsWrong);
+            ensure!(putoption[0]==b'Y'  || putoption[0]==b'N',Error::<T>::BondPutOptionIsWrong);
             // check vesting period for put option
             if putoption[0]==b'Y' {
                 let putvestingperiod=json_get_value(info.clone(),"putvestingperiod".as_bytes().to_vec());
@@ -1132,10 +1251,10 @@ decl_module! {
             }
             // check put convertible option field
             let putconvertibleoption=json_get_value(info.clone(),"putconvertibleoption".as_bytes().to_vec());
-            ensure!(putconvertibleoption[0]==b'Y'  || putconvertibleoption[0]==b'Y',Error::<T>::BondPutConvertibleOptionIsWrong);
+            ensure!(putconvertibleoption[0]==b'Y'  || putconvertibleoption[0]==b'N',Error::<T>::BondPutConvertibleOptionIsWrong);
              // check call convertible option field
              let callconvertibleoption=json_get_value(info.clone(),"callconvertibleoption".as_bytes().to_vec());
-             ensure!(callconvertibleoption[0]==b'Y'  || callconvertibleoption[0]==b'Y',Error::<T>::BondCallConvertibleOptionIsWrong);
+             ensure!(callconvertibleoption[0]==b'Y'  || callconvertibleoption[0]==b'N',Error::<T>::BondCallConvertibleOptionIsWrong);
             // check the info documents
             // get required documents          
             let mut settingdocs="".as_bytes().to_vec();
@@ -1341,7 +1460,7 @@ decl_module! {
              // Return a successful DispatchResult
              Ok(())
         }
-        // this function has the purpose to the insert or update data for Credit Rating Agency
+        // this function has the purpose to the insert or update data for Credit Rating 
         #[weight = 1000]
         pub fn create_credit_rating(origin, bondid: u32, info: Vec<u8>) -> dispatch::DispatchResult {
              let signer = ensure_signed(origin)?;
@@ -1632,14 +1751,13 @@ decl_module! {
             ensure!(website.len()<=64,Error::<T>::UnderwriterWebSiteTooLong);
             ensure!(validate_weburl(website),Error::<T>::InvalidWebsite);
 
-
              // Check for account ID for underwriter from info json match
              let accountid_from_info=json_get_value(info.clone(),"accountid".as_bytes().to_vec());
              ensure!(accountid_from_info.len() > 0,  Error::<T>::MissingUnderwriterAccountId);
              if accountid_from_info.len()>0 {
                  let accountid_from_info_vec=bs58::decode(accountid_from_info).into_vec().unwrap();
                  let accountid_address=T::AccountId::decode(&mut &accountid_from_info_vec[1..33]).unwrap_or_default();
-                 ensure!(accountid_address == underwriter_account, Error::<T>::UnmatchingUderwriterAddress);
+                 ensure!(accountid_address == underwriter_account, Error::<T>::UnmatchingUnderwriterAddress);
              }
 
             // Check infodocs 
@@ -1692,12 +1810,386 @@ decl_module! {
                 x=x+1;
             }
             ensure!(flag==1,Error::<T>::SignerIsNotAuthorizedForUnderwriterSubmissionOrRemoval);
-
-
+            
             // Remove the underwriter
             Underwriters::<T>::take(underwriter_account.clone());
             // Generate event
             Self::deposit_event(RawEvent::UnderwriterDestroyed(underwriter_account));
+            // Return a successful DispatchResult
+            Ok(())
+        }
+        /// Create an Insurer
+        #[weight = 1000]
+        pub fn insurer_create(origin, insurer_account: T::AccountId, info: Vec<u8>) -> dispatch::DispatchResult {
+
+            let signer =  ensure_signed(origin)?;
+            // check for a valid json structure
+            ensure!(json_check_validity(info.clone()),Error::<T>::InvalidJson);
+            ensure!(Settings::contains_key("insurersubmission".as_bytes().to_vec()),Error::<T>::InsurerSettingIsMissing);
+            // check the signer is one of the manager or a member of the committee
+            let json:Vec<u8>=Settings::get("insurersubmission".as_bytes().to_vec()).unwrap();
+            let mut flag=0;
+            let mut signingtype=0;
+            let manager=json_get_value(json.clone(),"manager".as_bytes().to_vec());
+            if manager.len()>0 {
+                let managervec=bs58::decode(manager).into_vec().unwrap();
+                let accountidmanager=T::AccountId::decode(&mut &managervec[1..33]).unwrap_or_default();
+                if signer==accountidmanager {
+                    flag=1;       
+                    signingtype=1;             
+                }
+            }
+            let operators=json_get_complexarray(json.clone(),"committee".as_bytes().to_vec());
+            let mut x=0;
+            loop {  
+                let operator=json_get_arrayvalue(operators.clone(),x);
+                if operator.len()==0 {
+                    break;
+                }
+                let operatorvec=bs58::decode(operator).into_vec().unwrap();
+                let accountidoperator=T::AccountId::decode(&mut &operatorvec[1..33]).unwrap_or_default();
+                if accountidoperator==signer {
+                    flag=1;
+                    if signingtype==0 {
+                        signingtype=3;             
+                    }
+                }
+                x=x+1;
+            }
+            ensure!(flag==1,Error::<T>::SignerIsNotAuthorizedForInsurerSubmissionOrRemoval);
+
+            //Check if Insurer not already stored on chain
+            ensure!(!Insurers::<T>::contains_key(&insurer_account), Error::<T>::InsurerAlreadyPresent);
+             // check for name
+             let name=json_get_value(info.clone(),"name".as_bytes().to_vec());
+             ensure!(name.len()>=3, Error::<T>::InsurerNameTooShort);
+
+            // check Website
+            let website=json_get_value(info.clone(),"website".as_bytes().to_vec());
+            ensure!(website.len()>=10,Error::<T>::InsurerWebSiteTooShort);
+            ensure!(website.len()<=64,Error::<T>::UnderwriterWebSiteTooLong);
+            ensure!(validate_weburl(website),Error::<T>::InvalidWebsite);
+
+             // Check for account ID for insuere from info json match
+             let accountid_from_info=json_get_value(info.clone(),"accountid".as_bytes().to_vec());
+             ensure!(accountid_from_info.len() > 0,  Error::<T>::MissingInsurerAccountId);
+             if accountid_from_info.len()>0 {
+                 let accountid_from_info_vec=bs58::decode(accountid_from_info).into_vec().unwrap();
+                 let accountid_address=T::AccountId::decode(&mut &accountid_from_info_vec[1..33]).unwrap_or_default();
+                 ensure!(accountid_address == insurer_account, Error::<T>::UnmatchingInsurerAddress);
+             }
+            // Check infodocs 
+            let infodocs=json_get_value(info.clone(),"infodocuments".as_bytes().to_vec());
+            ensure!(infodocs.len()>=1, Error::<T>::MissingInsurerInfoDocuments);
+            Insurers::<T>::insert(insurer_account.clone(),info.clone());
+            // Generate event
+            Self::deposit_event(RawEvent::InsurerCreated(insurer_account, info));
+            // Return a successful DispatchResult
+            Ok(())
+        }
+        /// Destroy an Insurer
+        #[weight = 1000]
+        pub fn insurer_destroy(origin, insurer_account: T::AccountId) -> dispatch::DispatchResult {
+            let signer =  ensure_signed(origin)?;
+            // verify the underwriter  exists
+            ensure!(Underwriters::<T>::contains_key(&insurer_account), Error::<T>::InsurerAccountNotFound);
+
+            // check the signer is one of the manager or a member of the committee
+            let json:Vec<u8>=Settings::get("insurerssubmission".as_bytes().to_vec()).unwrap();
+            let mut flag=0;
+            let mut signingtype=0;
+            let manager=json_get_value(json.clone(),"manager".as_bytes().to_vec());
+            if manager.len()>0 {
+                let managervec=bs58::decode(manager).into_vec().unwrap();
+                let accountidmanager=T::AccountId::decode(&mut &managervec[1..33]).unwrap_or_default();
+                if signer==accountidmanager {
+                    flag=1;       
+                    signingtype=1;             
+                }
+            }
+            let operators=json_get_complexarray(json.clone(),"committee".as_bytes().to_vec());
+            let mut x=0;
+            loop {  
+                let operator=json_get_arrayvalue(operators.clone(),x);
+                if operator.len()==0 {
+                    break;
+                }
+                let operatorvec=bs58::decode(operator).into_vec().unwrap();
+                let accountidoperator=T::AccountId::decode(&mut &operatorvec[1..33]).unwrap_or_default();
+                if accountidoperator==signer {
+                    flag=1;
+                    if signingtype==0 {
+                        signingtype=3;             
+                    }
+                }
+                x=x+1;
+            }
+            ensure!(flag==1,Error::<T>::SignerIsNotAuthorizedForInsurerSubmissionOrRemoval);
+            
+            // Remove the Insurer
+            Insurers::<T>::take(insurer_account.clone());
+            // Generate event
+            Self::deposit_event(RawEvent::InsurerDestroyed(insurer_account));
+            // Return a successful DispatchResult
+            Ok(())
+        }
+        /// Create an Insurance - Initially as proposal, it's confirmed once signed and the premium paid from the payer
+        /// {"bondid":xxx,"maxcoverage":xxxx,"payer":"xxxxxxxxx","beneficiary":"xxxxoptionalxxxx","premium":xxxxxx,"infodocuments":"xxxxxx"}
+        /// TODO: Check minimum reserve of staked deposit
+        #[weight = 1000]
+        pub fn insurance_create(origin, uid: u32, info: Vec<u8>) -> dispatch::DispatchResult {
+            let signer =  ensure_signed(origin)?;
+            // check for a valid json structure
+            ensure!(json_check_validity(info.clone()),Error::<T>::InvalidJson);
+            // check the signer is one of the insurers
+            ensure!(Insurers::<T>::contains_key(&signer), Error::<T>::SignerIsNotInsurer);
+            // check for bondid
+            let bondid=json_get_value(info.clone(),"bondid".as_bytes().to_vec());
+            ensure!(bondid.len()>0, Error::<T>::BondIdIsWrongCannotBeZero);
+            let bondidv=vecu8_to_u32(bondid);
+            ensure!(!Bonds::contains_key(&bondidv), Error::<T>::BondsIdNotFound);
+            // check max coverage
+            let maxcoverage=json_get_value(info.clone(),"maxcoverage".as_bytes().to_vec());
+            ensure!(maxcoverage.len()>0, Error::<T>::MaxCoverageCannotBeZero);
+            let maxcoveragev=vecu8_to_u32(maxcoverage);
+            ensure!(maxcoveragev>0,Error::<T>::MaxCoverageCannotBeZero);
+            // check payer account
+            let payer=json_get_value(info.clone(),"payer".as_bytes().to_vec());
+            ensure!(payer.len()==48,  Error::<T>::PayerAccountIsWrong);
+            // check beneficiary account
+            let beneficiary=json_get_value(info.clone(),"beneficiary".as_bytes().to_vec());
+            ensure!(beneficiary.len()==48,  Error::<T>::BeneficiaryAccountIsWrong);
+            // check premium amount
+            let premium=json_get_value(info.clone(),"premium".as_bytes().to_vec());
+            ensure!(premium.len()>0, Error::<T>::InsurancePremiumCannotBeZero);
+            let premiumv=vecu8_to_u32(premium);
+            ensure!(premiumv>0,Error::<T>::InsurancePremiumCannotBeZero);
+            // Check infodocuments 
+            let infodocuments=json_get_value(info.clone(),"infodocuments".as_bytes().to_vec());
+            ensure!(infodocuments.len()>=1, Error::<T>::MissingInsuranceInfoDocuments);
+            //check insurance Id is not already present
+            ensure!(!Insurances::<T>::contains_key(signer.clone(),&uid), Error::<T>::InsuranceIdAlreadyPresent);
+            // store insurance
+            Insurances::<T>::insert(signer.clone(),uid.clone(),info.clone());
+            // Generate event
+            Self::deposit_event(RawEvent::InsuranceCreated(signer,uid, info));
+            // Return a successful DispatchResult
+            Ok(())
+        }
+        /// Sign an Insurance
+        /// TODO - CHARGE THE SIGNER FOR THE PREMIUM
+        #[weight = 1000]
+        pub fn insurance_sign(origin, insurer_account: T::AccountId,uid: u32) -> dispatch::DispatchResult {
+            let signer =  ensure_signed(origin)?;
+            // verify the insurance existance
+            ensure!(Insurances::<T>::contains_key(insurer_account.clone(),uid.clone()), Error::<T>::InsuranceNotFound);
+            // verify not already signed
+            ensure!(!InsurancesSigned::<T>::contains_key(insurer_account.clone(),uid.clone()), Error::<T>::InsuranceAlreadySigned);
+            // store the signature
+            InsurancesSigned::<T>::insert(insurer_account.clone(),uid.clone(),signer.clone());
+            // Generate event
+            Self::deposit_event(RawEvent::InsuranceSigned(insurer_account,uid,signer));
+            // Return a successful DispatchResult
+            Ok(())
+        }
+        /// Destroy an Insurance
+        #[weight = 1000]
+        pub fn insurance_destroy(origin, uid: u32) -> dispatch::DispatchResult {
+            let signer =  ensure_signed(origin)?;
+            // verify the insurance existance
+            ensure!(Insurances::<T>::contains_key(signer.clone(),uid.clone()), Error::<T>::InsuranceNotFound);
+            // Remove the Insurance
+            Insurances::<T>::take(signer.clone(),uid.clone());
+            // Generate event
+            Self::deposit_event(RawEvent::InsuranceDestroyed(signer,uid));
+            // Return a successful DispatchResult
+            Ok(())
+        }
+
+        /// Create a lawyer
+        #[weight = 1000]
+        pub fn lawyer_create(origin, lawyer_account: T::AccountId, info: Vec<u8>) -> dispatch::DispatchResult {
+
+          let signer =  ensure_signed(origin)?;
+
+          // check for a valid json structure
+          ensure!(json_check_validity(info.clone()),Error::<T>::InvalidJson);
+
+            // check the signer is one of the manager or a member of the committee
+            let json:Vec<u8>=Settings::get("lawyerssubmission".as_bytes().to_vec()).unwrap();
+            let mut flag=0;
+            let mut signingtype=0;
+            let manager=json_get_value(json.clone(),"manager".as_bytes().to_vec());
+            if manager.len()>0 {
+                let managervec=bs58::decode(manager).into_vec().unwrap();
+                let accountidmanager=T::AccountId::decode(&mut &managervec[1..33]).unwrap_or_default();
+                if signer==accountidmanager {
+                    flag=1;       
+                    signingtype=1;             
+                }
+            }
+            let operators=json_get_complexarray(json.clone(),"committee".as_bytes().to_vec());
+            let mut x=0;
+            loop {  
+                let operator=json_get_arrayvalue(operators.clone(),x);
+                if operator.len()==0 {
+                    break;
+                }
+                let operatorvec=bs58::decode(operator).into_vec().unwrap();
+                let accountidoperator=T::AccountId::decode(&mut &operatorvec[1..33]).unwrap_or_default();
+                if accountidoperator==signer {
+                    flag=1;
+                    if signingtype==0 {
+                        signingtype=3;             
+                    }
+                }
+                x=x+1;
+            }
+            ensure!(flag==1,Error::<T>::SignerIsNotAuthorizedForSubmissionOrRemoval);
+
+            //Check if lawyer not already stored on chain
+            ensure!(!Lawyers::<T>::contains_key(&lawyer_account), Error::<T>::AlreadyPresent);
+
+             // check for name
+             let name=json_get_value(info.clone(),"name".as_bytes().to_vec());
+             ensure!(name.len()>=3, Error::<T>::NameTooShort);
+
+            // check Website
+            let website=json_get_value(info.clone(),"website".as_bytes().to_vec());
+            ensure!(website.len()>=10,Error::<T>::WebSiteTooShort);
+            ensure!(website.len()<=64,Error::<T>::WebSiteTooLong);
+            ensure!(validate_weburl(website),Error::<T>::InvalidWebsite);
+
+             // Check for account ID for lawyer from info json match
+             let accountid_from_info=json_get_value(info.clone(),"accountid".as_bytes().to_vec());
+             ensure!(accountid_from_info.len() > 0,  Error::<T>::MissingAccountId);
+             if accountid_from_info.len()>0 {
+                 let accountid_from_info_vec=bs58::decode(accountid_from_info).into_vec().unwrap();
+                 let accountid_address=T::AccountId::decode(&mut &accountid_from_info_vec[1..33]).unwrap_or_default();
+                 ensure!(accountid_address == lawyer_account, Error::<T>::UnmatchingAddress);
+             }
+
+            // Check infodocs 
+            let infodocs=json_get_value(info.clone(),"infodocuments".as_bytes().to_vec());
+            ensure!(infodocs.len()>=1, Error::<T>::MissingInfoDocuments);
+
+            Lawyers::<T>::insert(lawyer_account.clone(),info.clone());
+
+            // Generate event LawyerCreated
+            Self::deposit_event(RawEvent::LawyerCreated(lawyer_account, info));
+            // Return a successful DispatchResult
+            Ok(())
+        }
+
+         /// Destroy a lawyer
+         #[weight = 1000]
+         pub fn lawyer_destroy(origin, lawyer_account: T::AccountId) -> dispatch::DispatchResult {
+             let signer =  ensure_signed(origin)?;
+             // verify the lawyer  exists
+             ensure!(Lawyers::<T>::contains_key(&lawyer_account), Error::<T>::AccountNotFound);
+ 
+             // check the signer is one of the manager or a member of the committee
+             let json:Vec<u8>=Settings::get("lawyerssubmission".as_bytes().to_vec()).unwrap();
+             let mut flag=0;
+             let mut signingtype=0;
+             let manager=json_get_value(json.clone(),"manager".as_bytes().to_vec());
+             if manager.len()>0 {
+                 let managervec=bs58::decode(manager).into_vec().unwrap();
+                 let accountidmanager=T::AccountId::decode(&mut &managervec[1..33]).unwrap_or_default();
+                 if signer==accountidmanager {
+                     flag=1;       
+                     signingtype=1;             
+                 }
+             }
+             let operators=json_get_complexarray(json.clone(),"committee".as_bytes().to_vec());
+             let mut x=0;
+             loop {  
+                 let operator=json_get_arrayvalue(operators.clone(),x);
+                 if operator.len()==0 {
+                     break;
+                 }
+                 let operatorvec=bs58::decode(operator).into_vec().unwrap();
+                 let accountidoperator=T::AccountId::decode(&mut &operatorvec[1..33]).unwrap_or_default();
+                 if accountidoperator==signer {
+                     flag=1;
+                     if signingtype==0 {
+                         signingtype=3;             
+                     }
+                 }
+                 x=x+1;
+             }
+             ensure!(flag==1,Error::<T>::SignerIsNotAuthorizedForSubmissionOrRemoval);
+ 
+             // Remove the lawyer
+             Lawyers::<T>::take(lawyer_account.clone());
+             // Generate event
+             Self::deposit_event(RawEvent::LawyerDestroyed(lawyer_account));
+             // Return a successful DispatchResult
+             Ok(())
+         }
+    
+         /// Create Interbank Rate
+         
+        #[weight = 1000] 
+        pub fn interbankrate_create(origin, country_code: Vec<u8>, date: Vec<u8>, rate: u32) -> dispatch::DispatchResult {
+            ensure_root(origin)?;
+           
+            // check country
+            ensure!(IsoCountries::contains_key(&country_code), Error::<T>::CountryCodeNotFound);
+           
+            ensure!(validate_date(&date), Error::<T>::InvalidDateFormat);
+
+            // Store Interbank info
+            InterbankRates::insert(country_code.clone(),date.clone(),rate);
+            // Generate event
+            Self::deposit_event(RawEvent::InterbankRateCreated(country_code,date));
+            // Return a successful DispatchResult
+            Ok(())
+        }
+
+        /// Create Interbank Rate
+        #[weight = 1000]
+        pub fn interbankrate_destroy(origin, country_code: Vec<u8>, date: Vec<u8>) -> dispatch::DispatchResult {
+            ensure_root(origin)?;
+            
+            // check country
+            ensure!(IsoCountries::contains_key(&country_code), Error::<T>::CountryCodeNotFound);            
+            // Store Interbank info
+            InterbankRates::take(country_code.clone(),date.clone());
+            // Generate event
+            Self::deposit_event(RawEvent::InterbankRateDestroyed(country_code,date));
+            // Return a successful DispatchResult
+            Ok(())
+        }
+    
+        #[weight = 1000] 
+        pub fn inflationrate_create(origin, country_code: Vec<u8>, date: Vec<u8>, rate: u32) -> dispatch::DispatchResult {
+            ensure_root(origin)?;
+           
+            // check country
+            ensure!(IsoCountries::contains_key(&country_code), Error::<T>::CountryCodeNotFound);
+           
+            ensure!(validate_date(&date), Error::<T>::InvalidDateFormat);
+
+            // Store inflation rate info
+            InflationRates::insert(country_code.clone(),date.clone(),rate);
+            // Generate event
+            Self::deposit_event(RawEvent::InflationRateCreated(country_code,date));
+            // Return a successful DispatchResult
+            Ok(())
+        }
+
+        /// Create Interbank Rate
+        #[weight = 1000]
+        pub fn inflationrate_destroy(origin, country_code: Vec<u8>, date: Vec<u8>) -> dispatch::DispatchResult {
+            ensure_root(origin)?;
+            
+            // check country
+            ensure!(IsoCountries::contains_key(&country_code), Error::<T>::CountryCodeNotFound);            
+            // Store Interbank info
+            InflationRates::take(country_code.clone(),date.clone());
+            // Generate event
+            Self::deposit_event(RawEvent::InflationRateDestroyed(country_code,date));
             // Return a successful DispatchResult
             Ok(())
         }
@@ -2297,4 +2789,67 @@ fn validate_weburl(weburl:Vec<u8>) -> bool {
     return valid;
 }
 
+//function to validate YYYY-MM-DD date format
+const DASH_AS_BYTE: u8 = 45;
 
+fn validate_date(date_vec: &Vec<u8>) -> bool {
+
+    let str_date  = str::from_utf8(&date_vec).unwrap();
+   // check date length is correct YYYY-MM-DD
+   
+    if str_date.len() != 10 {return false}
+    if date_vec.clone()[4] != DASH_AS_BYTE ||
+     date_vec.clone()[7] != DASH_AS_BYTE  {return false}
+    
+    let year = &str_date[0..=3];
+    let month = &str_date[5..=6];
+    let day = &str_date[8..=9];
+    if !is_year_valid(year) || !is_day_valid(day) || !is_month_valid(month) {
+        return false
+    }
+    
+    true
+}
+
+fn is_year_valid(year: &str) -> bool{
+
+    let year_u16_res = year.clone().parse();
+
+    if !year_u16_res.is_ok(){
+        return false
+    }
+    let year_u16: u16 = year_u16_res.unwrap();
+
+    if year_u16  < 1900 || year_u16 > 2100 {
+        return false
+    }
+    true
+}
+
+fn is_day_valid(day: &str) -> bool {
+
+    let day_u8_res = day.clone().parse();
+    if !day_u8_res.is_ok(){
+        return false
+    }
+    let day_u8: u8 = day_u8_res.unwrap();
+    
+    if day_u8 < 1 || day_u8 > 31 {
+        return false
+    }
+    true
+}
+
+fn is_month_valid(month: &str) -> bool {
+
+    let month_u8_res = month.clone().parse();
+    if !month_u8_res.is_ok(){
+        return false
+    }
+    let month_u8: u8 = month_u8_res.unwrap();
+    
+    if month_u8 <1 || month_u8 > 12 {
+        return false
+    }
+    true
+}

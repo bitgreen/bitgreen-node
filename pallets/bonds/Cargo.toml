@@ -31,8 +31,6 @@ rand =  { default-features = false, version = '0.7.3'}
 hex = { default-features = false, version = '0.4'}
 bs58 = { default-features = false, version = '0.4.0',features=['alloc']}
 
-
-
 [dev-dependencies]
 serde = { version = "1.0.119" }
 sp-core = { default-features = false, version = '3.0.0' }
@@ -51,5 +49,5 @@ std = [
     'sp-io/std',
     'sp-core/std',
     'hex/std',
-    'bs58/std',
+    'bs58/std'
 ]

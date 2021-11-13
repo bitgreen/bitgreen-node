@@ -12,7 +12,7 @@ With this module, we create a tool to register and rewardas positive action with
 - Approve the Impact Actions, triggering the rewards.
 
 
-The pallet is called "impactActions" and below you can find the "Exstrinsics" and queries available, ordered by logic of use:  
+The pallet is called "impactActions" and below you can find the "Extrinsics" and queries available, ordered by logic of use:  
 
 ## Create Category  
 The Super User (or the Technical Commitee) should create initially the categories for the  "Impact Actions", using "Sudo" calls.
