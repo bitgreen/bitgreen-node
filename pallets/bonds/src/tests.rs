@@ -208,3 +208,38 @@ fn create_change_settings_does_not_work_for_invalid_insuranceminreserve_input() 
 
 	});
 }
+
+#[test]
+fn create_change_kyc_does_not_work_for_invalid_input() {
+	new_test_ext().execute_with(|| {
+		assert_ok!(Bonds::create_change_settings(Origin::root(), b"kyc".to_vec(), b"{'manager':'512345675123264591234567571234567891234567891234','supervisor':'5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY','operators':['5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY']}".to_vec()));
+
+		assert_noop!(
+			Bonds::create_change_kyc(Origin::signed(11), 11, r#"{"name":"Smith and Wesson Inc","address":"103, Paris Boulevard","city":"London","zip":"00100","state":"England","country":"Great Britain","phone":"+441232322332","website":"https://www.smith.co.uk","ipfsdocs":[{"description":"Balance Sheet 2020","ipfsaddress":"42ff96731ce1f53aa014c55662a3964b61422c2c9c3f38c11b2cf3ee45440c7c"},{"description":"Revenue Report 2021","ipfsaddress":"b26707691ce34a738fa5dab526e800be831bcc63a199a7d83414f5d6b0a8836c"}]}"#.as_bytes().to_vec()),
+			Error::<Test>::SignerIsNotAuthorizedForKycApproval
+		);
+	});
+
+}
+
+#[test]
+fn create_change_kyc_does_not_work_for_invalid_settings() {
+	new_test_ext().execute_with(|| {
+		assert_noop!(
+			Bonds::create_change_kyc(Origin::signed(11), 11, r#"{"name":"Smith and Wesson Inc","address":"103, Paris Boulevard","city":"London","zip":"00100","state":"England","country":"Great Britain","phone":"+441232322332","website":"https://www.smith.co.uk","ipfsdocs":[{"description":"Balance Sheet 2020","ipfsaddress":"42ff96731ce1f53aa014c55662a3964b61422c2c9c3f38c11b2cf3ee45440c7c"},{"description":"Revenue Report 2021","ipfsaddress":"b26707691ce34a738fa5dab526e800be831bcc63a199a7d83414f5d6b0a8836c"}]}"#.as_bytes().to_vec()),
+			Error::<Test>::KycSettingsNotConfigured
+		);
+	});
+
+}
+
+#[test]
+fn kyc_approve_does_not_work_if_kyc_id_not_found() {
+	new_test_ext().execute_with(|| {
+		assert_noop!(
+			Bonds::kyc_approve(Origin::signed(11), 11),
+			Error::<Test>::KycIdNotFound
+		);
+	});
+
+}
