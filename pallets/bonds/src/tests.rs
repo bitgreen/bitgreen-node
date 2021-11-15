@@ -230,7 +230,6 @@ fn create_change_kyc_does_not_work_for_invalid_settings() {
 			Error::<Test>::KycSettingsNotConfigured
 		);
 	});
-
 }
 
 #[test]
@@ -241,5 +240,54 @@ fn kyc_approve_does_not_work_if_kyc_id_not_found() {
 			Error::<Test>::KycIdNotFound
 		);
 	});
+}
 
+#[test]
+fn create_change_fund_does_not_work_if_kyc_id_not_found() {
+	new_test_ext().execute_with(|| {
+		assert_noop!(
+			Bonds::create_change_fund(Origin::signed(11), 11, b"kyc".to_vec()),
+			Error::<Test>::SignerIsNotAuthorizedForFundCreation
+		);
+	});
+}
+
+#[test]
+fn fund_approve_does_not_work_if_kyc_id_not_found() {
+	new_test_ext().execute_with(|| {
+		assert_noop!(
+			Bonds::fund_approve(Origin::signed(11), 11),
+			Error::<Test>::KycIdNotFound
+		);
+	});
+}
+
+#[test]
+fn bond_create_does_not_work_if_bond_id_zero() {
+	new_test_ext().execute_with(|| {
+		assert_noop!(
+			Bonds::bond_create(Origin::signed(11), 0, b"kyc".to_vec()),
+			Error::<Test>::BondIdIsWrongCannotBeZero
+		);
+	});
+}
+
+#[test]
+fn bond_create_does_not_work_if_kyc_id_not_found() {
+	new_test_ext().execute_with(|| {
+		assert_noop!(
+			Bonds::bond_create(Origin::signed(11), 1, b"kyc".to_vec()),
+			Error::<Test>::MissingKycForSigner
+		);
+	});
+}
+
+#[test]
+fn bond_approve_does_not_work_if_bond_id_zero() {
+	new_test_ext().execute_with(|| {
+		assert_noop!(
+			Bonds::bond_approve(Origin::signed(11), 1),
+			Error::<Test>::BondsIdNotFound
+		);
+	});
 }
