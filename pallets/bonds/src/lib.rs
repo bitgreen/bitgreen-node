@@ -58,6 +58,8 @@ decl_storage! {
         Insurers get(fn get_insurer): map hasher(blake2_128_concat) T::AccountId => Option<Vec<u8>>;
         // Insurance Data
         Insurances get(fn get_insurance): double_map hasher(blake2_128_concat) T::AccountId, hasher(blake2_128_concat) u32 => Option<Vec<u8>>;
+        //Frozen funds in an Pool Account according to the percentage of mandatory reserves
+        InsurerReserves get(fn get_insurer_reserves): double_map hasher(blake2_128_concat) T::AccountId, hasher(blake2_128_concat) u32 => Balance;
         // Insurances Signed from Payer
         InsurancesSigned get(fn get_insurance_signature): double_map hasher(blake2_128_concat) T::AccountId, hasher(blake2_128_concat) u32 => Option<T::AccountId>;
         // Lawyers data
@@ -489,8 +491,12 @@ decl_error! {
        SignerIsNotAuthorizedForSubmissionOrRemoval,
        /// Account if has not  been found
        AccountNotFound,
+       ///Current insurer reserves below minimum insurer requirement
+       BelowMinimumReserve,
        /// Insurance cannot be found
        InsuranceNotFound,
+       ///Insurer reserve not found
+       ReserveNotFound,
        /// Insurance has been already signed
        InsuranceAlreadySigned,
        /// The date format is not in  YYYY-MM-DD format
@@ -1939,6 +1945,14 @@ decl_module! {
         #[weight = 1000]
         pub fn insurance_create(origin, uid: u32, info: Vec<u8>) -> dispatch::DispatchResult {
             let signer =  ensure_signed(origin)?;
+            //Get current reserve Balance
+            let reserves = InsurerReserves::<T>::get(signer.clone(), uid.clone());
+            //Using a key "insuranceminreserve", gets the configuration in Settings
+            let settings_reserve: Vec<u8> = Settings::get("insuranceminreserve".as_bytes().to_vec()).unwrap();
+            //Second key "reserve" gets the reserve minimum required value
+            let reserve=json_get_value(settings_reserve.clone(),"reserve".as_bytes().to_vec());
+            let reserve_min=vecu8_to_u32(reserve);
+            ensure!(reserves >= reserve_min.into(), Error::<T>::BelowMinimumReserve);     
             // check for a valid json structure
             ensure!(json_check_validity(info.clone()),Error::<T>::InvalidJson);
             // check the signer is one of the insurers
@@ -2191,6 +2205,34 @@ decl_module! {
             // Generate event
             Self::deposit_event(RawEvent::InflationRateDestroyed(country_code,date));
             // Return a successful DispatchResult
+            Ok(())
+        }
+        
+        ///Adding funds to the insurer reserves
+        ///Needs amount transfer implemented
+        #[weight = 1000]
+        pub fn stake(origin, id: u32, deposit: u32) -> dispatch::DispatchResult {
+            let signer = ensure_signed(origin)?;
+            ensure!(InsurerReserves::<T>::contains_key(&signer, id.clone()), Error::<T>::ReserveNotFound);
+            let reserve = InsurerReserves::<T>::take(signer.clone(), id.clone());
+            let new_reserve: u128 = reserve.checked_add(deposit.into()).unwrap();
+            InsurerReserves::<T>::insert(signer.clone(), id.clone(), new_reserve);
+            Ok(())
+        }
+        
+        ///Removing funds only if the reserve is at minimum required amount
+        ///Needs amount transfer implemented
+        #[weight = 1000]
+        pub fn unstake(origin, id: u32, withdrawal: u32) -> dispatch::DispatchResult {
+            let signer = ensure_signed(origin)?;
+            ensure!(InsurerReserves::<T>::contains_key(&signer, id.clone()), Error::<T>::ReserveNotFound);
+            let settings_reserve: Vec<u8> = Settings::get("insuranceminreserve".as_bytes().to_vec()).unwrap();
+            let reserve = json_get_value(settings_reserve.clone(), "reserve".as_bytes().to_vec());
+            let reserve_min = vecu8_to_u32(reserve);
+            let current_reserves = InsurerReserves::<T>::take(signer.clone(), id);
+            ensure!(current_reserves >= reserve_min.into(), Error::<T>::BelowMinimumReserve);     
+            let new_reserve: u128 = current_reserves.checked_sub(withdrawal.into()).unwrap();
+            InsurerReserves::<T>::insert(signer.clone(), id.clone(), new_reserve);
             Ok(())
         }
     }
