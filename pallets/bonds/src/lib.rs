@@ -544,7 +544,7 @@ decl_module! {
                 let supervisor=json_get_value(configuration.clone(),"supervisor".as_bytes().to_vec());
                 ensure!(supervisor.len()==48 || supervisor.len()==0, Error::<T>::KycSupervisorAccountIsWrong);
                 let operators=json_get_complexarray(configuration.clone(),"operators".as_bytes().to_vec());
-                if operators.len()>2 {
+                if operators.len()>=2 {
                     let mut x=0;
                     loop {  
                         let w=json_get_recordvalue(operators.clone(),x);
