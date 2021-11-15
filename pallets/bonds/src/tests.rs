@@ -291,3 +291,43 @@ fn bond_approve_does_not_work_if_bond_id_zero() {
 		);
 	});
 }
+
+#[test]
+fn create_change_credit_rating_agency_does_not_work_if_signer_not_authorized() {
+	new_test_ext().execute_with(|| {
+		assert_noop!(
+			Bonds::create_change_credit_rating_agency(Origin::signed(11), 1, b"kyc".to_vec()),
+			Error::<Test>::SignerIsNotAuthorizedForCreditRatingAgencySubmission
+		);
+	});
+}
+
+#[test]
+fn create_credit_rating_does_not_work_if_signer_not_authorized() {
+	new_test_ext().execute_with(|| {
+		assert_noop!(
+			Bonds::create_credit_rating(Origin::signed(11), 1, b"kyc".to_vec()),
+			Error::<Test>::SignerIsNotAuthorizedAsCreditRatingAgency
+		);
+	});
+}
+
+#[test]
+fn create_collaterals_does_not_work_if_bond_id_not_found() {
+	new_test_ext().execute_with(|| {
+		assert_noop!(
+			Bonds::create_collaterals(Origin::signed(11), 1, 1, b"kyc".to_vec()),
+			Error::<Test>::BondsIdNotFound
+		);
+	});
+}
+
+#[test]
+fn confirm_collaterals_does_not_work_if_signer_not_authorized() {
+	new_test_ext().execute_with(|| {
+		assert_noop!(
+			Bonds::confirm_collaterals(Origin::signed(11), 1, 1, b"kyc".to_vec()),
+			Error::<Test>::SignerIsNotAuthorizedAsCreditRatingAgency
+		);
+	});
+}
