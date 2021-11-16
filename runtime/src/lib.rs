@@ -876,6 +876,7 @@ impl pallet_impact_actions::Config for Runtime {
 impl pallet_bonds::Config for Runtime {
 	type Event = Event;
 	type Currency = Balances;
+	type AssetId = u32;
 }
 // end Bonds
 
