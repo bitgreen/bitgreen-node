@@ -170,7 +170,7 @@ decl_module! {
 		// Events must be initialized if they are used by the pallet.
 		fn deposit_event() = default;
 
-		/// Create new proxy setting
+		/// Create new proxy setting that allow to define some accounts with administrator rights on the pallet.
 		///
 		/// key=="admin" {"accounts": ["accountid1", "accountid2"] }
 		/// `create_proxy_settings` will accept `accounts` as parameter
@@ -202,7 +202,7 @@ decl_module! {
 			Ok(())
 		}
 
-		/// Destroy proxy setting
+		/// Destroy proxy setting with key:"admin"
 		///
 		/// The dispatch origin for this call must be `Signed` by the Root.
 		#[weight = 10_000 + T::DbWeight::get().writes(1)]
@@ -224,6 +224,7 @@ decl_module! {
 		}
 
 		/// Store/update an AuthorizedAccountsAGV
+		/// This function allows to store the enabled Accounts on chain.
 		///
 		/// `add_authorized_accounts` will accept `account_id` and `description` as parameter
 		///
@@ -244,7 +245,7 @@ decl_module! {
 			})
 		}
 
-		/// Destroy an AuthorizedAccountsAGV
+		/// Destroys an authorized account from storage.
 		///
 		/// The dispatch origin for this call must be `Signed` by the Root.
 		#[weight = 10_000 + T::DbWeight::get().writes(1)]
@@ -265,7 +266,7 @@ decl_module! {
 
 		/// Create new Assets Generating VCU on chain
 		///
-		/// `create_asset_generating_vcu` will accept `authorized_account`, `signer` and `json content` as parameter
+		/// `create_asset_generating_vcu` will accept `avg_account_id`, `avg_id` and `json content` as parameter
 		/// and create new Assets Generating VCU in system
 		///
 		/// a value: json structure as follows:
@@ -279,7 +280,7 @@ decl_module! {
 		/// ex: {"description":"Description", "proofOwnership":"ipfslink", "numberOfShares":10000}
 		/// The dispatch origin for this call must be `Signed` either by the Root or authorized account.
 		#[weight = 10_000 + T::DbWeight::get().writes(1)]
-		pub fn create_asset_generating_vcu(origin, authorized_account: T::AccountId, signer: u32, content: Vec<u8>) -> DispatchResult {
+		pub fn create_asset_generating_vcu(origin, avg_account_id: T::AccountId, avg_id: u32, content: Vec<u8>) -> DispatchResult {
 
 			match ensure_root(origin.clone()) {
 				Ok(()) => Ok(()),
@@ -314,21 +315,21 @@ decl_module! {
 
 			ensure!(str::parse::<i32>(sp_std::str::from_utf8(&number_of_shares).unwrap()).unwrap() <= 10000 , Error::<T>::TooManyNumberofShares);
 
-			AssetsGeneratingVCU::<T>::try_mutate_exists(authorized_account, signer.clone(), |desc| {
+			AssetsGeneratingVCU::<T>::try_mutate_exists(avg_account_id, avg_id.clone(), |desc| {
 				*desc = Some(content);
 
 				// Generate event
-				Self::deposit_event(RawEvent::AssetsGeneratingVCUCreated(signer));
+				Self::deposit_event(RawEvent::AssetsGeneratingVCUCreated(avg_id));
 				// Return a successful DispatchResult
 				Ok(())
 			})
 		}
 
-		/// Destroy an Asset Generated VCU
+		/// Destroy Assets Generating VCU from storage.
 		///
 		/// The dispatch origin for this call must be `Signed` either by the Root or authorized account.
 		#[weight = 10_000 + T::DbWeight::get().writes(1)]
-		pub fn destroy_asset_generating_vcu(origin, account_id: T::AccountId, signer: u32) -> DispatchResult {
+		pub fn destroy_asset_generating_vcu(origin, avg_account_id: T::AccountId, avg_id: u32) -> DispatchResult {
 
 			match ensure_root(origin.clone()) {
 				Ok(()) => Ok(()),
@@ -344,23 +345,23 @@ decl_module! {
 			}?;
 
 			// check whether asset generated VCU exists or not
-			ensure!(AssetsGeneratingVCU::<T>::contains_key(&account_id, &signer), Error::<T>::AssetGeneratedVCUNotFound);
+			ensure!(AssetsGeneratingVCU::<T>::contains_key(&avg_account_id, &avg_id), Error::<T>::AssetGeneratedVCUNotFound);
 
-			AssetsGeneratingVCU::<T>::remove(account_id, signer.clone());
+			AssetsGeneratingVCU::<T>::remove(avg_account_id, avg_id.clone());
 
 			// Generate event
-			Self::deposit_event(RawEvent::AssetGeneratingVCUDestroyed(signer));
+			Self::deposit_event(RawEvent::AssetGeneratingVCUDestroyed(avg_id));
 			// Return a successful DispatchResult
 			Ok(())
 
 		}
 
-		/// To mint the shares
+		/// The AVG shares can be minted from the Authorized account up to the maximum number set in the AssetsGeneratingVCU.
 		///
 		/// ex: avg_id: 5Hdr4DQufkxmhFcymTR71jqYtTnfkfG5jTs6p6MSnsAcy5ui-1
 		/// The dispatch origin for this call must be `Signed` either by the Root or authorized account.
 		#[weight = 10_000 + T::DbWeight::get().writes(1)]
-		pub fn mint_shares_asset_generating_vcu(origin, recipient: T::AccountId, agv_id: Vec<u8>, number_of_shares: u32) -> DispatchResult {
+		pub fn mint_shares_asset_generating_vcu(origin, recipient: T::AccountId, avg_account: Vec<u8>, number_of_shares: u32) -> DispatchResult {
 
 			match ensure_root(origin.clone()) {
 				Ok(()) => Ok(()),
@@ -375,28 +376,28 @@ decl_module! {
 				}
 			}?;
 
-			let avg_id_vec: Vec<&str> = sp_std::str::from_utf8(&agv_id).unwrap().split("-").collect();
+			let avg_id_vec: Vec<&str> = sp_std::str::from_utf8(&avg_account).unwrap().split("-").collect();
 			ensure!(avg_id_vec.len() == 2, Error::<T>::InvalidAVGId);
 
 
-			let (str_account_id, signer): (&str, u32) = (avg_id_vec[0], str::parse::<u32>(avg_id_vec[1]).unwrap());
+			let (str_account_id, avg_id): (&str, u32) = (avg_id_vec[0], str::parse::<u32>(avg_id_vec[1]).unwrap());
 
 			let account_id = T::AccountId::decode(&mut &str_account_id.as_bytes().to_vec()[1..33]).unwrap_or_default();
 
 			// check whether asset generated VCU exists or not
-			ensure!(AssetsGeneratingVCU::<T>::contains_key(&account_id, &signer), Error::<T>::AssetGeneratedVCUNotFound);
+			ensure!(AssetsGeneratingVCU::<T>::contains_key(&account_id, &avg_id), Error::<T>::AssetGeneratedVCUNotFound);
 
-			AssetsGeneratingVCUShares::<T>::try_mutate(&recipient, &agv_id, |share| -> DispatchResult {
+			AssetsGeneratingVCUShares::<T>::try_mutate(&recipient, &avg_account, |share| -> DispatchResult {
 				*share = number_of_shares;
 				Ok(())
 			})?;
 
-			let content: Vec<u8> = AssetsGeneratingVCU::<T>::get(&account_id, &signer);
+			let content: Vec<u8> = AssetsGeneratingVCU::<T>::get(&account_id, &avg_id);
 			let total_shares = Self::json_get_value(content.clone(),"numberOfShares".as_bytes().to_vec());
 			let int_shares = str::parse::<u32>(sp_std::str::from_utf8(&total_shares).unwrap()).unwrap();
 
 
-			AssetsGeneratingVCUSharesMinted::<T>::try_mutate(&account_id, &signer, |share| -> DispatchResult {
+			AssetsGeneratingVCUSharesMinted::<T>::try_mutate(&account_id, &avg_id, |share| -> DispatchResult {
 				let total_sh = share.checked_add(number_of_shares).ok_or(Error::<T>::Overflow)?;
 				ensure!(total_sh <= int_shares, Error::<T>::TooManyNumberofShares);
 				*share = total_sh;
@@ -404,17 +405,17 @@ decl_module! {
 			})?;
 
 			// Generate event
-			Self::deposit_event(RawEvent::AssetsGeneratingVCUSharesMinted(account_id, signer));
+			Self::deposit_event(RawEvent::AssetsGeneratingVCUSharesMinted(account_id, avg_id));
 			// Return a successful DispatchResult
 			Ok(())
 		}
 
-		/// To burn the shares
+		/// The AVG shares can be burned from the Authorized account in the AssetsGeneratingVCU.
 		///
 		/// ex: avg_id: 5Hdr4DQufkxmhFcymTR71jqYtTnfkfG5jTs6p6MSnsAcy5ui-1
 		/// The dispatch origin for this call must be `Signed` either by the Root or authorized account.
 		#[weight = 10_000 + T::DbWeight::get().writes(1)]
-		pub fn burn_shares_asset_generating_vcu(origin, recipient: T::AccountId, agv_id: Vec<u8>, number_of_shares: u32) -> DispatchResult {
+		pub fn burn_shares_asset_generating_vcu(origin, recipient: T::AccountId, avg_account: Vec<u8>, number_of_shares: u32) -> DispatchResult {
 
 			match ensure_root(origin.clone()) {
 				Ok(()) => Ok(()),
@@ -429,23 +430,23 @@ decl_module! {
 				}
 			}?;
 
-			let avg_id_vec: Vec<&str> = sp_std::str::from_utf8(&agv_id).unwrap().split("-").collect();
+			let avg_id_vec: Vec<&str> = sp_std::str::from_utf8(&avg_account).unwrap().split("-").collect();
 			ensure!(avg_id_vec.len() == 2, Error::<T>::InvalidAVGId);
 
 
-			let (str_account_id, signer): (&str, u32) = (avg_id_vec[0], str::parse::<u32>(avg_id_vec[1]).unwrap());
+			let (str_account_id, avg_id): (&str, u32) = (avg_id_vec[0], str::parse::<u32>(avg_id_vec[1]).unwrap());
 
 			let account_id = T::AccountId::decode(&mut &str_account_id.as_bytes().to_vec()[1..33]).unwrap_or_default();
 
 			// check whether asset generated VCU exists or not
-			ensure!(AssetsGeneratingVCU::<T>::contains_key(&account_id, &signer), Error::<T>::AssetGeneratedVCUNotFound);
+			ensure!(AssetsGeneratingVCU::<T>::contains_key(&account_id, &avg_id), Error::<T>::AssetGeneratedVCUNotFound);
 
-			AssetsGeneratingVCUShares::<T>::try_mutate(&recipient, &agv_id, |share| -> DispatchResult {
+			AssetsGeneratingVCUShares::<T>::try_mutate(&recipient, &avg_account, |share| -> DispatchResult {
 				*share = number_of_shares;
 				Ok(())
 			})?;
 
-			AssetsGeneratingVCUSharesMinted::<T>::try_mutate(&account_id, &signer, |share| -> DispatchResult {
+			AssetsGeneratingVCUSharesMinted::<T>::try_mutate(&account_id, &avg_id, |share| -> DispatchResult {
 				let total_sh = share.checked_sub(number_of_shares).ok_or(Error::<T>::InsufficientShares)?;
 				ensure!(total_sh >0, Error::<T>::TooLessShares);
 				*share = total_sh;
@@ -453,17 +454,17 @@ decl_module! {
 			})?;
 
 			// Generate event
-			Self::deposit_event(RawEvent::AssetsGeneratingVCUSharesBurned(account_id, signer));
+			Self::deposit_event(RawEvent::AssetsGeneratingVCUSharesBurned(account_id, avg_id));
 			// Return a successful DispatchResult
 			Ok(())
 		}
 
-       /// To transfer the shares
+       /// The owner of the share can transfer them to other account by this function called.
 	   ///
 	   /// ex: avg_id: 5Hdr4DQufkxmhFcymTR71jqYtTnfkfG5jTs6p6MSnsAcy5ui-1
 	   /// The dispatch origin for this call must be `Signed` either by the Root or authorized account.
 		#[weight = 10_000 + T::DbWeight::get().writes(1)]
-		pub fn transfer_shares_asset_generating_vcu(origin, sender: T::AccountId, recipient: T::AccountId, agv_id: Vec<u8>, number_of_shares: u32) -> DispatchResult {
+		pub fn transfer_shares_asset_generating_vcu(origin, sender: T::AccountId, recipient: T::AccountId, avg_account: Vec<u8>, number_of_shares: u32) -> DispatchResult {
 
 			match ensure_root(origin.clone()) {
 				Ok(()) => Ok(()),
@@ -478,20 +479,20 @@ decl_module! {
 				}
 			}?;
 
-			ensure!(AssetsGeneratingVCUShares::<T>::contains_key(&sender, &agv_id), Error::<T>::AssetGeneratedSharesNotFound);
+			ensure!(AssetsGeneratingVCUShares::<T>::contains_key(&sender, &avg_account), Error::<T>::AssetGeneratedSharesNotFound);
 
-			let sender_shares = AssetsGeneratingVCUShares::<T>::get(&sender, &agv_id);
+			let sender_shares = AssetsGeneratingVCUShares::<T>::get(&sender, &avg_account);
 
 			// check whether asset generated shares exists or not
 			ensure!(number_of_shares >= sender_shares, Error::<T>::NumberofSharesNotFound);
 
-			AssetsGeneratingVCUShares::<T>::try_mutate(&sender, &agv_id, |share| -> DispatchResult {
+			AssetsGeneratingVCUShares::<T>::try_mutate(&sender, &avg_account, |share| -> DispatchResult {
 				let total_sh = share.checked_sub(number_of_shares).ok_or(Error::<T>::TooLessShares)?;
 				*share = total_sh;
 				Ok(())
 			})?;
 
-			AssetsGeneratingVCUShares::<T>::try_mutate(&recipient, &agv_id, |share| -> DispatchResult {
+			AssetsGeneratingVCUShares::<T>::try_mutate(&recipient, &avg_account, |share| -> DispatchResult {
 				let total_sh = share.checked_add(number_of_shares).ok_or(Error::<T>::Overflow)?;
 				*share = total_sh;
 				Ok(())
@@ -505,10 +506,10 @@ decl_module! {
 
 		/// To store asset generating vcu schedule
 		///
-		/// ex: avg_id: 5Hdr4DQufkxmhFcymTR71jqYtTnfkfG5jTs6p6MSnsAcy5ui-1
+		/// ex: avg_account: 5Hdr4DQufkxmhFcymTR71jqYtTnfkfG5jTs6p6MSnsAcy5ui-1
 		/// The dispatch origin for this call must be `Signed` either by the Root or authorized account.
 		#[weight = 10_000 + T::DbWeight::get().writes(1)]
-		pub fn create_asset_generating_vcu_schedule(origin, account_id: T::AccountId, signer: u32, period_days: u64, amount_vcu: Balance, token_id: u32) -> DispatchResult {
+		pub fn create_asset_generating_vcu_schedule(origin, avg_account_id: T::AccountId, avg_id: u32, period_days: u64, amount_vcu: Balance, token_id: u32) -> DispatchResult {
 
 			match ensure_root(origin.clone()) {
 				Ok(()) => Ok(()),
@@ -524,15 +525,15 @@ decl_module! {
 			}?;
 
 			// check whether asset generated VCU exists or not
-			ensure!(AssetsGeneratingVCU::<T>::contains_key(&account_id, &signer), Error::<T>::AssetGeneratedVCUNotFound);
+			ensure!(AssetsGeneratingVCU::<T>::contains_key(&avg_account_id, &avg_id), Error::<T>::AssetGeneratedVCUNotFound);
 			ensure!(amount_vcu > 0, Error::<T>::InvalidVCUAmount);
 
     		let json = Self::create_json_string(vec![("period_days",&mut period_days.to_string().as_bytes().to_vec()), ("amount_vcu",&mut  amount_vcu.to_string().as_bytes().to_vec()), ("token_id",&mut  token_id.to_string().as_bytes().to_vec())]);
 
-			AssetsGeneratingVCUSchedule::<T>::insert(&account_id, &signer, json);
+			AssetsGeneratingVCUSchedule::<T>::insert(&avg_account_id, &avg_id, json);
 
 			// Generate event
-			Self::deposit_event(RawEvent::AssetsGeneratingVCUScheduleAdded(account_id, signer));
+			Self::deposit_event(RawEvent::AssetsGeneratingVCUScheduleAdded(avg_account_id, avg_id));
 			// Return a successful DispatchResult
 			Ok(())
 		}
@@ -542,7 +543,7 @@ decl_module! {
 		/// ex: avg_id: 5Hdr4DQufkxmhFcymTR71jqYtTnfkfG5jTs6p6MSnsAcy5ui-1
 		/// The dispatch origin for this call must be `Signed` either by the Root or authorized account.
 		#[weight = 10_000 + T::DbWeight::get().writes(1)]
-		pub fn destroy_asset_generating_vcu_schedule(origin, account_id: T::AccountId, signer: u32) -> DispatchResult {
+		pub fn destroy_asset_generating_vcu_schedule(origin, avg_account_id: T::AccountId, avg_id: u32) -> DispatchResult {
 
 			match ensure_root(origin.clone()) {
 				Ok(()) => Ok(()),
@@ -559,20 +560,31 @@ decl_module! {
 
 			// check whether asset generated VCU exists or not
 
-			ensure!(AssetsGeneratingVCUSchedule::<T>::contains_key(&account_id, &signer), Error::<T>::AssetGeneratedVCUScheduleNotFound);
+			ensure!(AssetsGeneratingVCUSchedule::<T>::contains_key(&avg_account_id, &avg_id), Error::<T>::AssetGeneratedVCUScheduleNotFound);
 
-			AssetsGeneratingVCUSchedule::<T>::remove(&account_id, &signer);
+			AssetsGeneratingVCUSchedule::<T>::remove(&avg_account_id, &avg_id);
 			// Generate event
-			Self::deposit_event(RawEvent::AssetsGeneratingVCUScheduleDestroyed(account_id, signer));
+			Self::deposit_event(RawEvent::AssetsGeneratingVCUScheduleDestroyed(avg_account_id, avg_id));
 			// Return a successful DispatchResult
 			Ok(())
 		}
 
-		/// Mint Scheduled VCU
+		/// This function allows the minting of the VCU periodically. The function must be accessible only from SUDO account or one of the accounts stored in AuthorizedAccountsAGV.
+		///
+		/// This function checks if it’s time to mint new VCU based on the schedule and the previous generated VCU stored in AssetsGeneratingVCUGenerated or
+		/// if it’s time to generate new VCU, it mints the scheduled “Assets” (see Assets pallets), and stores in AssetsGeneratingVCUGenerated  a json structure with the following fields:
+		/// ```json
+		/// {
+		/// “timestamp”: u32  (epoch time in seconds)
+		/// “amountvcu”: i32,
+		/// }
+		/// ```
+		/// The function must deny further minting once is done till the new schedule is expired.
+		/// For example with a schedule every year, the minting will be executed only one time every 365 days.
 		///
 		/// The dispatch origin for this call must be `Signed` either by the Root or authorized account.
 		#[weight = 10_000 + T::DbWeight::get().writes(1)]
-		pub fn mint_scheduled_vcu(origin, account_id: T::AccountId, signer: u32) -> DispatchResultWithPostInfo {
+		pub fn mint_scheduled_vcu(origin, avg_account_id: T::AccountId, avg_id: u32) -> DispatchResultWithPostInfo {
 
 			match ensure_root(origin.clone()) {
 				Ok(()) => Ok(()),
@@ -587,9 +599,9 @@ decl_module! {
 				}
 			}?;
 
-			AssetsGeneratingVCUGenerated::<T>::try_mutate_exists(account_id.clone(), signer.clone(), |vcus| -> DispatchResultWithPostInfo {
-				ensure!(AssetsGeneratingVCUSchedule::<T>::contains_key(&account_id, &signer), Error::<T>::AssetGeneratedVCUScheduleNotFound);
-				let content: Vec<u8> = AssetsGeneratingVCUSchedule::<T>::get(account_id.clone(), &signer);
+			AssetsGeneratingVCUGenerated::<T>::try_mutate_exists(avg_account_id.clone(), avg_id.clone(), |vcus| -> DispatchResultWithPostInfo {
+				ensure!(AssetsGeneratingVCUSchedule::<T>::contains_key(&avg_account_id, &avg_id), Error::<T>::AssetGeneratedVCUScheduleNotFound);
+				let content: Vec<u8> = AssetsGeneratingVCUSchedule::<T>::get(avg_account_id.clone(), &avg_id);
 
 				let period_days = Self::json_get_value(content.clone(),"period_days".as_bytes().to_vec());
 				let period_days = str::parse::<u64>(sp_std::str::from_utf8(&period_days).unwrap()).unwrap();
@@ -601,28 +613,28 @@ decl_module! {
 				let now:u64 = T::UnixTime::now().as_secs();
 
                 if !Asset::<T>::contains_key(token_id.clone()) {
-					pallet_assets::Module::<T>::force_create(RawOrigin::Root.into(), token_id, T::Lookup::unlookup(account_id.clone()), One::one(), One::one())?;
+					pallet_assets::Module::<T>::force_create(RawOrigin::Root.into(), token_id, T::Lookup::unlookup(avg_account_id.clone()), One::one(), One::one())?;
 				}
 
 				ensure!(period_days == now, Error::<T>::AssetGeneratedScheduleExpired);
 
-				pallet_assets::Module::<T>::mint(RawOrigin::Signed(account_id.clone()).into(), token_id, T::Lookup::unlookup(account_id.clone()), amount_vcu)?;
+				pallet_assets::Module::<T>::mint(RawOrigin::Signed(avg_account_id.clone()).into(), token_id, T::Lookup::unlookup(avg_account_id.clone()), amount_vcu)?;
 
 				if vcus.is_none() {
 					let json = Self::create_json_string(vec![("period_days",&mut period_days.to_string().as_bytes().to_vec()), ("amount_vcu",&mut  amount_vcu.to_string().as_bytes().to_vec())]);
 					*vcus = Some(json);
 				}
-				Self::deposit_event(RawEvent::AssetsGeneratingVCUGenerated(account_id, signer));
+				Self::deposit_event(RawEvent::AssetsGeneratingVCUGenerated(avg_account_id, avg_id));
 
             	Ok(().into())
         	})
 		}
 
-		/// To retire_vcu
+		/// The owner of the “VCUs”  can decide anytime to “retire”, basically burning them.
 		///
 		/// The dispatch origin for this call must be `Signed` either by the Root or authorized account.
 		#[weight = 10_000 + T::DbWeight::get().writes(1)]
-		pub fn retire_vcu(origin, account_id: T::AccountId, signer: u32, asset_id: u32, amount: u128) -> DispatchResultWithPostInfo {
+		pub fn retire_vcu(origin, avg_account_id: T::AccountId, avg_id: u32, asset_id: u32, amount: u128) -> DispatchResultWithPostInfo {
 
 			match ensure_root(origin.clone()) {
 				Ok(()) => Ok(()),
@@ -640,9 +652,9 @@ decl_module! {
 			// check whether asset exists or not
 			ensure!(Asset::<T>::contains_key(asset_id.clone()), Error::<T>::AssetDoesNotExist);
 
-			pallet_assets::Module::<T>::burn(RawOrigin::Signed(account_id.clone()).into(), asset_id.clone(), T::Lookup::unlookup(account_id.clone()), amount)?;
+			pallet_assets::Module::<T>::burn(RawOrigin::Signed(avg_account_id.clone()).into(), asset_id.clone(), T::Lookup::unlookup(avg_account_id.clone()), amount)?;
 
-			VCUsBurnedAccounts::<T>::try_mutate(&account_id, &signer, |vcu| -> DispatchResult {
+			VCUsBurnedAccounts::<T>::try_mutate(&avg_account_id, &avg_id, |vcu| -> DispatchResult {
 				let total_vcu = vcu.checked_add(amount).ok_or(Error::<T>::Overflow)?;
 				*vcu = total_vcu;
 				Ok(())
@@ -655,16 +667,17 @@ decl_module! {
 			})?;
 
 			// Generate event
-			Self::deposit_event(RawEvent::VCUsBurnedAdded(account_id, signer, asset_id));
+			Self::deposit_event(RawEvent::VCUsBurnedAdded(avg_account_id, avg_id, asset_id));
 			// Return a successful DispatchResult
 			Ok(().into())
 		}
 
-		/// Store/update an OraclesAccountMintingVCU
+		/// The VCUs may be generated from Oracle collecting data from off-chain. For example a Solar Panel field may have an Oracle collecting the
+		/// output power and generating the VCUs periodically on Chain. We have allowed the account of the Oracle to mint the VCU for his AVG.
 		///
 		/// The dispatch origin for this call must be `Signed` either by the Root or authorized account.
 		#[weight = 10_000 + T::DbWeight::get().writes(1)]
-		pub fn create_oracle_account_minting_vcu(origin, avg_account_id: T::AccountId, signer: u32, oracle_account_id: T::AccountId) -> DispatchResult {
+		pub fn create_oracle_account_minting_vcu(origin, avg_account_id: T::AccountId, avg_id: u32, oracle_account_id: T::AccountId) -> DispatchResult {
 
 			match ensure_root(origin.clone()) {
 				Ok(()) => Ok(()),
@@ -679,21 +692,21 @@ decl_module! {
 				}
 			}?;
 
-			OraclesAccountMintingVCU::<T>::try_mutate_exists(avg_account_id.clone(), signer.clone(), |oracle| {
+			OraclesAccountMintingVCU::<T>::try_mutate_exists(avg_account_id.clone(), avg_id.clone(), |oracle| {
 				*oracle = Some(oracle_account_id.clone());
 
 				// Generate event
-				Self::deposit_event(RawEvent::OraclesAccountMintingVCUAdded(avg_account_id, signer, oracle_account_id));
+				Self::deposit_event(RawEvent::OraclesAccountMintingVCUAdded(avg_account_id, avg_id, oracle_account_id));
 				// Return a successful DispatchResult
 				Ok(())
 			})
 		}
 
-		/// Destroy an OraclesAccountMintingVCU
+		/// Removes Oracles Generating VCU from storage.
 		///
 		/// The dispatch origin for this call must be `Signed` either by the Root or authorized account.
 		#[weight = 10_000 + T::DbWeight::get().writes(1)]
-		pub fn destroy_oracle_account_minting_vcu(origin, account_id: T::AccountId, signer: u32) -> DispatchResult {
+		pub fn destroy_oracle_account_minting_vcu(origin, avg_account_id: T::AccountId, avg_id: u32) -> DispatchResult {
 
 			match ensure_root(origin.clone()) {
 				Ok(()) => Ok(()),
@@ -708,21 +721,21 @@ decl_module! {
 				}
 			}?;
 
-			ensure!(OraclesAccountMintingVCU::<T>::contains_key(&account_id, &signer), Error::<T>::OraclesAccountMintingVCUNotFound);
+			ensure!(OraclesAccountMintingVCU::<T>::contains_key(&avg_account_id, &avg_id), Error::<T>::OraclesAccountMintingVCUNotFound);
 
-			OraclesAccountMintingVCU::<T>::remove(account_id.clone(), signer.clone());
+			OraclesAccountMintingVCU::<T>::remove(avg_account_id.clone(), avg_id.clone());
 
 			// Generate event
-			Self::deposit_event(RawEvent::OraclesAccountMintingVCUDestroyed(account_id, signer));
+			Self::deposit_event(RawEvent::OraclesAccountMintingVCUDestroyed(avg_account_id, avg_id));
 			// Return a successful DispatchResult
 			Ok(())
 		}
 
-		/// mint_vcu_from_oracle
+		/// Mints Oracles Generating VCUs
 		///
 		/// The dispatch origin for this call must be `Signed` either by the Root or authorized account.
 		#[weight = 10_000 + T::DbWeight::get().writes(1)]
-		pub fn mint_vcu_from_oracle(origin, avg_account_id: T::AccountId, signer: u32, amount_vcu: Balance) -> DispatchResultWithPostInfo {
+		pub fn mint_vcu_from_oracle(origin, avg_account_id: T::AccountId, avg_id: u32, amount_vcu: Balance) -> DispatchResultWithPostInfo {
 
 			match ensure_root(origin.clone()) {
 				Ok(()) => Ok(()),
@@ -736,12 +749,12 @@ decl_module! {
 					})
 				}
 			}?;
-			ensure!(OraclesAccountMintingVCU::<T>::contains_key(&avg_account_id, &signer), Error::<T>::OraclesAccountMintingVCUNotFound);
+			ensure!(OraclesAccountMintingVCU::<T>::contains_key(&avg_account_id, &avg_id), Error::<T>::OraclesAccountMintingVCUNotFound);
 
-			let oracle_account: T::AccountId = OraclesAccountMintingVCU::<T>::get(&avg_account_id, &signer);
+			let oracle_account: T::AccountId = OraclesAccountMintingVCU::<T>::get(&avg_account_id, &avg_id);
 
-			ensure!(AssetsGeneratingVCUSchedule::<T>::contains_key(&avg_account_id, &signer), Error::<T>::AssetGeneratedVCUScheduleNotFound);
-			let content: Vec<u8> = AssetsGeneratingVCUSchedule::<T>::get(avg_account_id.clone(), &signer);
+			ensure!(AssetsGeneratingVCUSchedule::<T>::contains_key(&avg_account_id, &avg_id), Error::<T>::AssetGeneratedVCUScheduleNotFound);
+			let content: Vec<u8> = AssetsGeneratingVCUSchedule::<T>::get(avg_account_id.clone(), &avg_id);
 
 			let token_id = Self::json_get_value(content.clone(),"token_id".as_bytes().to_vec());
 			let token_id = str::parse::<u32>(sp_std::str::from_utf8(&token_id).unwrap()).unwrap();
@@ -752,7 +765,7 @@ decl_module! {
 
 			pallet_assets::Module::<T>::mint(RawOrigin::Signed(oracle_account.clone()).into(), token_id, T::Lookup::unlookup(avg_account_id.clone()), amount_vcu)?;
 
-			Self::deposit_event(RawEvent::OracleAccountVCUMinted(avg_account_id, signer, oracle_account));
+			Self::deposit_event(RawEvent::OracleAccountVCUMinted(avg_account_id, avg_id, oracle_account));
 
 			Ok(().into())
 		}

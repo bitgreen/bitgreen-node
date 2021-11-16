@@ -19,7 +19,7 @@ The pallet is called "VCU" and below you can find the "Extrinsics" and queries a
 ## Create/Change Proxy Settings
 We need the possibility to define some administrator accounts for the pallet VCU without using the super user account.
 
-This function allows to create a proxy settings that allow to define some accounts with administrato rights on the pallet. It's accessible by SUDO only.
+This function allows to create a proxy settings that allow to define some accounts with administrator rights on the pallet. It's accessible by SUDO only.
 ```rust
 create_proxy_settings(accounts: Vec<u8>)
 ```
@@ -42,7 +42,7 @@ where key is one the key used in the storage.
 
 ## Destroy Proxy Settings  
 
-This function destroys proxy settings with key:""admin. It's accessible by SUDO only.
+This function destroys proxy settings with key:"admin". It's accessible by SUDO only.
 
 ```rust
 destroy_proxy_settings()
@@ -80,11 +80,11 @@ Initially the authorized account can belong to BitGreen.
 This function allows to store/change the AssetsGeneratingVCU. The function must be accessible only from SUDO account or one of the accounts stored in AuthorizedAccountsAGV.
 A change is possible from the same account that has stored or SUDO account.
 ```rust
-create_asset_generating_vcu(authorized_account: T::AccountId, signer: u32, content: Vec<u8>)
+create_asset_generating_vcu(avg_account_id: T::AccountId, avg_id: u32, content: Vec<u8>)
 ```
 where:
-- authorized_account is approved account stored in `AuthorizedAccountsAGV`
-- signer is unique id
+- avg_account_id is approved account stored in `AuthorizedAccountsAGV`
+- avg_id is unique id
 - content is json structure as follows:
 ```json
   {
@@ -99,16 +99,16 @@ where:
 ## Query Assets Generating VCU
 You can query the AuthorizedAccountsAGV above calling the function:
 ```rust
-AssetsGeneratingVCU(account_id: T::AccountId, signer: u32)
+AssetsGeneratingVCU(avg_account_id: T::AccountId, avg_id: u32)
 ```
-where keys are the account id used in the storage and signer.
+where keys are the account id used in the storage and avg_id.
 
 ## Destroy Assets Generating VCU
 
 This function removes Assets Generating VCU from storage. The function must be accessible only from SUDO account or one of the accounts stored in AuthorizedAccountsAGV.
 
 ```rust
-destroy_asset_generating_vcu(account_id: T::AccountId, signer: u32)
+destroy_asset_generating_vcu(avg_account_id: T::AccountId, avg_id: u32)
 ```
 
 ## Mint Assets Generating VCU Shares
@@ -116,7 +116,7 @@ destroy_asset_generating_vcu(account_id: T::AccountId, signer: u32)
 The AVG shares can be minted from the Authorized account up to the maximum number set in the AssetsGeneratingVCU. The function must be accessible only from SUDO account or one of the accounts stored in AuthorizedAccountsAGV.
 
 ```rust
-mint_shares_asset_generating_vcu(recipient: T::AccountId, agv_id: Vec<u8>, number_of_shares: u32)
+mint_shares_asset_generating_vcu(recipient: T::AccountId, avg_account: Vec<u8>, number_of_shares: u32)
 ```
 
 This function also -
@@ -130,7 +130,7 @@ This function also -
 The AVG shares can be burned from the Authorized account in the AssetsGeneratingVCU. The function must be accessible only from SUDO account or one of the accounts stored in AuthorizedAccountsAGV.
 
 ```rust
-burn_shares_asset_generating_vcu(recipient: T::AccountId, agv_id: Vec<u8>, number_of_shares: u32)
+burn_shares_asset_generating_vcu(recipient: T::AccountId, avg_account: Vec<u8>, number_of_shares: u32)
 ```
 
 This function also -
@@ -142,7 +142,7 @@ This function also -
 The owner of the share can transfer them to other account by a function called. The function must be accessible only from SUDO account or one of the accounts stored in AuthorizedAccountsAGV.
 
 ```rust
-transfer_shares_asset_generating_vcu(sender: T::AccountId, recipient: T::AccountId, agv_id: Vec<u8>, number_of_shares: u32)
+transfer_shares_asset_generating_vcu(sender: T::AccountId, recipient: T::AccountId, avg_account: Vec<u8>, number_of_shares: u32)
 ```
 
 This function also -
@@ -157,7 +157,7 @@ generate a certain amount of CO2.
 The function must be accessible only from SUDO account or one of the accounts stored in AuthorizedAccountsAGV.
 
 ```rust
-create_asset_generating_vcu_schedule(account_id: T::AccountId, signer: u32, period_days: u64, amount_vcu: Balance, token_id: u32)
+create_asset_generating_vcu_schedule(avg_account_id: T::AccountId, avg_id: u32, period_days: u64, amount_vcu: Balance, token_id: u32)
 ```
 
 ## Destroy Asset Generating VCU Schedule
@@ -167,7 +167,7 @@ generate a certain amount of CO2.
 This function allows to remove the schedule above. The function must be accessible only from SUDO account or one of the accounts stored in AuthorizedAccountsAGV.
 
 ```rust
-destroy_asset_generating_vcu_schedule(origin, account_id: T::AccountId, signer: u32)
+destroy_asset_generating_vcu_schedule(origin, avg_account_id: T::AccountId, avg_id: u32)
 ```
 
 ## Minting of Scheduled VCU
@@ -187,29 +187,29 @@ The function must deny further minting once is done till the new schedule is exp
 For example with a schedule every year, the minting will be executed only one time every 365 days.
 
 ```rust
-mint_scheduled_vcu(origin, account_id: T::AccountId, signer: u32)
+mint_scheduled_vcu(origin, avg_account_id: T::AccountId, avg_id: u32)
 ```
 
 where:
-- authorized_account is approved account stored in `AuthorizedAccountsAGV`
-- signer is unique id
+- avg_account_id is approved account stored in `AuthorizedAccountsAGV`
+- avg_id is unique id
 
 ## VCU Retirement
 
 The owner of the “VCUs”  can decide anytime to “retire”, basically burning them. The function must be accessible only from SUDO account or one of the accounts stored in AuthorizedAccountsAGV.
 
 ```rust
-retire_vcu(account_id: T::AccountId, signer: u32, asset_id: u32, amount: u128)
+retire_vcu(avg_account_id: T::AccountId, avg_id: u32, asset_id: u32, amount: u128)
 ```
 
 where:
-- authorized_account is approved account stored in `AuthorizedAccountsAGV`
-- signer is unique id
+- avg_account_id is approved account stored in `AuthorizedAccountsAGV`
+- avg_id is unique id
 - asset_id in pallet Asset
 
 This function also -
 - Burn the amount of tokens from pallet “Assets” and
-- Update the number of burned VCU for the signer in VCUsBurnedAccounts
+- Update the number of burned VCU for the avg_id in VCUsBurnedAccounts
 - Update the total of burned VCU for vcu type (assetsid) in VCUsBurned
 
 ## Create Oracles Generating VCU
@@ -220,7 +220,7 @@ output power and generating the VCUs periodically on Chain. We have allowed the 
 The function must be accessible only from SUDO account or one of the accounts stored in AuthorizedAccountsAGV.
 
 ```rust
-create_oracle_account_minting_vcu(avg_account_id: T::AccountId, signer: u32, oracle_account_id: T::AccountId)
+create_oracle_account_minting_vcu(avg_account_id: T::AccountId, avg_id: u32, oracle_account_id: T::AccountId)
 ```
 
 This function stores data in `OraclesAccountMintingVCU`.
@@ -231,7 +231,7 @@ This function stores data in `OraclesAccountMintingVCU`.
 This function removes Oracles Generating VCU from storage. The function must be accessible only from SUDO account or one of the accounts stored in AuthorizedAccountsAGV.
 
 ```rust
-destroy_oracle_account_minting_vcu(account_id: T::AccountId, signer: u32)
+destroy_oracle_account_minting_vcu(avg_account_id: T::AccountId, avg_id: u32)
 ```
 
 ## Mint Oracles Generating VCU
@@ -239,5 +239,5 @@ destroy_oracle_account_minting_vcu(account_id: T::AccountId, signer: u32)
 This function mints Oracles Generating VCUs. The function must be accessible only from SUDO account or one of the accounts stored in AuthorizedAccountsAGV.
 
 ```rust
-mint_vcu_from_oracle(avg_account_id: T::AccountId, signer: u32, amount_vcu: Balance)
+mint_vcu_from_oracle(avg_account_id: T::AccountId, avg_id: u32, amount_vcu: Balance)
 ```
