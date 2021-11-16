@@ -71,6 +71,8 @@ decl_storage! {
 		VCUsBurned get(fn vcu_burned):map hasher(blake2_128_concat) u32 => u128;
 		/// OraclesAccountMintingVCU: allow the account of the Oracle to mint the VCU for his AVG
 		OraclesAccountMintingVCU get(fn oracle_generating_vcu): double_map hasher(blake2_128_concat) T::AccountId, hasher(blake2_128_concat) u32 => T::AccountId;
+		/// BundleAssetsGeneratingVCU: a "bundle" of AVG
+		BundleAssetsGeneratingVCU get(fn bundle_asset_generating_vcu): map hasher(blake2_128_concat) u32 => Vec<u8>;
 	}
 }
 
@@ -108,6 +110,8 @@ decl_event!(
 		OraclesAccountMintingVCUDestroyed(AccountId, u32),
 		/// OracleAccountVCUMinted
 		OracleAccountVCUMinted(AccountId, u32, AccountId),
+		/// Added BundleAssetsGeneratingVCU
+		AddedBundleAssetsGeneratingVCU(u32),
 	}
 );
 
@@ -159,6 +163,10 @@ decl_error! {
 		AssetGeneratedScheduleExpired,
 		/// AOraclesAccountMintingVCU Not Found
 		OraclesAccountMintingVCUNotFound,
+		/// BundleAssetsGeneratingVCU JSON is too short to be valid
+        BundleAssetsGeneratingVCUJsonTooShort,
+        /// BundleAssetsGeneratingVCU is too long to be valid
+        BundleAssetsGeneratingVCUJsonTooLong,
   }
 }
 
@@ -768,6 +776,51 @@ decl_module! {
 			Self::deposit_event(RawEvent::OracleAccountVCUMinted(avg_account_id, avg_id, oracle_account));
 
 			Ok(().into())
+		}
+
+		/// To store a "bundle" of AGV that has the constraint of using the same "asset id"
+		/// but potentially different schedules or Oracle for the generation of the VCU.
+		///
+		/// example: {"description":"xxxxxxx","agvs":[{"accountid","xxxxxxx","id":xx},{..}],assetid:xx}
+		/// The dispatch origin for this call must be `Signed` either by the Root or authorized account.
+		#[weight = 10_000 + T::DbWeight::get().writes(1)]
+		pub fn create_bundle_avg(origin, bundle_id: u32, info: Vec<u8>) -> DispatchResult {
+
+			match ensure_root(origin.clone()) {
+				Ok(()) => Ok(()),
+				Err(e) => {
+					ensure_signed(origin).and_then(|o: T::AccountId| {
+						if AuthorizedAccountsAGV::<T>::contains_key(&o) {
+							Ok(())
+						} else {
+							Err(e)
+						}
+					})
+				}
+			}?;
+
+			//check accounts json length
+			ensure!(info.len() > 12, Error::<T>::BundleAssetsGeneratingVCUJsonTooShort);
+            ensure!(info.len() < 8192, Error::<T>::BundleAssetsGeneratingVCUJsonTooLong);
+
+			// check json validity
+			let js = info.clone();
+			ensure!(Self::json_check_validity(js),Error::<T>::InvalidJson);
+
+			let description = Self::json_get_value(info.clone(),"description".as_bytes().to_vec());
+            ensure!(description.len()!=0 && description.len()<=64 , Error::<T>::InvalidDescription);
+
+			let asset_id = Self::json_get_value(info.clone(),"assetid".as_bytes().to_vec());
+
+			let asset_id = str::parse::<u32>(sp_std::str::from_utf8(&asset_id).unwrap()).unwrap();
+
+			// check whether asset exists or not
+			ensure!(Asset::<T>::contains_key(asset_id), Error::<T>::AssetDoesNotExist);
+
+			BundleAssetsGeneratingVCU::insert(&bundle_id, &info);
+			Self::deposit_event(RawEvent::AddedBundleAssetsGeneratingVCU(bundle_id));
+
+			Ok(())
 		}
 	}
 }
