@@ -73,6 +73,8 @@ decl_storage! {
 		OraclesAccountMintingVCU get(fn oracle_generating_vcu): double_map hasher(blake2_128_concat) T::AccountId, hasher(blake2_128_concat) u32 => T::AccountId;
 		/// BundleAssetsGeneratingVCU: a "bundle" of AVG
 		BundleAssetsGeneratingVCU get(fn bundle_asset_generating_vcu): map hasher(blake2_128_concat) u32 => Vec<u8>;
+		/// Bundle Asset AVG Data
+		AssetAVGBundle get(fn asset_avg_bundle): double_map hasher(blake2_128_concat) T::AccountId, hasher(blake2_128_concat) u32  => u32;
 	}
 }
 
@@ -112,6 +114,8 @@ decl_event!(
 		OracleAccountVCUMinted(AccountId, u32, AccountId),
 		/// Added BundleAssetsGeneratingVCU
 		AddedBundleAssetsGeneratingVCU(u32),
+		/// Destroyed BundleAssetsGeneratingVCU
+		DestroyedBundleAssetsGeneratingVCU(u32),
 	}
 );
 
@@ -167,6 +171,14 @@ decl_error! {
         BundleAssetsGeneratingVCUJsonTooShort,
         /// BundleAssetsGeneratingVCU is too long to be valid
         BundleAssetsGeneratingVCUJsonTooLong,
+		/// InvalidAVGs
+		InvalidAVGs,
+		/// Bundle does not exist,
+		BundleDoesNotExist,
+		/// AssetAVGBundleNotFound
+		AssetAVGBundleNotFound,
+		/// BundleAssetIdNotSame
+		BundleAssetIdNotSame,
   }
 }
 
@@ -536,6 +548,12 @@ decl_module! {
 			ensure!(AssetsGeneratingVCU::<T>::contains_key(&avg_account_id, &avg_id), Error::<T>::AssetGeneratedVCUNotFound);
 			ensure!(amount_vcu > 0, Error::<T>::InvalidVCUAmount);
 
+			ensure!(AssetAVGBundle::<T>::contains_key(&avg_account_id, &avg_id), Error::<T>::AssetAVGBundleNotFound);
+
+			let bundle_asset_id = AssetAVGBundle::<T>::get(&avg_account_id, &avg_id);
+
+			ensure!(bundle_asset_id == token_id, Error::<T>::BundleAssetIdNotSame);
+
     		let json = Self::create_json_string(vec![("period_days",&mut period_days.to_string().as_bytes().to_vec()), ("amount_vcu",&mut  amount_vcu.to_string().as_bytes().to_vec()), ("token_id",&mut  token_id.to_string().as_bytes().to_vec())]);
 
 			AssetsGeneratingVCUSchedule::<T>::insert(&avg_account_id, &avg_id, json);
@@ -767,6 +785,12 @@ decl_module! {
 			let token_id = Self::json_get_value(content.clone(),"token_id".as_bytes().to_vec());
 			let token_id = str::parse::<u32>(sp_std::str::from_utf8(&token_id).unwrap()).unwrap();
 
+			ensure!(AssetAVGBundle::<T>::contains_key(&avg_account_id, &avg_id), Error::<T>::AssetAVGBundleNotFound);
+
+			let bundle_asset_id = AssetAVGBundle::<T>::get(&avg_account_id, &avg_id);
+
+			ensure!(bundle_asset_id == token_id, Error::<T>::BundleAssetIdNotSame);
+
 			if !Asset::<T>::contains_key(token_id.clone()) {
 				pallet_assets::Module::<T>::force_create(RawOrigin::Root.into(), token_id, T::Lookup::unlookup(oracle_account.clone()), One::one(), One::one())?;
 			}
@@ -817,9 +841,50 @@ decl_module! {
 			// check whether asset exists or not
 			ensure!(Asset::<T>::contains_key(asset_id), Error::<T>::AssetDoesNotExist);
 
+			let agvs= Self::json_get_complexarray(info.clone(),"agvs".as_bytes().to_vec());
+                let mut x=0;
+                if agvs.len()>2 {
+                    loop {
+                        let w= Self::json_get_recordvalue(agvs.clone(),x);
+                        if w.len()==0 {
+                            break;
+                        }
+						let account_id= Self::json_get_value(w.clone(),"accountid".as_bytes().to_vec());
+						let id= Self::json_get_value(w.clone(),"id".as_bytes().to_vec());
+
+						let account_id = T::AccountId::decode(&mut &account_id[1..33]).unwrap_or_default();
+						let id = str::parse::<u32>(sp_std::str::from_utf8(&id).unwrap()).unwrap();
+
+						// check whether asset generated VCU exists or not
+						ensure!(AssetsGeneratingVCU::<T>::contains_key(&account_id, &id), Error::<T>::AssetGeneratedVCUNotFound);
+						AssetAVGBundle::<T>::insert(&account_id, &id, &asset_id);
+
+                        x=x+1;
+                    }
+                }
+                ensure!(x>0,Error::<T>::InvalidAVGs);
+
 			BundleAssetsGeneratingVCU::insert(&bundle_id, &info);
 			Self::deposit_event(RawEvent::AddedBundleAssetsGeneratingVCU(bundle_id));
 
+			Ok(())
+		}
+
+		/// Destroys an AVG bundle from storage.
+		///
+		/// The dispatch origin for this call must be `Signed` by the Root.
+		#[weight = 10_000 + T::DbWeight::get().writes(1)]
+		pub fn destroy_bundle_avg(origin, bundle_id: u32) -> DispatchResult {
+
+			ensure_root(origin)?;
+
+			ensure!(BundleAssetsGeneratingVCU::contains_key(&bundle_id), Error::<T>::BundleDoesNotExist);
+
+			BundleAssetsGeneratingVCU::remove(bundle_id.clone());
+
+			// Generate event
+			Self::deposit_event(RawEvent::DestroyedBundleAssetsGeneratingVCU(bundle_id));
+			// Return a successful DispatchResult
 			Ok(())
 		}
 	}
@@ -994,5 +1059,78 @@ impl<T: Config> Module<T> {
 		}
 		v.push(b'}');
 		v
+	}
+
+	// function to get record {} from multirecord json structure [{..},{.. }], it returns an empty Vec when the records is not present
+	fn json_get_recordvalue(ar:Vec<u8>,p:i32) -> Vec<u8> {
+		let mut result=Vec::new();
+		let mut op=true;
+		let mut cn=0;
+		let mut lb=b' ';
+		for b in ar {
+			if b==b',' && op==true {
+				cn=cn+1;
+				continue;
+			}
+			if b==b'[' && op==true && lb!=b'\\' {
+				continue;
+			}
+			if b==b']' && op==true && lb!=b'\\' {
+				continue;
+			}
+			if b==b'{' && op==true && lb!=b'\\' {
+				op=false;
+			}
+			if b==b'}' && op==false && lb!=b'\\' {
+				op=true;
+			}
+			// field found
+			if cn==p {
+				result.push(b);
+			}
+			lb=b.clone();
+		}
+		return result;
+	}
+
+	fn json_get_complexarray(j:Vec<u8>,key:Vec<u8>) -> Vec<u8> {
+		let mut result=Vec::new();
+		let mut k=Vec::new();
+		let keyl = key.len();
+		let jl = j.len();
+		k.push(b'"');
+		for xk in 0..keyl{
+			k.push(*key.get(xk).unwrap());
+		}
+		k.push(b'"');
+		k.push(b':');
+		let kl = k.len();
+		for x in  0..jl {
+			let mut m=0;
+			let mut xx=0;
+			if x+kl>jl {
+				break;
+			}
+			for i in x..x+kl {
+				if *j.get(i).unwrap()== *k.get(xx).unwrap() {
+					m=m+1;
+				}
+				xx=xx+1;
+			}
+			if m==kl{
+				let mut os=true;
+				for i in x+kl..jl-1 {
+					if *j.get(i).unwrap()==b'[' && os==true{
+						os=false;
+					}
+					result.push(j.get(i).unwrap().clone());
+					if *j.get(i).unwrap()==b']' && os==false {
+						break;
+					}
+				}
+				break;
+			}
+		}
+		return result;
 	}
 }
