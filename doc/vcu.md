@@ -241,3 +241,28 @@ This function mints Oracles Generating VCUs. The function must be accessible onl
 ```rust
 mint_vcu_from_oracle(avg_account_id: T::AccountId, avg_id: u32, amount_vcu: Balance)
 ```
+
+## Create AVG Bundle
+
+We need to define a "bundle" of AGV that has the constraint of using the same "asset id" but potentially different schedules or Oracle for the generation of the VCU.
+The function must be accessible only from SUDO account or one of the accounts stored in AuthorizedAccountsAGV.
+
+```rust
+create_bundle_avg(bundle_id: u32, info: Vec<u8>)
+```
+
+Where: 
+info: {"description":"xxxxxxx","agvs":[{"accountid","xxxxxxx","id":xx},{..}],assetid:xx}
+This functions:
+1) Checks that the assetid does exists
+2) Checks that the AGV in the json does exists and if they have schedules they use the same assetid
+
+This function stores data in `BundleAssetsGeneratingVCU`.
+
+## Destroy Bundle AVG
+
+This function removes Bundle AVG from storage. The function must be accessible only from SUDO account or one of the accounts stored in AuthorizedAccountsAGV.
+
+```rust
+destroy_bundle_avg(bundle_id: u32)
+```
