@@ -6,14 +6,11 @@
 
 use frame_support::{decl_module, decl_storage, decl_event, decl_error, dispatch, ensure, traits::Currency,codec::Decode};
 use frame_system::{ensure_root,ensure_signed};
-use frame_support::pallet_prelude::DispatchResultWithPostInfo;
 use sp_std::prelude::*;
 use core::str;
 use core::str::FromStr;
 
-use frame_support::pallet_prelude::Member;
-use crate::dispatch::HasCompact;
-use crate::dispatch::Parameter;
+
 
 #[cfg(test)]
 mod mock;
@@ -22,11 +19,10 @@ mod mock;
 mod tests;
 
 /// Module configuration
-pub trait Config: frame_system::Config + pallet_assets::Config<AssetId = u32> {
+pub trait Config: frame_system::Config {
 //pub trait Config: frame_system::Config + Sized {
 	type Event: From<Event<Self>> + Into<<Self as frame_system::Config>::Event>;
 	type Currency: Currency<Self::AccountId>;
-    type AssetId: Member + Parameter + Default + Copy + HasCompact;
 
 }
 
@@ -2215,35 +2211,42 @@ decl_module! {
             Ok(())
         }
         
-        ///Adding to the balance of InsurerReserves and freezing Asset Id
+        ///Adding to the balance of InsurerReserves
         #[weight = 1000]
-        pub fn stake(origin, id: u32, deposit: u32) -> DispatchResultWithPostInfo {
+        pub fn insurance_reserve_stake(origin, id: u32, deposit: u32) -> dispatch::DispatchResult {
             let signer = ensure_signed(origin.clone())?;
-            ensure!(InsurerReserves::<T>::contains_key(signer.clone(), id.clone()), Error::<T>::ReserveNotFound);
-            //Freezing this Asset Id before the change in reserves are made
-            pallet_assets::Module::<T>::freeze_asset(origin.clone(), id.clone())?;
-            let reserve = InsurerReserves::<T>::take(signer.clone(), id.clone());
-            let new_reserve: u128 = reserve.checked_add(deposit.into()).unwrap();
-            InsurerReserves::<T>::insert(signer.clone(), id.clone(), new_reserve);
-            Ok(().into())
+            match InsurerReserves::<T>::contains_key(signer.clone(), id.clone()) {
+                true => {
+                let current_reserve = InsurerReserves::<T>::take(signer.clone(), id.clone());
+                let new_reserve = current_reserve.checked_add(deposit.into()).unwrap();
+                InsurerReserves::<T>::insert(signer.clone(), id.clone(), new_reserve);
+                },
+                false => {
+                    let deposit_into: u128 = deposit.into();
+                    InsurerReserves::<T>::insert(signer.clone(), id.clone(), deposit_into);
+            }
+        }
+            Ok(())
         }
         
-        ///Removing funds only if the reserve is at minimum required amount and thawing Asset Id
+        ///Withdraw a certain amount of funds only if the reserve is at minimum required amount
         #[weight = 1000]
-        pub fn unstake(origin, id: u32, withdrawal: u32) -> DispatchResultWithPostInfo {
+        pub fn insurance_reserve_unstake(origin, id: u32, withdrawal: u32) -> dispatch::DispatchResult {
             let signer = ensure_signed(origin.clone())?;
             ensure!(InsurerReserves::<T>::contains_key(signer.clone(), id.clone()), Error::<T>::ReserveNotFound);
-            //Retrieve the current minimum reserve required
+            //Retrieve the current minimum reserve required with key "insuranceminreserve"
             let settings_reserve: Vec<u8> = Settings::get("insuranceminreserve".as_bytes().to_vec()).unwrap();
             let reserve = json_get_value(settings_reserve.clone(), "reserve".as_bytes().to_vec());
+            //Converting to u32 after getting json value from Settings
             let reserve_min = vecu8_to_u32(reserve);
-            let current_reserves = InsurerReserves::<T>::take(signer.clone(), id);
-            ensure!(current_reserves >= reserve_min.into(), Error::<T>::BelowMinimumReserve);     
-            let new_reserve: u128 = current_reserves.checked_sub(withdrawal.into()).unwrap();
-            InsurerReserves::<T>::insert(signer.clone(), id.clone(), new_reserve);
-            //Unfreezing of this particular Asset id
-            pallet_assets::Module::<T>::thaw_asset(origin.clone(), id.clone())?;
-            Ok(().into())
+            //Retrieve reserve from InsurerReserves double map
+            let current_reserves = InsurerReserves::<T>::get(signer.clone(), id);
+            //Current reserves if the withdrawal is done
+            let withdrawn_reserve: u128 = current_reserves.checked_sub(withdrawal.into()).unwrap();
+            ensure!(withdrawn_reserve >= reserve_min.into(), Error::<T>::BelowMinimumReserve);  
+            InsurerReserves::<T>::take(signer.clone(), id.clone());   
+            InsurerReserves::<T>::insert(signer.clone(), id.clone(), withdrawn_reserve);
+            Ok(())
         }
     }
 }

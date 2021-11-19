@@ -12,6 +12,19 @@ fn create_change_settings_works() {
 		assert_ok!(Bonds::create_change_settings(Origin::root(), b"infodocuments".to_vec(), r#"{"documents":[{"document":"Profit&LossPreviousyear"}]}"#.as_bytes().to_vec()));
 	});
 }
+#[test]
+fn insurance_staking_unstaking_works(){
+	new_test_ext().execute_with(|| {
+		assert_ok!(Bonds::create_change_settings(Origin::root(), b"insuranceminreserve".to_vec(), r#"{"currency":123,"reserve":10}"#.as_bytes().to_vec()));
+		assert_ok!(Bonds::insurance_reserve_stake(Origin::signed(1), 1, 10));
+		assert_noop!(Bonds::insurance_reserve_unstake(Origin::signed(1), 1, 1), Error::<Test>::BelowMinimumReserve);
+		assert_ok!(Bonds::insurance_reserve_stake(Origin::signed(1), 1, 1));
+		assert_ok!(Bonds::insurance_reserve_unstake(Origin::signed(1), 1, 1));
+		assert_noop!(Bonds::insurance_reserve_unstake(Origin::signed(1), 1, 1), Error::<Test>::BelowMinimumReserve);
+
+	});
+
+}
 
 #[test]
 fn create_change_settings_does_not_work_for_non_root() {

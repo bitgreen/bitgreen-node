@@ -681,7 +681,7 @@ pub mod pallet {
 		///
 		/// Weight: `O(1)`
 		#[pallet::weight(T::WeightInfo::freeze_asset())]
-		pub fn freeze_asset(
+		pub(super) fn freeze_asset(
 			origin: OriginFor<T>,
 			#[pallet::compact] id: T::AssetId
 		) -> DispatchResultWithPostInfo {
@@ -708,7 +708,7 @@ pub mod pallet {
 		///
 		/// Weight: `O(1)`
 		#[pallet::weight(T::WeightInfo::thaw_asset())]
-		pub fn thaw_asset(
+		pub(super) fn thaw_asset(
 			origin: OriginFor<T>,
 			#[pallet::compact] id: T::AssetId
 		) -> DispatchResultWithPostInfo {
