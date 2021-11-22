@@ -4492,6 +4492,7 @@ dependencies = [
  "frame-support",
  "frame-system",
  "hex",
+ "pallet-assets",
  "pallet-balances",
  "parity-scale-codec",
  "primitive-types 0.7.3",

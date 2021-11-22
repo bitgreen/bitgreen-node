@@ -32,7 +32,7 @@ except NameError:
 
 
 # function to load data types registry
-def load_type_registry_file(file_path: str) -> dict:
+def load_type_registry_file(file_path):
     with open(os.path.abspath(file_path), 'r') as fp:
         data = fp.read()
     return json.loads(data)
@@ -1026,7 +1026,7 @@ def process_block(blocknumber):
 
 # subscription handler for new blocks written
 def subscription_handler(obj, update_nr, subscription_id):
-    print(f"New block #{obj['header']['number']} produced by {obj['author']} hash: {obj['header']['hash']}")
+    print("New block #{obj['header']['number']} produced by {obj['author']} hash: {obj['header']['hash']}")
     # call the block management function
     process_block(obj['header']['number'])
     

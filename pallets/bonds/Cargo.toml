@@ -22,6 +22,7 @@ version = '2.2.0'
 [dependencies]
 frame-support = { default-features = false, version = '3.0.0' }
 frame-system = { default-features = false, version = '3.0.0' }
+pallet-assets = { version = "3.0.0", default-features = false, path = "../assets" }
 sp-std = { default-features = false, version = '3.0.0' }
 sp-runtime = { default-features = false, version = '3.0.0' }
 sp-io = { default-features = false, version = '3.0.0' }
@@ -49,5 +50,6 @@ std = [
     'sp-io/std',
     'sp-core/std',
     'hex/std',
-    'bs58/std'
+    'bs58/std',
+    'pallet-assets/std',
 ]
