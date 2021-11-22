@@ -481,26 +481,28 @@ decl_error! {
         WebSiteTooShort,
         /// The website is too short
         WebSiteTooLong,
-       /// The account id is missing in the parameters passed
-       MissingAccountId,
-       /// The addresses did not match
-       UnmatchingAddress,
-       /// The info documents is missing
-       MissingInfoDocuments,
-       /// Signer Is Not Authorized For Submission Or Removal
-       SignerIsNotAuthorizedForSubmissionOrRemoval,
-       /// Account if has not  been found
-       AccountNotFound,
-       ///Current insurer reserves below minimum insurer requirement
-       BelowMinimumReserve,
-       /// Insurance cannot be found
-       InsuranceNotFound,
-       ///Insurer reserve not found
-       ReserveNotFound,
-       /// Insurance has been already signed
-       InsuranceAlreadySigned,
-       /// The date format is not in  YYYY-MM-DD format
-       InvalidDateFormat
+        /// The account id is missing in the parameters passed
+        MissingAccountId,
+        /// The addresses did not match
+        UnmatchingAddress,
+        /// The info documents is missing
+        MissingInfoDocuments,
+        /// Signer Is Not Authorized For Submission Or Removal
+        SignerIsNotAuthorizedForSubmissionOrRemoval,
+        /// Account if has not  been found
+        AccountNotFound,
+        ///Current insurer reserves below minimum insurer requirement
+        BelowMinimumReserve,
+        /// Insurance cannot be found
+        InsuranceNotFound,
+        ///Insurer reserve not found
+        ReserveNotFound,
+        /// Insurance has been already signed
+        InsuranceAlreadySigned,
+        /// The date format is not in  YYYY-MM-DD format
+        InvalidDateFormat,
+        /// Settings does not exist
+        SettingsDoesNotExist,
 	}
 }
 
@@ -934,6 +936,7 @@ decl_module! {
         pub fn create_change_fund(origin, accountid: T::AccountId, info: Vec<u8>) -> dispatch::DispatchResult {
             let signer = ensure_signed(origin)?;
             // check the signer is one of the operators for kyc
+            ensure!(Settings::contains_key("kyc".as_bytes().to_vec()),Error::<T>::SettingsDoesNotExist);
             let json:Vec<u8>=Settings::get("kyc".as_bytes().to_vec()).unwrap();
             let mut flag=0;
             let mut signingtype=0;
@@ -1395,6 +1398,7 @@ decl_module! {
         pub fn create_change_credit_rating_agency(origin, accountid: T::AccountId, info: Vec<u8>) -> dispatch::DispatchResult {
              let signer = ensure_signed(origin)?;
              // check the signer is one of the manager or a member of the committee
+             ensure!(Settings::contains_key("creditratingagencies".as_bytes().to_vec()),Error::<T>::SettingsDoesNotExist);
              let json:Vec<u8>=Settings::get("creditratingagencies".as_bytes().to_vec()).unwrap();
              let mut flag=0;
              let mut signingtype=0;
@@ -1546,6 +1550,8 @@ decl_module! {
         pub fn confirm_collaterals(origin, bondid: u32, collateralid: u32, info: Vec<u8>) -> dispatch::DispatchResult {
              let signer = ensure_signed(origin)?;
              // check the signer is one of the manager or a member of the committee
+
+             ensure!(Settings::contains_key("collateralsverification".as_bytes().to_vec()),Error::<T>::SettingsDoesNotExist);
              let json:Vec<u8>=Settings::get("collateralsverification".as_bytes().to_vec()).unwrap();
              let mut flag=0;
              let mut signingtype=0;
@@ -1619,7 +1625,7 @@ decl_module! {
             // check country name length  >= 3
             ensure!(countryname.len()>=3, Error::<T>::CountryNameTooShort);
             // check the country is not alreay present on chain
-            ensure!(IsoCountries::contains_key(&countrycode)==false, Error::<T>::CountryCodeAlreadyPresent);
+            ensure!(!IsoCountries::contains_key(&countrycode), Error::<T>::CountryCodeAlreadyPresent);
             // store the Iso Country Code and Name
             IsoCountries::insert(countrycode.clone(),countryname.clone());
             // Generate event
@@ -1651,7 +1657,7 @@ decl_module! {
              // check the request is signed from the Super User
              let _sender = ensure_root(origin)?;
              // check currency code length is between 3 and 5 bytes
-             ensure!((currencycode.len()>=3 && currencycode.len()<=5), Error::<T>::WrongLengthCurrencyCode);
+             ensure!((currencycode.len()==2), Error::<T>::WrongLengthCurrencyCode);
              // check the info field is not longer 1024 bytes
              ensure!((info.len()<=1024), Error::<T>::SizeInfoTooLong);
              // check for a valid json structure
