@@ -862,13 +862,13 @@ def process_block(blocknumber):
     # retrieve receipt
     cnt=0    
     for extrinsic in result['extrinsics']:
-        if extrinsic.address:
-            signed_by_address = extrinsic.address.value
+        if 'address' in extrinsic:
+            signed_by_address = extrinsic['address'].value
         else:
             signed_by_address = None
         print('\nPallet: {}\nCall: {}\nSigned by: {}'.format(
-            extrinsic.call_module.name,
-            extrinsic.call.name,
+            extrinsic["call"]["call_module"].name,
+            extrinsic["call"]["call_function"].name,
             signed_by_address
         ))
         # check for exstrinc success or not
@@ -1018,18 +1018,19 @@ def process_block(blocknumber):
                 assets_force_destroy(blocknumber,'0x'+extrinsic.extrinsic_hash,extrinsic.address.value,currentime,c['call_args'][0]['value'],c['call_args'][1]['value'])
             
         # Loop through call params
-        for param in extrinsic.params:
-            if param['type'] == 'Compact<Balance>':
+        for param in extrinsic["call"]['call_args']:
+            if param['type'] == 'Balance':
                 param['value'] = '{} {}'.format(param['value'] / 10 ** substrate.token_decimals, substrate.token_symbol)
             print("Param '{}': {}".format(param['name'], param['value']))
         cnt=cnt+1
 
 # subscription handler for new blocks written
 def subscription_handler(obj, update_nr, subscription_id):
-    print("New block #{obj['header']['number']} produced by {obj['author']} hash: {obj['header']['hash']}")
-    # call the block management function
-    process_block(obj['header']['number'])
+    print(f"New block #{obj['header']['number']} produced by {obj['author']} hash: {obj['header']['hash']}")
     
+    if update_nr > 10:
+        return {'message': 'Subscription will cancel when a value is returned', 'updates_processed': update_nr}
+
 ## MAIN 
 
 # load custom data types
@@ -1039,7 +1040,6 @@ substrate = SubstrateInterface(
     url=NODE,
     ss58_format=42,
     type_registry_preset='default',
-    type_registry=custom_type_registry
 
 )
 # create database tables
