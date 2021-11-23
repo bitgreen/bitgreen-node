@@ -761,7 +761,7 @@ decl_module! {
 		///
 		/// The dispatch origin for this call must be `Signed` either by the Root or authorized account.
 		#[weight = 10_000 + T::DbWeight::get().writes(1)]
-		pub fn mint_vcu_from_oracle(origin, avg_account_id: T::AccountId, avg_id: u32, amount_vcu: Balance) -> DispatchResultWithPostInfo {
+		pub fn mint_vcu_from_oracle(origin, avg_account_id: T::AccountId, avg_id: u32, amount_vcu: Balance, asset_id: u32) -> DispatchResultWithPostInfo {
 
 			match ensure_root(origin.clone()) {
 				Ok(()) => Ok(()),
@@ -779,23 +779,17 @@ decl_module! {
 
 			let oracle_account: T::AccountId = OraclesAccountMintingVCU::<T>::get(&avg_account_id, &avg_id);
 
-			ensure!(AssetsGeneratingVCUSchedule::<T>::contains_key(&avg_account_id, &avg_id), Error::<T>::AssetGeneratedVCUScheduleNotFound);
-			let content: Vec<u8> = AssetsGeneratingVCUSchedule::<T>::get(avg_account_id.clone(), &avg_id);
-
-			let token_id = Self::json_get_value(content.clone(),"token_id".as_bytes().to_vec());
-			let token_id = str::parse::<u32>(sp_std::str::from_utf8(&token_id).unwrap()).unwrap();
-
 			ensure!(AssetAVGBundle::<T>::contains_key(&avg_account_id, &avg_id), Error::<T>::AssetAVGBundleNotFound);
 
 			let bundle_asset_id = AssetAVGBundle::<T>::get(&avg_account_id, &avg_id);
 
-			ensure!(bundle_asset_id == token_id, Error::<T>::BundleAssetIdNotSame);
+			ensure!(bundle_asset_id == asset_id, Error::<T>::BundleAssetIdNotSame);
 
-			if !Asset::<T>::contains_key(token_id.clone()) {
-				pallet_assets::Module::<T>::force_create(RawOrigin::Root.into(), token_id, T::Lookup::unlookup(oracle_account.clone()), One::one(), One::one())?;
+			if !Asset::<T>::contains_key(asset_id.clone()) {
+				pallet_assets::Module::<T>::force_create(RawOrigin::Root.into(), asset_id, T::Lookup::unlookup(oracle_account.clone()), One::one(), One::one())?;
 			}
 
-			pallet_assets::Module::<T>::mint(RawOrigin::Signed(oracle_account.clone()).into(), token_id, T::Lookup::unlookup(avg_account_id.clone()), amount_vcu)?;
+			pallet_assets::Module::<T>::mint(RawOrigin::Signed(oracle_account.clone()).into(), asset_id, T::Lookup::unlookup(avg_account_id.clone()), amount_vcu)?;
 
 			Self::deposit_event(RawEvent::OracleAccountVCUMinted(avg_account_id, avg_id, oracle_account));
 

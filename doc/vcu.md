@@ -239,7 +239,7 @@ destroy_oracle_account_minting_vcu(avg_account_id: T::AccountId, avg_id: u32)
 This function mints Oracles Generating VCUs. The function must be accessible only from SUDO account or one of the accounts stored in AuthorizedAccountsAGV.
 
 ```rust
-mint_vcu_from_oracle(avg_account_id: T::AccountId, avg_id: u32, amount_vcu: Balance)
+mint_vcu_from_oracle(avg_account_id: T::AccountId, avg_id: u32, amount_vcu: Balance, asset_id: u32)
 ```
 
 ## Create AVG Bundle

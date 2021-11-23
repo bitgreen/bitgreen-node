@@ -350,14 +350,13 @@ fn mint_vcu_from_oracle_should_work() {
 		assert_ok!(VCU::create_asset_generating_vcu(Origin::signed(11), 11, 1, input.clone()));
 		assert_eq!(VCU::asset_generating_vcu(11, 1), input);
 
-		let token_id:u32 = 1;
+		let asset_id:u32 = 1;
 		let amount_vcu: u128 = 1000;
 
-		assert_ok!(VCU::create_asset_generating_vcu_schedule(Origin::signed(11), 11, 1, 0, amount_vcu, token_id));
 		assert_ok!(VCU::create_oracle_account_minting_vcu(Origin::root(), 11, 1, 10));
-		assert_eq!(Assets::total_supply(token_id), 0);
-		assert_ok!(VCU::mint_vcu_from_oracle(Origin::root(), 11, 1, amount_vcu));
-		assert_eq!(Assets::total_supply(token_id), amount_vcu);
+		assert_eq!(Assets::total_supply(asset_id), 0);
+		assert_ok!(VCU::mint_vcu_from_oracle(Origin::root(), 11, 1, amount_vcu, asset_id));
+		assert_eq!(Assets::total_supply(asset_id), amount_vcu);
 
 	});
 }
