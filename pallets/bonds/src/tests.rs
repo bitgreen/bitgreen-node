@@ -256,11 +256,11 @@ fn kyc_approve_does_not_work_if_kyc_id_not_found() {
 }
 
 #[test]
-fn create_change_fund_does_not_work_if_kyc_id_not_found() {
+fn create_change_fund_does_not_work_if_setting_does_not_exist() {
 	new_test_ext().execute_with(|| {
 		assert_noop!(
 			Bonds::create_change_fund(Origin::signed(11), 11, b"kyc".to_vec()),
-			Error::<Test>::SignerIsNotAuthorizedForFundCreation
+			Error::<Test>::SettingsDoesNotExist
 		);
 	});
 }
@@ -306,11 +306,11 @@ fn bond_approve_does_not_work_if_bond_id_zero() {
 }
 
 #[test]
-fn create_change_credit_rating_agency_does_not_work_if_signer_not_authorized() {
+fn create_change_credit_rating_agency_does_not_work_if_settings_not_exist() {
 	new_test_ext().execute_with(|| {
 		assert_noop!(
 			Bonds::create_change_credit_rating_agency(Origin::signed(11), 1, b"kyc".to_vec()),
-			Error::<Test>::SignerIsNotAuthorizedForCreditRatingAgencySubmission
+			Error::<Test>::SettingsDoesNotExist
 		);
 	});
 }
@@ -336,11 +336,152 @@ fn create_collaterals_does_not_work_if_bond_id_not_found() {
 }
 
 #[test]
-fn confirm_collaterals_does_not_work_if_signer_not_authorized() {
+fn confirm_collaterals_does_not_work_if_setting_does_not_exist() {
 	new_test_ext().execute_with(|| {
 		assert_noop!(
-			Bonds::confirm_collaterals(Origin::signed(11), 1, 1, b"kyc".to_vec()),
-			Error::<Test>::SignerIsNotAuthorizedAsCreditRatingAgency
+			Bonds::confirm_collaterals(Origin::signed(11), 1, 1, b"collateralsverification".to_vec()),
+			Error::<Test>::SettingsDoesNotExist
+		);
+	});
+}
+
+#[test]
+fn iso_country_create_works() {
+	new_test_ext().execute_with(|| {
+		assert_ok!(Bonds::iso_country_create(Origin::root(), b"IN".to_vec(), b"India".to_vec()));
+
+		assert_noop!(
+			Bonds::iso_country_create(Origin::root(), b"IN".to_vec(), b"India".to_vec()),
+			Error::<Test>::CountryCodeAlreadyPresent
+		);
+	});
+
+}
+
+#[test]
+fn iso_country_create_does_not_work_if_invalid_input() {
+	new_test_ext().execute_with(|| {
+		assert_noop!(
+			Bonds::iso_country_create(Origin::root(), b"IND".to_vec(), b"IN".to_vec()),
+			Error::<Test>::WrongLengthCountryCode
+		);
+
+		assert_noop!(
+			Bonds::iso_country_create(Origin::root(), b"IN".to_vec(), b"IN".to_vec()),
+			Error::<Test>::CountryNameTooShort
+		);
+	});
+}
+
+#[test]
+fn iso_country_destroy_works() {
+	new_test_ext().execute_with(|| {
+		assert_ok!(Bonds::iso_country_create(Origin::root(), b"IN".to_vec(), b"India".to_vec()));
+
+		assert_ok!(Bonds::iso_country_destroy(Origin::root(), b"IN".to_vec()));
+
+	});
+}
+
+#[test]
+fn iso_country_destroy_does_not_work_if_country_code_does_not_exist() {
+	new_test_ext().execute_with(|| {
+		assert_noop!(
+			Bonds::iso_country_destroy(Origin::root(), b"IN".to_vec()),
+			Error::<Test>::CountryCodeNotFound
+		);
+	});
+}
+
+#[test]
+fn currency_create_does_not_work_if_country_code_is_invalid() {
+	new_test_ext().execute_with(|| {
+		assert_noop!(
+			Bonds::currency_create(Origin::root(), b"IND".to_vec(), b"IN".to_vec()),
+			Error::<Test>::WrongLengthCurrencyCode
+		);
+	});
+}
+
+#[test]
+fn country_create_does_not_work_if_invalid_input() {
+	new_test_ext().execute_with(|| {
+		assert_noop!(
+			Bonds::currency_create(Origin::root(), b"IN".to_vec(), r#"{name":"Bitcoin","category":"c","country":"AE","blockchain":"Bitcoin","address":"not applicable"}"#.as_bytes().to_vec()),
+			Error::<Test>::InvalidJson
+		);
+
+		assert_noop!(
+			Bonds::currency_create(Origin::root(), b"IN".to_vec(), r#"{"name":"Bi","category":"c","country":"AE","blockchain":"Bitcoin","address":"not applicable"}"#.as_bytes().to_vec()),
+			Error::<Test>::CurrencyNameTooShort
+		);
+
+		assert_noop!(
+			Bonds::currency_create(Origin::root(), b"IN".to_vec(), r#"{"name":"BitcoinBitcoinBitcoinBitcoinBitcoinBitcoin","category":"c","country":"AE","blockchain":"Bitcoin","address":"not applicable"}"#.as_bytes().to_vec()),
+			Error::<Test>::CurrencyNameTooLong
+		);
+
+		assert_noop!(
+			Bonds::currency_create(Origin::root(), b"IN".to_vec(), r#"{"name":"Bit","category":"c1","country":"AE","blockchain":"Bitcoin","address":"not applicable"}"#.as_bytes().to_vec()),
+			Error::<Test>::CurrencyCategoryIswrong
+		);
+
+		assert_noop!(
+			Bonds::currency_create(Origin::root(), b"IN".to_vec(), r#"{"name":"Bit","category":"f","country":"AE","blockchain":"Bitcoin","address":"not applicable"}"#.as_bytes().to_vec()),
+			Error::<Test>::CountryCodeNotFound
+		);
+
+		assert_noop!(
+			Bonds::currency_create(Origin::root(), b"IN".to_vec(), r#"{"name":"Bit","category":"c","country":"AE","blockchain":"Bi","address":"not applicable"}"#.as_bytes().to_vec()),
+			Error::<Test>::BlockchainNameTooShort
+		);
+
+		assert_noop!(
+			Bonds::currency_create(Origin::root(), b"IN".to_vec(), r#"{"name":"Bit","category":"c","country":"AE","blockchain":"BitcoinBitcoinBitcoinBitcoinBitcoinBitcoinBitcoin","address":"not applicable"}"#.as_bytes().to_vec()),
+			Error::<Test>::BlockchainNameTooLong
+		);
+	});
+}
+
+#[test]
+fn country_create_works() {
+	new_test_ext().execute_with(|| {
+		assert_ok!(Bonds::currency_create(Origin::root(), b"IN".to_vec(), r#"{"name":"Bit","category":"c","country":"AE","blockchain":"Bitcoin","address":"not applicable"}"#.as_bytes().to_vec()));
+
+		assert_noop!(
+			Bonds::currency_create(Origin::root(), b"IN".to_vec(), r#"{"name":"Bit","category":"c","country":"AE","blockchain":"Bitcoin","address":"not applicable"}"#.as_bytes().to_vec()),
+			Error::<Test>::CurrencyCodeAlreadyPresent
+		);
+	});
+
+}
+
+#[test]
+fn currency_destroy_works() {
+	new_test_ext().execute_with(|| {
+		assert_ok!(Bonds::currency_create(Origin::root(), b"IN".to_vec(), r#"{"name":"Bit","category":"c","country":"AE","blockchain":"Bitcoin","address":"not applicable"}"#.as_bytes().to_vec()));
+
+		assert_ok!(Bonds::currency_destroy(Origin::root(), b"IN".to_vec()));
+
+	});
+}
+
+#[test]
+fn currency_destroy_does_not_work_if_country_code_does_not_exist() {
+	new_test_ext().execute_with(|| {
+		assert_noop!(
+			Bonds::currency_destroy(Origin::root(), b"IN".to_vec()),
+			Error::<Test>::CurrencyCodeNotFound
+		);
+	});
+}
+
+#[test]
+fn undwerwriter_create_does_not_work_if_invalid_json() {
+	new_test_ext().execute_with(|| {
+		assert_noop!(
+			Bonds::undwerwriter_create(Origin::signed(11), 1, r#"{"invalid:}"#.as_bytes().to_vec()),
+			Error::<Test>::InvalidJson
 		);
 	});
 }
