@@ -1987,6 +1987,7 @@ decl_module! {
             ensure!(premium.len()>0, Error::<T>::InsurancePremiumCannotBeZero);
             let premiumv=vecu8_to_u32(premium);
             ensure!(premiumv>0,Error::<T>::InsurancePremiumCannotBeZero);
+            ensure!((reserves + premiumv as u128) >= reserve_min.into(), Error::<T>::BelowMinimumReserve);
             // Check infodocuments 
             let infodocuments=json_get_value(info.clone(),"infodocuments".as_bytes().to_vec());
             ensure!(infodocuments.len()>=1, Error::<T>::MissingInsuranceInfoDocuments);
