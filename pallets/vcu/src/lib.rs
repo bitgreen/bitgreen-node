@@ -253,7 +253,7 @@ decl_module! {
 		pub fn add_authorized_account(origin, account_id: T::AccountId, description: Vec<u8>) -> DispatchResult {
 
 			ensure_root(origin)?;
-			ensure!(description.len()!=0, Error::<T>::InvalidDescription);
+			ensure!(!description.is_empty(), Error::<T>::InvalidDescription);
 
 			AuthorizedAccountsAGV::<T>::try_mutate_exists(account_id.clone(), |desc| {
 				*desc = Some(description);
@@ -324,18 +324,18 @@ decl_module! {
 			ensure!(Self::json_check_validity(js),Error::<T>::InvalidJson);
 
 			let description = Self::json_get_value(content.clone(),"description".as_bytes().to_vec());
-            ensure!(description.len()!=0 && description.len()<=64 , Error::<T>::InvalidDescription);
+            ensure!(!description.is_empty() && description.len()<=64 , Error::<T>::InvalidDescription);
 
 			let proof_ownership = Self::json_get_value(content.clone(),"proofOwnership".as_bytes().to_vec());
-            ensure!(proof_ownership.len()!=0 , Error::<T>::ProofOwnershipNotFound);
+            ensure!(!proof_ownership.is_empty() , Error::<T>::ProofOwnershipNotFound);
 
 			let number_of_shares = Self::json_get_value(content.clone(),"numberOfShares".as_bytes().to_vec());
 
-            ensure!(number_of_shares.len()!=0 , Error::<T>::NumberofSharesNotFound);
+            ensure!(!number_of_shares.is_empty() , Error::<T>::NumberofSharesNotFound);
 
 			ensure!(str::parse::<i32>(sp_std::str::from_utf8(&number_of_shares).unwrap()).unwrap() <= 10000 , Error::<T>::TooManyNumberofShares);
 
-			AssetsGeneratingVCU::<T>::try_mutate_exists(avg_account_id, avg_id.clone(), |desc| {
+			AssetsGeneratingVCU::<T>::try_mutate_exists(avg_account_id, avg_id, |desc| {
 				*desc = Some(content);
 
 				// Generate event
@@ -367,7 +367,7 @@ decl_module! {
 			// check whether asset generated VCU exists or not
 			ensure!(AssetsGeneratingVCU::<T>::contains_key(&avg_account_id, &avg_id), Error::<T>::AssetGeneratedVCUNotFound);
 
-			AssetsGeneratingVCU::<T>::remove(avg_account_id, avg_id.clone());
+			AssetsGeneratingVCU::<T>::remove(avg_account_id, avg_id);
 
 			// Generate event
 			Self::deposit_event(RawEvent::AssetGeneratingVCUDestroyed(avg_id));
@@ -396,7 +396,7 @@ decl_module! {
 				}
 			}?;
 
-			let avg_id_vec: Vec<&str> = sp_std::str::from_utf8(&avg_account).unwrap().split("-").collect();
+			let avg_id_vec: Vec<&str> = sp_std::str::from_utf8(&avg_account).unwrap().split('-').collect();
 			ensure!(avg_id_vec.len() == 2, Error::<T>::InvalidAVGId);
 
 
@@ -413,7 +413,7 @@ decl_module! {
 			})?;
 
 			let content: Vec<u8> = AssetsGeneratingVCU::<T>::get(&account_id, &avg_id);
-			let total_shares = Self::json_get_value(content.clone(),"numberOfShares".as_bytes().to_vec());
+			let total_shares = Self::json_get_value(content,"numberOfShares".as_bytes().to_vec());
 			let int_shares = str::parse::<u32>(sp_std::str::from_utf8(&total_shares).unwrap()).unwrap();
 
 
@@ -450,7 +450,7 @@ decl_module! {
 				}
 			}?;
 
-			let avg_id_vec: Vec<&str> = sp_std::str::from_utf8(&avg_account).unwrap().split("-").collect();
+			let avg_id_vec: Vec<&str> = sp_std::str::from_utf8(&avg_account).unwrap().split('-').collect();
 			ensure!(avg_id_vec.len() == 2, Error::<T>::InvalidAVGId);
 
 
@@ -615,7 +615,7 @@ decl_module! {
 			match ensure_root(origin.clone()) {
 				Ok(()) => Ok(()),
 				Err(e) => {
-					ensure_signed(origin.clone()).and_then(|o: T::AccountId| {
+					ensure_signed(origin).and_then(|o: T::AccountId| {
 						if AuthorizedAccountsAGV::<T>::contains_key(&o) {
 							Ok(())
 						} else {
@@ -625,7 +625,7 @@ decl_module! {
 				}
 			}?;
 
-			AssetsGeneratingVCUGenerated::<T>::try_mutate_exists(avg_account_id.clone(), avg_id.clone(), |vcus| -> DispatchResultWithPostInfo {
+			AssetsGeneratingVCUGenerated::<T>::try_mutate_exists(avg_account_id.clone(), avg_id, |vcus| -> DispatchResultWithPostInfo {
 				ensure!(AssetsGeneratingVCUSchedule::<T>::contains_key(&avg_account_id, &avg_id), Error::<T>::AssetGeneratedVCUScheduleNotFound);
 				let content: Vec<u8> = AssetsGeneratingVCUSchedule::<T>::get(avg_account_id.clone(), &avg_id);
 
@@ -633,12 +633,12 @@ decl_module! {
 				let period_days = str::parse::<u64>(sp_std::str::from_utf8(&period_days).unwrap()).unwrap();
 				let token_id = Self::json_get_value(content.clone(),"token_id".as_bytes().to_vec());
 				let token_id = str::parse::<u32>(sp_std::str::from_utf8(&token_id).unwrap()).unwrap();
-				let amount_vcu = Self::json_get_value(content.clone(),"amount_vcu".as_bytes().to_vec());
+				let amount_vcu = Self::json_get_value(content,"amount_vcu".as_bytes().to_vec());
 				let amount_vcu = str::parse::<Balance>(sp_std::str::from_utf8(&amount_vcu).unwrap()).unwrap();
 
 				let now:u64 = T::UnixTime::now().as_secs();
 
-                if !Asset::<T>::contains_key(token_id.clone()) {
+                if !Asset::<T>::contains_key(token_id) {
 					pallet_assets::Module::<T>::force_create(RawOrigin::Root.into(), token_id, T::Lookup::unlookup(avg_account_id.clone()), One::one(), One::one())?;
 				}
 
@@ -676,9 +676,9 @@ decl_module! {
 			}?;
 
 			// check whether asset exists or not
-			ensure!(Asset::<T>::contains_key(asset_id.clone()), Error::<T>::AssetDoesNotExist);
+			ensure!(Asset::<T>::contains_key(asset_id), Error::<T>::AssetDoesNotExist);
 
-			pallet_assets::Module::<T>::burn(RawOrigin::Signed(avg_account_id.clone()).into(), asset_id.clone(), T::Lookup::unlookup(avg_account_id.clone()), amount)?;
+			pallet_assets::Module::<T>::burn(RawOrigin::Signed(avg_account_id.clone()).into(), asset_id, T::Lookup::unlookup(avg_account_id.clone()), amount)?;
 
 			VCUsBurnedAccounts::<T>::try_mutate(&avg_account_id, &avg_id, |vcu| -> DispatchResult {
 				let total_vcu = vcu.checked_add(amount).ok_or(Error::<T>::Overflow)?;
@@ -718,7 +718,7 @@ decl_module! {
 				}
 			}?;
 
-			OraclesAccountMintingVCU::<T>::try_mutate_exists(avg_account_id.clone(), avg_id.clone(), |oracle| {
+			OraclesAccountMintingVCU::<T>::try_mutate_exists(avg_account_id.clone(), avg_id, |oracle| {
 				*oracle = Some(oracle_account_id.clone());
 
 				// Generate event
@@ -749,7 +749,7 @@ decl_module! {
 
 			ensure!(OraclesAccountMintingVCU::<T>::contains_key(&avg_account_id, &avg_id), Error::<T>::OraclesAccountMintingVCUNotFound);
 
-			OraclesAccountMintingVCU::<T>::remove(avg_account_id.clone(), avg_id.clone());
+			OraclesAccountMintingVCU::<T>::remove(avg_account_id.clone(), avg_id);
 
 			// Generate event
 			Self::deposit_event(RawEvent::OraclesAccountMintingVCUDestroyed(avg_account_id, avg_id));
@@ -785,7 +785,7 @@ decl_module! {
 
 			ensure!(bundle_asset_id == asset_id, Error::<T>::BundleAssetIdNotSame);
 
-			if !Asset::<T>::contains_key(asset_id.clone()) {
+			if !Asset::<T>::contains_key(asset_id) {
 				pallet_assets::Module::<T>::force_create(RawOrigin::Root.into(), asset_id, T::Lookup::unlookup(oracle_account.clone()), One::one(), One::one())?;
 			}
 
@@ -826,7 +826,7 @@ decl_module! {
 			ensure!(Self::json_check_validity(js),Error::<T>::InvalidJson);
 
 			let description = Self::json_get_value(info.clone(),"description".as_bytes().to_vec());
-            ensure!(description.len()!=0 && description.len()<=64 , Error::<T>::InvalidDescription);
+            ensure!(!description.is_empty() && description.len()<=64 , Error::<T>::InvalidDescription);
 
 			let asset_id = Self::json_get_value(info.clone(),"assetid".as_bytes().to_vec());
 
@@ -840,7 +840,7 @@ decl_module! {
                 if agvs.len()>2 {
                     loop {
                         let w= Self::json_get_recordvalue(agvs.clone(),x);
-                        if w.len()==0 {
+                        if w.is_empty() {
                             break;
                         }
 						let account_id= Self::json_get_value(w.clone(),"accountid".as_bytes().to_vec());
@@ -853,7 +853,7 @@ decl_module! {
 						ensure!(AssetsGeneratingVCU::<T>::contains_key(&account_id, &id), Error::<T>::AssetGeneratedVCUNotFound);
 						AssetAVGBundle::<T>::insert(&account_id, &id, &asset_id);
 
-                        x=x+1;
+                        x += 1;
                     }
                 }
                 ensure!(x>0,Error::<T>::InvalidAVGs);
@@ -874,7 +874,7 @@ decl_module! {
 
 			ensure!(BundleAssetsGeneratingVCU::contains_key(&bundle_id), Error::<T>::BundleDoesNotExist);
 
-			BundleAssetsGeneratingVCU::remove(bundle_id.clone());
+			BundleAssetsGeneratingVCU::remove(bundle_id);
 
 			// Generate event
 			Self::deposit_event(RawEvent::DestroyedBundleAssetsGeneratingVCU(bundle_id));
@@ -893,11 +893,11 @@ impl<T: Config> Module<T> {
 			return false;
 		}
 		// checks star/end with {}
-		if *j.get(0).unwrap()==b'{' && *j.get(j.len()-1).unwrap()!=b'}' {
+		if *j.get(0).unwrap()==b'{' && *j.last().unwrap()!=b'}' {
 			return false;
 		}
 		// checks start/end with []
-		if *j.get(0).unwrap()==b'[' && *j.get(j.len()-1).unwrap()!=b']' {
+		if *j.get(0).unwrap()==b'[' && *j.last().unwrap()!=b']' {
 			return false;
 		}
 		// check that the start is { or [
@@ -905,7 +905,7 @@ impl<T: Config> Module<T> {
 			return false;
 		}
 		//checks that end is } or ]
-		if *j.get(j.len()-1).unwrap()!=b'}' && *j.get(j.len()-1).unwrap()!=b']' {
+		if *j.last().unwrap()!=b'}' && *j.last().unwrap()!=b']' {
 			return false;
 		}
 		//checks " opening/closing and : as separator between name and values
@@ -918,14 +918,14 @@ impl<T: Config> Module<T> {
 			if b==b'[' && s {
 				ps=false;
 			}
-			if b==b']' && s && ps==false {
+			if b==b']' && s && !ps {
 				ps=true;
 			}
 
 			if b==b'{' && s {
 				pg=false;
 			}
-			if b==b'}' && s && pg==false {
+			if b==b'}' && s && !pg {
 				pg=true;
 			}
 
@@ -966,7 +966,7 @@ impl<T: Config> Module<T> {
 			return false;
 		}
 		// every ok returns true
-		return true;
+		true
 	}
 
 	// function to get value of a field for Substrate runtime (no std library and no variable allocation)
@@ -984,53 +984,51 @@ impl<T: Config> Module<T> {
 		let kl = k.len();
 		for x in  0..jl {
 			let mut m=0;
-			let mut xx=0;
 			if x+kl>jl {
 				break;
 			}
-			for i in x..x+kl {
+			for (xx, i) in (x..x+kl).enumerate() {
 				if *j.get(i).unwrap()== *k.get(xx).unwrap() {
-					m=m+1;
+					m += 1;
 				}
-				xx=xx+1;
 			}
 			if m==kl{
 				let mut lb=b' ';
 				let mut op=true;
 				let mut os=true;
 				for i in x+kl..jl-1 {
-					if *j.get(i).unwrap()==b'[' && op==true && os==true{
+					if *j.get(i).unwrap()==b'[' && op && os{
 						os=false;
 					}
-					if *j.get(i).unwrap()==b'}' && op==true && os==false{
+					if *j.get(i).unwrap()==b'}' && op && !os{
 						os=true;
 					}
-					if *j.get(i).unwrap()==b':' && op==true{
+					if *j.get(i).unwrap()==b':' && op{
 						continue;
 					}
-					if *j.get(i).unwrap()==b'"' && op==true && lb!=b'\\' {
+					if *j.get(i).unwrap()==b'"' && op && lb!=b'\\' {
 						op=false;
 						continue
 					}
-					if *j.get(i).unwrap()==b'"' && op==false && lb!=b'\\' {
+					if *j.get(i).unwrap()==b'"' && !op && lb!=b'\\' {
 						break;
 					}
-					if *j.get(i).unwrap()==b'}' && op==true{
+					if *j.get(i).unwrap()==b'}' && op{
 						break;
 					}
-					if *j.get(i).unwrap()==b']' && op==true{
+					if *j.get(i).unwrap()==b']' && op{
 						break;
 					}
-					if *j.get(i).unwrap()==b',' && op==true && os==true{
+					if *j.get(i).unwrap()==b',' && op && os{
 						break;
 					}
-					result.push(j.get(i).unwrap().clone());
-					lb=j.get(i).unwrap().clone();
+					result.push(*j.get(i).unwrap());
+					lb= *j.get(i).unwrap();
 				}
 				break;
 			}
 		}
-		return result;
+		result
 	}
 
 	fn create_json_string(inputs: Vec<(&str, &mut Vec<u8>)>) -> Vec<u8> {
@@ -1044,7 +1042,7 @@ impl<T: Config> Module<T> {
 			}
 			v.push(b'"');
 			for i in arg.as_bytes().to_vec().iter() {
-				v.push(i.clone());
+				v.push(*i);
 			}
 			v.push(b'"');
 			v.push(b':');
@@ -1062,29 +1060,29 @@ impl<T: Config> Module<T> {
 		let mut cn=0;
 		let mut lb=b' ';
 		for b in ar {
-			if b==b',' && op==true {
-				cn=cn+1;
+			if b==b',' && op {
+				cn += 1;
 				continue;
 			}
-			if b==b'[' && op==true && lb!=b'\\' {
+			if b==b'[' && op && lb!=b'\\' {
 				continue;
 			}
-			if b==b']' && op==true && lb!=b'\\' {
+			if b==b']' && op && lb!=b'\\' {
 				continue;
 			}
-			if b==b'{' && op==true && lb!=b'\\' {
+			if b==b'{' && op && lb!=b'\\' {
 				op=false;
 			}
-			if b==b'}' && op==false && lb!=b'\\' {
+			if b==b'}' && !op && lb!=b'\\' {
 				op=true;
 			}
 			// field found
 			if cn==p {
 				result.push(b);
 			}
-			lb=b.clone();
+			lb = b;
 		}
-		return result;
+		result
 	}
 
 	fn json_get_complexarray(j:Vec<u8>,key:Vec<u8>) -> Vec<u8> {
@@ -1101,30 +1099,28 @@ impl<T: Config> Module<T> {
 		let kl = k.len();
 		for x in  0..jl {
 			let mut m=0;
-			let mut xx=0;
 			if x+kl>jl {
 				break;
 			}
-			for i in x..x+kl {
+			for (xx, i) in (x..x+kl).enumerate() {
 				if *j.get(i).unwrap()== *k.get(xx).unwrap() {
-					m=m+1;
+					m += 1;
 				}
-				xx=xx+1;
 			}
 			if m==kl{
 				let mut os=true;
 				for i in x+kl..jl-1 {
-					if *j.get(i).unwrap()==b'[' && os==true{
+					if *j.get(i).unwrap()==b'[' && os{
 						os=false;
 					}
-					result.push(j.get(i).unwrap().clone());
-					if *j.get(i).unwrap()==b']' && os==false {
+					result.push(*j.get(i).unwrap());
+					if *j.get(i).unwrap()==b']' && !os {
 						break;
 					}
 				}
 				break;
 			}
 		}
-		return result;
+		result
 	}
 }
