@@ -1642,7 +1642,7 @@ decl_module! {
             // check the request is signed from the Super User
             let _sender = ensure_root(origin)?;
             // verify the country code exists
-            ensure!(IsoCountries::contains_key(&countrycode)==true, Error::<T>::CountryCodeNotFound);
+            ensure!(IsoCountries::contains_key(&countrycode), Error::<T>::CountryCodeNotFound);
             // Remove country code
             IsoCountries::take(countrycode.clone());
             // Generate event
@@ -2346,17 +2346,17 @@ fn json_get_recordvalue(ar:Vec<u8>,p:i32) -> Vec<u8> {
     let mut cn=0;
     let mut lb=b' ';
     for b in ar {
-        if b==b',' && op==true {
+        if b==b',' && op {
             cn=cn+1;
             continue;
         }
-        if b==b'[' && op==true && lb!=b'\\' {
+        if b==b'[' && op && lb!=b'\\' {
             continue;
         }
-        if b==b']' && op==true && lb!=b'\\' {
+        if b==b']' && op && lb!=b'\\' {
             continue;
         }
-        if b==b'{' && op==true && lb!=b'\\' { 
+        if b==b'{' && op && lb!=b'\\' { 
             op=false;
         }
         if b==b'}' && op==false && lb!=b'\\' {
@@ -2377,20 +2377,20 @@ fn json_get_arrayvalue(ar:Vec<u8>,p:i32) -> Vec<u8> {
     let mut cn=0;
     let mut lb=b' ';
     for b in ar {
-        if b==b',' && op==true {
+        if b==b',' && op {
             cn=cn+1;
             continue;
         }
-        if b==b'[' && op==true && lb!=b'\\' {
+        if b==b'[' && op && lb!=b'\\' {
             continue;
         }
-        if b==b']' && op==true && lb!=b'\\' {
+        if b==b']' && op && lb!=b'\\' {
             continue;
         }
-        if b==b'"' && op==true && lb!=b'\\' {
+        if b==b'"' && op && lb!=b'\\' {
             continue;
         }
-        if b==b'"' && op==true && lb!=b'\\' { 
+        if b==b'"' && op && lb!=b'\\' { 
             op=false;
         }
         if b==b'"' && op==false && lb!=b'\\' {
@@ -2435,29 +2435,29 @@ fn json_get_value(j:Vec<u8>,key:Vec<u8>) -> Vec<u8> {
             let mut op=true;
             let mut os=true;
             for i in x+kl..jl-1 {
-                if *j.get(i).unwrap()==b'[' && op==true && os==true{
+                if *j.get(i).unwrap()==b'[' && op && os{
                     os=false;
                 }
-                if *j.get(i).unwrap()==b'}' && op==true && os==false{
+                if *j.get(i).unwrap()==b'}' && op && os==false{
                     os=true;
                 }
-                if *j.get(i).unwrap()==b':' && op==true{
+                if *j.get(i).unwrap()==b':' && op{
                     continue;
                 }
-                if *j.get(i).unwrap()==b'"' && op==true && lb!=b'\\' {
+                if *j.get(i).unwrap()==b'"' && op && lb!=b'\\' {
                     op=false;
                     continue
                 }
                 if *j.get(i).unwrap()==b'"' && op==false && lb!=b'\\' {
                     break;
                 }
-                if *j.get(i).unwrap()==b'}' && op==true{
+                if *j.get(i).unwrap()==b'}' && op{
                     break;
                 }
-                if *j.get(i).unwrap()==b']' && op==true{
+                if *j.get(i).unwrap()==b']' && op{
                     break;
                 }
-                if *j.get(i).unwrap()==b',' && op==true && os==true{
+                if *j.get(i).unwrap()==b',' && op && os{
                     break;
                 }
                 result.push(j.get(i).unwrap().clone());
@@ -2496,7 +2496,7 @@ fn json_get_complexarray(j:Vec<u8>,key:Vec<u8>) -> Vec<u8> {
         if m==kl{
             let mut os=true;
             for i in x+kl..jl-1 {
-                if *j.get(i).unwrap()==b'[' && os==true{
+                if *j.get(i).unwrap()==b'[' && os{
                     os=false;
                 }
                 result.push(j.get(i).unwrap().clone());
@@ -2828,10 +2828,10 @@ fn validate_weburl(weburl:Vec<u8>) -> bool {
     if httpflag==false && httpsflag==false {
         return false;
     }
-    if httpsflag==true{
+    if httpsflag{
         startpoint=8;
     }
-    if httpflag==true{
+    if httpflag{
         startpoint=7;
     }
     for c in weburl {    
