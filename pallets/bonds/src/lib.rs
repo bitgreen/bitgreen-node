@@ -1254,7 +1254,7 @@ decl_module! {
             }
             // check call option field
             let calloption=json_get_value(info.clone(),"calloption".as_bytes().to_vec());
-            ensure!(calloption[0]==b'Y'  || calloption[0]==b'Y',Error::<T>::BondCallOptionIsWrong);
+            ensure!(calloption[0]==b'Y'  || calloption[0]==b'N',Error::<T>::BondCallOptionIsWrong);
             // check vesting period for call option
             if calloption[0]==b'Y' {
                 let callvestingperiod=json_get_value(info.clone(),"callvestingperiod".as_bytes().to_vec());
@@ -2875,9 +2875,9 @@ fn validate_date(date_vec: &Vec<u8>) -> bool {
 
 fn is_year_valid(year: &str) -> bool{
 
-    let year_u16_res = year.clone().parse();
+    let year_u16_res = year.parse();
 
-    if !year_u16_res.is_ok(){
+    if year_u16_res.is_err(){
         return false
     }
     let year_u16: u16 = year_u16_res.unwrap();
@@ -2890,8 +2890,8 @@ fn is_year_valid(year: &str) -> bool{
 
 fn is_day_valid(day: &str) -> bool {
 
-    let day_u8_res = day.clone().parse();
-    if !day_u8_res.is_ok(){
+    let day_u8_res = day.parse();
+    if day_u8_res.is_err() {
         return false
     }
     let day_u8: u8 = day_u8_res.unwrap();
@@ -2904,8 +2904,8 @@ fn is_day_valid(day: &str) -> bool {
 
 fn is_month_valid(month: &str) -> bool {
 
-    let month_u8_res = month.clone().parse();
-    if !month_u8_res.is_ok(){
+    let month_u8_res = month.parse();
+    if month_u8_res.is_err(){
         return false
     }
     let month_u8: u8 = month_u8_res.unwrap();
