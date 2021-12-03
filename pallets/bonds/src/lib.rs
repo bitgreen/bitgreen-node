@@ -1665,10 +1665,8 @@ decl_module! {
              ensure!(name.len()<=32, Error::<T>::CurrencyNameTooLong);
              // check for type of currency (fiat/crypto)
              let category=json_get_value(info.clone(),"category".as_bytes().to_vec());
-             let mut c: Vec<u8>= Vec::new();
-             c.push(b'c');
-             let mut f: Vec<u8>= Vec::new();
-             f.push(b'f');
+             let c: Vec<u8>= vec![b'c'];
+             let f: Vec<u8>= vec![b'f'];
              ensure!((category==c || category==f),Error::<T>::CurrencyCategoryIswrong);
              // check for the country code in case of Fiat currency
              if category==f {
@@ -2545,8 +2543,7 @@ fn validate_phonenumber(phonenumber:Vec<u8>) -> bool {
         }
     }
     // load international prefixes table
-    let mut p: Vec<Vec<u8>> = Vec::new();
-    p.push("972".into());
+    let mut p: Vec<Vec<u8>> = vec!["972".into()];
     p.push("93".into());
     p.push("355".into());
     p.push("213".into());
@@ -2774,15 +2771,12 @@ fn validate_phonenumber(phonenumber:Vec<u8>) -> bool {
         startpoint=1;
     }
     // create vec for comparison
-    let mut pc3:Vec<u8>= Vec::new();
-    pc3.push(phonenumber[startpoint]);
+    let mut pc3:Vec<u8>= vec![phonenumber[startpoint]];
     pc3.push(phonenumber[startpoint+1]);
     pc3.push(phonenumber[startpoint+2]);
-    let mut pc2:Vec<u8>= Vec::new();
-    pc2.push(phonenumber[startpoint]);
+    let mut pc2:Vec<u8>= vec![phonenumber[startpoint]];
     pc2.push(phonenumber[startpoint+1]);
-    let mut pc1:Vec<u8>= Vec::new();
-    pc1.push(phonenumber[startpoint]);
+    let pc1:Vec<u8>= vec![phonenumber[startpoint]];
     let mut valid=false;
     for xp in p {
         if xp==pc3 || xp==pc2 || xp==pc1 {
@@ -2798,8 +2792,7 @@ fn validate_weburl(weburl:Vec<u8>) -> bool {
     let mut httpsflag=false;
     let mut httpflag=false;
     let mut startpoint=0;
-    let mut https: Vec<u8>= Vec::new();
-    https.push(b'h');
+    let mut https: Vec<u8>= vec![b'h'];
     https.push(b't');
     https.push(b't');
     https.push(b'p');
@@ -2807,16 +2800,14 @@ fn validate_weburl(weburl:Vec<u8>) -> bool {
     https.push(b':');
     https.push(b'/');
     https.push(b'/');
-    let mut http: Vec<u8>= Vec::new();
-    http.push(b'h');
+    let mut http: Vec<u8>= vec![b'h'];
     http.push(b't');
     http.push(b't');
     http.push(b'p');
     http.push(b':');
     http.push(b'/');
     http.push(b'/');
-    let mut httpscomp: Vec<u8> =Vec::new();
-    httpscomp.push(weburl[0]);
+    let mut httpscomp: Vec<u8> =vec![weburl[0]];
     httpscomp.push(weburl[1]);
     httpscomp.push(weburl[2]);
     httpscomp.push(weburl[3]);
@@ -2824,8 +2815,7 @@ fn validate_weburl(weburl:Vec<u8>) -> bool {
     httpscomp.push(weburl[5]);
     httpscomp.push(weburl[6]);
     httpscomp.push(weburl[7]);
-    let mut httpcomp: Vec<u8> =Vec::new();
-    httpcomp.push(weburl[0]);
+    let mut httpcomp: Vec<u8> = vec![weburl[0]];
     httpcomp.push(weburl[1]);
     httpcomp.push(weburl[2]);
     httpcomp.push(weburl[3]);
