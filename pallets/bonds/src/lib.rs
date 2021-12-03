@@ -2289,14 +2289,14 @@ fn json_check_validity(j:Vec<u8>) -> bool{
         if b==b'[' && s {
             ps=false;
         }
-        if b==b']' && s && ps==false {
+        if b==b']' && s && !ps {
             ps=true;
         }
 
         if b==b'{' && s {
             pg=false;
         }
-        if b==b'}' && s && pg==false {
+        if b==b'}' && s && !pg {
             pg=true;
         }
 
@@ -2337,7 +2337,7 @@ fn json_check_validity(j:Vec<u8>) -> bool{
         return false;
     }
     // every ok returns true
-    return true;
+    true
 }
 // function to get record {} from multirecord json structure [{..},{.. }], it returns an empty Vec when the records is not present
 fn json_get_recordvalue(ar:Vec<u8>,p:i32) -> Vec<u8> {
@@ -2359,16 +2359,16 @@ fn json_get_recordvalue(ar:Vec<u8>,p:i32) -> Vec<u8> {
         if b==b'{' && op && lb!=b'\\' { 
             op=false;
         }
-        if b==b'}' && op==false && lb!=b'\\' {
+        if b==b'}' && !op && lb!=b'\\' {
             op=true;
         }
         // field found
         if cn==p {
             result.push(b);
         }
-        lb=b.clone();
+        lb= b ;
     }
-    return result;
+    result
 }
 // function to get a field value from array field [1,2,3,4,100], it returns an empty Vec when the records is not present
 fn json_get_arrayvalue(ar:Vec<u8>,p:i32) -> Vec<u8> {
@@ -2378,7 +2378,7 @@ fn json_get_arrayvalue(ar:Vec<u8>,p:i32) -> Vec<u8> {
     let mut lb=b' ';
     for b in ar {
         if b==b',' && op {
-            cn=cn+1;
+            cn += 1;
             continue;
         }
         if b==b'[' && op && lb!=b'\\' {
@@ -2393,16 +2393,16 @@ fn json_get_arrayvalue(ar:Vec<u8>,p:i32) -> Vec<u8> {
         if b==b'"' && op && lb!=b'\\' { 
             op=false;
         }
-        if b==b'"' && op==false && lb!=b'\\' {
+        if b==b'"' && !op && lb!=b'\\' {
             op=true;
         }
         // field found
         if cn==p {
             result.push(b);
         }
-        lb=b.clone();
+        lb= b;
     }
-    return result;
+    result
 }
 
 // function to get value of a field for Substrate runtime (no std library and no variable allocation)
@@ -2420,15 +2420,13 @@ fn json_get_value(j:Vec<u8>,key:Vec<u8>) -> Vec<u8> {
     let kl = k.len();
     for x in  0..jl {
         let mut m=0;
-        let mut xx=0;
         if x+kl>jl {
             break;
         }
-        for i in x..x+kl {
+        for (xx, i) in (x..x+kl).enumerate() {
             if *j.get(i).unwrap()== *k.get(xx).unwrap() {
-                m=m+1;
+                m += 1;
             }
-            xx=xx+1;
         }
         if m==kl{
             let mut lb=b' ';
@@ -2438,7 +2436,7 @@ fn json_get_value(j:Vec<u8>,key:Vec<u8>) -> Vec<u8> {
                 if *j.get(i).unwrap()==b'[' && op && os{
                     os=false;
                 }
-                if *j.get(i).unwrap()==b'}' && op && os==false{
+                if *j.get(i).unwrap()==b'}' && op && !os{
                     os=true;
                 }
                 if *j.get(i).unwrap()==b':' && op{
@@ -2448,7 +2446,7 @@ fn json_get_value(j:Vec<u8>,key:Vec<u8>) -> Vec<u8> {
                     op=false;
                     continue
                 }
-                if *j.get(i).unwrap()==b'"' && op==false && lb!=b'\\' {
+                if *j.get(i).unwrap()==b'"' && !op && lb!=b'\\' {
                     break;
                 }
                 if *j.get(i).unwrap()==b'}' && op{
@@ -2460,13 +2458,13 @@ fn json_get_value(j:Vec<u8>,key:Vec<u8>) -> Vec<u8> {
                 if *j.get(i).unwrap()==b',' && op && os{
                     break;
                 }
-                result.push(j.get(i).unwrap().clone());
-                lb=j.get(i).unwrap().clone();
+                result.push(*j.get(i).unwrap());
+                lb= *j.get(i).unwrap();
             }   
             break;
         }
     }
-    return result;
+    result
 }
 // function to get value of a field with a complex array like [{....},{.....}] for Substrate runtime (no std library and no variable allocation)
 fn json_get_complexarray(j:Vec<u8>,key:Vec<u8>) -> Vec<u8> {
@@ -2483,15 +2481,13 @@ fn json_get_complexarray(j:Vec<u8>,key:Vec<u8>) -> Vec<u8> {
     let kl = k.len();
     for x in  0..jl {
         let mut m=0;
-        let mut xx=0;
         if x+kl>jl {
             break;
         }
-        for i in x..x+kl {
+        for (xx, i) in (x..x+kl).enumerate() {
             if *j.get(i).unwrap()== *k.get(xx).unwrap() {
-                m=m+1;
+                m += 1;
             }
-            xx=xx+1;
         }
         if m==kl{
             let mut os=true;
@@ -2499,20 +2495,20 @@ fn json_get_complexarray(j:Vec<u8>,key:Vec<u8>) -> Vec<u8> {
                 if *j.get(i).unwrap()==b'[' && os{
                     os=false;
                 }
-                result.push(j.get(i).unwrap().clone());
-                if *j.get(i).unwrap()==b']' && os==false {
+                result.push(*j.get(i).unwrap());
+                if *j.get(i).unwrap()==b']' && !os {
                     break;
                 }
             }   
             break;
         }
     }
-    return result;
+    result
 }
 // function to convert vec<u8> to u32
 fn vecu8_to_u32(v: Vec<u8>) -> u32 {
     let vslice = v.as_slice();
-    let vstr = str::from_utf8(&vslice).unwrap_or("0");
+    let vstr = str::from_utf8(vslice).unwrap_or("0");
     let vvalue: u32 = u32::from_str(vstr).unwrap_or(0);
     vvalue
 }
@@ -2525,8 +2521,8 @@ fn validate_phonenumber(phonenumber:Vec<u8>) -> bool {
     // check admitted bytes
     let mut x=0;
     for v in phonenumber.clone() {
-        if (v>=48 && v<=57) || (v==43 && x==0){
-            x=x+1;
+        if (48..=57).contains(&v) || (v==43 && x==0){
+            x += 1;
         }else {
             return false;
         }
@@ -2825,43 +2821,43 @@ fn validate_weburl(weburl:Vec<u8>) -> bool {
     if http==httpcomp {
         httpflag=true;
     }
-    if httpflag==false && httpsflag==false {
+    if !httpflag && !httpsflag {
         return false;
     }
-    if httpsflag{
+    if httpsflag {
         startpoint=8;
     }
-    if httpflag{
+    if httpflag {
         startpoint=7;
     }
     for c in weburl {    
         if x<startpoint {
-            x=x+1;
+            x += 1;
             continue;
         }
         // check for allowed chars    
-        if  (c>=32 && c<=95) ||
-            (c>=97 && c<=126) {
+        if  (32..=95).contains(&c) ||
+            (97..=126).contains(&c) {
             valid=true;
         }else{
             valid=false;
             break;
         }
     }
-    return valid;
+    valid
 }
 
 //function to validate YYYY-MM-DD date format
 const DASH_AS_BYTE: u8 = 45;
 
-fn validate_date(date_vec: &Vec<u8>) -> bool {
+fn validate_date(date_vec: &[u8]) -> bool {
 
-    let str_date  = str::from_utf8(&date_vec).unwrap();
+    let str_date  = str::from_utf8(date_vec).unwrap();
    // check date length is correct YYYY-MM-DD
    
     if str_date.len() != 10 {return false}
-    if date_vec.clone()[4] != DASH_AS_BYTE ||
-     date_vec.clone()[7] != DASH_AS_BYTE  {return false}
+    if date_vec.to_owned()[4] != DASH_AS_BYTE ||
+        date_vec.to_owned()[7] != DASH_AS_BYTE  {return false}
     
     let year = &str_date[0..=3];
     let month = &str_date[5..=6];
@@ -2882,7 +2878,7 @@ fn is_year_valid(year: &str) -> bool{
     }
     let year_u16: u16 = year_u16_res.unwrap();
 
-    if year_u16  < 1900 || year_u16 > 2100 {
+    if !(1900..=2100).contains(&year_u16) {
         return false
     }
     true
@@ -2896,7 +2892,7 @@ fn is_day_valid(day: &str) -> bool {
     }
     let day_u8: u8 = day_u8_res.unwrap();
     
-    if day_u8 < 1 || day_u8 > 31 {
+    if !(1..=31).contains(&day_u8) {
         return false
     }
     true
@@ -2910,7 +2906,7 @@ fn is_month_valid(month: &str) -> bool {
     }
     let month_u8: u8 = month_u8_res.unwrap();
     
-    if month_u8 <1 || month_u8 > 12 {
+    if !(1..=12).contains(&month_u8) {
         return false
     }
     true
