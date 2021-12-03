@@ -551,18 +551,18 @@ decl_module! {
             // check validity for kyc settings
             if key=="kyc".as_bytes().to_vec() {
                 let manager=json_get_value(configuration.clone(),"manager".as_bytes().to_vec());
-                ensure!(manager.len()==48 || manager.len()==0, Error::<T>::KycManagerAccountIsWrong);
+                ensure!(manager.len()==48 || manager.is_empty(), Error::<T>::KycManagerAccountIsWrong);
                 let supervisor=json_get_value(configuration.clone(),"supervisor".as_bytes().to_vec());
-                ensure!(supervisor.len()==48 || supervisor.len()==0, Error::<T>::KycSupervisorAccountIsWrong);
+                ensure!(supervisor.len()==48 || supervisor.is_empty(), Error::<T>::KycSupervisorAccountIsWrong);
                 let operators=json_get_complexarray(configuration.clone(),"operators".as_bytes().to_vec());
                 if operators.len()>=2 {
                     let mut x=0;
                     loop {  
                         let w=json_get_recordvalue(operators.clone(),x);
-                        if w.len()==0 {
+                        if w.is_empty() {
                             break;
                         }
-                        x=x+1;
+                        x += 1;
                     }
                     ensure!(x>0,Error::<T>::KycOperatorsNotConfigured);
                 }
@@ -570,16 +570,16 @@ decl_module! {
             // check validity for bond approval settings
             if key=="bondapproval".as_bytes().to_vec() {
                 let manager=json_get_value(configuration.clone(),"manager".as_bytes().to_vec());
-                ensure!(manager.len()==48 || manager.len()==0, Error::<T>::BondApprovalManagerAccountIsWrong);
+                ensure!(manager.len()==48 || manager.is_empty(), Error::<T>::BondApprovalManagerAccountIsWrong);
                 let committee=json_get_complexarray(configuration.clone(),"committee".as_bytes().to_vec());
                 let mut x=0;
                 if committee.len()>2 {
                     loop {  
                         let w=json_get_recordvalue(committee.clone(),x);
-                        if w.len()==0 {
+                        if w.is_empty() {
                             break;
                         }
-                        x=x+1;
+                        x += 1;
                     }
                 }
                 ensure!(x>0,Error::<T>::BondApprovalCommitteeIsWrong);
@@ -593,16 +593,16 @@ decl_module! {
             // check validity for under writers submission settings
             if key=="underwriterssubmission".as_bytes().to_vec() {
                 let manager=json_get_value(configuration.clone(),"manager".as_bytes().to_vec());
-                ensure!(manager.len()==48 || manager.len()==0, Error::<T>::UnderWritersSubmissionManagerAccountIsWrong);
+                ensure!(manager.len()==48 || manager.is_empty(), Error::<T>::UnderWritersSubmissionManagerAccountIsWrong);
                 let committee=json_get_complexarray(configuration.clone(),"committee".as_bytes().to_vec());
                 let mut x=0;
                 if committee.len()>2 {
                     loop {  
                         let w=json_get_recordvalue(committee.clone(),x);
-                        if w.len()==0 {
+                        if w.is_empty() {
                             break;
                         }
-                        x=x+1;
+                        x += 1;
                     }
                 }
                 ensure!(x>0,Error::<T>::UnderwritersSubmissionCommitteeIsWrong);
@@ -610,16 +610,16 @@ decl_module! {
             // check validity for insurer submission settings
             if key=="insurerssubmission".as_bytes().to_vec() {
                 let manager=json_get_value(configuration.clone(),"manager".as_bytes().to_vec());
-                ensure!(manager.len()==48 || manager.len()==0, Error::<T>::InsurerSubmissionManagerAccountIsWrong);
+                ensure!(manager.len()==48 || manager.is_empty(), Error::<T>::InsurerSubmissionManagerAccountIsWrong);
                 let committee=json_get_complexarray(configuration.clone(),"committee".as_bytes().to_vec());
                 let mut x=0;
                 if committee.len()>2 {
                     loop {  
                         let w=json_get_recordvalue(committee.clone(),x);
-                        if w.len()==0 {
+                        if w.is_empty() {
                             break;
                         }
-                        x=x+1;
+                        x += 1;
                     }
                 }
                 ensure!(x>0,Error::<T>::InsurerSubmissionCommitteeIsWrong);
@@ -627,16 +627,16 @@ decl_module! {
             // check validity for the submission settings of credit rating agencies
             if key=="creditratingagencies".as_bytes().to_vec() {
                 let manager=json_get_value(configuration.clone(),"manager".as_bytes().to_vec());
-                ensure!(manager.len()==48 || manager.len()==0, Error::<T>::CreditRatingAgenciesSubmissionManagerAccountIsWrong);
+                ensure!(manager.len()==48 || manager.is_empty(), Error::<T>::CreditRatingAgenciesSubmissionManagerAccountIsWrong);
                 let committee=json_get_complexarray(configuration.clone(),"committee".as_bytes().to_vec());
                 let mut x=0;
                 if committee.len()>2 {
                     loop {  
                         let w=json_get_recordvalue(committee.clone(),x);
-                        if w.len()==0 {
+                        if w.is_empty() {
                             break;
                         }
-                        x=x+1;
+                        x += 1;
                     }
                 }
                 ensure!(x>0,Error::<T>::CreditRatingAgenciesSubmissionCommitteeIsWrong);
@@ -644,16 +644,16 @@ decl_module! {
             // check validity for lawyers submission settings
             if key=="lawyerssubmission".as_bytes().to_vec() {
                 let manager=json_get_value(configuration.clone(),"manager".as_bytes().to_vec());
-                ensure!(manager.len()==48 || manager.len()==0, Error::<T>::LawyersSubmissionManagerAccountIsWrong);
+                ensure!(manager.len()==48 || manager.is_empty(), Error::<T>::LawyersSubmissionManagerAccountIsWrong);
                 let committee=json_get_complexarray(configuration.clone(),"committee".as_bytes().to_vec());
                 let mut x=0;
                 if committee.len()>2 {
                     loop {  
                         let w=json_get_recordvalue(committee.clone(),x);
-                        if w.len()==0 {
+                        if w.is_empty() {
                             break;
                         }
-                        x=x+1;
+                        x += 1;
                     }
                 }
                 ensure!(x>0,Error::<T>::LawyersSubmissionCommitteeIsWrong);
@@ -661,16 +661,16 @@ decl_module! {
             // check validity for collateral verification settings
             if key=="collateralsverification".as_bytes().to_vec() {
                 let manager=json_get_value(configuration.clone(),"manager".as_bytes().to_vec());
-                ensure!(manager.len()==48 || manager.len()==0, Error::<T>::CollateralVerificationManagerAccountIsWrong);
+                ensure!(manager.len()==48 || manager.is_empty(), Error::<T>::CollateralVerificationManagerAccountIsWrong);
                 let committee=json_get_complexarray(configuration.clone(),"committee".as_bytes().to_vec());
                 let mut x=0;
                 if committee.len()>2 {
                     loop {  
                         let w=json_get_recordvalue(committee.clone(),x);
-                        if w.len()==0 {
+                        if w.is_empty() {
                             break;
                         }
-                        x=x+1;
+                        x += 1;
                     }
                 }
                 ensure!(x>0,Error::<T>::CollateralVerificationCommitteeIsWrong);
@@ -678,16 +678,16 @@ decl_module! {
             // check validity for enterprise/edge fund approval settings
             if key=="fundapproval".as_bytes().to_vec() {
                 let manager=json_get_value(configuration.clone(),"manager".as_bytes().to_vec());
-                ensure!(manager.len()==48 || manager.len()==0, Error::<T>::FundApprovalManagerAccountIsWrong);
+                ensure!(manager.len()==48 || manager.is_empty(), Error::<T>::FundApprovalManagerAccountIsWrong);
                 let committee=json_get_complexarray(configuration.clone(),"committee".as_bytes().to_vec());
                 let mut x=0;
                 if committee.len()>2 {
                     loop {  
                         let w=json_get_recordvalue(committee.clone(),x);
-                        if w.len()==0 {
+                        if w.is_empty() {
                             break;
                         }
-                        x=x+1;
+                        x += 1;
                     }
                 }
                 ensure!(x>0,Error::<T>::FundApprovalCommitteeIsWrong);
@@ -699,10 +699,10 @@ decl_module! {
                 if documents.len()>2 {
                     loop {  
                         let w=json_get_recordvalue(documents.clone(),x);
-                        if w.len()==0 {
+                        if w.is_empty() {
                             break;
                         }
-                        x=x+1;
+                        x += 1;
                     }
                 }
                 ensure!(x>0,Error::<T>::InfoDocumentsIsWrong);
@@ -763,7 +763,7 @@ decl_module! {
             let mut x=0;
             loop {  
                 let operator=json_get_arrayvalue(operators.clone(),x);
-                if operator.len()==0 {
+                if operator.is_empty() {
                     break;
                 }
                 let operatorvec=bs58::decode(operator).into_vec().unwrap();
@@ -774,7 +774,7 @@ decl_module! {
                         signingtype=3;             
                     }
                 }
-                x=x+1;
+                x += 1;
             }
             ensure!(flag==1,Error::<T>::SignerIsNotAuthorizedForKycApproval);
             //check info length
@@ -821,7 +821,7 @@ decl_module! {
                 let mut x=0;
                 loop {  
                     let w=json_get_recordvalue(ipfsdocs.clone(),x);
-                    if w.len()==0 {
+                    if w.is_empty() {
                         break;
                     }
                     let description=json_get_value(w.clone(),"description".as_bytes().to_vec());
@@ -829,7 +829,7 @@ decl_module! {
                     let ipfsaddress=json_get_value(w.clone(),"ipfsaddress".as_bytes().to_vec());
                     ensure!(ipfsaddress.len()>20,Error::<T>::KycDocumentIpfsAddressTooShort);
 
-                    x=x+1;
+                    x += 1;
                 }
                 ensure!(x>0,Error::<T>::KycMissingDocuments);
             }
@@ -884,7 +884,7 @@ decl_module! {
             let mut x=0;
             loop {  
                 let operator=json_get_arrayvalue(operators.clone(),x);
-                if operator.len()==0 {
+                if operator.is_empty() {
                     break;
                 }
                 let operatorvec=bs58::decode(operator).into_vec().unwrap();
@@ -895,7 +895,7 @@ decl_module! {
                         signingtype=3;             
                     }
                 }
-                x=x+1;
+                x += 1;
             }
             ensure!(flag==1,Error::<T>::SignerIsNotAuthorizedForKycApproval);
             // write/update signature
@@ -967,7 +967,7 @@ decl_module! {
             let mut x=0;
             loop {  
                 let operator=json_get_arrayvalue(operators.clone(),x);
-                if operator.len()==0 {
+                if operator.is_empty() {
                     break;
                 }
                 let operatorvec=bs58::decode(operator).into_vec().unwrap();
@@ -978,7 +978,7 @@ decl_module! {
                         signingtype=3;             
                     }
                 }
-                x=x+1;
+                x += 1;
             }
             ensure!(flag==1,Error::<T>::SignerIsNotAuthorizedForFundCreation);
             //check info length
@@ -1025,7 +1025,7 @@ decl_module! {
                 let mut x=0;
                 loop {  
                     let w=json_get_recordvalue(ipfsdocs.clone(),x);
-                    if w.len()==0 {
+                    if w.is_empty() {
                         break;
                     }
                     let description=json_get_value(w.clone(),"description".as_bytes().to_vec());
@@ -1033,7 +1033,7 @@ decl_module! {
                     let ipfsaddress=json_get_value(w.clone(),"ipfsaddress".as_bytes().to_vec());
                     ensure!(ipfsaddress.len()>20,Error::<T>::FundDocumentIpfsAddressTooShort);
 
-                    x=x+1;
+                    x += 1;
                 }
                 ensure!(x>0,Error::<T>::FundMissingDocuments);
             }
@@ -1060,11 +1060,11 @@ decl_module! {
             if fundmanagers.len()>2 {
                 loop {  
                     let w=json_get_recordvalue(fundmanagers.clone(),x);
-                    if w.len()==0{
+                    if w.is_empty(){
                         break;
                     }
                     ensure!(w.len()==48, Error::<T>::FundManagerAccountIdIsWrong);
-                    x=x+1;
+                    x += 1;
                 }
             }
             ensure!(x>0,Error::<T>::FundManagerAccountisMissing);
@@ -1119,7 +1119,7 @@ decl_module! {
             let mut x=0;
             loop {  
                 let operator=json_get_arrayvalue(operators.clone(),x);
-                if operator.len()==0 {
+                if operator.is_empty() {
                     break;
                 }
                 let operatorvec=bs58::decode(operator).into_vec().unwrap();
@@ -1130,7 +1130,7 @@ decl_module! {
                         signingtype=3;             
                     }
                 }
-                x=x+1;
+                x += 1;
             }
             ensure!(flag==1,Error::<T>::SignerIsNotAuthorizedForFundApproval);
             // write/update signature
@@ -1231,12 +1231,12 @@ decl_module! {
                 let mut x=0;
                 loop {  
                     let ac=json_get_arrayvalue(acceptedcurrencies.clone(),x);
-                    if ac.len()==0 {
+                    if ac.is_empty() {
                         break;
                     }
                     // check crypto currency on blockchain
                     ensure!(Currencies::contains_key(&ac), Error::<T>::CurrencyCodeNotFound);
-                    x=x+1;
+                    x += 1;
                 }
                 ensure!(x>0, Error::<T>::BondAcceptedCurrenciesCannotBeEmpty);
             }
@@ -1279,7 +1279,7 @@ decl_module! {
                 if documents.len()>2 {
                     loop {  
                         let w=json_get_recordvalue(documents.clone(),ndocuments);
-                        if w.len()==0 {
+                        if w.is_empty() {
                             break;
                         }
                         ndocuments=ndocuments+1;
@@ -1291,7 +1291,7 @@ decl_module! {
                 let mut x=0;
                 loop {  
                     let w=json_get_recordvalue(ipfsdocs.clone(),x);
-                    if w.len()==0 {
+                    if w.is_empty() {
                         break;
                     }
                     let description=json_get_value(w.clone(),"description".as_bytes().to_vec());
@@ -1304,7 +1304,7 @@ decl_module! {
                         if documents.len()>2 {
                             loop {  
                                 let ww=json_get_recordvalue(documents.clone(),ndocuments);
-                                if ww.len()==0 {
+                                if ww.is_empty() {
                                     break;
                                 }
                                 let wdescription=json_get_value(ww.clone(),"description".as_bytes().to_vec());
@@ -1315,7 +1315,7 @@ decl_module! {
                             }
                         }
                     }
-                    x=x+1;
+                    x += 1;
                 }
                 ensure!(x>0 && ndocuments==0,Error::<T>::BondMissingDocuments);
             }
@@ -1349,7 +1349,7 @@ decl_module! {
             let mut x=0;
             loop {  
                 let committeem=json_get_arrayvalue(committee.clone(),x);
-                if committeem.len()==0 {
+                if committeem.is_empty() {
                     break;
                 }
                 let committeemvec=bs58::decode(committeem).into_vec().unwrap();
@@ -1360,7 +1360,7 @@ decl_module! {
                         signingtype=2;             
                     }
                 }
-                x=x+1;
+                x += 1;
             }
             ensure!(flag==1,Error::<T>::SignerIsNotAuthorizedForBondApproval);
             // write/update signature
@@ -1418,7 +1418,7 @@ decl_module! {
              let mut x=0;
              loop {  
                  let operator=json_get_arrayvalue(operators.clone(),x);
-                 if operator.len()==0 {
+                 if operator.is_empty() {
                      break;
                  }
                  let operatorvec=bs58::decode(operator).into_vec().unwrap();
@@ -1429,7 +1429,7 @@ decl_module! {
                          signingtype=3;             
                      }
                  }
-                 x=x+1;
+                 x += 1;
              }
              ensure!(flag==1,Error::<T>::SignerIsNotAuthorizedForCreditRatingAgencySubmission);
              //check info length
@@ -1449,14 +1449,14 @@ decl_module! {
                  let mut x=0;
                  loop {  
                      let w=json_get_recordvalue(ipfsdocs.clone(),x);
-                     if w.len()==0 {
+                     if w.is_empty() {
                          break;
                      }
                      let description=json_get_value(w.clone(),"description".as_bytes().to_vec());
                      ensure!(description.len()>5,Error::<T>::CreditRatingAgencyDocumentDescriptionTooShort);
                      let ipfsaddress=json_get_value(w.clone(),"ipfsaddress".as_bytes().to_vec());
                      ensure!(ipfsaddress.len()>20,Error::<T>::CreditRatingAgencyDocumentIpfsAddressTooShort);
-                     x=x+1;
+                     x += 1;
                  }
                  ensure!(x>0,Error::<T>::CreditRatingAgencyMissingDocuments);
              }
@@ -1493,14 +1493,14 @@ decl_module! {
                  let mut x=0;
                  loop {  
                      let w=json_get_recordvalue(ipfsdocs.clone(),x);
-                     if w.len()==0 {
+                     if w.is_empty() {
                          break;
                      }
                      let description=json_get_value(w.clone(),"description".as_bytes().to_vec());
                      ensure!(description.len()>5,Error::<T>::CreditRatingDocumentDescriptionTooShort);
                      let ipfsaddress=json_get_value(w.clone(),"ipfsaddress".as_bytes().to_vec());
                      ensure!(ipfsaddress.len()>20,Error::<T>::CreditRatingDocumentIpfsAddressTooShort);
-                     x=x+1;
+                     x += 1;
                  }
                  ensure!(x>0,Error::<T>::CreditRatingMissingDocuments);
              }
@@ -1530,14 +1530,14 @@ decl_module! {
                  let mut x=0;
                  loop {  
                      let w=json_get_recordvalue(ipfsdocs.clone(),x);
-                     if w.len()==0 {
+                     if w.is_empty() {
                          break;
                      }
                      let description=json_get_value(w.clone(),"description".as_bytes().to_vec());
                      ensure!(description.len()>5,Error::<T>::CollateralDocumentDescriptionTooShort);
                      let ipfsaddress=json_get_value(w.clone(),"ipfsaddress".as_bytes().to_vec());
                      ensure!(ipfsaddress.len()>20,Error::<T>::CollateralDocumentIpfsAddressTooShort);
-                     x=x+1;
+                     x += 1;
                  }
                  ensure!(x>0,Error::<T>::CollateralMissingDocuments);
              }
@@ -1571,7 +1571,7 @@ decl_module! {
              let mut x=0;
              loop {  
                  let operator=json_get_arrayvalue(operators.clone(),x);
-                 if operator.len()==0 {
+                 if operator.is_empty() {
                      break;
                  }
                  let operatorvec=bs58::decode(operator).into_vec().unwrap();
@@ -1582,7 +1582,7 @@ decl_module! {
                          signingtype=3;             
                      }
                  }
-                 x=x+1;
+                 x += 1;
              }
              ensure!(flag==1,Error::<T>::SignerIsNotAuthorizedForCollateralsApproval);
              // check for bond id
@@ -1600,14 +1600,14 @@ decl_module! {
                  let mut x=0;
                  loop {  
                      let w=json_get_recordvalue(ipfsdocs.clone(),x);
-                     if w.len()==0 {
+                     if w.is_empty() {
                          break;
                      }
                      let description=json_get_value(w.clone(),"description".as_bytes().to_vec());
                      ensure!(description.len()>5,Error::<T>::CollateralDocumentDescriptionTooShort);
                      let ipfsaddress=json_get_value(w.clone(),"ipfsaddress".as_bytes().to_vec());
                      ensure!(ipfsaddress.len()>20,Error::<T>::CollateralDocumentIpfsAddressTooShort);
-                     x=x+1;
+                     x += 1;
                  }
                  ensure!(x>0,Error::<T>::CollateralMissingDocuments);
              }
@@ -1738,7 +1738,7 @@ decl_module! {
             let mut x=0;
             loop {  
                 let operator=json_get_arrayvalue(operators.clone(),x);
-                if operator.len()==0 {
+                if operator.is_empty() {
                     break;
                 }
                 let operatorvec=bs58::decode(operator).into_vec().unwrap();
@@ -1749,7 +1749,7 @@ decl_module! {
                         signingtype=3;             
                     }
                 }
-                x=x+1;
+                x += 1;
             }
             ensure!(flag==1,Error::<T>::SignerIsNotAuthorizedForUnderwriterSubmissionOrRemoval);
 
@@ -1811,7 +1811,7 @@ decl_module! {
             let mut x=0;
             loop {  
                 let operator=json_get_arrayvalue(operators.clone(),x);
-                if operator.len()==0 {
+                if operator.is_empty() {
                     break;
                 }
                 let operatorvec=bs58::decode(operator).into_vec().unwrap();
@@ -1822,7 +1822,7 @@ decl_module! {
                         signingtype=3;             
                     }
                 }
-                x=x+1;
+                x += 1;
             }
             ensure!(flag==1,Error::<T>::SignerIsNotAuthorizedForUnderwriterSubmissionOrRemoval);
             
@@ -1858,7 +1858,7 @@ decl_module! {
             let mut x=0;
             loop {  
                 let operator=json_get_arrayvalue(operators.clone(),x);
-                if operator.len()==0 {
+                if operator.is_empty() {
                     break;
                 }
                 let operatorvec=bs58::decode(operator).into_vec().unwrap();
@@ -1869,7 +1869,7 @@ decl_module! {
                         signingtype=3;             
                     }
                 }
-                x=x+1;
+                x += 1;
             }
             ensure!(flag==1,Error::<T>::SignerIsNotAuthorizedForInsurerSubmissionOrRemoval);
 
@@ -1926,7 +1926,7 @@ decl_module! {
             let mut x=0;
             loop {  
                 let operator=json_get_arrayvalue(operators.clone(),x);
-                if operator.len()==0 {
+                if operator.is_empty() {
                     break;
                 }
                 let operatorvec=bs58::decode(operator).into_vec().unwrap();
@@ -1937,7 +1937,7 @@ decl_module! {
                         signingtype=3;             
                     }
                 }
-                x=x+1;
+                x += 1;
             }
             ensure!(flag==1,Error::<T>::SignerIsNotAuthorizedForInsurerSubmissionOrRemoval);
             
@@ -2056,7 +2056,7 @@ decl_module! {
             let mut x=0;
             loop {  
                 let operator=json_get_arrayvalue(operators.clone(),x);
-                if operator.len()==0 {
+                if operator.is_empty() {
                     break;
                 }
                 let operatorvec=bs58::decode(operator).into_vec().unwrap();
@@ -2067,7 +2067,7 @@ decl_module! {
                         signingtype=3;             
                     }
                 }
-                x=x+1;
+                x += 1;
             }
             ensure!(flag==1,Error::<T>::SignerIsNotAuthorizedForSubmissionOrRemoval);
 
@@ -2129,7 +2129,7 @@ decl_module! {
              let mut x=0;
              loop {  
                  let operator=json_get_arrayvalue(operators.clone(),x);
-                 if operator.len()==0 {
+                 if operator.is_empty() {
                      break;
                  }
                  let operatorvec=bs58::decode(operator).into_vec().unwrap();
@@ -2140,7 +2140,7 @@ decl_module! {
                          signingtype=3;             
                      }
                  }
-                 x=x+1;
+                 x += 1;
              }
              ensure!(flag==1,Error::<T>::SignerIsNotAuthorizedForSubmissionOrRemoval);
  
@@ -2221,16 +2221,16 @@ decl_module! {
         ///Adding to the balance of InsurerReserves
         #[weight = 1000]
         pub fn insurance_reserve_stake(origin, id: u32, deposit: u32) -> dispatch::DispatchResult {
-            let signer = ensure_signed(origin.clone())?;
-            match InsurerReserves::<T>::contains_key(signer.clone(), id.clone()) {
+            let signer = ensure_signed(origin)?;
+            match InsurerReserves::<T>::contains_key(signer.clone(), id) {
                 true => {
-                let current_reserve = InsurerReserves::<T>::take(signer.clone(), id.clone());
+                let current_reserve = InsurerReserves::<T>::take(signer.clone(), id);
                 let new_reserve = current_reserve.checked_add(deposit.into()).unwrap();
-                InsurerReserves::<T>::insert(signer.clone(), id.clone(), new_reserve);
+                InsurerReserves::<T>::insert(signer, id, new_reserve);
                 },
                 false => {
                     let deposit_into: u128 = deposit.into();
-                    InsurerReserves::<T>::insert(signer.clone(), id.clone(), deposit_into);
+                    InsurerReserves::<T>::insert(signer, id, deposit_into);
             }
         }
             Ok(())
@@ -2239,11 +2239,11 @@ decl_module! {
         ///Withdraw a certain amount of funds only if the reserve is at minimum required amount
         #[weight = 1000]
         pub fn insurance_reserve_unstake(origin, id: u32, withdrawal: u32) -> dispatch::DispatchResult {
-            let signer = ensure_signed(origin.clone())?;
-            ensure!(InsurerReserves::<T>::contains_key(signer.clone(), id.clone()), Error::<T>::ReserveNotFound);
+            let signer = ensure_signed(origin)?;
+            ensure!(InsurerReserves::<T>::contains_key(signer.clone(), id), Error::<T>::ReserveNotFound);
             //Retrieve the current minimum reserve required with key "insuranceminreserve"
             let settings_reserve: Vec<u8> = Settings::get("insuranceminreserve".as_bytes().to_vec()).unwrap();
-            let reserve = json_get_value(settings_reserve.clone(), "reserve".as_bytes().to_vec());
+            let reserve = json_get_value(settings_reserve, "reserve".as_bytes().to_vec());
             //Converting to u32 after getting json value from Settings
             let reserve_min = vecu8_to_u32(reserve);
             //Retrieve reserve from InsurerReserves double map
@@ -2251,8 +2251,8 @@ decl_module! {
             //Current reserves if the withdrawal is done
             let withdrawn_reserve: u128 = current_reserves.checked_sub(withdrawal.into()).unwrap();
             ensure!(withdrawn_reserve >= reserve_min.into(), Error::<T>::BelowMinimumReserve);  
-            InsurerReserves::<T>::take(signer.clone(), id.clone());   
-            InsurerReserves::<T>::insert(signer.clone(), id.clone(), withdrawn_reserve);
+            InsurerReserves::<T>::take(signer.clone(), id);
+            InsurerReserves::<T>::insert(signer, id, withdrawn_reserve);
             Ok(())
         }
     }
@@ -2264,11 +2264,11 @@ fn json_check_validity(j:Vec<u8>) -> bool{
         return false;
     }
     // checks star/end with {}
-    if *j.get(0).unwrap()==b'{' && *j.get(j.len()-1).unwrap()!=b'}' {
+    if *j.get(0).unwrap()==b'{' && *j.last().unwrap()!=b'}' {
         return false;
     }
     // checks start/end with []
-    if *j.get(0).unwrap()==b'[' && *j.get(j.len()-1).unwrap()!=b']' {
+    if *j.get(0).unwrap()==b'[' && *j.last().unwrap()!=b']' {
         return false;
     }
     // check that the start is { or [
@@ -2276,7 +2276,7 @@ fn json_check_validity(j:Vec<u8>) -> bool{
             return false;
     }
     //checks that end is } or ]
-    if *j.get(j.len()-1).unwrap()!=b'}' && *j.get(j.len()-1).unwrap()!=b']' {
+    if *j.last().unwrap()!=b'}' && *j.last().unwrap()!=b']' {
         return false;
     }
     //checks " opening/closing and : as separator between name and values
@@ -2347,7 +2347,7 @@ fn json_get_recordvalue(ar:Vec<u8>,p:i32) -> Vec<u8> {
     let mut lb=b' ';
     for b in ar {
         if b==b',' && op {
-            cn=cn+1;
+            cn += 1;
             continue;
         }
         if b==b'[' && op && lb!=b'\\' {
