@@ -9,7 +9,7 @@ use frame_system::{ensure_root,ensure_signed};
 use sp_std::prelude::*;
 use core::str;
 use core::str::FromStr;
-
+use sp_runtime::DispatchResult;
 
 
 #[cfg(test)]
@@ -71,6 +71,8 @@ decl_storage! {
         InterbankRates get(fn get_interbank_rate): double_map hasher(blake2_128_concat) Vec<u8>, hasher(blake2_128_concat) Vec<u8> => Option<u32>;
 	     // InterbankRate data
         InflationRates get(fn get_inflation_rate): double_map hasher(blake2_128_concat) Vec<u8>, hasher(blake2_128_concat) Vec<u8> => Option<u32>;
+        // Total Risks Covered
+        InsurerRisksCovered get(fn get_insurer_risks_covered): double_map hasher(blake2_128_concat) T::AccountId, hasher(blake2_128_concat) u32 => Balance;
     }
 }
 
@@ -506,6 +508,10 @@ decl_error! {
         InvalidDateFormat,
         /// Settings does not exist
         SettingsDoesNotExist,
+        /// Got an overflow after adding
+		Overflow,
+        /// Underflow after substrate
+        Underflow,
 	}
 }
 
@@ -1938,7 +1944,6 @@ decl_module! {
         }
         /// Create an Insurance - Initially as proposal, it's confirmed once signed and the premium paid from the payer
         /// {"bondid":xxx,"maxcoverage":xxxx,"payer":"xxxxxxxxx","beneficiary":"xxxxoptionalxxxx","premium":xxxxxx,"infodocuments":"xxxxxx"}
-        /// TODO: Check minimum reserve of staked deposit
         #[weight = 1000]
         pub fn insurance_create(origin, uid: u32, info: Vec<u8>) -> dispatch::DispatchResult {
             let signer =  ensure_signed(origin)?;
@@ -1962,7 +1967,7 @@ decl_module! {
             // check max coverage
             let maxcoverage=json_get_value(info.clone(),"maxcoverage".as_bytes().to_vec());
             ensure!(!maxcoverage.is_empty(), Error::<T>::MaxCoverageCannotBeZero);
-            let maxcoveragev=vecu8_to_u32(maxcoverage);
+            let maxcoveragev=vecu8_to_u128(maxcoverage);
             ensure!(maxcoveragev>0,Error::<T>::MaxCoverageCannotBeZero);
             // check payer account
             let payer=json_get_value(info.clone(),"payer".as_bytes().to_vec());
@@ -1975,13 +1980,18 @@ decl_module! {
             ensure!(!premium.is_empty(), Error::<T>::InsurancePremiumCannotBeZero);
             let premiumv=vecu8_to_u32(premium);
             ensure!(premiumv>0,Error::<T>::InsurancePremiumCannotBeZero);
-            ensure!((reserves + premiumv as u128) >= reserve_min.into(), Error::<T>::BelowMinimumReserve);
             // Check infodocuments
             let infodocuments=json_get_value(info.clone(),"infodocuments".as_bytes().to_vec());
             ensure!(!infodocuments.is_empty(), Error::<T>::MissingInsuranceInfoDocuments);
             //check insurance Id is not already present
             ensure!(!Insurances::<T>::contains_key(signer.clone(),&uid), Error::<T>::InsuranceIdAlreadyPresent);
             // store insurance
+            InsurerRisksCovered::<T>::try_mutate(&signer, &uid, |risk| -> DispatchResult {
+				let total_risk = risk.checked_add(maxcoveragev).ok_or(Error::<T>::Overflow)?;
+				ensure!(total_risk >= reserve_min.into(), Error::<T>::BelowMinimumReserve);
+				*risk = total_risk;
+				Ok(())
+			})?;
             Insurances::<T>::insert(signer.clone(),uid,info.clone());
             // Generate event
             Self::deposit_event(RawEvent::InsuranceCreated(signer,uid, info));
@@ -2010,6 +2020,16 @@ decl_module! {
             let signer =  ensure_signed(origin)?;
             // verify the insurance existance
             ensure!(Insurances::<T>::contains_key(signer.clone(),uid), Error::<T>::InsuranceNotFound);
+            // get the insurance value
+            let info = Insurances::<T>::get(signer.clone(),uid).unwrap();
+            let maxcoverage=json_get_value(info,"maxcoverage".as_bytes().to_vec());
+            let maxcoveragev=vecu8_to_u128(maxcoverage);
+            // update total risk
+            InsurerRisksCovered::<T>::try_mutate(&signer, &uid, |risk| -> DispatchResult {
+				let total_risk = risk.checked_sub(maxcoveragev).ok_or(Error::<T>::Underflow)?;
+				*risk = total_risk;
+				Ok(())
+			})?;
             // Remove the Insurance
             Insurances::<T>::take(signer.clone(),uid);
             // Generate event
@@ -2500,6 +2520,15 @@ fn vecu8_to_u32(v: Vec<u8>) -> u32 {
     let vvalue: u32 = u32::from_str(vstr).unwrap_or(0);
     vvalue
 }
+
+// function to convert vec<u8> to u32
+fn vecu8_to_u128(v: Vec<u8>) -> u128 {
+    let vslice = v.as_slice();
+    let vstr = str::from_utf8(vslice).unwrap_or("0");
+    let vvalue: u128 = u128::from_str(vstr).unwrap_or(0);
+    vvalue
+}
+
 // function to validate a phone number
 fn validate_phonenumber(phonenumber:Vec<u8>) -> bool {
     // check maximum lenght
