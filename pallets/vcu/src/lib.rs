@@ -1032,8 +1032,7 @@ impl<T: Config> Module<T> {
 	}
 
 	fn create_json_string(inputs: Vec<(&str, &mut Vec<u8>)>) -> Vec<u8> {
-		let mut v:Vec<u8>= Vec::new();
-		v.push(b'{');
+		let mut v:Vec<u8>= vec![b'{'];
 		let mut flag = false;
 
 		for (arg, val) in  inputs{
