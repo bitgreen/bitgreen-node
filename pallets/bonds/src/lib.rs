@@ -11,6 +11,7 @@ use core::str;
 use core::str::FromStr;
 use sp_runtime::DispatchResult;
 use sp_std::borrow::ToOwned;
+use frame_support::traits::ExistenceRequirement::KeepAlive;
 
 #[cfg(test)]
 mod mock;
@@ -18,15 +19,17 @@ mod mock;
 #[cfg(test)]
 mod tests;
 
+pub type Balance = u128;
+
 /// Module configuration
 pub trait Config: frame_system::Config {
 //pub trait Config: frame_system::Config + Sized {
 	type Event: From<Event<Self>> + Into<<Self as frame_system::Config>::Event>;
-	type Currency: Currency<Self::AccountId>;
+	type Currency: Currency<Self::AccountId, Balance = Balance>;
+
 
 }
 
-pub type Balance = u128;
 // The runtime storage items
 decl_storage! {
 	trait Store for Module<T: Config> as bonds {
@@ -2007,6 +2010,11 @@ decl_module! {
             ensure!(!InsurancesSigned::<T>::contains_key(insurer_account.clone(),uid), Error::<T>::InsuranceAlreadySigned);
             // store the signature
             InsurancesSigned::<T>::insert(insurer_account.clone(),uid,signer.clone());
+            // transfer the premium
+            let info = Insurances::<T>::get(insurer_account.clone(),uid).unwrap();
+            let premium = json_get_value(info.clone(),"premium".as_bytes().to_vec());
+            let premiumv = vecu8_to_u128(premium);
+            T::Currency::transfer(&signer, &insurer_account, premiumv, KeepAlive)?;
             // Generate event
             Self::deposit_event(RawEvent::InsuranceSigned(insurer_account,uid,signer));
             // Return a successful DispatchResult
