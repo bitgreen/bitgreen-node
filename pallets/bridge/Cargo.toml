@@ -25,6 +25,7 @@ primitives = { package = 'bitg-primitives', path = '../../primitives', default-f
 serde = { version = '1', features = ['derive'], optional = true }
 sp-runtime = { default-features = false, version = '3.0.0' }
 sp-std = { default-features = false, version = '3.0.0' }
+pallet-assets = { version = "3.0.0", default-features = false, path = "../assets" }
 
 [features]
 default = ['std']
@@ -36,4 +37,5 @@ std = [
     'primitives/std',
     'sp-runtime/std',
     'sp-std/std',
+    'pallet-assets/std',
 ]

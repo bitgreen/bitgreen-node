@@ -4512,6 +4512,7 @@ dependencies = [
  "bitg-primitives",
  "frame-support",
  "frame-system",
+ "pallet-assets",
  "parity-scale-codec",
  "serde",
  "sp-runtime",

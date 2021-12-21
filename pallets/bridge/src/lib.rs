@@ -22,9 +22,10 @@ use frame_support::{
 };
 use frame_system::ensure_root;
 use sp_std::vec::Vec;
+use pallet_assets::Asset;
 
 /// Configure the pallet by specifying the parameters and types on which it depends.
-pub trait Config: frame_system::Config {
+pub trait Config: frame_system::Config + pallet_assets::Config<AssetId = u32, Balance = u128>{
     /// The overarching event type.
     type Event: From<Event<Self>> + Into<<Self as frame_system::Config>::Event>;
 }
@@ -63,6 +64,30 @@ decl_error! {
         SettingsJsonTooLong,
         /// Invalid Json structure
         InvalidJson,
+        /// Invalid ChainId
+		InvalidChainId,
+        /// Invalid Description
+		InvalidDescription,
+        /// Address is Empty
+		EmptyAddress,
+        /// Asset does not exist,
+		AssetDoesNotExist,
+        /// Internal Keepers NotConfigured
+        InternalKeepersNotConfigured,
+        /// External Keepers NotConfigured
+        ExternalKeepersNotConfigured,
+        /// Internal Watchdogs NotConfigured
+        InternalWatchdogsNotConfigured,
+        /// External Watchdogs NotConfigured
+        ExternalWatchdogsNotConfigured,
+        /// Internal Watchcats NotConfigured
+        InternalWatchcatsNotConfigured,
+        /// External Watchcats NotConfigured
+        ExternalWatchcatsNotConfigured,
+        /// Internal Threshold NotFound
+        InternalThresholdNotFound,
+        /// External Threshold NotFound
+        ExternalThresholdNotFound,
   }
 }
 
@@ -94,24 +119,121 @@ decl_module! {
         ///
         /// The dispatch origin for this call must be `Signed` by the Root.
         #[weight = 10_000 + T::DbWeight::get().writes(1)]
-        pub fn create_settings(origin, key: Vec<u8>, accounts: Vec<u8>) -> DispatchResult {
+        pub fn create_settings(origin, key: Vec<u8>, data: Vec<u8>) -> DispatchResult {
 
             ensure_root(origin)?;
 
             //check accounts json length
-            ensure!(accounts.len() > 12, Error::<T>::SettingsJsonTooShort);
-            ensure!(accounts.len() < 8192, Error::<T>::SettingsJsonTooLong);
+            ensure!(data.len() > 12, Error::<T>::SettingsJsonTooShort);
+            ensure!(data.len() < 8192, Error::<T>::SettingsJsonTooLong);
 
             // check json validity
-            let js=accounts.clone();
+            let js=data.clone();
             ensure!(Self::json_check_validity(js),Error::<T>::InvalidJson);
 
             // check whether setting key already exists
             ensure!(!Settings::contains_key(&key), Error::<T>::SettingsKeyExists);
 
-            Settings::insert(key.clone(),accounts.clone());
+            let chain_id = Self::json_get_value(data.clone(),"chainid".as_bytes().to_vec());
+            ensure!(!chain_id.is_empty() , Error::<T>::InvalidChainId);
+
+			let description = Self::json_get_value(data.clone(),"description".as_bytes().to_vec());
+            ensure!(!description.is_empty() && description.len()<=64 , Error::<T>::InvalidDescription);
+
+            let address = Self::json_get_value(data.clone(),"address".as_bytes().to_vec());
+            ensure!(!address.is_empty() , Error::<T>::EmptyAddress);
+
+            let asset_id = Self::json_get_value(data.clone(),"assetid".as_bytes().to_vec());
+
+			let asset_id = str::parse::<u32>(sp_std::str::from_utf8(&asset_id).unwrap()).unwrap();
+
+            // check whether asset exists or not
+			ensure!(Asset::<T>::contains_key(asset_id), Error::<T>::AssetDoesNotExist);
+
+            let internal_threshold = Self::json_get_value(data.clone(),"internalthreshold".as_bytes().to_vec());
+            ensure!(!internal_threshold.is_empty() , Error::<T>::InternalThresholdNotFound);
+
+            let external_threshold = Self::json_get_value(data.clone(),"externathreshold".as_bytes().to_vec());
+            ensure!(!external_threshold.is_empty() , Error::<T>::ExternalThresholdNotFound);
+
+            let internalkeepers=Self::json_get_complexarray(data.clone(),"internalkeepers".as_bytes().to_vec());
+                if internalkeepers.len()>=2 {
+                    let mut x=0;
+                    loop {
+                        let w=Self::json_get_recordvalue(internalkeepers.clone(),x);
+                        if w.is_empty() {
+                            break;
+                        }
+                        x += 1;
+                    }
+                    ensure!(x>0,Error::<T>::InternalKeepersNotConfigured);
+                }
+            let externalkeepers=Self::json_get_complexarray(data.clone(),"externalkeepers".as_bytes().to_vec());
+                if externalkeepers.len()>=2 {
+                    let mut x=0;
+                    loop {
+                        let w=Self::json_get_recordvalue(externalkeepers.clone(),x);
+                        if w.is_empty() {
+                            break;
+                        }
+                        x += 1;
+                    }
+                    ensure!(x>0,Error::<T>::ExternalKeepersNotConfigured);
+                }
+
+            let internalwatchdogs=Self::json_get_complexarray(data.clone(),"internalwatchdogs".as_bytes().to_vec());
+                if internalwatchdogs.len()>=2 {
+                    let mut x=0;
+                    loop {
+                        let w=Self::json_get_recordvalue(internalwatchdogs.clone(),x);
+                        if w.is_empty() {
+                            break;
+                        }
+                        x += 1;
+                    }
+                    ensure!(x>0,Error::<T>::InternalWatchdogsNotConfigured);
+                }
+            let externalwatchdogs=Self::json_get_complexarray(data.clone(),"externalwatchdogs".as_bytes().to_vec());
+                if externalwatchdogs.len()>=2 {
+                    let mut x=0;
+                    loop {
+                        let w=Self::json_get_recordvalue(externalwatchdogs.clone(),x);
+                        if w.is_empty() {
+                            break;
+                        }
+                        x += 1;
+                    }
+                    ensure!(x>0,Error::<T>::ExternalWatchdogsNotConfigured);
+                }
+
+            let internalwatchcats=Self::json_get_complexarray(data.clone(),"internalwatchcats".as_bytes().to_vec());
+                if internalwatchcats.len()>=2 {
+                    let mut x=0;
+                    loop {
+                        let w=Self::json_get_recordvalue(internalwatchcats.clone(),x);
+                        if w.is_empty() {
+                            break;
+                        }
+                        x += 1;
+                    }
+                    ensure!(x>0,Error::<T>::InternalWatchcatsNotConfigured);
+                }
+            let externalwatchcats=Self::json_get_complexarray(data.clone(),"externalwatchcats".as_bytes().to_vec());
+                if externalwatchcats.len()>=2 {
+                    let mut x=0;
+                    loop {
+                        let w=Self::json_get_recordvalue(externalwatchcats.clone(),x);
+                        if w.is_empty() {
+                            break;
+                        }
+                        x += 1;
+                    }
+                    ensure!(x>0,Error::<T>::ExternalWatchcatsNotConfigured);
+                }
+
+            Settings::insert(key.clone(),data.clone());
             // Generate event
-            Self::deposit_event(RawEvent::SettingsCreated(key,accounts));
+            Self::deposit_event(RawEvent::SettingsCreated(key,data));
             // Return a successful DispatchResult
             Ok(())
         }
@@ -139,6 +261,79 @@ decl_module! {
 }
 
 impl<T: Config> Module<T> {
+
+    // function to get record {} from multirecord json structure [{..},{.. }], it returns an empty Vec when the records is not present
+    fn json_get_recordvalue(ar:Vec<u8>,p:i32) -> Vec<u8> {
+        let mut result=Vec::new();
+        let mut op=true;
+        let mut cn=0;
+        let mut lb=b' ';
+        for b in ar {
+            if b==b',' && op {
+                cn += 1;
+                continue;
+            }
+            if b==b'[' && op && lb!=b'\\' {
+                continue;
+            }
+            if b==b']' && op && lb!=b'\\' {
+                continue;
+            }
+            if b==b'{' && op && lb!=b'\\' {
+                op=false;
+            }
+            if b==b'}' && !op && lb!=b'\\' {
+                op=true;
+            }
+            // field found
+            if cn==p {
+                result.push(b);
+            }
+            lb= b ;
+        }
+        result
+    }
+
+    // function to get value of a field with a complex array like [{....},{.....}] for Substrate runtime (no std library and no variable allocation)
+    fn json_get_complexarray(j:Vec<u8>,key:Vec<u8>) -> Vec<u8> {
+        let mut result=Vec::new();
+        let mut k=Vec::new();
+        let keyl = key.len();
+        let jl = j.len();
+        k.push(b'"');
+        for xk in 0..keyl{
+            k.push(*key.get(xk).unwrap());
+        }
+        k.push(b'"');
+        k.push(b':');
+        let kl = k.len();
+        for x in  0..jl {
+            let mut m=0;
+            if x+kl>jl {
+                break;
+            }
+            for (xx, i) in (x..x+kl).enumerate() {
+                if *j.get(i).unwrap()== *k.get(xx).unwrap() {
+                    m += 1;
+                }
+            }
+            if m==kl{
+                let mut os=true;
+                for i in x+kl..jl-1 {
+                    if *j.get(i).unwrap()==b'[' && os{
+                        os=false;
+                    }
+                    result.push(*j.get(i).unwrap());
+                    if *j.get(i).unwrap()==b']' && !os {
+                        break;
+                    }
+                }
+                break;
+            }
+        }
+        result
+    }
+
     // function to validate a json string for no/std. It does not allocate of memory
     fn json_check_validity(j: Vec<u8>) -> bool {
         // minimum lenght of 2
@@ -220,5 +415,67 @@ impl<T: Config> Module<T> {
         }
         // every ok returns true
         true
+    }
+
+    // function to get value of a field for Substrate runtime (no std library and no variable allocation)
+    fn json_get_value(j:Vec<u8>,key:Vec<u8>) -> Vec<u8> {
+        let mut result=Vec::new();
+        let mut k=Vec::new();
+        let keyl = key.len();
+        let jl = j.len();
+        k.push(b'"');
+        for xk in 0..keyl{
+            k.push(*key.get(xk).unwrap());
+        }
+        k.push(b'"');
+        k.push(b':');
+        let kl = k.len();
+        for x in  0..jl {
+            let mut m=0;
+            if x+kl>jl {
+                break;
+            }
+            for (xx, i) in (x..x+kl).enumerate() {
+                if *j.get(i).unwrap()== *k.get(xx).unwrap() {
+                    m += 1;
+                }
+            }
+            if m==kl{
+                let mut lb=b' ';
+                let mut op=true;
+                let mut os=true;
+                for i in x+kl..jl-1 {
+                    if *j.get(i).unwrap()==b'[' && op && os{
+                        os=false;
+                    }
+                    if *j.get(i).unwrap()==b'}' && op && !os{
+                        os=true;
+                    }
+                    if *j.get(i).unwrap()==b':' && op{
+                        continue;
+                    }
+                    if *j.get(i).unwrap()==b'"' && op && lb!=b'\\' {
+                        op=false;
+                        continue
+                    }
+                    if *j.get(i).unwrap()==b'"' && !op && lb!=b'\\' {
+                        break;
+                    }
+                    if *j.get(i).unwrap()==b'}' && op{
+                        break;
+                    }
+                    if *j.get(i).unwrap()==b']' && op{
+                        break;
+                    }
+                    if *j.get(i).unwrap()==b',' && op && os{
+                        break;
+                    }
+                    result.push(*j.get(i).unwrap());
+                    lb= *j.get(i).unwrap();
+                }
+                break;
+            }
+        }
+        result
     }
 }
