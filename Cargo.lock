@@ -584,6 +584,7 @@ dependencies = [
  "pallet-babe",
  "pallet-balances",
  "pallet-bonds",
+ "pallet-bridge",
  "pallet-claim",
  "pallet-collective",
  "pallet-contracts",
@@ -4500,6 +4501,20 @@ dependencies = [
  "serde",
  "sp-core",
  "sp-io",
+ "sp-runtime",
+ "sp-std",
+]
+
+[[package]]
+name = "pallet-bridge"
+version = "0.1.0"
+dependencies = [
+ "bitg-primitives",
+ "frame-support",
+ "frame-system",
+ "pallet-assets",
+ "parity-scale-codec",
+ "serde",
  "sp-runtime",
  "sp-std",
 ]
