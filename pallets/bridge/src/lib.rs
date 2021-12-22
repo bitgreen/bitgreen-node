@@ -18,11 +18,13 @@
 extern crate alloc;
 use frame_support::{
     decl_error, decl_event, decl_module, decl_storage, dispatch::DispatchResult, ensure,
-    traits::Get,
+    traits::Get, codec::Decode
 };
 use frame_system::ensure_root;
 use sp_std::vec::Vec;
 use pallet_assets::Asset;
+use frame_system::ensure_signed;
+use primitives::Balance;
 
 /// Configure the pallet by specifying the parameters and types on which it depends.
 pub trait Config: frame_system::Config + pallet_assets::Config<AssetId = u32, Balance = u128>{
@@ -88,6 +90,8 @@ decl_error! {
         InternalThresholdNotFound,
         /// External Threshold NotFound
         ExternalThresholdNotFound,
+        /// SignerNotFound
+        SignerNotFound
   }
 }
 
@@ -256,7 +260,30 @@ decl_module! {
             // Return a successful DispatchResult
             Ok(())
         }
+        #[weight = 10_000 + T::DbWeight::get().writes(1)]
+        pub fn mint(origin, token:Vec<u8>,recipient: T::AccountId, transaction_id:Vec<u8>, amount: Balance)-> DispatchResult {
+            let signer = ensure_signed(origin)?;
 
+            ensure!(Settings::contains_key(&token), Error::<T>::SettingsKeyNotFound);
+            let content: Vec<u8> = Settings::get(&token).unwrap();
+            let asset_id = Self::json_get_value(content.clone(),"assetid".as_bytes().to_vec());
+
+			let asset_id = str::parse::<u32>(sp_std::str::from_utf8(&asset_id).unwrap()).unwrap();
+
+            let mut flag=0;
+            let internal_keepers = Self::json_get_value(content.clone(),"internalkeepers".as_bytes().to_vec());
+            if !internal_keepers.is_empty() {
+                let internal_keepers_vec=bs58::decode(internal_keepers).into_vec().unwrap();
+                let accountid_internal_keepers=T::AccountId::decode(&mut &internal_keepers_vec[1..33]).unwrap_or_default();
+                if signer==accountid_internal_keepers {
+                    flag=1;
+                }
+            }
+            ensure!(flag==1, Error::<T>::SignerNotFound);
+
+
+            Ok(())
+        }
     }
 }
 
@@ -478,4 +505,5 @@ impl<T: Config> Module<T> {
         }
         result
     }
+
 }

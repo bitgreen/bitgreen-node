@@ -4510,6 +4510,7 @@ name = "pallet-bridge"
 version = "0.1.0"
 dependencies = [
  "bitg-primitives",
+ "bs58",
  "frame-support",
  "frame-system",
  "pallet-assets",
