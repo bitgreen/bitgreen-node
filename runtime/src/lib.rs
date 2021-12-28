@@ -906,6 +906,10 @@ impl pallet_vcu::Config for Runtime {
 	type UnixTime = Timestamp;
 }
 
+impl pallet_bridge::Config for Runtime {
+	type Event = Event;
+}
+
 // TODO: Implementation of `From` is preferred since it gives you `Into<_>` for free where the reverse isn't true.
 // After this TODO will be resolved, remove the suppresion of `from-over-into` warnings in the Makefile.
 construct_runtime!(
@@ -970,6 +974,8 @@ construct_runtime!(
 		Bonds: pallet_bonds::{Module, Call, Storage, Event<T>} = 73,
 		// VCUs
 		VCU: pallet_vcu::{Module, Call, Storage, Event<T>} = 74,
+		// Bridge
+		Bridge: pallet_bridge::{Module, Call, Storage, Event<T>} = 75,
 
 	}
 );
