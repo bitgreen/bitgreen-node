@@ -18,11 +18,17 @@
 extern crate alloc;
 use frame_support::{
     decl_error, decl_event, decl_module, decl_storage, dispatch::DispatchResult, ensure,
-    traits::Get,
+    traits::Get, codec::Decode
 };
 use frame_system::ensure_root;
 use sp_std::vec::Vec;
 use pallet_assets::Asset;
+use frame_system::ensure_signed;
+use primitives::Balance;
+use codec::Encode;
+use frame_system::RawOrigin;
+use sp_runtime::traits::StaticLookup;
+use frame_support::pallet_prelude::DispatchResultWithPostInfo;
 
 /// Configure the pallet by specifying the parameters and types on which it depends.
 pub trait Config: frame_system::Config + pallet_assets::Config<AssetId = u32, Balance = u128>{
@@ -35,6 +41,10 @@ decl_storage! {
     trait Store for Module<T: Config> as VCUModule {
         /// Settings configuration.
         Settings get(fn get_settings): map hasher(blake2_128_concat) Vec<u8> => Option<Vec<u8>>;
+        SignerMintTracker get(fn get_signer_mint_traker): map hasher(blake2_128_concat) T::AccountId => u32;
+        MintRequest get(fn get_mint_request): map hasher(blake2_128_concat) Vec<u8> => Balance;
+        MintCounter get(fn get_mint_count): map hasher(blake2_128_concat) Vec<u8> => u32;
+        MintConfirmation get(fn get_mint_confirmation): map hasher(blake2_128_concat) Vec<u8> => bool;
     }
 }
 
@@ -47,8 +57,8 @@ decl_event!(
         SettingsCreated(Vec<u8>, Vec<u8>),
         /// setting has been destroyed.
         SettingsDestroyed(Vec<u8>),
-        /// BridgeAdded
-        BridgeAdded(AccountId),
+        /// Minted
+        Minted(AccountId, u32, AccountId, Balance),
     }
 );
 
@@ -88,6 +98,10 @@ decl_error! {
         InternalThresholdNotFound,
         /// External Threshold NotFound
         ExternalThresholdNotFound,
+        /// SignerNotFound
+        SignerNotFound,
+        /// SignerAlreadyConfired
+        SignerAlreadyConfired
   }
 }
 
@@ -256,7 +270,59 @@ decl_module! {
             // Return a successful DispatchResult
             Ok(())
         }
+        #[weight = 10_000 + T::DbWeight::get().writes(1)]
+        pub fn mint(origin, token:Vec<u8>,recipient: T::AccountId, transaction_id:Vec<u8>, amount: Balance)-> DispatchResultWithPostInfo {
+            let signer = ensure_signed(origin)?;
 
+            ensure!(Settings::contains_key(&token), Error::<T>::SettingsKeyNotFound);
+            let content: Vec<u8> = Settings::get(&token).unwrap();
+            let asset_id = Self::json_get_value(content.clone(),"assetid".as_bytes().to_vec());
+
+			let asset_id = str::parse::<u32>(sp_std::str::from_utf8(&asset_id).unwrap()).unwrap();
+
+            let mut flag=0;
+            let internal_keepers = Self::json_get_value(content.clone(),"internalkeepers".as_bytes().to_vec());
+            if !internal_keepers.is_empty() {
+                let internal_keepers_vec=bs58::decode(internal_keepers).into_vec().unwrap();
+                let accountid_internal_keepers=T::AccountId::decode(&mut &internal_keepers_vec[1..33]).unwrap_or_default();
+                if signer==accountid_internal_keepers {
+                    flag=1;
+                }
+            }
+            ensure!(flag==1, Error::<T>::SignerNotFound);
+
+            ensure!(!SignerMintTracker::<T>::contains_key(&signer), Error::<T>::SignerAlreadyConfired);
+
+            SignerMintTracker::<T>::insert(signer.clone(),asset_id.clone());
+
+            let mut key = signer.encode();
+            key.push(b'-');
+            key.append(&mut token.clone());
+            key.push(b'-');
+            key.append(&mut recipient.encode());
+            key.push(b'-');
+            key.append(&mut transaction_id.clone());
+            MintRequest::insert(key,amount.clone());
+
+            let mut key = token.clone();
+            key.push(b'-');
+            key.append(&mut recipient.encode());
+            key.push(b'-');
+            key.append(&mut transaction_id.clone());
+
+            MintCounter::try_mutate(&key, |count| -> DispatchResult {
+				*count += 1;
+				Ok(())
+			})?;
+
+            MintConfirmation::insert(key,true);
+
+            pallet_assets::Module::<T>::mint(RawOrigin::Signed(signer.clone()).into(), asset_id, T::Lookup::unlookup(recipient.clone()), amount)?;
+
+            Self::deposit_event(RawEvent::Minted(signer, asset_id, recipient, amount));
+
+            Ok(().into())
+        }
     }
 }
 
@@ -478,4 +544,5 @@ impl<T: Config> Module<T> {
         }
         result
     }
+
 }
