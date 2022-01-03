@@ -15,6 +15,9 @@
 // limitations under the License.
 
 #![cfg_attr(not(feature = "std"), no_std)]
+#[cfg(test)]
+mod mock;
+
 extern crate alloc;
 use frame_support::{
     decl_error, decl_event, decl_module, decl_storage, dispatch::DispatchResult, ensure,
@@ -42,6 +45,7 @@ decl_storage! {
         /// Settings configuration.
         Settings get(fn get_settings): map hasher(blake2_128_concat) Vec<u8> => Option<Vec<u8>>;
         SignerMintTracker get(fn get_signer_mint_traker): map hasher(blake2_128_concat) T::AccountId => u32;
+        AssetMintTracker get(fn get_asset_mint_traker): map hasher(blake2_128_concat) u32 => u32;
         MintRequest get(fn get_mint_request): map hasher(blake2_128_concat) Vec<u8> => Balance;
         MintCounter get(fn get_mint_count): map hasher(blake2_128_concat) Vec<u8> => u32;
         MintConfirmation get(fn get_mint_confirmation): map hasher(blake2_128_concat) Vec<u8> => bool;
@@ -49,6 +53,7 @@ decl_storage! {
         BurnRequest get(fn get_burn_request): map hasher(blake2_128_concat) Vec<u8> => Balance;
         BurnCounter get(fn get_burn_count): map hasher(blake2_128_concat) Vec<u8> => u32;
         BurnConfirmation get(fn get_burn_confirmation): map hasher(blake2_128_concat) Vec<u8> => bool;
+        AssetBurnTracker get(fn get_asset_burn_traker): map hasher(blake2_128_concat) u32 => u32;
     }
 }
 
@@ -107,7 +112,11 @@ decl_error! {
         /// SignerNotFound
         SignerNotFound,
         /// SignerAlreadyConfired
-        SignerAlreadyConfired
+        SignerAlreadyConfired,
+        /// Can not mint twice
+        MintingNotAllowedTwice,
+        /// Can not burn twice
+        BurningNotAllowedTwice,
   }
 }
 
@@ -298,6 +307,8 @@ decl_module! {
             ensure!(flag==1, Error::<T>::SignerNotFound);
 
             ensure!(!SignerMintTracker::<T>::contains_key(&signer), Error::<T>::SignerAlreadyConfired);
+            ensure!(!AssetMintTracker::contains_key(&asset_id), Error::<T>::MintingNotAllowedTwice);
+            AssetMintTracker::insert(asset_id.clone(),1);
 
             SignerMintTracker::<T>::insert(signer.clone(),asset_id.clone());
 
@@ -352,6 +363,8 @@ decl_module! {
             ensure!(flag==1, Error::<T>::SignerNotFound);
 
             ensure!(!SignerBurnTracker::<T>::contains_key(&signer), Error::<T>::SignerAlreadyConfired);
+            ensure!(!AssetBurnTracker::contains_key(&asset_id), Error::<T>::BurningNotAllowedTwice);
+            AssetBurnTracker::insert(asset_id.clone(),1);
 
             SignerBurnTracker::<T>::insert(signer.clone(),asset_id.clone());
 
