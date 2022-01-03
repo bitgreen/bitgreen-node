@@ -45,6 +45,10 @@ decl_storage! {
         MintRequest get(fn get_mint_request): map hasher(blake2_128_concat) Vec<u8> => Balance;
         MintCounter get(fn get_mint_count): map hasher(blake2_128_concat) Vec<u8> => u32;
         MintConfirmation get(fn get_mint_confirmation): map hasher(blake2_128_concat) Vec<u8> => bool;
+        SignerBurnTracker get(fn get_signer_burn_traker): map hasher(blake2_128_concat) T::AccountId => u32;
+        BurnRequest get(fn get_burn_request): map hasher(blake2_128_concat) Vec<u8> => Balance;
+        BurnCounter get(fn get_burn_count): map hasher(blake2_128_concat) Vec<u8> => u32;
+        BurnConfirmation get(fn get_burn_confirmation): map hasher(blake2_128_concat) Vec<u8> => bool;
     }
 }
 
@@ -59,6 +63,8 @@ decl_event!(
         SettingsDestroyed(Vec<u8>),
         /// Minted
         Minted(AccountId, u32, AccountId, Balance),
+        /// Burned
+        Burned(AccountId, u32, AccountId, Balance),
     }
 );
 
@@ -320,6 +326,60 @@ decl_module! {
             pallet_assets::Module::<T>::mint(RawOrigin::Signed(signer.clone()).into(), asset_id, T::Lookup::unlookup(recipient.clone()), amount)?;
 
             Self::deposit_event(RawEvent::Minted(signer, asset_id, recipient, amount));
+
+            Ok(().into())
+        }
+
+        #[weight = 10_000 + T::DbWeight::get().writes(1)]
+        pub fn burn(origin, token:Vec<u8>,recipient: T::AccountId, transaction_id:Vec<u8>, amount: Balance)-> DispatchResultWithPostInfo {
+            let signer = ensure_signed(origin)?;
+
+            ensure!(Settings::contains_key(&token), Error::<T>::SettingsKeyNotFound);
+            let content: Vec<u8> = Settings::get(&token).unwrap();
+            let asset_id = Self::json_get_value(content.clone(),"assetid".as_bytes().to_vec());
+
+			let asset_id = str::parse::<u32>(sp_std::str::from_utf8(&asset_id).unwrap()).unwrap();
+
+            let mut flag=0;
+            let internal_keepers = Self::json_get_value(content.clone(),"internalkeepers".as_bytes().to_vec());
+            if !internal_keepers.is_empty() {
+                let internal_keepers_vec=bs58::decode(internal_keepers).into_vec().unwrap();
+                let accountid_internal_keepers=T::AccountId::decode(&mut &internal_keepers_vec[1..33]).unwrap_or_default();
+                if signer==accountid_internal_keepers {
+                    flag=1;
+                }
+            }
+            ensure!(flag==1, Error::<T>::SignerNotFound);
+
+            ensure!(!SignerBurnTracker::<T>::contains_key(&signer), Error::<T>::SignerAlreadyConfired);
+
+            SignerBurnTracker::<T>::insert(signer.clone(),asset_id.clone());
+
+            let mut key = signer.encode();
+            key.push(b'-');
+            key.append(&mut token.clone());
+            key.push(b'-');
+            key.append(&mut recipient.encode());
+            key.push(b'-');
+            key.append(&mut transaction_id.clone());
+            BurnRequest::insert(key,amount.clone());
+
+            let mut key = token.clone();
+            key.push(b'-');
+            key.append(&mut recipient.encode());
+            key.push(b'-');
+            key.append(&mut transaction_id.clone());
+
+            BurnCounter::try_mutate(&key, |count| -> DispatchResult {
+				*count += 1;
+				Ok(())
+			})?;
+
+            BurnConfirmation::insert(key,true);
+
+            pallet_assets::Module::<T>::burn(RawOrigin::Signed(recipient.clone()).into(), asset_id, T::Lookup::unlookup(signer.clone()), amount)?;
+
+            Self::deposit_event(RawEvent::Burned(signer, asset_id, recipient, amount));
 
             Ok(().into())
         }
