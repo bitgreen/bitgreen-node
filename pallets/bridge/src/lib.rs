@@ -312,14 +312,11 @@ decl_module! {
         /// The dispatch origin for this call must be `Signed` by the Root.
         #[weight = 10_000 + T::DbWeight::get().writes(1)]
         pub fn destroy_settings(origin, key: Vec<u8>) -> DispatchResult {
-
+            // allow access only to SUDO
             ensure_root(origin)?;
-
             // check whether setting key exists or not
             ensure!(Settings::contains_key(&key), Error::<T>::SettingsKeyNotFound);
-
             Settings::remove(key.clone());
-
             // Generate event
             Self::deposit_event(RawEvent::SettingsDestroyed(key));
             // Return a successful DispatchResult
@@ -327,14 +324,14 @@ decl_module! {
         }
         #[weight = 10_000 + T::DbWeight::get().writes(1)]
         pub fn mint(origin, token:Vec<u8>,recipient: T::AccountId, transaction_id:Vec<u8>, amount: Balance)-> DispatchResultWithPostInfo {
+            // check for a signed transactions
             let signer = ensure_signed(origin)?;
-
+            // check for the token configuration in settings
             ensure!(Settings::contains_key(&token), Error::<T>::SettingsKeyNotFound);
             let content: Vec<u8> = Settings::get(&token).unwrap();
             let asset_id = Self::json_get_value(content.clone(),"assetid".as_bytes().to_vec());
-
 			let asset_id = str::parse::<u32>(sp_std::str::from_utf8(&asset_id).unwrap()).unwrap();
-
+            // check for authorised signer
             let mut flag=0;
             let internal_keepers = Self::json_get_value(content.clone(),"internalkeepers".as_bytes().to_vec());
             if !internal_keepers.is_empty() {
@@ -345,7 +342,7 @@ decl_module! {
                 }
             }
             ensure!(flag==1, Error::<T>::SignerNotFound);
-
+            
             ensure!(!SignerMintTracker::<T>::contains_key(&signer), Error::<T>::SignerAlreadyConfirmed);
 
             SignerMintTracker::<T>::insert(signer.clone(),asset_id.clone());
