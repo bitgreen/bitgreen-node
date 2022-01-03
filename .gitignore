@@ -11,3 +11,5 @@ polkadot.*
 !.rpm/*
 .DS_Store
 .cargo
+./bridges/ethereum/nodes_modules/
+bridges/ethereum/node_modules/*

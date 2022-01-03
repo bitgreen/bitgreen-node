@@ -32,6 +32,8 @@ use codec::Encode;
 use frame_system::RawOrigin;
 use sp_runtime::traits::StaticLookup;
 use frame_support::pallet_prelude::DispatchResultWithPostInfo;
+use core::str;
+use core::str::FromStr;
 
 /// Configure the pallet by specifying the parameters and types on which it depends.
 pub trait Config: frame_system::Config + pallet_assets::Config<AssetId = u32, Balance = u128>{
@@ -111,8 +113,32 @@ decl_error! {
         ExternalThresholdNotFound,
         /// SignerNotFound
         SignerNotFound,
-        /// SignerAlreadyConfired
-        SignerAlreadyConfired,
+        /// The key cannot be shorter of 3 bytes
+        SettingsKeyTooShort,
+        /// The key cannot be longer of 8 bytes
+        SettingsKeyTooLong,
+        /// The internal Threshold should be > 0 and < 99
+        InternalThresholdInvalid,
+        /// The external Threshold should be > 0 and < 99
+        ExternalThresholdInvalid,
+        /// The internal keeper account is wrong
+        InternalKeepersAccountIsWrong,
+        /// The external keeper account is wrong
+        ExternalKeepersAccountIsWrong,
+        /// The number of internal keepers is not matching the threshold
+        InternalKeepersNotMatchingThreshold,
+        /// The number of external keepers is not matching the threshold
+        ExternalKeepersNotMatchingThreshold,
+        /// The internal Whatchdog account is wrong
+        InternalWhatchDogsAccountIsWrong,
+        /// The external Whatchdog account is wrong
+        ExternalWatchddogsAccountIsWrong,
+        /// The internal Watchcat account is wrong
+        InternalWhatchCatsAccountIsWrong,
+        /// The external Watchcat account is wrong
+        ExternalWhatchCatsAccountIsWrong,
+        /// SignerAlreadyConfirmed
+        SignerAlreadyConfirmed,
         /// Can not mint twice
         MintingNotAllowedTwice,
         /// Can not burn twice
@@ -136,9 +162,9 @@ decl_module! {
         /// 	"description": "xxxxxxxxxx", // description of the blockchain
         /// 	"address":"0x......", // address of the smart contract on the external blockchain
         /// 	"assetid": xx // assetid on Bitgreen Blockchain
-        /// 	"internalkeepers":[".....",".....",".....",], // account of the "keepers" delegate to sign the transactions
+        /// 	"internalkeepers":[".....",".....",".....",], // accounts of the "keepers" delegate to sign the transactions
         /// 	"internalthreshold",x, // minimum number of signer to confirm a transaction for Bitgreen blockchain
-        /// 	"externalkeepers":["...",".....",".....",], // account of the "keepers" delegate to sign the transactions
+        /// 	"externalkeepers":["...",".....",".....",], // accounts of the "keepers" delegate to sign the transactions on the other blockchain
         /// 	"externathreshold",x, // minimum number of signer to confirm a transaction on the external blockchain
         /// 	"internalwatchdogs":[".....",".....",".....",], // accounts of the watchdogs account that are enable to fire a lockdown on Bitgreen blockchain
         /// 	"externalwatchdogs":[".....",".....",".....",], // accounts of the watchdogs account that are enable to fire a lockdown on the external blockchain
@@ -149,10 +175,10 @@ decl_module! {
         /// The dispatch origin for this call must be `Signed` by the Root.
         #[weight = 10_000 + T::DbWeight::get().writes(1)]
         pub fn create_settings(origin, key: Vec<u8>, data: Vec<u8>) -> DispatchResult {
-
+            // check access for Sudo
             ensure_root(origin)?;
 
-            //check accounts json length
+            //check data json length
             ensure!(data.len() > 12, Error::<T>::SettingsJsonTooShort);
             ensure!(data.len() < 8192, Error::<T>::SettingsJsonTooLong);
 
@@ -160,31 +186,41 @@ decl_module! {
             let js=data.clone();
             ensure!(Self::json_check_validity(js),Error::<T>::InvalidJson);
 
+            // check whether setting key for minx/max length
+            ensure!(key.len() >= 3, Error::<T>::SettingsKeyTooShort);
+            ensure!(key.len() <=8, Error::<T>::SettingsKeyTooLong);
+
             // check whether setting key already exists
             ensure!(!Settings::contains_key(&key), Error::<T>::SettingsKeyExists);
 
             let chain_id = Self::json_get_value(data.clone(),"chainid".as_bytes().to_vec());
             ensure!(!chain_id.is_empty() , Error::<T>::InvalidChainId);
-
+            ensure!(chain_id=="1".as_bytes().to_vec() ||     // Ethereum
+                    chain_id=="2".as_bytes().to_vec() ||     // Binance
+                    chain_id=="3".as_bytes().to_vec()        // Solana
+                    , Error::<T>::InvalidChainId);
+            // check for description not empty and <64 bytes
 			let description = Self::json_get_value(data.clone(),"description".as_bytes().to_vec());
             ensure!(!description.is_empty() && description.len()<=64 , Error::<T>::InvalidDescription);
-
+            // check for address not empty
             let address = Self::json_get_value(data.clone(),"address".as_bytes().to_vec());
             ensure!(!address.is_empty() , Error::<T>::EmptyAddress);
-
+            // check for asset id validity
             let asset_id = Self::json_get_value(data.clone(),"assetid".as_bytes().to_vec());
-
 			let asset_id = str::parse::<u32>(sp_std::str::from_utf8(&asset_id).unwrap()).unwrap();
-
             // check whether asset exists or not
 			ensure!(Asset::<T>::contains_key(asset_id), Error::<T>::AssetDoesNotExist);
-
+            //check internal threshold
             let internal_threshold = Self::json_get_value(data.clone(),"internalthreshold".as_bytes().to_vec());
             ensure!(!internal_threshold.is_empty() , Error::<T>::InternalThresholdNotFound);
-
+            let itn=vecu8_to_u32(internal_threshold);
+            ensure!(!itn>0 && itn<=99, Error::<T>::InternalThresholdInvalid);
+            //check external threshold
             let external_threshold = Self::json_get_value(data.clone(),"externathreshold".as_bytes().to_vec());
             ensure!(!external_threshold.is_empty() , Error::<T>::ExternalThresholdNotFound);
-
+            let etn=vecu8_to_u32(external_threshold);
+            ensure!(!etn>0  && etn<=99, Error::<T>::ExternalThresholdInvalid);
+            //check internal keepers accounts
             let internalkeepers=Self::json_get_complexarray(data.clone(),"internalkeepers".as_bytes().to_vec());
                 if internalkeepers.len()>=2 {
                     let mut x=0;
@@ -193,10 +229,14 @@ decl_module! {
                         if w.is_empty() {
                             break;
                         }
+                        ensure!(w.len()==48,Error::<T>::InternalKeepersAccountIsWrong);
                         x += 1;
                     }
                     ensure!(x>0,Error::<T>::InternalKeepersNotConfigured);
+                    ensure!(x as u32 == itn,Error::<T>::InternalKeepersNotMatchingThreshold);
+
                 }
+            //check external keepers accounts
             let externalkeepers=Self::json_get_complexarray(data.clone(),"externalkeepers".as_bytes().to_vec());
                 if externalkeepers.len()>=2 {
                     let mut x=0;
@@ -205,11 +245,14 @@ decl_module! {
                         if w.is_empty() {
                             break;
                         }
+                        ensure!(w.len()>=32,Error::<T>::ExternalKeepersAccountIsWrong);
                         x += 1;
                     }
                     ensure!(x>0,Error::<T>::ExternalKeepersNotConfigured);
-                }
+                    ensure!(x as u32 == etn,Error::<T>::ExternalKeepersNotMatchingThreshold);
 
+                }
+            //check internal watchdogs accounts
             let internalwatchdogs=Self::json_get_complexarray(data.clone(),"internalwatchdogs".as_bytes().to_vec());
                 if internalwatchdogs.len()>=2 {
                     let mut x=0;
@@ -218,10 +261,12 @@ decl_module! {
                         if w.is_empty() {
                             break;
                         }
+                        ensure!(w.len()==48,Error::<T>::InternalWhatchDogsAccountIsWrong);
                         x += 1;
                     }
                     ensure!(x>0,Error::<T>::InternalWatchdogsNotConfigured);
                 }
+            //check external watchdogs accounts
             let externalwatchdogs=Self::json_get_complexarray(data.clone(),"externalwatchdogs".as_bytes().to_vec());
                 if externalwatchdogs.len()>=2 {
                     let mut x=0;
@@ -230,11 +275,12 @@ decl_module! {
                         if w.is_empty() {
                             break;
                         }
+                        ensure!(w.len()>=32,Error::<T>::ExternalWatchddogsAccountIsWrong);
                         x += 1;
                     }
                     ensure!(x>0,Error::<T>::ExternalWatchdogsNotConfigured);
                 }
-
+            //check internal watchcats accounts
             let internalwatchcats=Self::json_get_complexarray(data.clone(),"internalwatchcats".as_bytes().to_vec());
                 if internalwatchcats.len()>=2 {
                     let mut x=0;
@@ -243,10 +289,12 @@ decl_module! {
                         if w.is_empty() {
                             break;
                         }
+                        ensure!(w.len()==48,Error::<T>::InternalWhatchCatsAccountIsWrong);
                         x += 1;
                     }
                     ensure!(x>0,Error::<T>::InternalWatchcatsNotConfigured);
                 }
+            //check external watchcats accounts
             let externalwatchcats=Self::json_get_complexarray(data.clone(),"externalwatchcats".as_bytes().to_vec());
                 if externalwatchcats.len()>=2 {
                     let mut x=0;
@@ -255,6 +303,7 @@ decl_module! {
                         if w.is_empty() {
                             break;
                         }
+                        ensure!(w.len()>=32,Error::<T>::ExternalWhatchCatsAccountIsWrong);
                         x += 1;
                     }
                     ensure!(x>0,Error::<T>::ExternalWatchcatsNotConfigured);
@@ -306,7 +355,7 @@ decl_module! {
             }
             ensure!(flag==1, Error::<T>::SignerNotFound);
 
-            ensure!(!SignerMintTracker::<T>::contains_key(&signer), Error::<T>::SignerAlreadyConfired);
+            ensure!(!SignerMintTracker::<T>::contains_key(&signer), Error::<T>::SignerAlreadyConfirmed);
             ensure!(!AssetMintTracker::contains_key(&asset_id), Error::<T>::MintingNotAllowedTwice);
             AssetMintTracker::insert(asset_id.clone(),1);
 
@@ -362,7 +411,7 @@ decl_module! {
             }
             ensure!(flag==1, Error::<T>::SignerNotFound);
 
-            ensure!(!SignerBurnTracker::<T>::contains_key(&signer), Error::<T>::SignerAlreadyConfired);
+            ensure!(!SignerBurnTracker::<T>::contains_key(&signer), Error::<T>::SignerAlreadyConfirmed);
             ensure!(!AssetBurnTracker::contains_key(&asset_id), Error::<T>::BurningNotAllowedTwice);
             AssetBurnTracker::insert(asset_id.clone(),1);
 
@@ -619,3 +668,11 @@ impl<T: Config> Module<T> {
     }
 
 }
+// function to convert vec<u8> to u32
+fn vecu8_to_u32(v: Vec<u8>) -> u32 {
+    let vslice = v.as_slice();
+    let vstr = str::from_utf8(vslice).unwrap_or("0");
+    let vvalue: u32 = u32::from_str(vstr).unwrap_or(0);
+    vvalue
+}
+
