@@ -430,3 +430,35 @@ fn create_settings_should_not_work_for_invalid_json() {
 
 	});
 }
+
+#[test]
+fn destroy_settings_should_work() {
+	new_test_ext().execute_with(|| {
+		assert_ok!(Assets::force_create(Origin::root(), 1, 1, 1, 1));
+		assert_ok!(Bridge::create_settings(Origin::root(), b"BITG".to_vec(), r#"{
+		"chainid":1,
+		"description":"xxxxxxxxxx",
+		"address":"5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY",
+		"assetid":1,
+		"internalthreshold":2,
+		"externathreshold":2,
+		"internalkeepers":["5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY","5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY"],
+		"externalkeepers":["5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY","5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY"],
+		"internalwatchdogs":["5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY","5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY"],
+		"externalwatchdogs":["5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY","5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY"],
+		"internalwatchcats":["5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY","5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY"],
+		"externalwatchcats":["5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY","5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY"]
+		}"#.as_bytes().to_vec()));
+		assert_ok!(Bridge::destroy_settings(Origin::root(), b"BITG".to_vec()));
+	});
+}
+
+#[test]
+fn destroy_settings_should_not_work_for_non_existing_key() {
+	new_test_ext().execute_with(|| {
+		assert_noop!(
+			Bridge::destroy_settings(Origin::root(), b"BITG".to_vec()),
+			Error::<Test>::SettingsKeyNotFound
+		);
+	});
+}
