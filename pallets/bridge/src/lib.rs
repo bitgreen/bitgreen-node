@@ -48,8 +48,7 @@ decl_storage! {
     trait Store for Module<T: Config> as VCUModule {
         /// Settings configuration.
         Settings get(fn get_settings): map hasher(blake2_128_concat) Vec<u8> => Option<Vec<u8>>;
-        SignerMintTracker get(fn get_signer_mint_traker): map hasher(blake2_128_concat) T::AccountId => u32;
-        AssetMintTracker get(fn get_asset_mint_traker): map hasher(blake2_128_concat) u32 => u32;
+        TransactionMintTracker get(fn get_transaction_mint_tracker): double_map hasher(blake2_128_concat) Vec<u8>,hasher(blake2_128_concat) T::AccountId => u32;
         MintRequest get(fn get_mint_request): map hasher(blake2_128_concat) Vec<u8> => Balance;
         MintCounter get(fn get_mint_count): map hasher(blake2_128_concat) Vec<u8> => u32;
         MintConfirmation get(fn get_mint_confirmation): map hasher(blake2_128_concat) Vec<u8> => bool;
@@ -72,6 +71,10 @@ decl_event!(
         SettingsDestroyed(Vec<u8>),
         /// Minted
         Minted(AccountId, u32, AccountId, Balance),
+        /// Minting Request added to the queue
+        MintQueued(AccountId, u32, AccountId, Balance),
+        /// Already minted the same transaction
+        AlreadyMinted(AccountId, u32, AccountId, Balance),
         /// Burned
         Burned(AccountId, u32, AccountId, Balance),
     }
@@ -145,6 +148,12 @@ decl_error! {
         MintingNotAllowedTwice,
         /// Can not burn twice
         BurningNotAllowedTwice,
+        /// Signer is not a keeper account for the assetid
+        SignerIsNotKeeper,
+        /// Amount minting is not matching the first minting request. It can be a serious situation.
+        AmountMintingIsNotMatching,
+        /// Minting has been already confirmed and processed
+        MintingAlreadyConfirmed,
   }
 }
 
@@ -333,6 +342,7 @@ decl_module! {
             // Return a successful DispatchResult
             Ok(())
         }
+        // function to Mint an assetid
         #[weight = 10_000 + T::DbWeight::get().writes(1)]
         pub fn mint(origin, token:Vec<u8>,recipient: T::AccountId, transaction_id:Vec<u8>, amount: Balance)-> DispatchResultWithPostInfo {
             // check for a signed transactions
@@ -340,9 +350,13 @@ decl_module! {
             // check for the token configuration in settings
             ensure!(Settings::contains_key(&token), Error::<T>::SettingsKeyNotFound);
             let content: Vec<u8> = Settings::get(&token).unwrap();
-            let asset_id = Self::json_get_value(content.clone(),"assetid".as_bytes().to_vec());
-			let asset_id = str::parse::<u32>(sp_std::str::from_utf8(&asset_id).unwrap()).unwrap();
-            // check for authorised signer
+            let asset_idv = Self::json_get_value(content.clone(),"assetid".as_bytes().to_vec());
+			let asset_id = vecu8_to_u32(asset_idv);
+            let internalthresholdv = Self::json_get_value(content.clone(),"assetid".as_bytes().to_vec());
+            let internalthreshold = vecu8_to_u32(internalthresholdv);
+
+
+            // check for authorized signer
             let mut flag=0;
             let internal_keepers = Self::json_get_value(content.clone(),"internalkeepers".as_bytes().to_vec());
             if !internal_keepers.is_empty() {
@@ -352,40 +366,59 @@ decl_module! {
                     flag=1;
                 }
             }
-            ensure!(flag==1, Error::<T>::SignerNotFound);
+            ensure!(flag==1, Error::<T>::SignerIsNotKeeper);
+
+            // check for duplicated minting for the same transaction/signer
+            ensure!(!TransactionMintTracker::<T>::contains_key(transaction_id.clone(),&signer), Error::<T>::SignerAlreadyConfirmed);
+            // store minting tracker
+            TransactionMintTracker::<T>::insert(transaction_id.clone(),signer.clone(),asset_id.clone());
             
-            ensure!(!SignerMintTracker::<T>::contains_key(&signer), Error::<T>::SignerAlreadyConfirmed);
-            ensure!(!AssetMintTracker::contains_key(&asset_id), Error::<T>::MintingNotAllowedTwice);
-            AssetMintTracker::insert(asset_id.clone(),1);
-
-            SignerMintTracker::<T>::insert(signer.clone(),asset_id.clone());
-
-            let mut key = signer.encode();
-            key.push(b'-');
-            key.append(&mut token.clone());
+            // storing the minting request if it's not already present
+            let key = &mut token.clone();
             key.push(b'-');
             key.append(&mut recipient.encode());
             key.push(b'-');
             key.append(&mut transaction_id.clone());
-            MintRequest::insert(key,amount.clone());
-
+            if !MintRequest::contains_key(key.clone()) {
+                MintRequest::insert(key.clone(),amount.clone());
+            }else {
+                // when already present 
+                // checking that the amount to mint is the same of the previous one, if does not, we have an Oracle hacked or not updated
+                let am=MintRequest::get(key.clone());
+                ensure!(am==amount,Error::<T>::AmountMintingIsNotMatching);
+            }
+ 
+            // update the counter for the minting requests of the transaction
             let mut key = token.clone();
             key.push(b'-');
             key.append(&mut recipient.encode());
             key.push(b'-');
             key.append(&mut transaction_id.clone());
-
             MintCounter::try_mutate(&key, |count| -> DispatchResult {
 				*count += 1;
 				Ok(())
 			})?;
-
-            MintConfirmation::insert(key,true);
-
-            pallet_assets::Module::<T>::mint(RawOrigin::Signed(signer.clone()).into(), asset_id, T::Lookup::unlookup(recipient.clone()), amount)?;
-
-            Self::deposit_event(RawEvent::Minted(signer, asset_id, recipient, amount));
-
+            // get the number of minting requests
+            let nmr=MintCounter::get(&key);
+            // thresold not reached
+            if nmr<internalthreshold {
+                // generate an event
+                Self::deposit_event(RawEvent::MintQueued(signer, asset_id, recipient, amount));            
+            }
+            else if nmr>internalthreshold {
+                // generate an event
+                Self::deposit_event(RawEvent::AlreadyMinted(signer, asset_id, recipient, amount));            
+            }
+            else if nmr==internalthreshold {
+                // check it's not already confirmed
+                ensure!(!MintConfirmation::contains_key(key.clone()),Error::<T>::MintingAlreadyConfirmed);
+                // store the minting confirmation
+                MintConfirmation::insert(key,true);
+                //minting of the asset_id matching the token configured
+                pallet_assets::Module::<T>::mint(RawOrigin::Signed(signer.clone()).into(), asset_id, T::Lookup::unlookup(recipient.clone()), amount)?;
+                // generate an event
+                Self::deposit_event(RawEvent::Minted(signer, asset_id, recipient, amount));    
+            }
             Ok(().into())
         }
 
