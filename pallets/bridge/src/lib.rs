@@ -52,11 +52,10 @@ decl_storage! {
         MintRequest get(fn get_mint_request): map hasher(blake2_128_concat) Vec<u8> => Balance;
         MintCounter get(fn get_mint_count): map hasher(blake2_128_concat) Vec<u8> => u32;
         MintConfirmation get(fn get_mint_confirmation): map hasher(blake2_128_concat) Vec<u8> => bool;
-        SignerBurnTracker get(fn get_signer_burn_traker): map hasher(blake2_128_concat) T::AccountId => u32;
+        TransactionBurnTracker get(fn get_transaction_burn_tracker): double_map hasher(blake2_128_concat) Vec<u8>,hasher(blake2_128_concat) T::AccountId => u32;
         BurnRequest get(fn get_burn_request): map hasher(blake2_128_concat) Vec<u8> => Balance;
         BurnCounter get(fn get_burn_count): map hasher(blake2_128_concat) Vec<u8> => u32;
         BurnConfirmation get(fn get_burn_confirmation): map hasher(blake2_128_concat) Vec<u8> => bool;
-        AssetBurnTracker get(fn get_asset_burn_traker): map hasher(blake2_128_concat) u32 => u32;
     }
 }
 
@@ -77,6 +76,10 @@ decl_event!(
         AlreadyMinted(AccountId, u32, AccountId, Balance),
         /// Burned
         Burned(AccountId, u32, AccountId, Balance),
+        /// Burning Request added to the queue
+        BurnQueued(AccountId, u32, AccountId, Balance),
+        /// Already burned the same transaction
+        AlreadyBurned(AccountId, u32, AccountId, Balance),
     }
 );
 
@@ -116,8 +119,6 @@ decl_error! {
         InternalThresholdNotFound,
         /// External Threshold NotFound
         ExternalThresholdNotFound,
-        /// SignerNotFound
-        SignerNotFound,
         /// The key cannot be shorter of 3 bytes
         SettingsKeyTooShort,
         /// The key cannot be longer of 8 bytes
@@ -144,16 +145,16 @@ decl_error! {
         ExternalWhatchCatsAccountIsWrong,
         /// SignerAlreadyConfirmed
         SignerAlreadyConfirmed,
-        /// Can not mint twice
-        MintingNotAllowedTwice,
-        /// Can not burn twice
-        BurningNotAllowedTwice,
         /// Signer is not a keeper account for the assetid
         SignerIsNotKeeper,
         /// Amount minting is not matching the first minting request. It can be a serious situation.
         AmountMintingIsNotMatching,
         /// Minting has been already confirmed and processed
         MintingAlreadyConfirmed,
+        /// Burning has been already confirmed and processed
+        BurningAlreadyConfirmed,
+         /// Amount burning is not matching the first burning request. It can be a serious situation.
+        AmountBurningIsNotMatching,
   }
 }
 
@@ -352,20 +353,26 @@ decl_module! {
             let content: Vec<u8> = Settings::get(&token).unwrap();
             let asset_idv = Self::json_get_value(content.clone(),"assetid".as_bytes().to_vec());
 			let asset_id = vecu8_to_u32(asset_idv);
-            let internalthresholdv = Self::json_get_value(content.clone(),"assetid".as_bytes().to_vec());
+            let internalthresholdv = Self::json_get_value(content.clone(),"internalthreshold".as_bytes().to_vec());
             let internalthreshold = vecu8_to_u32(internalthresholdv);
-
 
             // check for authorized signer
             let mut flag=0;
-            let internal_keepers = Self::json_get_value(content.clone(),"internalkeepers".as_bytes().to_vec());
-            if !internal_keepers.is_empty() {
-                let internal_keepers_vec=bs58::decode(internal_keepers).into_vec().unwrap();
-                let accountid_internal_keepers=T::AccountId::decode(&mut &internal_keepers_vec[1..33]).unwrap_or_default();
-                if signer==accountid_internal_keepers {
+            let internal_keepers = Self::json_get_complexarray(content.clone(),"internalkeepers".as_bytes().to_vec());
+            let mut x=0;
+            loop {
+                let internal_keeper= Self::json_get_arrayvalue(internal_keepers.clone(),x);
+                if internal_keeper.is_empty() {
+                    break;
+                }
+                let internal_keepervec=bs58::decode(internal_keeper).into_vec().unwrap();
+                let accountid_internal_keepers=T::AccountId::decode(&mut &internal_keepervec[1..33]).unwrap_or_default();
+                if accountid_internal_keepers==signer {
                     flag=1;
                 }
+                x += 1;
             }
+
             ensure!(flag==1, Error::<T>::SignerIsNotKeeper);
 
             // check for duplicated minting for the same transaction/signer
@@ -428,53 +435,81 @@ decl_module! {
 
             ensure!(Settings::contains_key(&token), Error::<T>::SettingsKeyNotFound);
             let content: Vec<u8> = Settings::get(&token).unwrap();
-            let asset_id = Self::json_get_value(content.clone(),"assetid".as_bytes().to_vec());
+            let asset_idv = Self::json_get_value(content.clone(),"assetid".as_bytes().to_vec());
+			let asset_id = vecu8_to_u32(asset_idv);
+            let internalthresholdv = Self::json_get_value(content.clone(),"internalthreshold".as_bytes().to_vec());
+            let internalthreshold = vecu8_to_u32(internalthresholdv);
 
-			let asset_id = str::parse::<u32>(sp_std::str::from_utf8(&asset_id).unwrap()).unwrap();
-
+            // check for authorized signer
             let mut flag=0;
-            let internal_keepers = Self::json_get_value(content.clone(),"internalkeepers".as_bytes().to_vec());
-            if !internal_keepers.is_empty() {
-                let internal_keepers_vec=bs58::decode(internal_keepers).into_vec().unwrap();
-                let accountid_internal_keepers=T::AccountId::decode(&mut &internal_keepers_vec[1..33]).unwrap_or_default();
-                if signer==accountid_internal_keepers {
+            let internal_keepers = Self::json_get_complexarray(content.clone(),"internalkeepers".as_bytes().to_vec());
+            let mut x=0;
+            loop {
+                let internal_keeper= Self::json_get_arrayvalue(internal_keepers.clone(),x);
+                if internal_keeper.is_empty() {
+                    break;
+                }
+                let internal_keepervec=bs58::decode(internal_keeper).into_vec().unwrap();
+                let accountid_internal_keepers=T::AccountId::decode(&mut &internal_keepervec[1..33]).unwrap_or_default();
+                if accountid_internal_keepers==signer {
                     flag=1;
                 }
+                x += 1;
             }
-            ensure!(flag==1, Error::<T>::SignerNotFound);
+            ensure!(flag==1, Error::<T>::SignerIsNotKeeper);
 
-            ensure!(!SignerBurnTracker::<T>::contains_key(&signer), Error::<T>::SignerAlreadyConfirmed);
-            ensure!(!AssetBurnTracker::contains_key(&asset_id), Error::<T>::BurningNotAllowedTwice);
-            AssetBurnTracker::insert(asset_id.clone(),1);
+            // check for duplicated burning for the same transaction/signer
+            ensure!(!TransactionBurnTracker::<T>::contains_key(transaction_id.clone(),&signer), Error::<T>::SignerAlreadyConfirmed);
+            // store burning tracker
+            TransactionBurnTracker::<T>::insert(transaction_id.clone(),signer.clone(),asset_id.clone());
 
-            SignerBurnTracker::<T>::insert(signer.clone(),asset_id.clone());
-
-            let mut key = signer.encode();
-            key.push(b'-');
-            key.append(&mut token.clone());
+            // storing the burning request if it's not already present
+            let key = &mut token.clone();
             key.push(b'-');
             key.append(&mut recipient.encode());
             key.push(b'-');
             key.append(&mut transaction_id.clone());
-            BurnRequest::insert(key,amount.clone());
+            if !BurnRequest::contains_key(key.clone()) {
+                BurnRequest::insert(key.clone(),amount.clone());
+            }else {
+                // when already present
+                // checking that the amount to burn is the same of the previous one, if does not, we have an Oracle hacked or not updated
+                let am=BurnRequest::get(key.clone());
+                ensure!(am==amount,Error::<T>::AmountBurningIsNotMatching);
+            }
 
+            // update the counter for the minting requests of the transaction
             let mut key = token.clone();
             key.push(b'-');
             key.append(&mut recipient.encode());
             key.push(b'-');
             key.append(&mut transaction_id.clone());
-
             BurnCounter::try_mutate(&key, |count| -> DispatchResult {
 				*count += 1;
 				Ok(())
 			})?;
 
-            BurnConfirmation::insert(key,true);
-
-            pallet_assets::Module::<T>::burn(RawOrigin::Signed(recipient.clone()).into(), asset_id, T::Lookup::unlookup(signer.clone()), amount)?;
-
-            Self::deposit_event(RawEvent::Burned(signer, asset_id, recipient, amount));
-
+            // get the number of burning requests
+            let nmr=BurnCounter::get(&key);
+            // thresold not reached
+            if nmr<internalthreshold {
+                // generate an event
+                Self::deposit_event(RawEvent::BurnQueued(signer, asset_id, recipient, amount));
+            }
+            else if nmr>internalthreshold {
+                // generate an event
+                Self::deposit_event(RawEvent::AlreadyBurned(signer, asset_id, recipient, amount));
+            }
+            else if nmr==internalthreshold {
+                // check it's not already confirmed
+                ensure!(!BurnConfirmation::contains_key(key.clone()),Error::<T>::BurningAlreadyConfirmed);
+                // store the BurnConfirmation
+                BurnConfirmation::insert(key,true);
+                //burning of the asset_id matching the token configured
+                pallet_assets::Module::<T>::burn(RawOrigin::Signed(recipient.clone()).into(), asset_id, T::Lookup::unlookup(signer.clone()), amount)?;
+                // generate an event
+                Self::deposit_event(RawEvent::Burned(signer, asset_id, recipient, amount));
+            }
             Ok(().into())
         }
     }
@@ -695,6 +730,41 @@ impl<T: Config> Module<T> {
                 }
                 break;
             }
+        }
+        result
+    }
+
+    // function to get a field value from array field [1,2,3,4,100], it returns an empty Vec when the records is not present
+    fn json_get_arrayvalue(ar:Vec<u8>,p:i32) -> Vec<u8> {
+        let mut result=Vec::new();
+        let mut op=true;
+        let mut cn=0;
+        let mut lb=b' ';
+        for b in ar {
+            if b==b',' && op {
+                cn += 1;
+                continue;
+            }
+            if b==b'[' && op && lb!=b'\\' {
+                continue;
+            }
+            if b==b']' && op && lb!=b'\\' {
+                continue;
+            }
+            if b==b'"' && op && lb!=b'\\' {
+                continue;
+            }
+            if b==b'"' && op && lb!=b'\\' {
+                op=false;
+            }
+            if b==b'"' && !op && lb!=b'\\' {
+                op=true;
+            }
+            // field found
+            if cn==p {
+                result.push(b);
+            }
+            lb= b;
         }
         result
     }
