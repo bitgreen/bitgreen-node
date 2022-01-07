@@ -36,6 +36,7 @@ use sp_runtime::traits::StaticLookup;
 use frame_support::pallet_prelude::DispatchResultWithPostInfo;
 use core::str;
 use core::str::FromStr;
+use sp_std::cmp::Ordering;
 
 /// Configure the pallet by specifying the parameters and types on which it depends.
 pub trait Config: frame_system::Config + pallet_assets::Config<AssetId = u32, Balance = u128>{
@@ -358,7 +359,7 @@ decl_module! {
 
             // check for authorized signer
             let mut flag=0;
-            let internal_keepers = Self::json_get_complexarray(content.clone(),"internalkeepers".as_bytes().to_vec());
+            let internal_keepers = Self::json_get_complexarray(content,"internalkeepers".as_bytes().to_vec());
             let mut x=0;
             loop {
                 let internal_keeper= Self::json_get_arrayvalue(internal_keepers.clone(),x);
@@ -378,7 +379,7 @@ decl_module! {
             // check for duplicated minting for the same transaction/signer
             ensure!(!TransactionMintTracker::<T>::contains_key(transaction_id.clone(),&signer), Error::<T>::SignerAlreadyConfirmed);
             // store minting tracker
-            TransactionMintTracker::<T>::insert(transaction_id.clone(),signer.clone(),asset_id.clone());
+            TransactionMintTracker::<T>::insert(transaction_id.clone(),signer.clone(),asset_id);
             
             // storing the minting request if it's not already present
             let key = &mut token.clone();
@@ -387,7 +388,7 @@ decl_module! {
             key.push(b'-');
             key.append(&mut transaction_id.clone());
             if !MintRequest::contains_key(key.clone()) {
-                MintRequest::insert(key.clone(),amount.clone());
+                MintRequest::insert(key.clone(),amount);
             }else {
                 // when already present 
                 // checking that the amount to mint is the same of the previous one, if does not, we have an Oracle hacked or not updated
@@ -396,7 +397,7 @@ decl_module! {
             }
  
             // update the counter for the minting requests of the transaction
-            let mut key = token.clone();
+            let mut key = token;
             key.push(b'-');
             key.append(&mut recipient.encode());
             key.push(b'-');
@@ -408,24 +409,21 @@ decl_module! {
             // get the number of minting requests
             let nmr=MintCounter::get(&key);
             // thresold not reached
-            if nmr<internalthreshold {
-                // generate an event
-                Self::deposit_event(RawEvent::MintQueued(signer, asset_id, recipient, amount));            
-            }
-            else if nmr>internalthreshold {
-                // generate an event
-                Self::deposit_event(RawEvent::AlreadyMinted(signer, asset_id, recipient, amount));            
-            }
-            else if nmr==internalthreshold {
-                // check it's not already confirmed
-                ensure!(!MintConfirmation::contains_key(key.clone()),Error::<T>::MintingAlreadyConfirmed);
-                // store the minting confirmation
-                MintConfirmation::insert(key,true);
-                //minting of the asset_id matching the token configured
-                pallet_assets::Module::<T>::mint(RawOrigin::Signed(signer.clone()).into(), asset_id, T::Lookup::unlookup(recipient.clone()), amount)?;
-                // generate an event
-                Self::deposit_event(RawEvent::Minted(signer, asset_id, recipient, amount));    
-            }
+            match nmr.cmp(&internalthreshold) {
+                Ordering::Less => Self::deposit_event(RawEvent::MintQueued(signer, asset_id, recipient, amount)),
+                Ordering::Greater => Self::deposit_event(RawEvent::AlreadyMinted(signer, asset_id, recipient, amount)),
+                Ordering::Equal => {
+                    // check it's not already confirmed
+                    ensure!(!MintConfirmation::contains_key(key.clone()),Error::<T>::MintingAlreadyConfirmed);
+                    // store the minting confirmation
+                    MintConfirmation::insert(key,true);
+                    //minting of the asset_id matching the token configured
+                    pallet_assets::Module::<T>::mint(RawOrigin::Signed(signer.clone()).into(), asset_id, T::Lookup::unlookup(recipient.clone()), amount)?;
+                    // generate an event
+                    Self::deposit_event(RawEvent::Minted(signer, asset_id, recipient, amount))
+                },
+            };
+
             Ok(().into())
         }
 
@@ -442,7 +440,7 @@ decl_module! {
 
             // check for authorized signer
             let mut flag=0;
-            let internal_keepers = Self::json_get_complexarray(content.clone(),"internalkeepers".as_bytes().to_vec());
+            let internal_keepers = Self::json_get_complexarray(content,"internalkeepers".as_bytes().to_vec());
             let mut x=0;
             loop {
                 let internal_keeper= Self::json_get_arrayvalue(internal_keepers.clone(),x);
@@ -461,7 +459,7 @@ decl_module! {
             // check for duplicated burning for the same transaction/signer
             ensure!(!TransactionBurnTracker::<T>::contains_key(transaction_id.clone(),&signer), Error::<T>::SignerAlreadyConfirmed);
             // store burning tracker
-            TransactionBurnTracker::<T>::insert(transaction_id.clone(),signer.clone(),asset_id.clone());
+            TransactionBurnTracker::<T>::insert(transaction_id.clone(),signer.clone(),asset_id);
 
             // storing the burning request if it's not already present
             let key = &mut token.clone();
@@ -470,7 +468,7 @@ decl_module! {
             key.push(b'-');
             key.append(&mut transaction_id.clone());
             if !BurnRequest::contains_key(key.clone()) {
-                BurnRequest::insert(key.clone(),amount.clone());
+                BurnRequest::insert(key.clone(),amount);
             }else {
                 // when already present
                 // checking that the amount to burn is the same of the previous one, if does not, we have an Oracle hacked or not updated
@@ -479,7 +477,7 @@ decl_module! {
             }
 
             // update the counter for the minting requests of the transaction
-            let mut key = token.clone();
+            let mut key = token;
             key.push(b'-');
             key.append(&mut recipient.encode());
             key.push(b'-');
@@ -491,25 +489,21 @@ decl_module! {
 
             // get the number of burning requests
             let nmr=BurnCounter::get(&key);
-            // thresold not reached
-            if nmr<internalthreshold {
-                // generate an event
-                Self::deposit_event(RawEvent::BurnQueued(signer, asset_id, recipient, amount));
-            }
-            else if nmr>internalthreshold {
-                // generate an event
-                Self::deposit_event(RawEvent::AlreadyBurned(signer, asset_id, recipient, amount));
-            }
-            else if nmr==internalthreshold {
-                // check it's not already confirmed
-                ensure!(!BurnConfirmation::contains_key(key.clone()),Error::<T>::BurningAlreadyConfirmed);
-                // store the BurnConfirmation
-                BurnConfirmation::insert(key,true);
-                //burning of the asset_id matching the token configured
-                pallet_assets::Module::<T>::burn(RawOrigin::Signed(recipient.clone()).into(), asset_id, T::Lookup::unlookup(signer.clone()), amount)?;
-                // generate an event
-                Self::deposit_event(RawEvent::Burned(signer, asset_id, recipient, amount));
-            }
+            match nmr.cmp(&internalthreshold) {
+                Ordering::Less => Self::deposit_event(RawEvent::BurnQueued(signer, asset_id, recipient, amount)),
+                Ordering::Greater => Self::deposit_event(RawEvent::AlreadyBurned(signer, asset_id, recipient, amount)),
+                Ordering::Equal => {
+                    // check it's not already confirmed
+                    ensure!(!BurnConfirmation::contains_key(key.clone()),Error::<T>::BurningAlreadyConfirmed);
+                    // store the BurnConfirmation
+                    BurnConfirmation::insert(key,true);
+                    //burning of the asset_id matching the token configured
+                    pallet_assets::Module::<T>::burn(RawOrigin::Signed(recipient.clone()).into(), asset_id, T::Lookup::unlookup(signer.clone()), amount)?;
+                    // generate an event
+                    Self::deposit_event(RawEvent::Burned(signer, asset_id, recipient, amount));
+                },
+            };
+
             Ok(().into())
         }
     }
