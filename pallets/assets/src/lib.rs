@@ -1022,7 +1022,7 @@ pub struct AssetDetails<
 	DepositBalance: Encode + Decode + Clone + Debug + Eq + PartialEq,
 > {
 	/// Can change `owner`, `issuer`, `freezer` and `admin` accounts.
-	owner: AccountId,
+	pub owner: AccountId,
 	/// Can mint tokens.
 	issuer: AccountId,
 	/// Can thaw tokens, force transfers and burn tokens from any account.

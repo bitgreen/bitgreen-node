@@ -418,7 +418,8 @@ decl_module! {
                     // store the minting confirmation
                     MintConfirmation::insert(key,true);
                     //minting of the asset_id matching the token configured
-                    pallet_assets::Module::<T>::mint(RawOrigin::Signed(signer.clone()).into(), asset_id, T::Lookup::unlookup(recipient.clone()), amount)?;
+                    let asset_owner = Asset::<T>::get(asset_id).unwrap().owner;
+                    pallet_assets::Module::<T>::mint(RawOrigin::Signed(asset_owner).into(), asset_id, T::Lookup::unlookup(recipient.clone()), amount)?;
                     // generate an event
                     Self::deposit_event(RawEvent::Minted(signer, asset_id, recipient, amount))
                 },
@@ -498,7 +499,8 @@ decl_module! {
                     // store the BurnConfirmation
                     BurnConfirmation::insert(key,true);
                     //burning of the asset_id matching the token configured
-                    pallet_assets::Module::<T>::burn(RawOrigin::Signed(recipient.clone()).into(), asset_id, T::Lookup::unlookup(signer.clone()), amount)?;
+                    let asset_owner = Asset::<T>::get(asset_id).unwrap().owner;
+                    pallet_assets::Module::<T>::burn(RawOrigin::Signed(asset_owner.clone()).into(), asset_id, T::Lookup::unlookup(recipient.clone()), amount)?;
                     // generate an event
                     Self::deposit_event(RawEvent::Burned(signer, asset_id, recipient, amount));
                 },
