@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-// contract to manage the Inherit Actions
+// contract to manage the Bitgreen-Bridge
 pragma solidity ^0.8.11;
 contract BitgreenBridge {
     // settings storage
@@ -33,6 +33,7 @@ contract BitgreenBridge {
      */
     function configurationKeepers(address [] memory Keepers) public {
         require(msg.sender == owner,"Function accessible only to owner");
+        require(lockdown==false,"contract in lockdown, please try later");
         uint i=0;
         // store state
         for(i=0;i<20;i++){
@@ -45,6 +46,7 @@ contract BitgreenBridge {
      */
     function configurationWatchdogs(address [] memory Watchdogs) public {
         require(msg.sender == owner,"Function accessible only to owner");
+        require(lockdown==false,"contract in lockdown, please try later");
         uint i=0;
         // store state
         for(i=0;i<5;i++){
@@ -57,6 +59,7 @@ contract BitgreenBridge {
      */
     function configurationWatchcats(address [] memory Watchcats) public {
         require(msg.sender == owner,"Function accessible only to owner");
+        require(lockdown==false,"contract in lockdown, please try later");
         uint i=0;
         // store state
         for(i=0;i<5;i++){
@@ -77,6 +80,7 @@ contract BitgreenBridge {
      */
     function transferOwnership(address payable newOwner) public {
         require(msg.sender == owner);
+        require(lockdown==false,"contract in lockdown, please try later");
         owner = newOwner;
     }
     // functiont to receive deposit of native token
@@ -94,6 +98,9 @@ contract BitgreenBridge {
      * @param erc20 is the address of the erc20 contract (optional)
      */
     function transfer(bytes32 txid,address payable recipient, uint amount,address payable erc20) public {
+        // check for lockdown
+        require(lockdown==false,"contract in lockdown, please try later");
+
         bool execute=false;
         uint8 i;
         // check for keepers
@@ -158,7 +165,7 @@ contract BitgreenBridge {
      */
     function unsetLockdown() public {
         // check for owner
-        require (msg.sender == owner);
+        require (msg.sender == owner,"Function accessible only to owner");
         // unset the lockdown 
         lockdown=false;
     }
@@ -200,14 +207,6 @@ interface IERC20 {
      * @dev Sets `amount` as the allowance of `spender` over the caller's tokens.
      *
      * Returns a boolean value indicating whether the operation succeeded.
-     *
-     * IMPORTANT: Beware that changing an allowance with this method brings the risk
-     * that someone may use both the old and the new allowance by unfortunate
-     * transaction ordering. One possible solution to mitigate this race
-     * condition is to first reduce the spender's allowance to 0 and set the
-     * desired value afterwards:
-     * https://github.com/ethereum/EIPs/issues/20#issuecomment-263524729
-     *
      * Emits an {Approval} event.
      */
     function approve(address spender, uint256 amount) external returns (bool);
