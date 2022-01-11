@@ -1,0 +1,271 @@
+{
+	"compiler": {
+		"version": "0.8.11+commit.d7f03943"
+	},
+	"language": "Solidity",
+	"output": {
+		"abi": [
+			{
+				"inputs": [],
+				"stateMutability": "payable",
+				"type": "constructor"
+			},
+			{
+				"inputs": [
+					{
+						"internalType": "address[]",
+						"name": "Keepers",
+						"type": "address[]"
+					}
+				],
+				"name": "configurationKeepers",
+				"outputs": [],
+				"stateMutability": "nonpayable",
+				"type": "function"
+			},
+			{
+				"inputs": [
+					{
+						"internalType": "uint8",
+						"name": "Threshold",
+						"type": "uint8"
+					}
+				],
+				"name": "configurationThreshold",
+				"outputs": [],
+				"stateMutability": "nonpayable",
+				"type": "function"
+			},
+			{
+				"inputs": [
+					{
+						"internalType": "address[]",
+						"name": "Watchcats",
+						"type": "address[]"
+					}
+				],
+				"name": "configurationWatchcats",
+				"outputs": [],
+				"stateMutability": "nonpayable",
+				"type": "function"
+			},
+			{
+				"inputs": [
+					{
+						"internalType": "address[]",
+						"name": "Watchdogs",
+						"type": "address[]"
+					}
+				],
+				"name": "configurationWatchdogs",
+				"outputs": [],
+				"stateMutability": "nonpayable",
+				"type": "function"
+			},
+			{
+				"inputs": [],
+				"name": "deposit",
+				"outputs": [],
+				"stateMutability": "payable",
+				"type": "function"
+			},
+			{
+				"inputs": [],
+				"name": "getBalance",
+				"outputs": [
+					{
+						"internalType": "uint256",
+						"name": "",
+						"type": "uint256"
+					}
+				],
+				"stateMutability": "view",
+				"type": "function"
+			},
+			{
+				"inputs": [],
+				"name": "owner",
+				"outputs": [
+					{
+						"internalType": "address payable",
+						"name": "",
+						"type": "address"
+					}
+				],
+				"stateMutability": "view",
+				"type": "function"
+			},
+			{
+				"inputs": [],
+				"name": "setLockdown",
+				"outputs": [],
+				"stateMutability": "nonpayable",
+				"type": "function"
+			},
+			{
+				"inputs": [
+					{
+						"internalType": "bytes32",
+						"name": "txid",
+						"type": "bytes32"
+					},
+					{
+						"internalType": "address payable",
+						"name": "recipient",
+						"type": "address"
+					},
+					{
+						"internalType": "uint256",
+						"name": "amount",
+						"type": "uint256"
+					},
+					{
+						"internalType": "address payable",
+						"name": "erc20",
+						"type": "address"
+					}
+				],
+				"name": "transfer",
+				"outputs": [],
+				"stateMutability": "nonpayable",
+				"type": "function"
+			},
+			{
+				"inputs": [
+					{
+						"internalType": "address payable",
+						"name": "newOwner",
+						"type": "address"
+					}
+				],
+				"name": "transferOwnership",
+				"outputs": [],
+				"stateMutability": "nonpayable",
+				"type": "function"
+			},
+			{
+				"inputs": [
+					{
+						"internalType": "bytes32",
+						"name": "",
+						"type": "bytes32"
+					}
+				],
+				"name": "txqueue",
+				"outputs": [
+					{
+						"internalType": "address payable",
+						"name": "recipient",
+						"type": "address"
+					},
+					{
+						"internalType": "uint256",
+						"name": "amount",
+						"type": "uint256"
+					},
+					{
+						"internalType": "uint8",
+						"name": "cnt",
+						"type": "uint8"
+					},
+					{
+						"internalType": "address",
+						"name": "erc20",
+						"type": "address"
+					}
+				],
+				"stateMutability": "view",
+				"type": "function"
+			},
+			{
+				"inputs": [],
+				"name": "unsetLockdown",
+				"outputs": [],
+				"stateMutability": "nonpayable",
+				"type": "function"
+			}
+		],
+		"devdoc": {
+			"kind": "dev",
+			"methods": {
+				"configurationKeepers(address[])": {
+					"details": "store configuration  for Keepers",
+					"params": {
+						"Keepers": "is an array of address of the allowed keepers of the bridge transactions"
+					}
+				},
+				"configurationThreshold(uint8)": {
+					"details": "store configuration of the minimum threshold to reach a consensus on the transaction",
+					"params": {
+						"Threshold": "is the minimum number of \"votes\" from Keepers to execute a transaction"
+					}
+				},
+				"configurationWatchcats(address[])": {
+					"details": "store configuration for Watchcats",
+					"params": {
+						"Watchcats": "is an array of address of the accounts allowed to lockdown the bridge when a transaction is in the pool mem"
+					}
+				},
+				"configurationWatchdogs(address[])": {
+					"details": "store configuration for Watchdogs",
+					"params": {
+						"Watchdogs": "is an array of address of the accounts allowed to lockdown the bridge when a transaction arrives"
+					}
+				},
+				"setLockdown()": {
+					"details": "set lockdown of the operation, enabled for watchdogs, watchcats and owner"
+				},
+				"transfer(bytes32,address,uint256,address)": {
+					"details": "transfer native tokens to a recipient",
+					"params": {
+						"amount": "is a payable address",
+						"erc20": "is the address of the erc20 contract (optional)",
+						"recipient": "is a payable address",
+						"txid": "is the transaction id, it should be unique"
+					}
+				},
+				"transferOwnership(address)": {
+					"details": "transfer ownership",
+					"params": {
+						"newOwner": "is the address wished as new owner"
+					}
+				},
+				"unsetLockdown()": {
+					"details": "unset lockdown of the operation, enabled for owner only"
+				}
+			},
+			"version": 1
+		},
+		"userdoc": {
+			"kind": "user",
+			"methods": {},
+			"version": 1
+		}
+	},
+	"settings": {
+		"compilationTarget": {
+			"contracts/BitgreenBridge.sol": "BitgreenBridge"
+		},
+		"evmVersion": "london",
+		"libraries": {},
+		"metadata": {
+			"bytecodeHash": "ipfs"
+		},
+		"optimizer": {
+			"enabled": false,
+			"runs": 200
+		},
+		"remappings": []
+	},
+	"sources": {
+		"contracts/BitgreenBridge.sol": {
+			"keccak256": "0x51e6ebc121307c6b3453f4c6c5cc6936f26e52c42b2018bf4c96fac491baa348",
+			"license": "MIT",
+			"urls": [
+				"bzz-raw://ee7202fdeda8e78d8f165a4bede68282858747fec47564e572e7d3ab525386b9",
+				"dweb:/ipfs/QmegTvLoySnq82Zt4VMMQT6HUB4642ZKEWTKweKnW9xTtw"
+			]
+		}
+	},
+	"version": 1
+}
