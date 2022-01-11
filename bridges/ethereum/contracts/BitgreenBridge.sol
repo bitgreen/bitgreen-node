@@ -100,7 +100,7 @@ contract BitgreenBridge {
     function transfer(bytes32 txid,address payable recipient, uint amount,address payable erc20) public {
         // check for lockdown
         require(lockdown==false,"contract in lockdown, please try later");
-
+        require(txqueue[txid].cnt<threshold,"Transction already executed");    // save gas fees once the consensus is reached
         bool execute=false;
         uint8 i;
         // check for keepers
