@@ -3,9 +3,9 @@
 pragma solidity ^0.8.11;
 contract BitgreenBridge {
     // settings storage
-    address [20] keepers;
-    address [5] watchdogs;
-    address [5] watchcats;
+    address [10] keepers;
+    address [3] watchdogs;
+    address [3] watchcats;
     uint8 threshold;
     // address of the owner of the contract (the one allowed to change the settings)
     address payable public owner;
@@ -31,12 +31,12 @@ contract BitgreenBridge {
      * @dev store configuration  for Keepers
      * @param Keepers is an array of address of the allowed keepers of the bridge transactions
      */
-    function configurationKeepers(address [] memory Keepers) public {
+    function configurationKeepers(address [10] memory Keepers) public {
         require(msg.sender == owner,"Function accessible only to owner");
         require(lockdown==false,"contract in lockdown, please try later");
         uint i=0;
         // store state
-        for(i=0;i<20;i++){
+        for(i=0;i<10;i++){
             if(Keepers[i]==address(0)){
                 break;
             }
@@ -47,12 +47,12 @@ contract BitgreenBridge {
      * @dev store configuration for Watchdogs
      * @param Watchdogs is an array of address of the accounts allowed to lockdown the bridge when a transaction arrives
      */
-    function configurationWatchdogs(address [] memory Watchdogs) public {
+    function configurationWatchdogs(address [3] memory Watchdogs) public {
         require(msg.sender == owner,"Function accessible only to owner");
         require(lockdown==false,"contract in lockdown, please try later");
         uint i=0;
         // store state
-        for(i=0;i<5;i++){
+        for(i=0;i<3;i++){
             if(Watchdogs[i]==address(0)){
                 break;
             }
@@ -63,12 +63,12 @@ contract BitgreenBridge {
      * @dev store configuration for Watchcats
      * @param Watchcats is an array of address of the accounts allowed to lockdown the bridge when a transaction is in the pool mem
      */
-    function configurationWatchcats(address [] memory Watchcats) public {
+    function configurationWatchcats(address [3] memory Watchcats) public {
         require(msg.sender == owner,"Function accessible only to owner");
         require(lockdown==false,"contract in lockdown, please try later");
         uint i=0;
         // store state
-        for(i=0;i<5;i++){
+        for(i=0;i<3;i++){
             if(Watchcats[i]==address(0)){
                 break;
             }
@@ -155,13 +155,13 @@ contract BitgreenBridge {
         }
         uint8 i;
         // check for watchdogs
-        for(i=0;i<5;i++) {
+        for(i=0;i<3;i++) {
             if(watchdogs[i]==msg.sender){
                 execute=true;
             }
         }
         // check for watchcats
-        for(i=0;i<5;i++) {
+        for(i=0;i<3;i++) {
             if(watchcats[i]==msg.sender){
                 execute=true;
             }
@@ -193,19 +193,19 @@ contract BitgreenBridge {
     /**
      * @dev return the Keepers Addresses configured
      */
-    function getKeepers() public view returns(address[20] memory){
+    function getKeepers() public view returns(address[10] memory){
         return keepers ;
     }
     /**
      * @dev return the Watchdogs Addressesconfigured
      */
-    function getWatchdogs() public view returns(address[5] memory){
+    function getWatchdogs() public view returns(address[3] memory){
         return watchdogs ;
     }
     /**
      * @dev return the Watchdogs Addressesconfigured
      */
-    function getWatchcats() public view returns(address[5] memory){
+    function getWatchcats() public view returns(address[3] memory){
         return watchcats ;
     }
 
