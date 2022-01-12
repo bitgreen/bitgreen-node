@@ -10,7 +10,7 @@ contract BitgreenBridge {
     // address of the owner of the contract (the one allowed to change the settings)
     address payable public owner;
     // lockdown 
-    bool lockdown;
+    bool public lockdown;
     // transaction queue structure
     struct transactionqueue {
         address payable recipient;      // recipient of the transaction
@@ -37,6 +37,9 @@ contract BitgreenBridge {
         uint i=0;
         // store state
         for(i=0;i<20;i++){
+            if(Keepers[i]==address(0)){
+                break;
+            }
             keepers[i]=Keepers[i];
         }
     }
@@ -50,6 +53,9 @@ contract BitgreenBridge {
         uint i=0;
         // store state
         for(i=0;i<5;i++){
+            if(Watchdogs[i]==address(0)){
+                break;
+            }
             watchdogs[i]=Watchdogs[i];
         }
     }
@@ -63,6 +69,9 @@ contract BitgreenBridge {
         uint i=0;
         // store state
         for(i=0;i<5;i++){
+            if(Watchcats[i]==address(0)){
+                break;
+            }
             watchcats[i]=Watchcats[i];
         }
     }
@@ -168,6 +177,36 @@ contract BitgreenBridge {
         require (msg.sender == owner,"Function accessible only to owner");
         // unset the lockdown 
         lockdown=false;
+    }
+    /**
+     * @dev return the status of the lookdown true/false
+     */
+    function getLockdown() public view returns(bool){
+        return lockdown;
+    }
+    /**
+     * @dev return the threshold configured for the voting of the transactions
+     */
+    function getThreshold() public view returns(uint8){
+        return threshold;
+    }
+    /**
+     * @dev return the Keepers Addresses configured
+     */
+    function getKeepers() public view returns(address[20] memory){
+        return keepers ;
+    }
+    /**
+     * @dev return the Watchdogs Addressesconfigured
+     */
+    function getWatchdogs() public view returns(address[5] memory){
+        return watchdogs ;
+    }
+    /**
+     * @dev return the Watchdogs Addressesconfigured
+     */
+    function getWatchcats() public view returns(address[5] memory){
+        return watchcats ;
     }
 
 }
