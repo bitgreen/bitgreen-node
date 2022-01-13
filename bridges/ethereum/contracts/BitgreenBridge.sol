@@ -19,6 +19,14 @@ contract BitgreenBridge {
         address erc20;                  // address of the ERC20 contract (optional)
     }
     mapping( bytes32 => transactionqueue ) public txqueue;
+    // % of withdrawal fees (18 decimals)
+    uint256 public withdrawalfees;
+    // minimum amount of withdrawal fees (18 decimals)
+    uint256 public minimumwithdrawalfees;
+    // balance of withdrawal fees
+    uint256 public balancewithdrawalfees;
+    // voting transaction logs of keepers activity
+    mapping( bytes32 => mapping(address => bool)) public txvotes;
 
 
     // set the owner to the creator of the contract, ownership can be changed calling transferOwnership()
@@ -31,7 +39,7 @@ contract BitgreenBridge {
      * @dev store configuration  for Keepers
      * @param Keepers is an array of address of the allowed keepers of the bridge transactions
      */
-    function configurationKeepers(address [10] memory Keepers) public {
+    function setKeepers(address [10] memory Keepers) public {
         require(msg.sender == owner,"Function accessible only to owner");
         require(lockdown==false,"contract in lockdown, please try later");
         uint i=0;
@@ -47,7 +55,7 @@ contract BitgreenBridge {
      * @dev store configuration for Watchdogs
      * @param Watchdogs is an array of address of the accounts allowed to lockdown the bridge when a transaction arrives
      */
-    function configurationWatchdogs(address [3] memory Watchdogs) public {
+    function setWatchdogs(address [3] memory Watchdogs) public {
         require(msg.sender == owner,"Function accessible only to owner");
         require(lockdown==false,"contract in lockdown, please try later");
         uint i=0;
@@ -63,7 +71,7 @@ contract BitgreenBridge {
      * @dev store configuration for Watchcats
      * @param Watchcats is an array of address of the accounts allowed to lockdown the bridge when a transaction is in the pool mem
      */
-    function configurationWatchcats(address [3] memory Watchcats) public {
+    function setWatchcats(address [3] memory Watchcats) public {
         require(msg.sender == owner,"Function accessible only to owner");
         require(lockdown==false,"contract in lockdown, please try later");
         uint i=0;
@@ -79,9 +87,25 @@ contract BitgreenBridge {
      * @dev store configuration of the minimum threshold to reach a consensus on the transaction
      * @param Threshold is the minimum number of "votes" from Keepers to execute a transaction
      */
-    function configurationThreshold(uint8 Threshold) public {
+    function setThreshold(uint8 Threshold) public {
         require(msg.sender == owner,"Function accessible only to owner");
         threshold=Threshold;
+    }
+    /**
+     * @dev store configuration of the  withdrawal fees
+     * @param Withdrawalfees is the minimum number of "votes" from Keepers to execute a transaction
+     */
+    function setWithDrawalFews(uint256 Withdrawalfees) public {
+        require(msg.sender == owner,"Function accessible only to owner");
+        withdrawalfees=Withdrawalfees;
+    }
+    /**
+     * @dev store configuration of the minimum withdrawal fees
+     * @param Minimumwithdrawalfees is the minimum number of "votes" from Keepers to execute a transaction
+     */
+    function setMinimumWithDrawalFees(uint256 Minimumwithdrawalfees) public {
+        require(msg.sender == owner,"Function accessible only to owner");
+        minimumwithdrawalfees=Minimumwithdrawalfees;
     }
     /**
      * @dev transfer ownership
@@ -113,25 +137,46 @@ contract BitgreenBridge {
         bool execute=false;
         uint8 i;
         // check for keepers
-        for(i=0;i<20;i++) {
+        for(i=0;i<10;i++) {
             if(keepers[i]==msg.sender){
                 execute=true;
                 break;
             }
         }
         require(execute==true,"Only Keepers account can access this function");
+        // check for duplicated voting from the same Keepers
+        require(txvotes[txid][msg.sender]==false,"D0001 - Transaction already voted from the same keepers - Possible ATTACK");
         // check for matching data of the transaction
         require(txid.length>0,"tx id is required");
-        require(txqueue[txid].recipient==address(0) || txqueue[txid].recipient==recipient,"Recipient is wrong");
+        require(txqueue[txid].recipient==address(0) || txqueue[txid].recipient==recipient,"D0002 - Recipient is wrong - Possible ATTACK");
         require(recipient!=address(0),"Recipient cannot be empty");
         require(amount>0,"Amount cannot be zero");
+        uint256 wdf=0;
+        if(withdrawalfees>0){
+            wdf=amount*withdrawalfees/100000000000000000000;
+            if (wdf<minimumwithdrawalfees) {
+                wdf=minimumwithdrawalfees;
+            }
+            //reduce the amount of withdrawalfees
+            amount=amount-wdf;
+        }
         // update the queue
         if(txqueue[txid].recipient==address(0)){
+            // increase balance of the withdrawalfees
+            if(wdf>0){
+                balancewithdrawalfees=balancewithdrawalfees+wdf;
+            }
             txqueue[txid].recipient=recipient;
             txqueue[txid].amount=amount;
             txqueue[txid].erc20=erc20;
+        }else{
+            // check for matching data inside the queue
+            require(txqueue[txid].amount==amount,"D0003 - Amount is not matching - Possible ATTACK");
+            require(txqueue[txid].erc20==erc20,"D0004 - Erc20 address is not matching - Possible ATTACK");
         }
         txqueue[txid].cnt++;
+        // update txvote log
+        txvotes[txid][msg.sender]==true;
         // make the transaction
         if(txqueue[txid].cnt==threshold) {
             // native token
@@ -207,6 +252,24 @@ contract BitgreenBridge {
      */
     function getWatchcats() public view returns(address[3] memory){
         return watchcats ;
+    }
+    /**
+     * @dev return the configured withdrawalfees
+     */
+    function getWithdrawalFees() public view returns(uint256){
+        return withdrawalfees;
+    }
+    /**
+     * @dev return the configured minimumwithdrawalfees
+     */
+    function getMinimumWithdrawalFees() public view returns(uint256){
+        return minimumwithdrawalfees;
+    }
+    /**
+     * @dev return the configured minimumwithdrawalfees
+     */
+    function getBalanceWithdrawalFees() public view returns(uint256){
+        return balancewithdrawalfees;
     }
 
 }
