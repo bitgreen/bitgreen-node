@@ -57,6 +57,9 @@ decl_storage! {
         BurnRequest get(fn get_burn_request): map hasher(blake2_128_concat) Vec<u8> => Balance;
         BurnCounter get(fn get_burn_count): map hasher(blake2_128_concat) Vec<u8> => u32;
         BurnConfirmation get(fn get_burn_confirmation): map hasher(blake2_128_concat) Vec<u8> => bool;
+        Lockdown get(fn lockdown): bool;
+        InternalWatchDogs get(fn internal_watch_dogs): Vec<u8>;
+        InternalWatchCats get(fn internal_watch_cats): Vec<u8>;
     }
 }
 
@@ -156,6 +159,8 @@ decl_error! {
         BurningAlreadyConfirmed,
          /// Amount burning is not matching the first burning request. It can be a serious situation.
         AmountBurningIsNotMatching,
+        /// Signer is not Authorized
+        SignerIsNotAuthorized,
   }
 }
 
@@ -266,7 +271,7 @@ decl_module! {
 
                 }
             //check internal watchdogs accounts
-            let internalwatchdogs=Self::json_get_complexarray(data.clone(),"internalwatchdogs".as_bytes().to_vec());
+            let internalwatchdogs = Self::json_get_complexarray(data.clone(),"internalwatchdogs".as_bytes().to_vec());
                 if internalwatchdogs.len()>=2 {
                     let mut x=0;
                     loop {
@@ -279,6 +284,7 @@ decl_module! {
                     }
                     ensure!(x>0,Error::<T>::InternalWatchdogsNotConfigured);
                 }
+            InternalWatchDogs::put(internalwatchdogs);
             //check external watchdogs accounts
             let externalwatchdogs=Self::json_get_complexarray(data.clone(),"externalwatchdogs".as_bytes().to_vec());
                 if externalwatchdogs.len()>=2 {
@@ -307,6 +313,7 @@ decl_module! {
                     }
                     ensure!(x>0,Error::<T>::InternalWatchcatsNotConfigured);
                 }
+            InternalWatchCats::put(internalwatchcats);
             //check external watchcats accounts
             let externalwatchcats=Self::json_get_complexarray(data.clone(),"externalwatchcats".as_bytes().to_vec());
                 if externalwatchcats.len()>=2 {
@@ -507,6 +514,43 @@ decl_module! {
             };
 
             Ok(().into())
+        }
+
+        #[weight = 10_000 + T::DbWeight::get().writes(1)]
+        pub fn set_lockdown(origin) -> DispatchResult {
+            let signer = ensure_signed(origin)?;
+            let mut flag=0;
+            let internal_watch_dogs = InternalWatchDogs::get();
+            let mut x=0;
+            loop {
+                let internal_watch_dogs= Self::json_get_arrayvalue(internal_watch_dogs.clone(),x);
+                if internal_watch_dogs.is_empty() {
+                    break;
+                }
+                let internal_watch_dogsvec=bs58::decode(internal_watch_dogs).into_vec().unwrap();
+                let accountid_internal_watch_dogs=T::AccountId::decode(&mut &internal_watch_dogsvec[1..33]).unwrap_or_default();
+                if accountid_internal_watch_dogs==signer {
+                    flag=1;
+                }
+                x += 1;
+            }
+            let internal_watch_cats = InternalWatchCats::get();
+            let mut x=0;
+            loop {
+                let internal_watch_cats= Self::json_get_arrayvalue(internal_watch_cats.clone(),x);
+                if internal_watch_cats.is_empty() {
+                    break;
+                }
+                let internal_watch_catsvec=bs58::decode(internal_watch_cats).into_vec().unwrap();
+                let accountid_internal_watch_cats=T::AccountId::decode(&mut &internal_watch_catsvec[1..33]).unwrap_or_default();
+                if accountid_internal_watch_cats==signer {
+                    flag=1;
+                }
+                x += 1;
+            }
+            ensure!(flag==1, Error::<T>::SignerIsNotAuthorized);
+            Lockdown::put(true);
+            Ok(())
         }
     }
 }
