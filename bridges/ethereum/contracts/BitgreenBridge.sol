@@ -23,6 +23,8 @@ contract BitgreenBridge {
     uint256 public withdrawalfees;
     // minimum amount of withdrawal fees (18 decimals)
     uint256 public minimumwithdrawalfees;
+    // maximum amount of withdrawal fees (18 decimals)
+    uint256 public maximumwithdrawalfees;
     // balance of withdrawal fees
     uint256 public balancewithdrawalfees;
     // voting transaction logs of keepers activity
@@ -154,8 +156,11 @@ contract BitgreenBridge {
         uint256 wdf=0;
         if(withdrawalfees>0){
             wdf=amount*withdrawalfees/100000000000000000000;
-            if (wdf<minimumwithdrawalfees) {
+            if (wdf<minimumwithdrawalfees && minimumwithdrawalfees>0) {
                 wdf=minimumwithdrawalfees;
+            }
+            if (wdf>maximumwithdrawalfees && maximumwithdrawalfees>0) {
+                wdf=maximumwithdrawalfees;
             }
             //reduce the amount of withdrawalfees
             amount=amount-wdf;
