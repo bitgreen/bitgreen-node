@@ -163,7 +163,7 @@ decl_error! {
         /// Signer is not Authorized
         SignerIsNotAuthorized,
         /// Not allowed due to lockdown mode
-        NotAllowed,
+        NotAllowedSystemLockdown,
   }
 }
 
@@ -200,7 +200,7 @@ decl_module! {
             ensure_root(origin)?;
 
             // check if lockdownmode is off
-            ensure!(!Lockdown::get(), Error::<T>::NotAllowed);
+            ensure!(!Lockdown::get(), Error::<T>::NotAllowedSystemLockdown);
 
             //check data json length
             ensure!(data.len() > 12, Error::<T>::SettingsJsonTooShort);
@@ -348,7 +348,7 @@ decl_module! {
             // allow access only to SUDO
             ensure_root(origin)?;
             // check if lockdownmode is off
-            ensure!(!Lockdown::get(), Error::<T>::NotAllowed);
+            ensure!(!Lockdown::get(), Error::<T>::NotAllowedSystemLockdown);
             // check whether setting key exists or not
             ensure!(Settings::contains_key(&key), Error::<T>::SettingsKeyNotFound);
             Settings::remove(key.clone());
@@ -363,7 +363,7 @@ decl_module! {
             // check for a signed transactions
             let signer = ensure_signed(origin)?;
             // check if lockdownmode is off
-            ensure!(!Lockdown::get(), Error::<T>::NotAllowed);
+            ensure!(!Lockdown::get(), Error::<T>::NotAllowedSystemLockdown);
             // check for the token configuration in settings
             ensure!(Settings::contains_key(&token), Error::<T>::SettingsKeyNotFound);
             let content: Vec<u8> = Settings::get(&token).unwrap();
@@ -447,7 +447,7 @@ decl_module! {
         pub fn burn(origin, token:Vec<u8>, recipient: T::AccountId, transaction_id:Vec<u8>, amount: Balance)-> DispatchResultWithPostInfo {
             let signer = ensure_signed(origin)?;
             // check if lockdownmode is off
-            ensure!(!Lockdown::get(), Error::<T>::NotAllowed);
+            ensure!(!Lockdown::get(), Error::<T>::NotAllowedSystemLockdown);
             ensure!(Settings::contains_key(&token), Error::<T>::SettingsKeyNotFound);
             let content: Vec<u8> = Settings::get(&token).unwrap();
             let asset_idv = Self::json_get_value(content.clone(),"assetid".as_bytes().to_vec());
@@ -524,7 +524,7 @@ decl_module! {
 
             Ok(().into())
         }
-
+        // function to set a system lockdown, watchdogs and watchcats account can set it
         #[weight = 10_000 + T::DbWeight::get().writes(1)]
         pub fn set_lockdown(origin, token: Vec<u8>) -> DispatchResult {
             let signer = ensure_signed(origin)?;
@@ -563,7 +563,7 @@ decl_module! {
             Lockdown::put(true);
             Ok(())
         }
-
+        // function to remove the lockdown, it can be executed only from the superuser
         #[weight = 10_000 + T::DbWeight::get().writes(1)]
         pub fn set_unlockdown(origin) -> DispatchResult {
             // check access for Sudo
