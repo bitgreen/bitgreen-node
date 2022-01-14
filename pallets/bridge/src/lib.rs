@@ -57,13 +57,10 @@ decl_storage! {
         BurnRequest get(fn get_burn_request): map hasher(blake2_128_concat) Vec<u8> => Balance;
         BurnCounter get(fn get_burn_count): map hasher(blake2_128_concat) Vec<u8> => u32;
         BurnConfirmation get(fn get_burn_confirmation): map hasher(blake2_128_concat) Vec<u8> => bool;
-        Lockdown get(fn lockdown): bool;
-        InternalWatchDogs get(fn internal_watch_dogs): Vec<u8>;
-        InternalWatchCats get(fn internal_watch_cats): Vec<u8>;
+        Lockdown get(fn lockdown) build(|config: &GenesisConfig| config.lockdown_status): bool;
     }
     add_extra_genesis {
 		config(lockdown_status): bool;
-		build(|config| Lockdown::put(config.lockdown_status))
 	}
 }
 
@@ -293,7 +290,6 @@ decl_module! {
                     }
                     ensure!(x>0,Error::<T>::InternalWatchdogsNotConfigured);
                 }
-            InternalWatchDogs::put(internalwatchdogs);
             //check external watchdogs accounts
             let externalwatchdogs=Self::json_get_complexarray(data.clone(),"externalwatchdogs".as_bytes().to_vec());
                 if externalwatchdogs.len()>=2 {
@@ -322,7 +318,6 @@ decl_module! {
                     }
                     ensure!(x>0,Error::<T>::InternalWatchcatsNotConfigured);
                 }
-            InternalWatchCats::put(internalwatchcats);
             //check external watchcats accounts
             let externalwatchcats=Self::json_get_complexarray(data.clone(),"externalwatchcats".as_bytes().to_vec());
                 if externalwatchcats.len()>=2 {
@@ -449,7 +444,7 @@ decl_module! {
         }
 
         #[weight = 10_000 + T::DbWeight::get().writes(1)]
-        pub fn burn(origin, token:Vec<u8>,recipient: T::AccountId, transaction_id:Vec<u8>, amount: Balance)-> DispatchResultWithPostInfo {
+        pub fn burn(origin, token:Vec<u8>, recipient: T::AccountId, transaction_id:Vec<u8>, amount: Balance)-> DispatchResultWithPostInfo {
             let signer = ensure_signed(origin)?;
             // check if lockdownmode is off
             ensure!(!Lockdown::get(), Error::<T>::NotAllowed);
@@ -531,10 +526,12 @@ decl_module! {
         }
 
         #[weight = 10_000 + T::DbWeight::get().writes(1)]
-        pub fn set_lockdown(origin) -> DispatchResult {
+        pub fn set_lockdown(origin, token: Vec<u8>) -> DispatchResult {
             let signer = ensure_signed(origin)?;
+            ensure!(Settings::contains_key(&token), Error::<T>::SettingsKeyNotFound);
+            let content: Vec<u8> = Settings::get(&token).unwrap();
             let mut flag=0;
-            let internal_watch_dogs = InternalWatchDogs::get();
+            let internal_watch_dogs = Self::json_get_complexarray(content.clone(),"internalwatchdogs".as_bytes().to_vec());
             let mut x=0;
             loop {
                 let internal_watch_dogs= Self::json_get_arrayvalue(internal_watch_dogs.clone(),x);
@@ -548,7 +545,7 @@ decl_module! {
                 }
                 x += 1;
             }
-            let internal_watch_cats = InternalWatchCats::get();
+            let internal_watch_cats = Self::json_get_complexarray(content,"internalwatchcats".as_bytes().to_vec());
             let mut x=0;
             loop {
                 let internal_watch_cats= Self::json_get_arrayvalue(internal_watch_cats.clone(),x);

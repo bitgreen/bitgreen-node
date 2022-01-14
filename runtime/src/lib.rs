@@ -975,7 +975,7 @@ construct_runtime!(
 		// VCUs
 		VCU: pallet_vcu::{Module, Call, Storage, Event<T>} = 74,
 		// Bridge
-		Bridge: pallet_bridge::{Module, Call, Storage, Event<T>} = 75,
+		Bridge: pallet_bridge::{Module, Call, Storage, Event<T>, Config} = 75,
 
 	}
 );
