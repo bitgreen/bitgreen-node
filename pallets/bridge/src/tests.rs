@@ -512,3 +512,21 @@ fn burn_should_not_work_if_siger_is_not_keeper() {
 		);
 	});
 }
+
+#[test]
+fn set_lockdown_should_not_work_for_non_existing_key() {
+	new_test_ext().execute_with(|| {
+		assert_noop!(
+			Bridge::set_lockdown(Origin::signed(1), b"BITG".to_vec()),
+			Error::<Test>::SettingsKeyNotFound
+		);
+	});
+}
+
+#[test]
+fn set_unlockdown_should_work() {
+	new_test_ext().execute_with(|| {
+		assert_ok!(Bridge::set_unlockdown(Origin::root()));
+		assert_eq!(Bridge::lockdown(), false);
+	});
+}

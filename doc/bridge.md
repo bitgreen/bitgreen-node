@@ -6,6 +6,7 @@ The purpose of the bridge is to allow the cross-chain movement of tokens.
 
 - Create/Destroy setting
 - Mint/Burn the tokens as assetid in Bitgreen Blockchain accordingly to the request.
+- Set lockdown to allow transactions
 
 
 The pallet is called "Bridge" and below you can find the "Extrinsics" and queries available, ordered by logic of use:  
@@ -16,6 +17,10 @@ This function allows to create settings of the bridge. It's accessible by SUDO o
 ```rust
 create_settings(key: Vec<u8>, data: Vec<u8>)
 ```
+
+This function checks -
+1) Lockdown mode is off
+
 where:
 - key is the token symbol
 - data is JSON object
@@ -46,11 +51,13 @@ where key is one the key used in the storage.
 
 ## Destroy Settings  
 
-This function destroys settings with the givien key. It's accessible by SUDO only.
+This function destroys settings with the given key. It's accessible by SUDO only.
 
 ```rust
 destroy_settings(key: Vec<u8>)
 ```
+This function checks -
+1) Lockdown mode is off
 
 ## Mint Tokens
 
@@ -61,10 +68,11 @@ mint(token:Vec<u8>,recipient: T::AccountId, transaction_id:Vec<u8>, amount: Bala
 ```
 
 This function checks -
-1) Token must be present in the settings
-2) The signer must be one of the internalkeepers
-3) The signer can confirm only one time
-4) The Minting cannot be done 2 times
+1) Lockdown mode is off
+2) Token must be present in the settings
+3) The signer must be one of the internalkeepers
+4) The signer can confirm only one time
+5) The Minting cannot be done 2 times
 
 This function also -
 - Stores the mint request
@@ -81,13 +89,32 @@ burn(token:Vec<u8>,recipient: T::AccountId, transaction_id:Vec<u8>, amount: Bala
 ```
 
 This function checks -
-1) Token must be present in the settings
-2) The signer must be one of the internalkeepers
-3) The signer can confirm only one time
-4) The Burning cannot be done 2 times
+1) Lockdown mode is off
+2) Token must be present in the settings
+3) The signer must be one of the internalkeepers
+4) The signer can confirm only one time
+5) The Burning cannot be done 2 times
 
 This function also -
 - Stores the burn request
 - Stores the burn counter
 - Store the burning confirmation when reached the threshold
 - Finally, Burn the tokens as assetid in Bitgreen Blockchain accordingly to the request.
+
+## Set Lockdown
+
+This function sets lockdown to true. It's accessible by watchdogs and watch cats only.
+
+```rust
+set_lockdown(key: Vec<u8>)
+```
+This function checks -
+1) Setting with given key exists or not
+
+## Set UnLockdown
+
+This function sets lockdown to false. It's accessible by Sudo only.
+
+```rust
+set_unlockdown()
+```

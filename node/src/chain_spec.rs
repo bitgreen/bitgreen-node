@@ -1,7 +1,7 @@
 use sp_core::{Pair, Public, sr25519, H160, Bytes};
 use bitg_runtime::{
 	AccountId, CurrencyId,
-	BabeConfig, BalancesConfig, GenesisConfig, GrandpaConfig, SudoConfig, SystemConfig,
+	BabeConfig, BalancesConfig, BridgeConfig, GenesisConfig, GrandpaConfig, SudoConfig, SystemConfig,
 	IndicesConfig, EvmConfig, StakingConfig, SessionConfig, AuthorityDiscoveryConfig,ContractsConfig,
 	WASM_BINARY,
 	TokenSymbol, TokensConfig, BITG,
@@ -419,6 +419,7 @@ fn testnet_genesis(
 					..Default::default()
 			},
 		}),
+		pallet_bridge: Some(BridgeConfig { lockdown_status: false }),
 	}
 }
 
@@ -513,6 +514,7 @@ fn mainnet_genesis(
 					..Default::default()
 			},
 		}),
+		pallet_bridge: Some(BridgeConfig { lockdown_status: false }),
 	}
 }
 

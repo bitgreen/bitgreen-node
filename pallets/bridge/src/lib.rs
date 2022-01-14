@@ -57,7 +57,11 @@ decl_storage! {
         BurnRequest get(fn get_burn_request): map hasher(blake2_128_concat) Vec<u8> => Balance;
         BurnCounter get(fn get_burn_count): map hasher(blake2_128_concat) Vec<u8> => u32;
         BurnConfirmation get(fn get_burn_confirmation): map hasher(blake2_128_concat) Vec<u8> => bool;
+        Lockdown get(fn lockdown) build(|config: &GenesisConfig| config.lockdown_status): bool;
     }
+    add_extra_genesis {
+		config(lockdown_status): bool;
+	}
 }
 
 decl_event!(
@@ -156,6 +160,10 @@ decl_error! {
         BurningAlreadyConfirmed,
          /// Amount burning is not matching the first burning request. It can be a serious situation.
         AmountBurningIsNotMatching,
+        /// Signer is not Authorized
+        SignerIsNotAuthorized,
+        /// Not allowed due to lockdown mode
+        NotAllowed,
   }
 }
 
@@ -190,6 +198,9 @@ decl_module! {
         pub fn create_settings(origin, key: Vec<u8>, data: Vec<u8>) -> DispatchResult {
             // check access for Sudo
             ensure_root(origin)?;
+
+            // check if lockdownmode is off
+            ensure!(!Lockdown::get(), Error::<T>::NotAllowed);
 
             //check data json length
             ensure!(data.len() > 12, Error::<T>::SettingsJsonTooShort);
@@ -266,7 +277,7 @@ decl_module! {
 
                 }
             //check internal watchdogs accounts
-            let internalwatchdogs=Self::json_get_complexarray(data.clone(),"internalwatchdogs".as_bytes().to_vec());
+            let internalwatchdogs = Self::json_get_complexarray(data.clone(),"internalwatchdogs".as_bytes().to_vec());
                 if internalwatchdogs.len()>=2 {
                     let mut x=0;
                     loop {
@@ -336,6 +347,8 @@ decl_module! {
         pub fn destroy_settings(origin, key: Vec<u8>) -> DispatchResult {
             // allow access only to SUDO
             ensure_root(origin)?;
+            // check if lockdownmode is off
+            ensure!(!Lockdown::get(), Error::<T>::NotAllowed);
             // check whether setting key exists or not
             ensure!(Settings::contains_key(&key), Error::<T>::SettingsKeyNotFound);
             Settings::remove(key.clone());
@@ -349,6 +362,8 @@ decl_module! {
         pub fn mint(origin, token:Vec<u8>,recipient: T::AccountId, transaction_id:Vec<u8>, amount: Balance)-> DispatchResultWithPostInfo {
             // check for a signed transactions
             let signer = ensure_signed(origin)?;
+            // check if lockdownmode is off
+            ensure!(!Lockdown::get(), Error::<T>::NotAllowed);
             // check for the token configuration in settings
             ensure!(Settings::contains_key(&token), Error::<T>::SettingsKeyNotFound);
             let content: Vec<u8> = Settings::get(&token).unwrap();
@@ -429,9 +444,10 @@ decl_module! {
         }
 
         #[weight = 10_000 + T::DbWeight::get().writes(1)]
-        pub fn burn(origin, token:Vec<u8>,recipient: T::AccountId, transaction_id:Vec<u8>, amount: Balance)-> DispatchResultWithPostInfo {
+        pub fn burn(origin, token:Vec<u8>, recipient: T::AccountId, transaction_id:Vec<u8>, amount: Balance)-> DispatchResultWithPostInfo {
             let signer = ensure_signed(origin)?;
-
+            // check if lockdownmode is off
+            ensure!(!Lockdown::get(), Error::<T>::NotAllowed);
             ensure!(Settings::contains_key(&token), Error::<T>::SettingsKeyNotFound);
             let content: Vec<u8> = Settings::get(&token).unwrap();
             let asset_idv = Self::json_get_value(content.clone(),"assetid".as_bytes().to_vec());
@@ -507,6 +523,53 @@ decl_module! {
             };
 
             Ok(().into())
+        }
+
+        #[weight = 10_000 + T::DbWeight::get().writes(1)]
+        pub fn set_lockdown(origin, token: Vec<u8>) -> DispatchResult {
+            let signer = ensure_signed(origin)?;
+            ensure!(Settings::contains_key(&token), Error::<T>::SettingsKeyNotFound);
+            let content: Vec<u8> = Settings::get(&token).unwrap();
+            let mut flag=0;
+            let internal_watch_dogs = Self::json_get_complexarray(content.clone(),"internalwatchdogs".as_bytes().to_vec());
+            let mut x=0;
+            loop {
+                let internal_watch_dogs= Self::json_get_arrayvalue(internal_watch_dogs.clone(),x);
+                if internal_watch_dogs.is_empty() {
+                    break;
+                }
+                let internal_watch_dogsvec=bs58::decode(internal_watch_dogs).into_vec().unwrap();
+                let accountid_internal_watch_dogs=T::AccountId::decode(&mut &internal_watch_dogsvec[1..33]).unwrap_or_default();
+                if accountid_internal_watch_dogs==signer {
+                    flag=1;
+                }
+                x += 1;
+            }
+            let internal_watch_cats = Self::json_get_complexarray(content,"internalwatchcats".as_bytes().to_vec());
+            let mut x=0;
+            loop {
+                let internal_watch_cats= Self::json_get_arrayvalue(internal_watch_cats.clone(),x);
+                if internal_watch_cats.is_empty() {
+                    break;
+                }
+                let internal_watch_catsvec=bs58::decode(internal_watch_cats).into_vec().unwrap();
+                let accountid_internal_watch_cats=T::AccountId::decode(&mut &internal_watch_catsvec[1..33]).unwrap_or_default();
+                if accountid_internal_watch_cats==signer {
+                    flag=1;
+                }
+                x += 1;
+            }
+            ensure!(flag==1, Error::<T>::SignerIsNotAuthorized);
+            Lockdown::put(true);
+            Ok(())
+        }
+
+        #[weight = 10_000 + T::DbWeight::get().writes(1)]
+        pub fn set_unlockdown(origin) -> DispatchResult {
+            // check access for Sudo
+            ensure_root(origin)?;
+            Lockdown::put(false);
+            Ok(())
         }
     }
 }
