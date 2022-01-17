@@ -141,8 +141,12 @@ decl_error! {
         AssetGeneratingJsonTooLong,
 		/// ProofOwnership Not found
 		ProofOwnershipNotFound,
+		/// ProofOwnership too long
+		ProofOwnershipTooLong,
 		/// NumberofShares not found
 		NumberofSharesNotFound,
+		/// Number of share cannot be zero
+		NumberofSharesCannotBeZero,
 		/// Too many NumberofShares
 		TooManyNumberofShares,
 		/// AssetGeneratedVCU has not been found on the blockchain
@@ -227,16 +231,14 @@ decl_module! {
 		/// The dispatch origin for this call must be `Signed` by the Root.
 		#[weight = 10_000 + T::DbWeight::get().writes(1)]
 		pub fn destroy_proxy_settings(origin) -> DispatchResult {
-
+			// check for SUDO 
 			ensure_root(origin)?;
-
+			// search for the key of the proxy settings
 			let key = "admin".as_bytes().to_vec();
-
-			// check whether setting key exists or not
+			// check whether setting key exists
 			ensure!(Settings::contains_key(&key), Error::<T>::SettingsKeyNotFound);
-
+			// remove the proxy settings
 			Settings::remove(key.clone());
-
 			// Generate event
 			Self::deposit_event(RawEvent::SettingsDestroyed(key));
 			// Return a successful DispatchResult
@@ -244,20 +246,22 @@ decl_module! {
 		}
 
 		/// Store/update an AuthorizedAccountsAGV
-		/// This function allows to store the enabled Accounts on chain.
+		/// This function allows to store the Accounts enabled to create Assets generating VCU (AGV).
 		///
 		/// `add_authorized_accounts` will accept `account_id` and `description` as parameter
 		///
 		/// The dispatch origin for this call must be `Signed` by the Root.
 		#[weight = 10_000 + T::DbWeight::get().writes(1)]
 		pub fn add_authorized_account(origin, account_id: T::AccountId, description: Vec<u8>) -> DispatchResult {
-
+			// check for SUDO 
 			ensure_root(origin)?;
+			// description is mandatory 
 			ensure!(!description.is_empty(), Error::<T>::InvalidDescription);
-
+			//minimu lenght of 4 chars
+			ensure!(description.len()>4, Error::<T>::InvalidDescription);
+			// add/replace the description for the account received
 			AuthorizedAccountsAGV::<T>::try_mutate_exists(account_id.clone(), |desc| {
 				*desc = Some(description);
-
 				// Generate event
 				Self::deposit_event(RawEvent::AuthorizedAccountAdded(account_id));
 				// Return a successful DispatchResult
@@ -265,19 +269,17 @@ decl_module! {
 			})
 		}
 
-		/// Destroys an authorized account from storage.
+		/// Destroys an authorized account revekin its authorization
 		///
 		/// The dispatch origin for this call must be `Signed` by the Root.
 		#[weight = 10_000 + T::DbWeight::get().writes(1)]
 		pub fn destroy_authorized_account(origin, account_id: T::AccountId) -> DispatchResult {
-
+			// check for SUDO 
 			ensure_root(origin)?;
-
 			// check whether authorized account exists or not
 			ensure!(AuthorizedAccountsAGV::<T>::contains_key(&account_id), Error::<T>::AuthorizedAccountsAGVNotFound);
-
+			// remove the authorized account from the state
 			AuthorizedAccountsAGV::<T>::remove(account_id.clone());
-
 			// Generate event
 			Self::deposit_event(RawEvent::AuthorizedAccountsAGVDestroyed(account_id));
 			// Return a successful DispatchResult
@@ -301,7 +303,7 @@ decl_module! {
 		/// The dispatch origin for this call must be `Signed` either by the Root or authorized account.
 		#[weight = 10_000 + T::DbWeight::get().writes(1)]
 		pub fn create_asset_generating_vcu(origin, avg_account_id: T::AccountId, avg_id: u32, content: Vec<u8>) -> DispatchResult {
-
+			// check for SUDO user or owner account
 			match ensure_root(origin.clone()) {
 				Ok(()) => Ok(()),
 				Err(e) => {
@@ -314,30 +316,28 @@ decl_module! {
 					})
 				}
 			}?;
-
-			//check accounts json length
+			//check content json length
 			ensure!(content.len() > 12, Error::<T>::AssetGeneratingJsonTooShort);
             ensure!(content.len() < 8192, Error::<T>::AssetGeneratingJsonTooLong);
 
 			// check json validity
 			let js = content.clone();
 			ensure!(Self::json_check_validity(js),Error::<T>::InvalidJson);
-
+			// checj for description validity
 			let description = Self::json_get_value(content.clone(),"description".as_bytes().to_vec());
             ensure!(!description.is_empty() && description.len()<=64 , Error::<T>::InvalidDescription);
-
+			// check for proof of ownership
 			let proof_ownership = Self::json_get_value(content.clone(),"proofOwnership".as_bytes().to_vec());
-            ensure!(!proof_ownership.is_empty() , Error::<T>::ProofOwnershipNotFound);
-
+            ensure!(!proof_ownership.is_empty(), Error::<T>::ProofOwnershipNotFound);
+			ensure!(proof_ownership.len()<=128, Error::<T>::ProofOwnershipTooLong);
+			// check for number of shares
 			let number_of_shares = Self::json_get_value(content.clone(),"numberOfShares".as_bytes().to_vec());
-
             ensure!(!number_of_shares.is_empty() , Error::<T>::NumberofSharesNotFound);
-
 			ensure!(str::parse::<i32>(sp_std::str::from_utf8(&number_of_shares).unwrap()).unwrap() <= 10000 , Error::<T>::TooManyNumberofShares);
-
+			ensure!(str::parse::<i32>(sp_std::str::from_utf8(&number_of_shares).unwrap()).unwrap() >0 , Error::<T>::NumberofSharesCannotBeZero);
+			// store the asset
 			AssetsGeneratingVCU::<T>::try_mutate_exists(avg_account_id, avg_id, |desc| {
 				*desc = Some(content);
-
 				// Generate event
 				Self::deposit_event(RawEvent::AssetsGeneratingVCUCreated(avg_id));
 				// Return a successful DispatchResult
@@ -350,7 +350,7 @@ decl_module! {
 		/// The dispatch origin for this call must be `Signed` either by the Root or authorized account.
 		#[weight = 10_000 + T::DbWeight::get().writes(1)]
 		pub fn destroy_asset_generating_vcu(origin, avg_account_id: T::AccountId, avg_id: u32) -> DispatchResult {
-
+			// check for SUDO or authorized account
 			match ensure_root(origin.clone()) {
 				Ok(()) => Ok(()),
 				Err(e) => {
@@ -366,23 +366,22 @@ decl_module! {
 
 			// check whether asset generated VCU exists or not
 			ensure!(AssetsGeneratingVCU::<T>::contains_key(&avg_account_id, &avg_id), Error::<T>::AssetGeneratedVCUNotFound);
-
+			// TODO check for VCU already generated to avoid orphans
+			// renove the assets generating VCU
 			AssetsGeneratingVCU::<T>::remove(avg_account_id, avg_id);
-
 			// Generate event
 			Self::deposit_event(RawEvent::AssetGeneratingVCUDestroyed(avg_id));
 			// Return a successful DispatchResult
 			Ok(())
-
 		}
 
 		/// The AVG shares can be minted from the Authorized account up to the maximum number set in the AssetsGeneratingVCU.
 		///
-		/// ex: avg_id: 5Hdr4DQufkxmhFcymTR71jqYtTnfkfG5jTs6p6MSnsAcy5ui-1
+		/// ex: avgaccout: 5Hdr4DQufkxmhFcymTR71jqYtTnfkfG5jTs6p6MSnsAcy5ui-1
 		/// The dispatch origin for this call must be `Signed` either by the Root or authorized account.
 		#[weight = 10_000 + T::DbWeight::get().writes(1)]
 		pub fn mint_shares_asset_generating_vcu(origin, recipient: T::AccountId, avg_account: Vec<u8>, number_of_shares: u32) -> DispatchResult {
-
+			// checking for SUDO or authorized account
 			match ensure_root(origin.clone()) {
 				Ok(()) => Ok(()),
 				Err(e) => {
@@ -395,16 +394,12 @@ decl_module! {
 					})
 				}
 			}?;
-
+			// split the field avg_account
 			let avg_id_vec: Vec<&str> = sp_std::str::from_utf8(&avg_account).unwrap().split('-').collect();
 			ensure!(avg_id_vec.len() == 2, Error::<T>::InvalidAVGId);
-
-
 			let (str_account_id, avg_id): (&str, u32) = (avg_id_vec[0], str::parse::<u32>(avg_id_vec[1]).unwrap());
-
 			let account_id = T::AccountId::decode(&mut &str_account_id.as_bytes().to_vec()[1..33]).unwrap_or_default();
-
-			// check whether asset generated VCU exists or not
+			// check whether asset generating VCU (AGV) exists or not
 			ensure!(AssetsGeneratingVCU::<T>::contains_key(&account_id, &avg_id), Error::<T>::AssetGeneratedVCUNotFound);
 
 			AssetsGeneratingVCUShares::<T>::try_mutate(&recipient, &avg_account, |share| -> DispatchResult {
