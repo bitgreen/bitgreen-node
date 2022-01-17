@@ -61,4 +61,12 @@ destroy_asset_generating_vcu(avg_account_id: T::AccountId, avg_id: u32)
 - avg_account_id is the owner account of the AVG  
 - avg_id is a unique id of the AVG to remove within the owner account  
 
+## Mint Shares for AVG
+This functions allow to mint new shares of an AVG for a recipient account.  
+The function can be called from SUDO or from an authorized account by "add_authorized_account()":  
+mint_shares_asset_generating_vcu(recipient: T::AccountId, avg_account: Vec<u8>, number_of_shares: u32)  
+- "recipient" is the account that shall receive the new shares
+- "avg_account" is the account id of the AVG followed by - avg_id for example: 5Hdr4DQufkxmhFcymTR71jqYtTnfkfG5jTs6p6MSnsAcy5ui-1  
+- "number_of_shares" is the number of shares to be minted and sent to the recipient
+
 

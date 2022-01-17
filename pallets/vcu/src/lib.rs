@@ -148,7 +148,7 @@ decl_error! {
 		/// Number of share cannot be zero
 		NumberofSharesCannotBeZero,
 		/// Too many NumberofShares
-		TooManyNumberofShares,
+		TooManyShares,
 		/// AssetGeneratedVCU has not been found on the blockchain
 		AssetGeneratedVCUNotFound,
 		/// Invalid AVGId
@@ -333,7 +333,7 @@ decl_module! {
 			// check for number of shares
 			let number_of_shares = Self::json_get_value(content.clone(),"numberOfShares".as_bytes().to_vec());
             ensure!(!number_of_shares.is_empty() , Error::<T>::NumberofSharesNotFound);
-			ensure!(str::parse::<i32>(sp_std::str::from_utf8(&number_of_shares).unwrap()).unwrap() <= 10000 , Error::<T>::TooManyNumberofShares);
+			ensure!(str::parse::<i32>(sp_std::str::from_utf8(&number_of_shares).unwrap()).unwrap() <= 10000 , Error::<T>::TooManyShares);
 			ensure!(str::parse::<i32>(sp_std::str::from_utf8(&number_of_shares).unwrap()).unwrap() >0 , Error::<T>::NumberofSharesCannotBeZero);
 			// store the asset
 			AssetsGeneratingVCU::<T>::try_mutate_exists(avg_account_id, avg_id, |desc| {
@@ -401,24 +401,27 @@ decl_module! {
 			let account_id = T::AccountId::decode(&mut &str_account_id.as_bytes().to_vec()[1..33]).unwrap_or_default();
 			// check whether asset generating VCU (AGV) exists or not
 			ensure!(AssetsGeneratingVCU::<T>::contains_key(&account_id, &avg_id), Error::<T>::AssetGeneratedVCUNotFound);
-
-			AssetsGeneratingVCUShares::<T>::try_mutate(&recipient, &avg_account, |share| -> DispatchResult {
-				*share = number_of_shares;
-				Ok(())
-			})?;
-
+			
+			// read info about the AVG
 			let content: Vec<u8> = AssetsGeneratingVCU::<T>::get(&account_id, &avg_id);
 			let total_shares = Self::json_get_value(content,"numberOfShares".as_bytes().to_vec());
 			let int_shares = str::parse::<u32>(sp_std::str::from_utf8(&total_shares).unwrap()).unwrap();
 
-
+			// increase the total shares minted
 			AssetsGeneratingVCUSharesMinted::<T>::try_mutate(&account_id, &avg_id, |share| -> DispatchResult {
 				let total_sh = share.checked_add(number_of_shares).ok_or(Error::<T>::Overflow)?;
-				ensure!(total_sh <= int_shares, Error::<T>::TooManyNumberofShares);
+				ensure!(total_sh <= int_shares, Error::<T>::TooManyShares);
 				*share = total_sh;
 				Ok(())
 			})?;
 
+			// increase the total shares minted for the recipient
+			AssetsGeneratingVCUShares::<T>::try_mutate(&recipient, &avg_account, |share| -> DispatchResult {
+				let total_sha = share.checked_add(number_of_shares).ok_or(Error::<T>::Overflow)?;
+				*share = total_sha;
+				Ok(())
+			})?;
+			
 			// Generate event
 			Self::deposit_event(RawEvent::AssetsGeneratingVCUSharesMinted(account_id, avg_id));
 			// Return a successful DispatchResult
