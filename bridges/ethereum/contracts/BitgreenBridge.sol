@@ -103,11 +103,19 @@ contract BitgreenBridge {
     }
     /**
      * @dev store configuration of the minimum withdrawal fees
-     * @param Minimumwithdrawalfees is the minimum number of "votes" from Keepers to execute a transaction
+     * @param Minimumwithdrawalfees is the minimum amount of withdrawal fees
      */
     function setMinimumWithDrawalFees(uint256 Minimumwithdrawalfees) public {
         require(msg.sender == owner,"Function accessible only to owner");
         minimumwithdrawalfees=Minimumwithdrawalfees;
+    }
+    /** 
+     * @dev store configuration of the maximum withdrawal fees
+     * @param Maximumwithdrawalfees is the maximum allowed to be ketp as withdrawal fees
+     */
+    function setMaxmimumWithDrawalFees(uint256 Maximumwithdrawalfees) public {
+        require(msg.sender == owner,"Function accessible only to owner");
+        maximumwithdrawalfees=Maximumwithdrawalfees;
     }
     /**
      * @dev transfer ownership
