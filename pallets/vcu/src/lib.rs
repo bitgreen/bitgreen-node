@@ -183,6 +183,13 @@ decl_error! {
 		AssetAVGBundleNotFound,
 		/// BundleAssetIdNotSame
 		BundleAssetIdNotSame,
+		/// The recipient has not shares minted
+		RecipientSharesNotFound,
+		/// Recipient Shares are less of burning shares
+		RecipientSharesLessOfBurningShares,
+		/// Total shares are not enough to burn the amount requested
+		TotalSharesNotEnough,
+		
   }
 }
 
@@ -434,7 +441,7 @@ decl_module! {
 		/// The dispatch origin for this call must be `Signed` either by the Root or authorized account.
 		#[weight = 10_000 + T::DbWeight::get().writes(1)]
 		pub fn burn_shares_asset_generating_vcu(origin, recipient: T::AccountId, avg_account: Vec<u8>, number_of_shares: u32) -> DispatchResult {
-
+			// checking for SUDO or authorized account
 			match ensure_root(origin.clone()) {
 				Ok(()) => Ok(()),
 				Err(e) => {
@@ -447,30 +454,35 @@ decl_module! {
 					})
 				}
 			}?;
-
+			// get account  and avg_id
 			let avg_id_vec: Vec<&str> = sp_std::str::from_utf8(&avg_account).unwrap().split('-').collect();
 			ensure!(avg_id_vec.len() == 2, Error::<T>::InvalidAVGId);
-
-
 			let (str_account_id, avg_id): (&str, u32) = (avg_id_vec[0], str::parse::<u32>(avg_id_vec[1]).unwrap());
-
 			let account_id = T::AccountId::decode(&mut &str_account_id.as_bytes().to_vec()[1..33]).unwrap_or_default();
-
 			// check whether asset generated VCU exists or not
 			ensure!(AssetsGeneratingVCU::<T>::contains_key(&account_id, &avg_id), Error::<T>::AssetGeneratedVCUNotFound);
-
-			AssetsGeneratingVCUShares::<T>::try_mutate(&recipient, &avg_account, |share| -> DispatchResult {
-				*share = number_of_shares;
-				Ok(())
-			})?;
-
+			// check for previously minted shares for the recipient
+			ensure!(AssetsGeneratingVCUShares::<T>::contains_key(&recipient, &avg_account), Error::<T>::RecipientSharesNotFound);
+			// check  the number of burnable shares for the recipient
+			let currentshares=AssetsGeneratingVCUShares::<T>::get(recipient.clone(), avg_account.clone());
+			ensure!(currentshares>=number_of_shares,Error::<T>::RecipientSharesLessOfBurningShares);
+			// check the number of burnable shares in total
+			ensure!(AssetsGeneratingVCUSharesMinted::<T>::contains_key(&account_id, &avg_id),Error::<T>::TotalSharesNotEnough);
+			let totalcurrentshares=AssetsGeneratingVCUSharesMinted::<T>::get(&account_id, &avg_id);
+			ensure!(totalcurrentshares>=number_of_shares,Error::<T>::TotalSharesNotEnough);
+			// decrease total shares minted
 			AssetsGeneratingVCUSharesMinted::<T>::try_mutate(&account_id, &avg_id, |share| -> DispatchResult {
 				let total_sh = share.checked_sub(number_of_shares).ok_or(Error::<T>::InsufficientShares)?;
 				ensure!(total_sh >0, Error::<T>::TooLessShares);
 				*share = total_sh;
 				Ok(())
 			})?;
-
+			// decrease shares minted for the recipient account
+			AssetsGeneratingVCUShares::<T>::try_mutate(&recipient, &avg_account, |share| -> DispatchResult {
+				let total_sha = share.checked_sub(number_of_shares).ok_or(Error::<T>::Overflow)?;
+				*share = total_sha;
+				Ok(())
+			})?;
 			// Generate event
 			Self::deposit_event(RawEvent::AssetsGeneratingVCUSharesBurned(account_id, avg_id));
 			// Return a successful DispatchResult

@@ -69,4 +69,11 @@ mint_shares_asset_generating_vcu(recipient: T::AccountId, avg_account: Vec<u8>, 
 - "avg_account" is the account id of the AVG followed by - avg_id for example: 5Hdr4DQufkxmhFcymTR71jqYtTnfkfG5jTs6p6MSnsAcy5ui-1  
 - "number_of_shares" is the number of shares to be minted and sent to the recipient
 
+## Burn Shares for AVG
+This functions allow to burn shares of an AVG for a recipient account.  
+The function can be called from SUDO or from an authorized account by "add_authorized_account()":  
+burn_shares_asset_generating_vcu(recipient: T::AccountId, avg_account: Vec<u8>, number_of_shares: u32)  
+- "recipient" is the account that shall have the shared decreased for the amount burned
+- "avg_account" is the account id of the AVG followed by - avg_id for example: 5Hdr4DQufkxmhFcymTR71jqYtTnfkfG5jTs6p6MSnsAcy5ui-1  
+- "number_of_shares" is the number of shares to be burned
 
