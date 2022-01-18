@@ -18,7 +18,6 @@ The pallet is called "VCU" and below you can find the "Extrinsics" and queries a
 
 ## Create/Change Proxy Settings
 We need the possibility to define some administrator accounts for the pallet VCU without using the super user account.
-
 This function allows to create a proxy settings that allow to define some accounts with administrator rights on the pallet. It's accessible by SUDO only.
 ```rust
 create_proxy_settings(accounts: Vec<u8>)
@@ -111,9 +110,9 @@ This function removes Assets Generating VCU from storage. The function must be a
 destroy_asset_generating_vcu(avg_account_id: T::AccountId, avg_id: u32)
 ```
 
-## Mint Assets Generating VCU Shares
+## Mint Shares of Assets Generating VCU (AGV)
 
-The AVG shares can be minted from the Authorized account up to the maximum number set in the AssetsGeneratingVCU. The function must be accessible only from SUDO account or one of the accounts stored in AuthorizedAccountsAGV.
+The AVG shares can be minted from the Authorized account up to the maximum number set in the AssetsGeneratingVCU. The function isaccessible only from SUDO account or one of the accounts stored in AuthorizedAccountsAGV.
 
 ```rust
 mint_shares_asset_generating_vcu(recipient: T::AccountId, avg_account: Vec<u8>, number_of_shares: u32)
@@ -125,9 +124,9 @@ This function also -
 - updates the total shares minted in AssetsGeneratingVCUSharesMinted
   if the same recipient has already the same kind of share the state should be updated accordingly.
 
-## Burn Assets Generating VCU Shares
+## Burn Shares of Assets Generating VCU (AGV)
 
-The AVG shares can be burned from the Authorized account in the AssetsGeneratingVCU. The function must be accessible only from SUDO account or one of the accounts stored in AuthorizedAccountsAGV.
+The AVG shares can be burned from the Authorized account in the AssetsGeneratingVCU. The function is accessible only from SUDO account or one of the accounts stored in AuthorizedAccountsAGV.
 
 ```rust
 burn_shares_asset_generating_vcu(recipient: T::AccountId, avg_account: Vec<u8>, number_of_shares: u32)
@@ -137,9 +136,21 @@ This function also -
 - Checks the existance of the shares
 - Updates the state for `AssetsGeneratingVCUSharesMinted` and `AssetsGeneratingVCUShares`
 
-## Transfer Assets Generating VCU Shares
+## Transfer Shares of Assets Generating VCU (AGV)
 
-The owner of the share can transfer them to other account by a function called. The function must be accessible only from SUDO account or one of the accounts stored in AuthorizedAccountsAGV.
+The owner of the share can transfer them to other account by a function called.
+
+```rust
+transfer_shares_asset_generating_vcu(sender: T::AccountId, recipient: T::AccountId, avg_account: Vec<u8>, number_of_shares: u32)
+```
+
+This function also -
+- checks the availability of the shares
+- updates the state for both accounts accordingly to the transfer
+
+## Force Transfer Shares of Assets Generating VCU (AGV)
+
+The administrator can force transfer shares from one account to another. The function is accessible only from SUDO account or one of the accounts stored in AuthorizedAccountsAGV.
 
 ```rust
 transfer_shares_asset_generating_vcu(sender: T::AccountId, recipient: T::AccountId, avg_account: Vec<u8>, number_of_shares: u32)

@@ -488,14 +488,43 @@ decl_module! {
 			// Return a successful DispatchResult
 			Ok(())
 		}
-
-       /// The owner of the share can transfer them to other account by this function called.
+	/// The owner can transfer its own shares to a recipient
+	   ///
+	   /// ex: avg_id: 5Hdr4DQufkxmhFcymTR71jqYtTnfkfG5jTs6p6MSnsAcy5ui-1
+	   /// The dispatch origin for this call must be `Signed` either by the Root or authorized account.
+	   #[weight = 10_000 + T::DbWeight::get().writes(1)]
+	   pub fn transfer_shares_asset_generating_vcu(origin, recipient: T::AccountId, avg_account: Vec<u8>, number_of_shares: u32) -> DispatchResult {
+		    let sender = ensure_signed(origin)?;
+		   // check that the shares are present
+		   ensure!(AssetsGeneratingVCUShares::<T>::contains_key(&sender, &avg_account), Error::<T>::AssetGeneratedSharesNotFound);
+		   // get the shares available
+		   let sender_shares = AssetsGeneratingVCUShares::<T>::get(&sender, &avg_account);
+		   // check whether shares are enough for the transfer
+		   ensure!(number_of_shares <= sender_shares, Error::<T>::NumberofSharesNotFound);
+		   // decrease the shares for the sender
+		   AssetsGeneratingVCUShares::<T>::try_mutate(&sender, &avg_account, |share| -> DispatchResult {
+			   let total_sh = share.checked_sub(number_of_shares).ok_or(Error::<T>::TooLessShares)?;
+			   *share = total_sh;
+			   Ok(())
+		   })?;
+		   // increase the shares for the recipient for the same amount
+		   AssetsGeneratingVCUShares::<T>::try_mutate(&recipient, &avg_account, |share| -> DispatchResult {
+			   let total_sh = share.checked_add(number_of_shares).ok_or(Error::<T>::Overflow)?;
+			   *share = total_sh;
+			   Ok(())
+		   })?;
+		   // Generate event
+		   Self::deposit_event(RawEvent::AssetsGeneratingVCUSharesTransferred(recipient));
+		   // Return a successful DispatchResult
+		   Ok(())
+	   }
+       /// The administrator can force a transfer of shares from a sender to a recipient
 	   ///
 	   /// ex: avg_id: 5Hdr4DQufkxmhFcymTR71jqYtTnfkfG5jTs6p6MSnsAcy5ui-1
 	   /// The dispatch origin for this call must be `Signed` either by the Root or authorized account.
 		#[weight = 10_000 + T::DbWeight::get().writes(1)]
-		pub fn transfer_shares_asset_generating_vcu(origin, sender: T::AccountId, recipient: T::AccountId, avg_account: Vec<u8>, number_of_shares: u32) -> DispatchResult {
-
+		pub fn forcetransfer_shares_asset_generating_vcu(origin, sender: T::AccountId, recipient: T::AccountId, avg_account: Vec<u8>, number_of_shares: u32) -> DispatchResult {
+			// chec for administrator access
 			match ensure_root(origin.clone()) {
 				Ok(()) => Ok(()),
 				Err(e) => {
@@ -508,26 +537,24 @@ decl_module! {
 					})
 				}
 			}?;
-
+			// check that the shares are present
 			ensure!(AssetsGeneratingVCUShares::<T>::contains_key(&sender, &avg_account), Error::<T>::AssetGeneratedSharesNotFound);
-
+			// get the shares available
 			let sender_shares = AssetsGeneratingVCUShares::<T>::get(&sender, &avg_account);
-
-			// check whether asset generated shares exists or not
-			ensure!(number_of_shares >= sender_shares, Error::<T>::NumberofSharesNotFound);
-
+			// check whether shares are enough for the transfer
+			ensure!(number_of_shares <= sender_shares, Error::<T>::NumberofSharesNotFound);
+			// decrease the shares for the sender
 			AssetsGeneratingVCUShares::<T>::try_mutate(&sender, &avg_account, |share| -> DispatchResult {
 				let total_sh = share.checked_sub(number_of_shares).ok_or(Error::<T>::TooLessShares)?;
 				*share = total_sh;
 				Ok(())
 			})?;
-
+			// increase the shares for the recipient for the same amount
 			AssetsGeneratingVCUShares::<T>::try_mutate(&recipient, &avg_account, |share| -> DispatchResult {
 				let total_sh = share.checked_add(number_of_shares).ok_or(Error::<T>::Overflow)?;
 				*share = total_sh;
 				Ok(())
 			})?;
-
 			// Generate event
 			Self::deposit_event(RawEvent::AssetsGeneratingVCUSharesTransferred(recipient));
 			// Return a successful DispatchResult
