@@ -189,6 +189,10 @@ decl_error! {
 		RecipientSharesLessOfBurningShares,
 		/// Total shares are not enough to burn the amount requested
 		TotalSharesNotEnough,
+		/// Invalid period in days
+		InvalidPeriodDays,
+		/// The schedule is already present on chain
+		ScheduleDuplicated,
 		
   }
 }
@@ -567,7 +571,7 @@ decl_module! {
 		/// The dispatch origin for this call must be `Signed` either by the Root or authorized account.
 		#[weight = 10_000 + T::DbWeight::get().writes(1)]
 		pub fn create_asset_generating_vcu_schedule(origin, avg_account_id: T::AccountId, avg_id: u32, period_days: u64, amount_vcu: Balance, token_id: u32) -> DispatchResult {
-
+			// check for Sudo or other admnistrator account	
 			match ensure_root(origin.clone()) {
 				Ok(()) => Ok(()),
 				Err(e) => {
@@ -581,20 +585,23 @@ decl_module! {
 				}
 			}?;
 
-			// check whether asset generated VCU exists or not
+			// check whether asset generating VCU exists or not
 			ensure!(AssetsGeneratingVCU::<T>::contains_key(&avg_account_id, &avg_id), Error::<T>::AssetGeneratedVCUNotFound);
+			// check for VCU amount > 0
 			ensure!(amount_vcu > 0, Error::<T>::InvalidVCUAmount);
+			// check for days >0
+			ensure!(period_days > 0, Error::<T>::InvalidPeriodDays);
+			// check the schedule is not alreayd on chain
+			ensure!(!AssetsGeneratingVCUSchedule::<T>::contains_key(&avg_account_id, &avg_id),Error::<T>::ScheduleDuplicated);
+			// TODO - it looks wrong, I remove, let cancel as final step
+			// ensure!(AssetAVGBundle::<T>::contains_key(&avg_account_id, &avg_id), Error::<T>::AssetAVGBundleNotFound);
+			// let bundle_asset_id = AssetAVGBundle::<T>::get(&avg_account_id, &avg_id);
+			// ensure!(bundle_asset_id == token_id, Error::<T>::BundleAssetIdNotSame);
 
-			ensure!(AssetAVGBundle::<T>::contains_key(&avg_account_id, &avg_id), Error::<T>::AssetAVGBundleNotFound);
-
-			let bundle_asset_id = AssetAVGBundle::<T>::get(&avg_account_id, &avg_id);
-
-			ensure!(bundle_asset_id == token_id, Error::<T>::BundleAssetIdNotSame);
-
+			// create json string
     		let json = Self::create_json_string(vec![("period_days",&mut period_days.to_string().as_bytes().to_vec()), ("amount_vcu",&mut  amount_vcu.to_string().as_bytes().to_vec()), ("token_id",&mut  token_id.to_string().as_bytes().to_vec())]);
-
+			// store the schedule
 			AssetsGeneratingVCUSchedule::<T>::insert(&avg_account_id, &avg_id, json);
-
 			// Generate event
 			Self::deposit_event(RawEvent::AssetsGeneratingVCUScheduleAdded(avg_account_id, avg_id));
 			// Return a successful DispatchResult
@@ -607,7 +614,7 @@ decl_module! {
 		/// The dispatch origin for this call must be `Signed` either by the Root or authorized account.
 		#[weight = 10_000 + T::DbWeight::get().writes(1)]
 		pub fn destroy_asset_generating_vcu_schedule(origin, avg_account_id: T::AccountId, avg_id: u32) -> DispatchResult {
-
+			// check for Sudo or other admnistrator account	
 			match ensure_root(origin.clone()) {
 				Ok(()) => Ok(()),
 				Err(e) => {
@@ -622,9 +629,8 @@ decl_module! {
 			}?;
 
 			// check whether asset generated VCU exists or not
-
 			ensure!(AssetsGeneratingVCUSchedule::<T>::contains_key(&avg_account_id, &avg_id), Error::<T>::AssetGeneratedVCUScheduleNotFound);
-
+			// remove the schedule
 			AssetsGeneratingVCUSchedule::<T>::remove(&avg_account_id, &avg_id);
 			// Generate event
 			Self::deposit_event(RawEvent::AssetsGeneratingVCUScheduleDestroyed(avg_account_id, avg_id));
