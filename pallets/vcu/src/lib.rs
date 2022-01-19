@@ -64,7 +64,7 @@ decl_storage! {
 		/// AssetsGeneratingVCUSchedule (Verified Carbon Credit) should be stored on chain from the authorized accounts.
 		AssetsGeneratingVCUSchedule get(fn asset_generating_vcu_schedule): double_map hasher(blake2_128_concat) T::AccountId, hasher(blake2_128_concat) u32 => Vec<u8>;
 		/// AssetsGeneratingVCUGenerated Minting of Scheduled VCU
-		AssetsGeneratingVCUGenerated get(fn vcu_generated): double_map hasher(blake2_128_concat) T::AccountId, hasher(blake2_128_concat) u32 => Vec<u8>;
+		AssetsGeneratingVCUGenerated get(fn vcu_generated): double_map hasher(blake2_128_concat) T::AccountId, hasher(blake2_128_concat) u32 => u32;
 		/// VCUsBurnedAccounts: store the burned vcu for each account
 		VCUsBurnedAccounts get(fn vcu_burned_account): double_map hasher(blake2_128_concat) T::AccountId, hasher(blake2_128_concat) u32 => u128;
 		/// VCUsBurned: store the burned VCU for each type of VCU token
@@ -193,6 +193,8 @@ decl_error! {
 		InvalidPeriodDays,
 		/// The schedule is already present on chain
 		ScheduleDuplicated,
+		/// The minting time is not not yet arrived based on the schedule
+		AssetGeneratedScheduleNotYetArrived,
 		
   }
 }
@@ -652,9 +654,10 @@ decl_module! {
 		/// For example with a schedule every year, the minting will be executed only one time every 365 days.
 		///
 		/// The dispatch origin for this call must be `Signed` either by the Root or authorized account.
+		/// the first minting can be done anytime, the  following minting not before the scheduled time
 		#[weight = 10_000 + T::DbWeight::get().writes(1)]
 		pub fn mint_scheduled_vcu(origin, avg_account_id: T::AccountId, avg_id: u32) -> DispatchResultWithPostInfo {
-
+			// check for Sudo or other admnistrator account	
 			match ensure_root(origin.clone()) {
 				Ok(()) => Ok(()),
 				Err(e) => {
@@ -667,36 +670,38 @@ decl_module! {
 					})
 				}
 			}?;
-
-			AssetsGeneratingVCUGenerated::<T>::try_mutate_exists(avg_account_id.clone(), avg_id, |vcus| -> DispatchResultWithPostInfo {
-				ensure!(AssetsGeneratingVCUSchedule::<T>::contains_key(&avg_account_id, &avg_id), Error::<T>::AssetGeneratedVCUScheduleNotFound);
-				let content: Vec<u8> = AssetsGeneratingVCUSchedule::<T>::get(avg_account_id.clone(), &avg_id);
-
-				let period_days = Self::json_get_value(content.clone(),"period_days".as_bytes().to_vec());
-				let period_days = str::parse::<u64>(sp_std::str::from_utf8(&period_days).unwrap()).unwrap();
-				let token_id = Self::json_get_value(content.clone(),"token_id".as_bytes().to_vec());
-				let token_id = str::parse::<u32>(sp_std::str::from_utf8(&token_id).unwrap()).unwrap();
-				let amount_vcu = Self::json_get_value(content,"amount_vcu".as_bytes().to_vec());
-				let amount_vcu = str::parse::<Balance>(sp_std::str::from_utf8(&amount_vcu).unwrap()).unwrap();
-
-				let now:u64 = T::UnixTime::now().as_secs();
-
-                if !Asset::<T>::contains_key(token_id) {
-					pallet_assets::Module::<T>::force_create(RawOrigin::Root.into(), token_id, T::Lookup::unlookup(avg_account_id.clone()), One::one(), One::one())?;
-				}
-
-				ensure!(period_days == now, Error::<T>::AssetGeneratedScheduleExpired);
-
-				pallet_assets::Module::<T>::mint(RawOrigin::Signed(avg_account_id.clone()).into(), token_id, T::Lookup::unlookup(avg_account_id.clone()), amount_vcu)?;
-
-				if vcus.is_none() {
-					let json = Self::create_json_string(vec![("period_days",&mut period_days.to_string().as_bytes().to_vec()), ("amount_vcu",&mut  amount_vcu.to_string().as_bytes().to_vec())]);
-					*vcus = Some(json);
-				}
-				Self::deposit_event(RawEvent::AssetsGeneratingVCUGenerated(avg_account_id, avg_id));
-
-            	Ok(().into())
-        	})
+			ensure!(AssetsGeneratingVCUSchedule::<T>::contains_key(&avg_account_id, &avg_id), Error::<T>::AssetGeneratedVCUScheduleNotFound);
+			let content: Vec<u8> = AssetsGeneratingVCUSchedule::<T>::get(avg_account_id.clone(), &avg_id);
+			let period_days = Self::json_get_value(content.clone(),"period_days".as_bytes().to_vec());
+			let period_days = str::parse::<u32>(sp_std::str::from_utf8(&period_days).unwrap()).unwrap();
+			let token_id = Self::json_get_value(content.clone(),"token_id".as_bytes().to_vec());
+			let token_id = str::parse::<u32>(sp_std::str::from_utf8(&token_id).unwrap()).unwrap();
+			let amount_vcu = Self::json_get_value(content,"amount_vcu".as_bytes().to_vec());
+			let amount_vcu = str::parse::<Balance>(sp_std::str::from_utf8(&amount_vcu).unwrap()).unwrap();
+			let mut timestamp:u32=0;
+			let now:u32 = T::UnixTime::now().as_secs();
+			// check for the last minting done
+			if(AssetsGeneratingVCUGenerated::<T>::contains_key(&avg_account_id, &avg_id)){
+				timestamp = AssetsGeneratingVCUGenerated::<T>::get(&avg_account_id, &avg_id);
+				
+			}
+			let elapse:u32=period_days*24*60;
+			ensure!(now+elapse<=timestamp,Error::<T>::AssetGeneratedScheduleNotYetArrived);
+			//creation of the tokenid in assets if it's yet present on chain
+			if !Asset::<T>::contains_key(token_id) {
+				pallet_assets::Module::<T>::force_create(RawOrigin::Root.into(), token_id, T::Lookup::unlookup(avg_account_id.clone()), One::one(), One::one())?;
+			}
+			// mint the assets
+			pallet_assets::Module::<T>::mint(RawOrigin::Signed(avg_account_id.clone()).into(), token_id, T::Lookup::unlookup(avg_account_id.clone()), amount_vcu)?;
+			// store the last minting time in AssetsGeneratingVCUGenerated
+			if(AssetsGeneratingVCUGenerated::<T>::contains_key(&avg_account_id, &avg_id)){
+				AssetsGeneratingVCUGenerated::<T>::take(&avg_account_id, &avg_id);		
+			}
+			AssetsGeneratingVCUGenerated::<T>::insert(&avg_account_id, &avg_id,now);		
+			// generate event
+			Self::deposit_event(RawEvent::AssetsGeneratingVCUGenerated(avg_account_id, avg_id));
+			// return
+			Ok(().into())
 		}
 
 		/// The owner of the “VCUs”  can decide anytime to “retire”, basically burning them.
@@ -704,20 +709,8 @@ decl_module! {
 		/// The dispatch origin for this call must be `Signed` either by the Root or authorized account.
 		#[weight = 10_000 + T::DbWeight::get().writes(1)]
 		pub fn retire_vcu(origin, avg_account_id: T::AccountId, avg_id: u32, asset_id: u32, amount: u128) -> DispatchResultWithPostInfo {
-
-			match ensure_root(origin.clone()) {
-				Ok(()) => Ok(()),
-				Err(e) => {
-					ensure_signed(origin).and_then(|o: T::AccountId| {
-						if AuthorizedAccountsAGV::<T>::contains_key(&o) {
-							Ok(())
-						} else {
-							Err(e)
-						}
-					})
-				}
-			}?;
-
+			
+			let sender = ensure_signed(origin)?;
 			// check whether asset exists or not
 			ensure!(Asset::<T>::contains_key(asset_id), Error::<T>::AssetDoesNotExist);
 
