@@ -69,8 +69,10 @@ decl_storage! {
 		VCUsBurnedAccounts get(fn vcu_burned_account): double_map hasher(blake2_128_concat) T::AccountId, hasher(blake2_128_concat) u32 => u128;
 		/// VCUsBurned: store the burned VCU for each type of VCU token
 		VCUsBurned get(fn vcu_burned):map hasher(blake2_128_concat) u32 => u128;
-		/// OraclesAccountMintingVCU: allow the account of the Oracle to mint the VCU for his AVG
-		OraclesAccountMintingVCU get(fn oracle_generating_vcu): double_map hasher(blake2_128_concat) T::AccountId, hasher(blake2_128_concat) u32 => T::AccountId;
+		/// OraclesAccountMintingVCU: allow to store the account of the Oracle to mint the VCU for its AVG
+		OraclesAccountMintingVCU get(fn oracle_account_generating_vcu): double_map hasher(blake2_128_concat) T::AccountId, hasher(blake2_128_concat) u32 => T::AccountId;
+		/// OraclesTokenMintingVCU: allows to store the tokenid of the Oracle to mint the VCU for its AVG
+		OraclesTokenMintingVCU get(fn oracle_tokenid_generating_vcu): double_map hasher(blake2_128_concat) T::AccountId, hasher(blake2_128_concat) u32 => u32;
 		/// BundleAssetsGeneratingVCU: a "bundle" of AVG
 		BundleAssetsGeneratingVCU get(fn bundle_asset_generating_vcu): map hasher(blake2_128_concat) u32 => Vec<u8>;
 		/// Bundle Asset AVG Data
@@ -197,8 +199,12 @@ decl_error! {
 		AssetGeneratedScheduleNotYetArrived,
 		/// Token id not found in Assets Pallet
 		TokenIdNotFound,
-		// The schedule is already present on chain
+		/// The schedule is already present on chain
 		AssetsGeneratingVCUScheduleAlreadyOnChain,
+		/// The Oracle account is not matching the signer of the transaction
+		OracleAccountNotMatchingSigner,
+		/// Token for Oracle has not been found, inconsistency in stored data
+		OraclesTokenMintingVCUNotFound,
   }
 }
 
@@ -747,8 +753,8 @@ decl_module! {
 		///
 		/// The dispatch origin for this call must be `Signed` either by the Root or authorized account.
 		#[weight = 10_000 + T::DbWeight::get().writes(1)]
-		pub fn create_oracle_account_minting_vcu(origin, avg_account_id: T::AccountId, avg_id: u32, oracle_account_id: T::AccountId) -> DispatchResult {
-
+		pub fn create_oracle_account_minting_vcu(origin, avg_account_id: T::AccountId, avg_id: u32, oracle_account_id: T::AccountId,token_id: u32) -> DispatchResult {
+			// check for SUDO or administrator accounts
 			match ensure_root(origin.clone()) {
 				Ok(()) => Ok(()),
 				Err(e) => {
@@ -761,10 +767,16 @@ decl_module! {
 					})
 				}
 			}?;
-
+			// check if the AGV exists or not
+			ensure!(AssetsGeneratingVCU::<T>::contains_key(&avg_account_id, &avg_id), Error::<T>::AssetGeneratingVCUNotFound);
+			// store the token for the Oracle
+			if OraclesTokenMintingVCU::<T>::contains_key(avg_account_id.clone(), avg_id.clone()) {
+				OraclesTokenMintingVCU::<T>::take(avg_account_id.clone(), avg_id.clone());
+			}
+			OraclesTokenMintingVCU::<T>::insert(avg_account_id.clone(), avg_id.clone(),token_id.clone());
+			//store the oracle or replace if already present, we allow only one oracle for each AGV
 			OraclesAccountMintingVCU::<T>::try_mutate_exists(avg_account_id.clone(), avg_id, |oracle| {
 				*oracle = Some(oracle_account_id.clone());
-
 				// Generate event
 				Self::deposit_event(RawEvent::OraclesAccountMintingVCUAdded(avg_account_id, avg_id, oracle_account_id));
 				// Return a successful DispatchResult
@@ -777,7 +789,7 @@ decl_module! {
 		/// The dispatch origin for this call must be `Signed` either by the Root or authorized account.
 		#[weight = 10_000 + T::DbWeight::get().writes(1)]
 		pub fn destroy_oracle_account_minting_vcu(origin, avg_account_id: T::AccountId, avg_id: u32) -> DispatchResult {
-
+			//store the oracle or replace if already present, we allow only one oracle for each AGV
 			match ensure_root(origin.clone()) {
 				Ok(()) => Ok(()),
 				Err(e) => {
@@ -790,11 +802,12 @@ decl_module! {
 					})
 				}
 			}?;
-
+			// check for Oracle presence on chain
 			ensure!(OraclesAccountMintingVCU::<T>::contains_key(&avg_account_id, &avg_id), Error::<T>::OraclesAccountMintingVCUNotFound);
-
-			OraclesAccountMintingVCU::<T>::remove(avg_account_id.clone(), avg_id);
-
+			// remove the Oracle Account
+			OraclesAccountMintingVCU::<T>::remove(avg_account_id.clone(), &avg_id);
+			// remove the Oracle Token Id
+			OraclesTokenMintingVCU::<T>::remove(avg_account_id.clone(), &avg_id);
 			// Generate event
 			Self::deposit_event(RawEvent::OraclesAccountMintingVCUDestroyed(avg_account_id, avg_id));
 			// Return a successful DispatchResult
@@ -805,38 +818,24 @@ decl_module! {
 		///
 		/// The dispatch origin for this call must be `Signed` either by the Root or authorized account.
 		#[weight = 10_000 + T::DbWeight::get().writes(1)]
-		pub fn mint_vcu_from_oracle(origin, avg_account_id: T::AccountId, avg_id: u32, amount_vcu: Balance, asset_id: u32) -> DispatchResultWithPostInfo {
-
-			match ensure_root(origin.clone()) {
-				Ok(()) => Ok(()),
-				Err(e) => {
-					ensure_signed(origin).and_then(|o: T::AccountId| {
-						if AuthorizedAccountsAGV::<T>::contains_key(&o) {
-							Ok(())
-						} else {
-							Err(e)
-						}
-					})
-				}
-			}?;
+		pub fn mint_vcu_from_oracle(origin, avg_account_id: T::AccountId, avg_id: u32, amount_vcu: Balance) -> DispatchResultWithPostInfo {
+			let sender=ensure_signed(origin)?;
+			// check for Oracle presence on chain
 			ensure!(OraclesAccountMintingVCU::<T>::contains_key(&avg_account_id, &avg_id), Error::<T>::OraclesAccountMintingVCUNotFound);
-
+			// check for matching signer with Oracle Account
 			let oracle_account: T::AccountId = OraclesAccountMintingVCU::<T>::get(&avg_account_id, &avg_id);
-
-			ensure!(AssetAVGBundle::<T>::contains_key(&avg_account_id, &avg_id), Error::<T>::AssetAVGBundleNotFound);
-
-			let bundle_asset_id = AssetAVGBundle::<T>::get(&avg_account_id, &avg_id);
-
-			ensure!(bundle_asset_id == asset_id, Error::<T>::BundleAssetIdNotSame);
-
-			if !Asset::<T>::contains_key(asset_id) {
-				pallet_assets::Module::<T>::force_create(RawOrigin::Root.into(), asset_id, T::Lookup::unlookup(oracle_account.clone()), One::one(), One::one())?;
+			ensure!(oracle_account==sender,Error::<T>::OracleAccountNotMatchingSigner);
+			// check for Token id in Oracle configuration
+			ensure!(OraclesTokenMintingVCU::<T>::contains_key(&avg_account_id, &avg_id),Error::<T>::OraclesTokenMintingVCUNotFound);
+			// get the token id
+			let token_id=OraclesTokenMintingVCU::<T>::get(&avg_account_id, &avg_id);
+			if !Asset::<T>::contains_key(token_id) {
+				pallet_assets::Module::<T>::force_create(RawOrigin::Root.into(), token_id, T::Lookup::unlookup(oracle_account.clone()), One::one(), One::one())?;
 			}
-
-			pallet_assets::Module::<T>::mint(RawOrigin::Signed(oracle_account.clone()).into(), asset_id, T::Lookup::unlookup(avg_account_id.clone()), amount_vcu)?;
-
+			//TODO - The VCU have to be minted in favour of the shareholders of the AGV
+			pallet_assets::Module::<T>::mint(RawOrigin::Signed(oracle_account.clone()).into(), token_id, T::Lookup::unlookup(avg_account_id.clone()), amount_vcu)?;
+			// generate event
 			Self::deposit_event(RawEvent::OracleAccountVCUMinted(avg_account_id, avg_id, oracle_account));
-
 			Ok(().into())
 		}
 
@@ -880,28 +879,26 @@ decl_module! {
 			ensure!(Asset::<T>::contains_key(asset_id), Error::<T>::AssetDoesNotExist);
 
 			let agvs= Self::json_get_complexarray(info.clone(),"agvs".as_bytes().to_vec());
-                let mut x=0;
-                if agvs.len()>2 {
-                    loop {
-                        let w= Self::json_get_recordvalue(agvs.clone(),x);
-                        if w.is_empty() {
-                            break;
-                        }
-						let account_id= Self::json_get_value(w.clone(),"accountid".as_bytes().to_vec());
-						let id= Self::json_get_value(w.clone(),"id".as_bytes().to_vec());
+			let mut x=0;
+			if agvs.len()>2 {
+				loop {
+					let w= Self::json_get_recordvalue(agvs.clone(),x);
+					if w.is_empty() {
+						break;
+					}
+					let account_id= Self::json_get_value(w.clone(),"accountid".as_bytes().to_vec());
+					let id= Self::json_get_value(w.clone(),"id".as_bytes().to_vec());
 
-						let account_id = T::AccountId::decode(&mut &account_id[1..33]).unwrap_or_default();
-						let id = str::parse::<u32>(sp_std::str::from_utf8(&id).unwrap()).unwrap();
+					let account_id = T::AccountId::decode(&mut &account_id[1..33]).unwrap_or_default();
+					let id = str::parse::<u32>(sp_std::str::from_utf8(&id).unwrap()).unwrap();
 
-						// check whether asset generated VCU exists or not
-						ensure!(AssetsGeneratingVCU::<T>::contains_key(&account_id, &id), Error::<T>::AssetGeneratingVCUNotFound);
-						AssetAVGBundle::<T>::insert(&account_id, &id, &asset_id);
-
-                        x += 1;
-                    }
-                }
-                ensure!(x>0,Error::<T>::InvalidAVGs);
-
+					// check whether asset generated VCU exists or not
+					ensure!(AssetsGeneratingVCU::<T>::contains_key(&account_id, &id), Error::<T>::AssetGeneratingVCUNotFound);
+					AssetAVGBundle::<T>::insert(&account_id, &id, &asset_id);
+					x += 1;
+				}
+			}
+			ensure!(x>0,Error::<T>::InvalidAVGs);
 			BundleAssetsGeneratingVCU::insert(&bundle_id, &info);
 			Self::deposit_event(RawEvent::AddedBundleAssetsGeneratingVCU(bundle_id));
 
