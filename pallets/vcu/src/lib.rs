@@ -64,7 +64,7 @@ decl_storage! {
 		/// AssetsGeneratingVCUSchedule (Verified Carbon Credit) should be stored on chain from the authorized accounts.
 		AssetsGeneratingVCUSchedule get(fn asset_generating_vcu_schedule): double_map hasher(blake2_128_concat) T::AccountId, hasher(blake2_128_concat) u32 => Vec<u8>;
 		/// AssetsGeneratingVCUGenerated Minting of Scheduled VCU
-		AssetsGeneratingVCUGenerated get(fn vcu_generated): double_map hasher(blake2_128_concat) T::AccountId, hasher(blake2_128_concat) u32 => u32;
+		AssetsGeneratingVCUGenerated get(fn vcu_generated): double_map hasher(blake2_128_concat) T::AccountId, hasher(blake2_128_concat) u32 => u64;
 		/// VCUsBurnedAccounts: store the burned vcu for each account
 		VCUsBurnedAccounts get(fn vcu_burned_account): double_map hasher(blake2_128_concat) T::AccountId, hasher(blake2_128_concat) u32 => u128;
 		/// VCUsBurned: store the burned VCU for each type of VCU token
@@ -150,7 +150,7 @@ decl_error! {
 		/// Too many NumberofShares
 		TooManyShares,
 		/// AssetGeneratedVCU has not been found on the blockchain
-		AssetGeneratedVCUNotFound,
+		AssetGeneratingVCUNotFound,
 		/// Invalid AVGId
 		InvalidAVGId,
 		/// Too less NumberofShares
@@ -195,7 +195,10 @@ decl_error! {
 		ScheduleDuplicated,
 		/// The minting time is not not yet arrived based on the schedule
 		AssetGeneratedScheduleNotYetArrived,
-		
+		/// Token id not found in Assets Pallet
+		TokenIdNotFound,
+		// The schedule is already present on chain
+		AssetsGeneratingVCUScheduleAlreadyOnChain,
   }
 }
 
@@ -378,7 +381,7 @@ decl_module! {
 			}?;
 
 			// check whether asset generated VCU exists or not
-			ensure!(AssetsGeneratingVCU::<T>::contains_key(&avg_account_id, &avg_id), Error::<T>::AssetGeneratedVCUNotFound);
+			ensure!(AssetsGeneratingVCU::<T>::contains_key(&avg_account_id, &avg_id), Error::<T>::AssetGeneratingVCUNotFound);
 			// TODO check for VCU already generated to avoid orphans
 			// renove the assets generating VCU
 			AssetsGeneratingVCU::<T>::remove(avg_account_id, avg_id);
@@ -413,7 +416,7 @@ decl_module! {
 			let (str_account_id, avg_id): (&str, u32) = (avg_id_vec[0], str::parse::<u32>(avg_id_vec[1]).unwrap());
 			let account_id = T::AccountId::decode(&mut &str_account_id.as_bytes().to_vec()[1..33]).unwrap_or_default();
 			// check whether asset generating VCU (AGV) exists or not
-			ensure!(AssetsGeneratingVCU::<T>::contains_key(&account_id, &avg_id), Error::<T>::AssetGeneratedVCUNotFound);
+			ensure!(AssetsGeneratingVCU::<T>::contains_key(&account_id, &avg_id), Error::<T>::AssetGeneratingVCUNotFound);
 			
 			// read info about the AVG
 			let content: Vec<u8> = AssetsGeneratingVCU::<T>::get(&account_id, &avg_id);
@@ -466,7 +469,7 @@ decl_module! {
 			let (str_account_id, avg_id): (&str, u32) = (avg_id_vec[0], str::parse::<u32>(avg_id_vec[1]).unwrap());
 			let account_id = T::AccountId::decode(&mut &str_account_id.as_bytes().to_vec()[1..33]).unwrap_or_default();
 			// check whether asset generated VCU exists or not
-			ensure!(AssetsGeneratingVCU::<T>::contains_key(&account_id, &avg_id), Error::<T>::AssetGeneratedVCUNotFound);
+			ensure!(AssetsGeneratingVCU::<T>::contains_key(&account_id, &avg_id), Error::<T>::AssetGeneratingVCUNotFound);
 			// check for previously minted shares for the recipient
 			ensure!(AssetsGeneratingVCUShares::<T>::contains_key(&recipient, &avg_account), Error::<T>::RecipientSharesNotFound);
 			// check  the number of burnable shares for the recipient
@@ -588,18 +591,16 @@ decl_module! {
 			}?;
 
 			// check whether asset generating VCU exists or not
-			ensure!(AssetsGeneratingVCU::<T>::contains_key(&avg_account_id, &avg_id), Error::<T>::AssetGeneratedVCUNotFound);
+			ensure!(AssetsGeneratingVCU::<T>::contains_key(&avg_account_id, &avg_id), Error::<T>::AssetGeneratingVCUNotFound);
 			// check for VCU amount > 0
 			ensure!(amount_vcu > 0, Error::<T>::InvalidVCUAmount);
 			// check for days >0
 			ensure!(period_days > 0, Error::<T>::InvalidPeriodDays);
 			// check the schedule is not alreayd on chain
-			ensure!(!AssetsGeneratingVCUSchedule::<T>::contains_key(&avg_account_id, &avg_id),Error::<T>::ScheduleDuplicated);
-			// TODO - it looks wrong, I remove, let cancel as final step
-			// ensure!(AssetAVGBundle::<T>::contains_key(&avg_account_id, &avg_id), Error::<T>::AssetAVGBundleNotFound);
-			// let bundle_asset_id = AssetAVGBundle::<T>::get(&avg_account_id, &avg_id);
-			// ensure!(bundle_asset_id == token_id, Error::<T>::BundleAssetIdNotSame);
-
+			ensure!(!AssetsGeneratingVCUSchedule::<T>::contains_key(&avg_account_id,&avg_id),Error::<T>::AssetsGeneratingVCUScheduleAlreadyOnChain);
+			// check the token id is present on chain
+			ensure!(Asset::<T>::contains_key(token_id),Error::<T>::TokenIdNotFound);
+			// TODO control the property of the tokenid, it should match the one of the AGV for security? Because otherwise even wrapped Eth could be minted
 			// create json string
     		let json = Self::create_json_string(vec![("period_days",&mut period_days.to_string().as_bytes().to_vec()), ("amount_vcu",&mut  amount_vcu.to_string().as_bytes().to_vec()), ("token_id",&mut  token_id.to_string().as_bytes().to_vec())]);
 			// store the schedule
@@ -673,28 +674,29 @@ decl_module! {
 			ensure!(AssetsGeneratingVCUSchedule::<T>::contains_key(&avg_account_id, &avg_id), Error::<T>::AssetGeneratedVCUScheduleNotFound);
 			let content: Vec<u8> = AssetsGeneratingVCUSchedule::<T>::get(avg_account_id.clone(), &avg_id);
 			let period_days = Self::json_get_value(content.clone(),"period_days".as_bytes().to_vec());
-			let period_days = str::parse::<u32>(sp_std::str::from_utf8(&period_days).unwrap()).unwrap();
+			let period_days = str::parse::<u64>(sp_std::str::from_utf8(&period_days).unwrap()).unwrap();
 			let token_id = Self::json_get_value(content.clone(),"token_id".as_bytes().to_vec());
 			let token_id = str::parse::<u32>(sp_std::str::from_utf8(&token_id).unwrap()).unwrap();
 			let amount_vcu = Self::json_get_value(content,"amount_vcu".as_bytes().to_vec());
 			let amount_vcu = str::parse::<Balance>(sp_std::str::from_utf8(&amount_vcu).unwrap()).unwrap();
-			let mut timestamp:u32=0;
-			let now:u32 = T::UnixTime::now().as_secs();
+			let mut timestamp:u64=0;
+			let now:u64 = T::UnixTime::now().as_secs();
 			// check for the last minting done
-			if(AssetsGeneratingVCUGenerated::<T>::contains_key(&avg_account_id, &avg_id)){
+			if AssetsGeneratingVCUGenerated::<T>::contains_key(&avg_account_id, &avg_id) {
 				timestamp = AssetsGeneratingVCUGenerated::<T>::get(&avg_account_id, &avg_id);
 				
 			}
-			let elapse:u32=period_days*24*60;
+			let elapse:u64=period_days*24*60;
 			ensure!(now+elapse<=timestamp,Error::<T>::AssetGeneratedScheduleNotYetArrived);
 			//creation of the tokenid in assets if it's yet present on chain
 			if !Asset::<T>::contains_key(token_id) {
 				pallet_assets::Module::<T>::force_create(RawOrigin::Root.into(), token_id, T::Lookup::unlookup(avg_account_id.clone()), One::one(), One::one())?;
 			}
+			// TODO - Minting must be in favor of the shares holders accounts in proportion to the number of shares
 			// mint the assets
 			pallet_assets::Module::<T>::mint(RawOrigin::Signed(avg_account_id.clone()).into(), token_id, T::Lookup::unlookup(avg_account_id.clone()), amount_vcu)?;
 			// store the last minting time in AssetsGeneratingVCUGenerated
-			if(AssetsGeneratingVCUGenerated::<T>::contains_key(&avg_account_id, &avg_id)){
+			if AssetsGeneratingVCUGenerated::<T>::contains_key(&avg_account_id, &avg_id){
 				AssetsGeneratingVCUGenerated::<T>::take(&avg_account_id, &avg_id);		
 			}
 			AssetsGeneratingVCUGenerated::<T>::insert(&avg_account_id, &avg_id,now);		
@@ -709,25 +711,31 @@ decl_module! {
 		/// The dispatch origin for this call must be `Signed` either by the Root or authorized account.
 		#[weight = 10_000 + T::DbWeight::get().writes(1)]
 		pub fn retire_vcu(origin, avg_account_id: T::AccountId, avg_id: u32, asset_id: u32, amount: u128) -> DispatchResultWithPostInfo {
-			
+
 			let sender = ensure_signed(origin)?;
 			// check whether asset exists or not
+			// TODO rename asset_id on tokenid for consistency with other functions
 			ensure!(Asset::<T>::contains_key(asset_id), Error::<T>::AssetDoesNotExist);
+			// TODO - read the tokenid (assetid) from the schedule (use tokenid as name)
+			// TODO check that the sender owns enough VCU (assets) to be burned
+			// TODO - the burning must be done for the signer account (NOT the avg_account)			
 
+			// burn the tokens on assets pallet
 			pallet_assets::Module::<T>::burn(RawOrigin::Signed(avg_account_id.clone()).into(), asset_id, T::Lookup::unlookup(avg_account_id.clone()), amount)?;
-
+			
+			// TODO we need to keep a counter of burned tokens for the signer too
+			//increase burned VCU for the AVG
 			VCUsBurnedAccounts::<T>::try_mutate(&avg_account_id, &avg_id, |vcu| -> DispatchResult {
 				let total_vcu = vcu.checked_add(amount).ok_or(Error::<T>::Overflow)?;
 				*vcu = total_vcu;
 				Ok(())
 			})?;
-
+			// increase total burned VCU
 			VCUsBurned::try_mutate(&asset_id, |vcu| -> DispatchResult {
 				let total_vcu = vcu.checked_add(amount).ok_or(Error::<T>::Overflow)?;
 				*vcu = total_vcu;
 				Ok(())
 			})?;
-
 			// Generate event
 			Self::deposit_event(RawEvent::VCUsBurnedAdded(avg_account_id, avg_id, asset_id));
 			// Return a successful DispatchResult
@@ -886,7 +894,7 @@ decl_module! {
 						let id = str::parse::<u32>(sp_std::str::from_utf8(&id).unwrap()).unwrap();
 
 						// check whether asset generated VCU exists or not
-						ensure!(AssetsGeneratingVCU::<T>::contains_key(&account_id, &id), Error::<T>::AssetGeneratedVCUNotFound);
+						ensure!(AssetsGeneratingVCU::<T>::contains_key(&account_id, &id), Error::<T>::AssetGeneratingVCUNotFound);
 						AssetAVGBundle::<T>::insert(&account_id, &id, &asset_id);
 
                         x += 1;
