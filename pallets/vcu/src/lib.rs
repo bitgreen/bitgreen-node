@@ -75,8 +75,6 @@ decl_storage! {
 		OraclesTokenMintingVCU get(fn oracle_tokenid_generating_vcu): double_map hasher(blake2_128_concat) T::AccountId, hasher(blake2_128_concat) u32 => u32;
 		/// BundleAssetsGeneratingVCU: a "bundle" of AVG
 		BundleAssetsGeneratingVCU get(fn bundle_asset_generating_vcu): map hasher(blake2_128_concat) u32 => Vec<u8>;
-		/// Bundle Asset AVG Data
-		AssetAVGBundle get(fn asset_avg_bundle): double_map hasher(blake2_128_concat) T::AccountId, hasher(blake2_128_concat) u32  => u32;
 	}
 }
 
@@ -181,8 +179,6 @@ decl_error! {
 		InvalidAVGs,
 		/// Bundle does not exist,
 		BundleDoesNotExist,
-		/// AssetAVGBundleNotFound
-		AssetAVGBundleNotFound,
 		/// BundleAssetIdNotSame
 		BundleAssetIdNotSame,
 		/// The recipient has not shares minted
@@ -207,6 +203,8 @@ decl_error! {
 		OraclesTokenMintingVCUNotFound,
 		/// InsufficientVCUs
 		InsufficientVCUs,
+		/// Token id must have a value > 10000
+		TokenIdMorethanTenThousand,
   }
 }
 
@@ -608,6 +606,8 @@ decl_module! {
 			ensure!(!AssetsGeneratingVCUSchedule::<T>::contains_key(&avg_account_id,&avg_id),Error::<T>::AssetsGeneratingVCUScheduleAlreadyOnChain);
 			// check the token id is present on chain
 			ensure!(Asset::<T>::contains_key(token_id),Error::<T>::TokenIdNotFound);
+			// check the token id > 10000 (because under 10000 reserver for the bridge)
+			ensure!(token_id>=10000,Error::<T>::TokenIdMorethanTenThousand);
 			// TODO control the property of the tokenid, it should match the one of the AGV for security? Because otherwise even wrapped Eth could be minted
 			// create json string
     		let json = Self::create_json_string(vec![("period_days",&mut period_days.to_string().as_bytes().to_vec()), ("amount_vcu",&mut  amount_vcu.to_string().as_bytes().to_vec()), ("token_id",&mut  token_id.to_string().as_bytes().to_vec())]);
@@ -778,7 +778,9 @@ decl_module! {
 			}?;
 			// check if the AGV exists or not
 			ensure!(AssetsGeneratingVCU::<T>::contains_key(&avg_account_id, &avg_id), Error::<T>::AssetGeneratingVCUNotFound);
-			// store the token for the Oracle
+			// check token id >10000
+			ensure!(token_id>=10000,Error::<T>::TokenIdMorethanTenThousand);
+			// store the token if assigned for the Oracle
 			if OraclesTokenMintingVCU::<T>::contains_key(avg_account_id.clone(), avg_id.clone()) {
 				OraclesTokenMintingVCU::<T>::take(avg_account_id.clone(), avg_id.clone());
 			}
@@ -855,7 +857,7 @@ decl_module! {
 		/// The dispatch origin for this call must be `Signed` either by the Root or authorized account.
 		#[weight = 10_000 + T::DbWeight::get().writes(1)]
 		pub fn create_bundle_avg(origin, bundle_id: u32, info: Vec<u8>) -> DispatchResult {
-
+			// check for SUDO or administrator user
 			match ensure_root(origin.clone()) {
 				Ok(()) => Ok(()),
 				Err(e) => {
@@ -876,17 +878,15 @@ decl_module! {
 			// check json validity
 			let js = info.clone();
 			ensure!(Self::json_check_validity(js),Error::<T>::InvalidJson);
-
+			// check for description validity
 			let description = Self::json_get_value(info.clone(),"description".as_bytes().to_vec());
             ensure!(!description.is_empty() && description.len()<=64 , Error::<T>::InvalidDescription);
-
+			// check for asset id
 			let asset_id = Self::json_get_value(info.clone(),"assetid".as_bytes().to_vec());
-
 			let asset_id = str::parse::<u32>(sp_std::str::from_utf8(&asset_id).unwrap()).unwrap();
-
 			// check whether asset exists or not
 			ensure!(Asset::<T>::contains_key(asset_id), Error::<T>::AssetDoesNotExist);
-
+			// check the validity of the AGV in the array
 			let agvs= Self::json_get_complexarray(info.clone(),"agvs".as_bytes().to_vec());
 			let mut x=0;
 			if agvs.len()>2 {
@@ -900,10 +900,8 @@ decl_module! {
 
 					let account_id = T::AccountId::decode(&mut &account_id[1..33]).unwrap_or_default();
 					let id = str::parse::<u32>(sp_std::str::from_utf8(&id).unwrap()).unwrap();
-
 					// check whether asset generated VCU exists or not
 					ensure!(AssetsGeneratingVCU::<T>::contains_key(&account_id, &id), Error::<T>::AssetGeneratingVCUNotFound);
-					AssetAVGBundle::<T>::insert(&account_id, &id, &asset_id);
 					x += 1;
 				}
 			}
@@ -919,13 +917,23 @@ decl_module! {
 		/// The dispatch origin for this call must be `Signed` by the Root.
 		#[weight = 10_000 + T::DbWeight::get().writes(1)]
 		pub fn destroy_bundle_avg(origin, bundle_id: u32) -> DispatchResult {
-
-			ensure_root(origin)?;
-
+			// check for SUDO or administrator user
+			match ensure_root(origin.clone()) {
+				Ok(()) => Ok(()),
+				Err(e) => {
+					ensure_signed(origin).and_then(|o: T::AccountId| {
+						if AuthorizedAccountsAGV::<T>::contains_key(&o) {
+							Ok(())
+						} else {
+							Err(e)
+						}
+					})
+				}
+			}?;
+			// check if the bundle is on chain
 			ensure!(BundleAssetsGeneratingVCU::contains_key(&bundle_id), Error::<T>::BundleDoesNotExist);
-
+			// remove the bundle from the chain
 			BundleAssetsGeneratingVCU::remove(bundle_id);
-
 			// Generate event
 			Self::deposit_event(RawEvent::DestroyedBundleAssetsGeneratingVCU(bundle_id));
 			// Return a successful DispatchResult
