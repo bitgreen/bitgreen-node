@@ -205,6 +205,8 @@ decl_error! {
 		OracleAccountNotMatchingSigner,
 		/// Token for Oracle has not been found, inconsistency in stored data
 		OraclesTokenMintingVCUNotFound,
+		/// InsufficientVCUs
+		InsufficientVCUs,
   }
 }
 
@@ -716,18 +718,25 @@ decl_module! {
 		///
 		/// The dispatch origin for this call must be `Signed` either by the Root or authorized account.
 		#[weight = 10_000 + T::DbWeight::get().writes(1)]
-		pub fn retire_vcu(origin, avg_account_id: T::AccountId, avg_id: u32, asset_id: u32, amount: u128) -> DispatchResultWithPostInfo {
+		pub fn retire_vcu(origin, avg_account_id: T::AccountId, avg_id: u32, token_id: u32, amount: u128) -> DispatchResultWithPostInfo {
 
 			let sender = ensure_signed(origin)?;
 			// check whether asset exists or not
-			// TODO rename asset_id on tokenid for consistency with other functions
-			ensure!(Asset::<T>::contains_key(asset_id), Error::<T>::AssetDoesNotExist);
-			// TODO - read the tokenid (assetid) from the schedule (use tokenid as name)
-			// TODO check that the sender owns enough VCU (assets) to be burned
-			// TODO - the burning must be done for the signer account (NOT the avg_account)			
+			ensure!(Asset::<T>::contains_key(token_id), Error::<T>::AssetDoesNotExist);
+
+			ensure!(AssetsGeneratingVCUSchedule::<T>::contains_key(&avg_account_id, &avg_id), Error::<T>::AssetGeneratedVCUScheduleNotFound);
+			let content: Vec<u8> = AssetsGeneratingVCUSchedule::<T>::get(avg_account_id.clone(), &avg_id);
+			let asset_token_id = Self::json_get_value(content.clone(),"token_id".as_bytes().to_vec());
+			let asset_token_id = str::parse::<u32>(sp_std::str::from_utf8(&asset_token_id).unwrap()).unwrap();
+			let amount_vcu = Self::json_get_value(content,"amount_vcu".as_bytes().to_vec());
+			let amount_vcu = str::parse::<Balance>(sp_std::str::from_utf8(&amount_vcu).unwrap()).unwrap();
+
+			ensure!(amount_vcu > amount, Error::<T>::InsufficientVCUs);
+
+			ensure!(asset_token_id == token_id,Error::<T>::TokenIdNotFound);
 
 			// burn the tokens on assets pallet
-			pallet_assets::Module::<T>::burn(RawOrigin::Signed(avg_account_id.clone()).into(), asset_id, T::Lookup::unlookup(avg_account_id.clone()), amount)?;
+			pallet_assets::Module::<T>::burn(RawOrigin::Signed(sender.clone()).into(), token_id, T::Lookup::unlookup(avg_account_id.clone()), amount)?;
 			
 			// TODO we need to keep a counter of burned tokens for the signer too
 			//increase burned VCU for the AVG
@@ -737,13 +746,13 @@ decl_module! {
 				Ok(())
 			})?;
 			// increase total burned VCU
-			VCUsBurned::try_mutate(&asset_id, |vcu| -> DispatchResult {
+			VCUsBurned::try_mutate(&token_id, |vcu| -> DispatchResult {
 				let total_vcu = vcu.checked_add(amount).ok_or(Error::<T>::Overflow)?;
 				*vcu = total_vcu;
 				Ok(())
 			})?;
 			// Generate event
-			Self::deposit_event(RawEvent::VCUsBurnedAdded(avg_account_id, avg_id, asset_id));
+			Self::deposit_event(RawEvent::VCUsBurnedAdded(avg_account_id, avg_id, token_id));
 			// Return a successful DispatchResult
 			Ok(().into())
 		}

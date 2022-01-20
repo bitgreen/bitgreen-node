@@ -210,18 +210,18 @@ where:
 The owner of the “VCUs”  can decide anytime to “retire”, basically burning them. The function must be accessible only from SUDO account or one of the accounts stored in AuthorizedAccountsAGV.
 
 ```rust
-retire_vcu(avg_account_id: T::AccountId, avg_id: u32, asset_id: u32, amount: u128)
+retire_vcu(avg_account_id: T::AccountId, avg_id: u32, token_id: u32, amount: u128)
 ```
 
 where:
 - avg_account_id is approved account stored in `AuthorizedAccountsAGV`
 - avg_id is unique id
-- asset_id in pallet Asset
+- token_id in pallet Asset
 
 This function also -
 - Burn the amount of tokens from pallet “Assets” and
 - Update the number of burned VCU for the avg_id in VCUsBurnedAccounts
-- Update the total of burned VCU for vcu type (assetsid) in VCUsBurned
+- Update the total of burned VCU for vcu type (token_id) in VCUsBurned
 
 ## Create Oracles Generating VCU
 
