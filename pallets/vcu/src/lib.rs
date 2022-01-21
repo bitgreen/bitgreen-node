@@ -75,6 +75,8 @@ decl_storage! {
 		OraclesTokenMintingVCU get(fn oracle_tokenid_generating_vcu): double_map hasher(blake2_128_concat) T::AccountId, hasher(blake2_128_concat) u32 => u32;
 		/// BundleAssetsGeneratingVCU: a "bundle" of AVG
 		BundleAssetsGeneratingVCU get(fn bundle_asset_generating_vcu): map hasher(blake2_128_concat) u32 => Vec<u8>;
+		/// A counter of burned tokens for the signer
+		BurnCounter get(fn get_burn_count): double_map hasher(blake2_128_concat) T::AccountId, hasher(blake2_128_concat) u32 => u32;
 	}
 }
 
@@ -718,27 +720,25 @@ decl_module! {
 		///
 		/// The dispatch origin for this call must be `Signed` either by the Root or authorized account.
 		#[weight = 10_000 + T::DbWeight::get().writes(1)]
-		pub fn retire_vcu(origin, avg_account_id: T::AccountId, avg_id: u32, token_id: u32, amount: u128) -> DispatchResultWithPostInfo {
+		pub fn retire_vcu(origin, avg_account_id: T::AccountId, avg_id: u32, amount: u128) -> DispatchResultWithPostInfo {
 
 			let sender = ensure_signed(origin)?;
-			// check whether asset exists or not
-			ensure!(Asset::<T>::contains_key(token_id), Error::<T>::AssetDoesNotExist);
 
 			ensure!(AssetsGeneratingVCUSchedule::<T>::contains_key(&avg_account_id, &avg_id), Error::<T>::AssetGeneratedVCUScheduleNotFound);
 			let content: Vec<u8> = AssetsGeneratingVCUSchedule::<T>::get(avg_account_id.clone(), &avg_id);
-			let asset_token_id = Self::json_get_value(content.clone(),"token_id".as_bytes().to_vec());
-			let asset_token_id = str::parse::<u32>(sp_std::str::from_utf8(&asset_token_id).unwrap()).unwrap();
-			let amount_vcu = Self::json_get_value(content,"amount_vcu".as_bytes().to_vec());
-			let amount_vcu = str::parse::<Balance>(sp_std::str::from_utf8(&amount_vcu).unwrap()).unwrap();
+			let token_id = Self::json_get_value(content.clone(),"token_id".as_bytes().to_vec());
+			let token_id = str::parse::<u32>(sp_std::str::from_utf8(&token_id).unwrap()).unwrap();
 
+			let amount_vcu = pallet_assets::Module::<T>::balance(token_id, sender.clone());
 			ensure!(amount_vcu > amount, Error::<T>::InsufficientVCUs);
-
-			ensure!(asset_token_id == token_id,Error::<T>::TokenIdNotFound);
 
 			// burn the tokens on assets pallet
 			pallet_assets::Module::<T>::burn(RawOrigin::Signed(sender.clone()).into(), token_id, T::Lookup::unlookup(avg_account_id.clone()), amount)?;
 			
-			// TODO we need to keep a counter of burned tokens for the signer too
+			BurnCounter::<T>::try_mutate(&sender, &token_id, |count| -> DispatchResult {
+				*count += 1;
+				Ok(())
+			})?;
 			//increase burned VCU for the AVG
 			VCUsBurnedAccounts::<T>::try_mutate(&avg_account_id, &avg_id, |vcu| -> DispatchResult {
 				let total_vcu = vcu.checked_add(amount).ok_or(Error::<T>::Overflow)?;
