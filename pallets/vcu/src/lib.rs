@@ -76,7 +76,7 @@ decl_storage! {
 		/// BundleAssetsGeneratingVCU: a "bundle" of AVG
 		BundleAssetsGeneratingVCU get(fn bundle_asset_generating_vcu): map hasher(blake2_128_concat) u32 => Vec<u8>;
 		/// A counter of burned tokens for the signer
-		BurnCounter get(fn get_burn_count): double_map hasher(blake2_128_concat) T::AccountId, hasher(blake2_128_concat) u32 => u32;
+		BurnedCounter get(fn get_burn_count): double_map hasher(blake2_128_concat) T::AccountId, hasher(blake2_128_concat) u32 => u32;
 	}
 }
 
@@ -718,24 +718,24 @@ decl_module! {
 
 		/// The owner of the “VCUs”  can decide anytime to “retire”, basically burning them.
 		///
-		/// The dispatch origin for this call must be `Signed` either by the Root or authorized account.
+		/// The dispatch origin for this call must be `Signed` from the owner of the VCU
 		#[weight = 10_000 + T::DbWeight::get().writes(1)]
 		pub fn retire_vcu(origin, avg_account_id: T::AccountId, avg_id: u32, amount: u128) -> DispatchResultWithPostInfo {
-
+			// check for a signed transaction
 			let sender = ensure_signed(origin)?;
-
+			// check for the schedule of the assetid
 			ensure!(AssetsGeneratingVCUSchedule::<T>::contains_key(&avg_account_id, &avg_id), Error::<T>::AssetGeneratedVCUScheduleNotFound);
 			let content: Vec<u8> = AssetsGeneratingVCUSchedule::<T>::get(avg_account_id.clone(), &avg_id);
 			let token_id = Self::json_get_value(content.clone(),"token_id".as_bytes().to_vec());
 			let token_id = str::parse::<u32>(sp_std::str::from_utf8(&token_id).unwrap()).unwrap();
-
+			// check for enough balance
 			let amount_vcu = pallet_assets::Module::<T>::balance(token_id, sender.clone());
-			ensure!(amount_vcu > amount, Error::<T>::InsufficientVCUs);
+			ensure!(amount_vcu >= amount, Error::<T>::InsufficientVCUs);
 
-			// burn the tokens on assets pallet
+			// burn the tokens on assets pallet for the requested amount
 			pallet_assets::Module::<T>::burn(RawOrigin::Signed(sender.clone()).into(), token_id, T::Lookup::unlookup(avg_account_id.clone()), amount)?;
-			
-			BurnCounter::<T>::try_mutate(&sender, &token_id, |count| -> DispatchResult {
+			// increase the counter of burned VCU for the signer of th transaction
+			BurnedCounter::<T>::try_mutate(&sender, &token_id, |count| -> DispatchResult {
 				*count += 1;
 				Ok(())
 			})?;
@@ -745,7 +745,7 @@ decl_module! {
 				*vcu = total_vcu;
 				Ok(())
 			})?;
-			// increase total burned VCU
+			// increase global counter burned VCU
 			VCUsBurned::try_mutate(&token_id, |vcu| -> DispatchResult {
 				let total_vcu = vcu.checked_add(amount).ok_or(Error::<T>::Overflow)?;
 				*vcu = total_vcu;
