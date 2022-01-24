@@ -76,7 +76,7 @@
                 "sha256:c0ce02dfaa5f854809ab7413c601c4543846d9da81010258ecdab299b542d199"
             ],
             "index": "pypi",
-            "version": "==7.22.0"
+            "version": "==7.31.1"
         },
         "ipython-genutils": {
             "hashes": [

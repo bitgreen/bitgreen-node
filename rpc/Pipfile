@@ -7,7 +7,7 @@ verify_ssl = true
 
 [packages]
 substrate-interface = "*"
-ipython = "*"
+ipython = ">= 7.31.1"
 tqdm = "*"
 
 [requires]
