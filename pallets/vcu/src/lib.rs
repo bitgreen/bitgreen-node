@@ -19,7 +19,7 @@
 extern crate alloc;
 use frame_support::{decl_module, decl_storage, decl_event, decl_error, ensure, traits::Get};
 use primitives::Balance;
-use codec::Decode;
+use codec::{Decode, Encode};
 use frame_system::{ensure_root, ensure_signed};
 use frame_support::dispatch::DispatchResult;
 use frame_support::pallet_prelude::DispatchResultWithPostInfo;
@@ -834,7 +834,7 @@ decl_module! {
 		///
 		/// The dispatch origin for this call must be `Signed` either by the Root or authorized account.
 		#[weight = 10_000 + T::DbWeight::get().writes(1)]
-		pub fn mint_vcu_from_oracle(origin, avg_account_id: T::AccountId, avg_id: u32, amount_vcu: Balance) -> DispatchResultWithPostInfo {
+		pub fn mint_vcu_from_oracle(origin, avg_account_id: T::AccountId, avg_id: u32, amount_vcu: Balance, recipient: T::AccountId) -> DispatchResultWithPostInfo {
 			let sender=ensure_signed(origin)?;
 			// check for Oracle presence on chain
 			ensure!(OraclesAccountMintingVCU::<T>::contains_key(&avg_account_id, &avg_id), Error::<T>::OraclesAccountMintingVCUNotFound);
@@ -848,8 +848,12 @@ decl_module! {
 			if !Asset::<T>::contains_key(token_id) {
 				pallet_assets::Module::<T>::force_create(RawOrigin::Root.into(), token_id, T::Lookup::unlookup(oracle_account.clone()), One::one(), One::one())?;
 			}
-			//TODO - The VCU have to be minted in favour of the shareholders of the AGV
-			pallet_assets::Module::<T>::mint(RawOrigin::Signed(oracle_account.clone()).into(), token_id, T::Lookup::unlookup(avg_account_id.clone()), amount_vcu)?;
+			let avg_account = &mut avg_account_id.encode();
+			avg_account.push(b'-');
+            avg_account.append(&mut avg_id.encode());
+
+			ensure!(AssetsGeneratingVCUShares::<T>::contains_key(&oracle_account, avg_account),Error::<T>::AssetGeneratedSharesNotFound);
+			pallet_assets::Module::<T>::mint(RawOrigin::Signed(oracle_account.clone()).into(), token_id, T::Lookup::unlookup(recipient), amount_vcu)?;
 			// generate event
 			Self::deposit_event(RawEvent::OracleAccountVCUMinted(avg_account_id, avg_id, oracle_account));
 			Ok(().into())
