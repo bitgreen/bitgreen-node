@@ -205,8 +205,8 @@ decl_error! {
 		OraclesTokenMintingVCUNotFound,
 		/// InsufficientVCUs
 		InsufficientVCUs,
-		/// Token id must have a value > 10000
-		TokenIdMorethanTenThousand,
+		/// Token id must have a value > 10000 because till 10000 is reserved for the Bridge pallet.
+		ReservedTokenId,
 		/// Asset Already In Use
 		AssetAlreadyInUse,
   }
@@ -611,7 +611,7 @@ decl_module! {
 			// check the token id is present on chain
 			ensure!(Asset::<T>::contains_key(token_id),Error::<T>::TokenIdNotFound);
 			// check the token id > 10000 (because under 10000 reserver for the bridge)
-			ensure!(token_id>=10000,Error::<T>::TokenIdMorethanTenThousand);
+			ensure!(token_id>=10000,Error::<T>::ReservedTokenId);
 			// TODO control the property of the tokenid, it should match the one of the AGV for security? Because otherwise even wrapped Eth could be minted
 			// create json string
     		let json = Self::create_json_string(vec![("period_days",&mut period_days.to_string().as_bytes().to_vec()), ("amount_vcu",&mut  amount_vcu.to_string().as_bytes().to_vec()), ("token_id",&mut  token_id.to_string().as_bytes().to_vec())]);
@@ -701,8 +701,11 @@ decl_module! {
 			let elapse:u64=period_days*24*60;
 			ensure!(now+elapse<=timestamp,Error::<T>::AssetGeneratedScheduleNotYetArrived);
 
-			ensure!(!Asset::<T>::contains_key(token_id),Error::<T>::AssetAlreadyInUse);
-			pallet_assets::Module::<T>::force_create(RawOrigin::Root.into(), token_id, T::Lookup::unlookup(avg_account_id.clone()), One::one(), One::one())?;
+			ensure!(token_id>=10000,Error::<T>::ReservedTokenId);
+			if !Asset::<T>::contains_key(token_id) {
+				pallet_assets::Module::<T>::force_create(RawOrigin::Root.into(), token_id, T::Lookup::unlookup(avg_account_id.clone()), One::one(), One::one())?;
+			}
+			
 
 			// TODO - Minting must be in favor of the shares holders accounts in proportion to the number of shares
 			// mint the assets
@@ -781,7 +784,7 @@ decl_module! {
 			// check if the AGV exists or not
 			ensure!(AssetsGeneratingVCU::<T>::contains_key(&avg_account_id, &avg_id), Error::<T>::AssetGeneratingVCUNotFound);
 			// check token id >10000
-			ensure!(token_id>=10000,Error::<T>::TokenIdMorethanTenThousand);
+			ensure!(token_id>=10000,Error::<T>::ReservedTokenId);
 			// store the token if assigned for the Oracle
 			if OraclesTokenMintingVCU::<T>::contains_key(avg_account_id.clone(), avg_id.clone()) {
 				OraclesTokenMintingVCU::<T>::take(avg_account_id.clone(), avg_id.clone());
