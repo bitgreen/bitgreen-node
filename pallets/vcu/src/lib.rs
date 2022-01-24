@@ -207,6 +207,8 @@ decl_error! {
 		InsufficientVCUs,
 		/// Token id must have a value > 10000
 		TokenIdMorethanTenThousand,
+		/// Asset Already In Use
+		AssetAlreadyInUse,
   }
 }
 
@@ -698,10 +700,10 @@ decl_module! {
 			}
 			let elapse:u64=period_days*24*60;
 			ensure!(now+elapse<=timestamp,Error::<T>::AssetGeneratedScheduleNotYetArrived);
-			//creation of the tokenid in assets if it's yet present on chain
-			if !Asset::<T>::contains_key(token_id) {
-				pallet_assets::Module::<T>::force_create(RawOrigin::Root.into(), token_id, T::Lookup::unlookup(avg_account_id.clone()), One::one(), One::one())?;
-			}
+
+			ensure!(!Asset::<T>::contains_key(token_id),Error::<T>::AssetAlreadyInUse);
+			pallet_assets::Module::<T>::force_create(RawOrigin::Root.into(), token_id, T::Lookup::unlookup(avg_account_id.clone()), One::one(), One::one())?;
+
 			// TODO - Minting must be in favor of the shares holders accounts in proportion to the number of shares
 			// mint the assets
 			pallet_assets::Module::<T>::mint(RawOrigin::Signed(avg_account_id.clone()).into(), token_id, T::Lookup::unlookup(avg_account_id.clone()), amount_vcu)?;
