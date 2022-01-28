@@ -910,6 +910,10 @@ impl pallet_bridge::Config for Runtime {
 	type Event = Event;
 }
 
+impl pallet_vesting::Config for Runtime {
+	type Event = Event;
+}
+
 // TODO: Implementation of `From` is preferred since it gives you `Into<_>` for free where the reverse isn't true.
 // After this TODO will be resolved, remove the suppresion of `from-over-into` warnings in the Makefile.
 construct_runtime!(
@@ -976,6 +980,8 @@ construct_runtime!(
 		VCU: pallet_vcu::{Module, Call, Storage, Event<T>} = 74,
 		// Bridge
 		Bridge: pallet_bridge::{Module, Call, Storage, Event<T>, Config} = 75,
+		// Vesting
+		Vesting: pallet_vesting::{Module, Call, Storage, Event<T>} = 76,
 
 	}
 );

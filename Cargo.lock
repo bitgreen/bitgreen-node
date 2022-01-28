@@ -606,6 +606,7 @@ dependencies = [
  "pallet-transaction-payment",
  "pallet-transaction-payment-rpc-runtime-api",
  "pallet-vcu",
+ "pallet-vesting",
  "parity-scale-codec",
  "runtime-common",
  "serde",
