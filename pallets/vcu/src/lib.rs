@@ -848,8 +848,12 @@ decl_module! {
 			if !Asset::<T>::contains_key(token_id) {
 				pallet_assets::Module::<T>::force_create(RawOrigin::Root.into(), token_id, T::Lookup::unlookup(oracle_account.clone()), One::one(), One::one())?;
 			}
-			//TODO - The VCU have to be minted in favour of the shareholders of the AGV
-			pallet_assets::Module::<T>::mint(RawOrigin::Signed(oracle_account.clone()).into(), token_id, T::Lookup::unlookup(avg_account_id.clone()), amount_vcu)?;
+			let share_holders: Vec<T::AccountId> = AssetsGeneratingVCUShares::<T>::iter().map(|(k, _, _)| k).collect::<Vec<_>>();
+
+			share_holders.iter().for_each(|share_holder| {
+				pallet_assets::Module::<T>::mint(RawOrigin::Signed(oracle_account.clone()).into(), token_id, T::Lookup::unlookup(share_holder.clone()), amount_vcu);
+			});
+
 			// generate event
 			Self::deposit_event(RawEvent::OracleAccountVCUMinted(avg_account_id, avg_id, oracle_account));
 			Ok(().into())

@@ -45,6 +45,9 @@ pallet-vcu ={ default-features = false, version = '0.1.0', path = "../pallets/vc
 # Bridge
 pallet-bridge ={ default-features = false, version = '0.1.0', path = "../pallets/bridge"}
 
+# Vesting
+pallet-vesting ={ default-features = false, version = '0.1.0', path = "../pallets/vesting"}
+
 # Substrate dependencies
 frame-benchmarking = { default-features = false, optional = true, version = '3.1.0' }
 frame-executive = { default-features = false, version = '3.0.0' }
@@ -194,6 +197,7 @@ std = [
 	"pallet-contracts/std",
 	"pallet-contracts-primitives/std",
 	'pallet-contracts-rpc-runtime-api/std',
+	"pallet-vesting/std",
 ]
 with-ethereum-compatibility = [
 	"evm",

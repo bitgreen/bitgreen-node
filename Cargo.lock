@@ -606,6 +606,7 @@ dependencies = [
  "pallet-transaction-payment",
  "pallet-transaction-payment-rpc-runtime-api",
  "pallet-vcu",
+ "pallet-vesting",
  "parity-scale-codec",
  "runtime-common",
  "serde",
@@ -4987,6 +4988,23 @@ dependencies = [
  "pallet-assets",
  "pallet-balances",
  "pallet-timestamp",
+ "parity-scale-codec",
+ "serde",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "sp-std",
+]
+
+[[package]]
+name = "pallet-vesting"
+version = "0.1.0"
+dependencies = [
+ "bitg-primitives",
+ "bs58",
+ "frame-support",
+ "frame-system",
+ "pallet-balances",
  "parity-scale-codec",
  "serde",
  "sp-core",
