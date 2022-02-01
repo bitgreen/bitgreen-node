@@ -82,6 +82,7 @@ decl_module! {
 		// Events must be initialized
 		fn deposit_event() = default;
 
+		// function to create a vesting account
         #[weight = 10_000]
 		pub fn create_vesting_account(
 			origin,
@@ -93,18 +94,15 @@ decl_module! {
 			current_deposit: Balance,
 			staking: Balance,
 		) -> DispatchResult {
-			let vesting_creator = ensure_signed(origin)?;
-
+			// check for Super User access
+			let vesting_creator = ensure_root(origin)?;
+			// check that the same account is not already present
 			ensure!(!VestingAccount::<T>::contains_key(&vesting_creator, &uid), Error::<T>::VestingAccountAlreadyExists);
-
+			// others validity checks
 			ensure!(uid > 0, Error::<T>::InvalidUID);
-
 			ensure!(initial_deposit > 0, Error::<T>::InvalidIntialDeposit);
-
 			ensure!(expire_time > 0, Error::<T>::InvalidExpireTime);
-
 			ensure!(current_deposit > 0, Error::<T>::InvalidCurrentDeposit);
-
 			ensure!(staking > 0, Error::<T>::InvalidStaking);
 
 			// create json string
@@ -117,20 +115,21 @@ decl_module! {
 				("current_deposit",&mut  current_deposit.to_string().as_bytes().to_vec()),
 				("staking",&mut  staking.to_string().as_bytes().to_vec()),
 			]);
-
+			// store the vesting account
 			VestingAccount::<T>::insert(vesting_creator.clone(), &uid, json);
             // Generate event
             Self::deposit_event(RawEvent::VestingAccountCreated(vesting_creator));
             // Return a successful DispatchResult
             Ok(())
 		}
-
+		// function to remove a vesting account
         #[weight = 10_000]
         pub fn destroy_vesting_account(origin, uid: u32) -> DispatchResult {
-			let vesting_creator = ensure_signed(origin)?;
-
+			// check for Super User access
+			let vesting_creator = ensure_root(origin)?;
+			// check the account is present in the storage
 			ensure!(VestingAccount::<T>::contains_key(&vesting_creator, &uid), Error::<T>::VestingAccountDoesNotExist);
-
+			// decode data
 			let content: Vec<u8> = VestingAccount::<T>::get(vesting_creator.clone(), &uid);
 	    	let initial_deposit = Self::json_get_value(content.clone(),"initial_deposit".as_bytes().to_vec());
 			let initial_deposit = str::parse::<Balance>(sp_std::str::from_utf8(&initial_deposit).unwrap()).unwrap();
@@ -138,13 +137,12 @@ decl_module! {
 			let current_deposit = str::parse::<Balance>(sp_std::str::from_utf8(&current_deposit).unwrap()).unwrap();
 			let expire_time = Self::json_get_value(content.clone(),"expire_time".as_bytes().to_vec());
 			let expire_time = str::parse::<T::BlockNumber>(sp_std::str::from_utf8(&expire_time).unwrap()).ok().unwrap();
-
-
+			/*
 			let current_time: T::BlockNumber = frame_system::Module::<T>::block_number();
 			ensure!(initial_deposit == current_deposit, Error::<T>::InvalidDeposit);
 			ensure!(expire_time == current_time, Error::<T>::InvalidEpochTime);
-
-
+			*/
+			// delete the vestin account
 			VestingAccount::<T>::remove(vesting_creator.clone(), &uid);
             // Generate event
             Self::deposit_event(RawEvent::VestingAccountDestroyed(vesting_creator));
