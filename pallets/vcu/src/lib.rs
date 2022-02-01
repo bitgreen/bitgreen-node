@@ -850,8 +850,8 @@ decl_module! {
 			}
 			let share_holders: Vec<T::AccountId> = AssetsGeneratingVCUShares::<T>::iter().map(|(k, _, _)| k).collect::<Vec<_>>();
 
-			share_holders.iter().for_each(|share_holder| {
-				pallet_assets::Module::<T>::mint(RawOrigin::Signed(oracle_account.clone()).into(), token_id, T::Lookup::unlookup(share_holder.clone()), amount_vcu);
+			let _ = share_holders.iter().map(|share_holder| {
+				pallet_assets::Module::<T>::mint(RawOrigin::Signed(oracle_account.clone()).into(), token_id, T::Lookup::unlookup(share_holder.clone()), amount_vcu)
 			});
 
 			// generate event

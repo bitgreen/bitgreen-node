@@ -21,7 +21,7 @@ use sp_std::prelude::*;
 use core::str;
 use frame_support::{
 	decl_error, decl_event, decl_module, decl_storage,
-	dispatch, ensure
+	dispatch::DispatchResult, ensure
 };
 use primitives::Balance;
 use codec::Encode;
@@ -45,6 +45,8 @@ decl_event!(
 	pub enum Event<T> where AccountId = <T as frame_system::Config>::AccountId {
 		/// Vesting Account Created
         VestingAccountCreated(AccountId),
+		/// Vesting Account Destroyed
+        VestingAccountDestroyed(AccountId),
 	}
 );
 
@@ -63,6 +65,12 @@ decl_error! {
 		InvalidCurrentDeposit,
 		/// Invalid Staking
 		InvalidStaking,
+		/// VestingAccount Does Not Exist
+		VestingAccountDoesNotExist,
+		/// Invalid Deposit
+		InvalidDeposit,
+		/// Invalid Epoch Time
+		InvalidEpochTime,
 	}
 }
 
@@ -84,7 +92,7 @@ decl_module! {
 			expire_time:u32,
 			current_deposit: Balance,
 			staking: Balance,
-		) -> dispatch::DispatchResult {
+		) -> DispatchResult {
 			let vesting_creator = ensure_signed(origin)?;
 
 			ensure!(!VestingAccount::<T>::contains_key(&vesting_creator, &uid), Error::<T>::VestingAccountAlreadyExists);
@@ -117,10 +125,99 @@ decl_module! {
             Ok(())
 		}
 
+        #[weight = 10_000]
+        pub fn destroy_vesting_account(origin, uid: u32) -> DispatchResult {
+			let vesting_creator = ensure_signed(origin)?;
+
+			ensure!(VestingAccount::<T>::contains_key(&vesting_creator, &uid), Error::<T>::VestingAccountDoesNotExist);
+
+			let content: Vec<u8> = VestingAccount::<T>::get(vesting_creator.clone(), &uid);
+	    	let initial_deposit = Self::json_get_value(content.clone(),"initial_deposit".as_bytes().to_vec());
+			let initial_deposit = str::parse::<Balance>(sp_std::str::from_utf8(&initial_deposit).unwrap()).unwrap();
+			let current_deposit = Self::json_get_value(content.clone(),"current_deposit".as_bytes().to_vec());
+			let current_deposit = str::parse::<Balance>(sp_std::str::from_utf8(&current_deposit).unwrap()).unwrap();
+			let expire_time = Self::json_get_value(content.clone(),"expire_time".as_bytes().to_vec());
+			let expire_time = str::parse::<T::BlockNumber>(sp_std::str::from_utf8(&expire_time).unwrap()).ok().unwrap();
+
+
+			let current_time: T::BlockNumber = frame_system::Module::<T>::block_number();
+			ensure!(initial_deposit == current_deposit, Error::<T>::InvalidDeposit);
+			ensure!(expire_time == current_time, Error::<T>::InvalidEpochTime);
+
+
+			VestingAccount::<T>::remove(vesting_creator.clone(), &uid);
+            // Generate event
+            Self::deposit_event(RawEvent::VestingAccountDestroyed(vesting_creator));
+            // Return a successful DispatchResult
+            Ok(())
+        }
+
 	}
 }
 
 impl<T: Config> Module<T> {
+
+	// function to get value of a field for Substrate runtime (no std library and no variable allocation)
+	fn json_get_value(j:Vec<u8>,key:Vec<u8>) -> Vec<u8> {
+		let mut result=Vec::new();
+		let mut k=Vec::new();
+		let keyl = key.len();
+		let jl = j.len();
+		k.push(b'"');
+		for xk in 0..keyl{
+			k.push(*key.get(xk).unwrap());
+		}
+		k.push(b'"');
+		k.push(b':');
+		let kl = k.len();
+		for x in  0..jl {
+			let mut m=0;
+			if x+kl>jl {
+				break;
+			}
+			for (xx, i) in (x..x+kl).enumerate() {
+				if *j.get(i).unwrap()== *k.get(xx).unwrap() {
+					m += 1;
+				}
+			}
+			if m==kl{
+				let mut lb=b' ';
+				let mut op=true;
+				let mut os=true;
+				for i in x+kl..jl-1 {
+					if *j.get(i).unwrap()==b'[' && op && os{
+						os=false;
+					}
+					if *j.get(i).unwrap()==b'}' && op && !os{
+						os=true;
+					}
+					if *j.get(i).unwrap()==b':' && op{
+						continue;
+					}
+					if *j.get(i).unwrap()==b'"' && op && lb!=b'\\' {
+						op=false;
+						continue
+					}
+					if *j.get(i).unwrap()==b'"' && !op && lb!=b'\\' {
+						break;
+					}
+					if *j.get(i).unwrap()==b'}' && op{
+						break;
+					}
+					if *j.get(i).unwrap()==b']' && op{
+						break;
+					}
+					if *j.get(i).unwrap()==b',' && op && os{
+						break;
+					}
+					result.push(*j.get(i).unwrap());
+					lb= *j.get(i).unwrap();
+				}
+				break;
+			}
+		}
+		result
+	}
 
 	fn create_json_string(inputs: Vec<(&str, &mut Vec<u8>)>) -> Vec<u8> {
 		let mut v:Vec<u8>= vec![b'{'];
