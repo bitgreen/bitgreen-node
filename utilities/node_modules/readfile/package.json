@@ -1,0 +1,23 @@
+{
+  "name": "readfile",
+  "version": "1.0.1",
+  "description": "Don&#x27;t let fs.readFile throw because buffer is too big on v4.x",
+  "main": "index.js",
+  "scripts": {
+    "test": "tap test/*.js --cov"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "tap": "~2.2.0"
+  },
+  "license": "MIT",
+  "author": "Evan Lucas <evanlucas@me.com>",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/evanlucas/readfile"
+  },
+  "homepage": "https://github.com/evanlucas/readfile",
+  "bugs": {
+    "url": "https://github.com/evanlucas/readfile/issues"
+  }
+}
