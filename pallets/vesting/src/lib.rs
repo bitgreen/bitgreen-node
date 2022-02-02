@@ -25,7 +25,7 @@ use frame_support::{
 };
 use primitives::Balance;
 use codec::Encode;
-use frame_system::ensure_signed;
+use frame_system::{ensure_signed,ensure_root};
 use sp_std::vec;
 use alloc::string::ToString;
 
@@ -137,11 +137,9 @@ decl_module! {
 			let current_deposit = str::parse::<Balance>(sp_std::str::from_utf8(&current_deposit).unwrap()).unwrap();
 			let expire_time = Self::json_get_value(content.clone(),"expire_time".as_bytes().to_vec());
 			let expire_time = str::parse::<T::BlockNumber>(sp_std::str::from_utf8(&expire_time).unwrap()).ok().unwrap();
-			/*
 			let current_time: T::BlockNumber = frame_system::Module::<T>::block_number();
 			ensure!(initial_deposit == current_deposit, Error::<T>::InvalidDeposit);
-			ensure!(expire_time == current_time, Error::<T>::InvalidEpochTime);
-			*/
+			ensure!(expire_time > current_time, Error::<T>::InvalidEpochTime);
 			// delete the vestin account
 			VestingAccount::<T>::remove(vesting_creator.clone(), &uid);
             // Generate event
