@@ -37,7 +37,7 @@ pub trait Config: frame_system::Config  {
 // The runtime storage items
 decl_storage! {
 	trait Store for Module<T: Config> as VestingModule {
-		VestingAccount get(fn vesting_account): double_map hasher(blake2_128_concat) T::AccountId, hasher(blake2_128_concat) u32  => Vec<u8>;
+		VestingAccount get(fn vesting_account): double_map hasher(blake2_128_concat) T::AccountId, hasher(blake2_128_concat) u32 => Vec<u8>;
 	}
 }
 // We generate events to inform the users of succesfully actions.
@@ -95,7 +95,7 @@ decl_module! {
 			staking: Balance,
 		) -> DispatchResult {
 			// check for Super User access
-			let vesting_creator = ensure_root(origin)?;
+			let vesting_creator = ensure_signed(origin)?;
 			// check that the same account is not already present
 			ensure!(!VestingAccount::<T>::contains_key(&vesting_creator, &uid), Error::<T>::VestingAccountAlreadyExists);
 			// others validity checks
@@ -126,7 +126,7 @@ decl_module! {
         #[weight = 10_000]
         pub fn destroy_vesting_account(origin, uid: u32) -> DispatchResult {
 			// check for Super User access
-			let vesting_creator = ensure_root(origin)?;
+			let vesting_creator = ensure_signed(origin)?;
 			// check the account is present in the storage
 			ensure!(VestingAccount::<T>::contains_key(&vesting_creator, &uid), Error::<T>::VestingAccountDoesNotExist);
 			// decode data
