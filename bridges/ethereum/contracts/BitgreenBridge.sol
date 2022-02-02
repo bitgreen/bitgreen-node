@@ -198,7 +198,7 @@ contract BitgreenBridge {
                 require(success, "Failed to send native tokens");
             }else {
                   // erc20 token
-                  IERC20(erc20).transferFrom(owner, recipient, amount);
+                  IERC20(erc20).transferFrom(address(this), recipient, amount);
             }
         }
     }
