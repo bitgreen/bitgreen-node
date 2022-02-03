@@ -71,6 +71,8 @@ decl_error! {
 		InvalidDeposit,
 		/// Invalid Epoch Time
 		InvalidEpochTime,
+		/// InvalidRecipent
+		InvalidRecipent,
 	}
 }
 
@@ -148,6 +150,24 @@ decl_module! {
             Ok(())
         }
 
+		 #[weight = 10_000]
+        pub fn withdraw_vesting_account(origin, vesting_creator: T::AccountId, uid: u32) -> DispatchResult {
+			let recipient = ensure_signed(origin)?;
+
+			ensure!(VestingAccount::<T>::contains_key(&vesting_creator, &uid), Error::<T>::VestingAccountDoesNotExist);
+			// decode data
+			let content: Vec<u8> = VestingAccount::<T>::get(vesting_creator.clone(), &uid);
+			let recipient_account= Self::json_get_value(w.clone(),"recipient_account".as_bytes().to_vec());
+			let recipient_account = T::AccountId::decode(&mut &account_id[1..33]).unwrap_or_default();
+			let staking = Self::json_get_value(content.clone(),"staking".as_bytes().to_vec());
+			let staking = str::parse::<Balance>(sp_std::str::from_utf8(&staking).unwrap()).unwrap();
+
+			ensure!(recipient == recipient_account, Error::<T>::InvalidRecipent);
+			let current_time: T::BlockNumber = frame_system::Module::<T>::block_number();
+			ensure!(initial_deposit == current_deposit , Error::<T>::InvalidDeposit);
+			ensure!(expire_time > current_time, Error::<T>::InvalidEpochTime);
+
+        }
 	}
 }
 
