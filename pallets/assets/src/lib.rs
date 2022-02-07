@@ -482,7 +482,7 @@ pub mod pallet {
 		/// Modes: Pre-existence of `target`; Post-existence of sender; Prior & post zombie-status
 		/// of sender; Account pre-existence of `target`.
 		#[pallet::weight(T::WeightInfo::transfer())]
-		pub(super) fn transfer(
+		pub fn transfer(
 			origin: OriginFor<T>,
 			#[pallet::compact] id: T::AssetId,
 			target: <T::Lookup as StaticLookup>::Source,

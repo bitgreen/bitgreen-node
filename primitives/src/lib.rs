@@ -39,6 +39,8 @@ pub const NETWORK_CONTRACT_START: u64 = 0x1000;
 /// 0x01000000
 pub const MIRRORED_TOKENS_ADDRESS_START: u64 = 0x01000000;
 
+pub const BITG_TOKEN: u32 = 1;
+
 /// Amounts
 pub mod currency {
 	use super::Balance;
