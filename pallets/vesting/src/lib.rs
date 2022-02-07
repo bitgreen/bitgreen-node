@@ -21,17 +21,22 @@ use sp_std::prelude::*;
 use core::str;
 use frame_support::{
 	decl_error, decl_event, decl_module, decl_storage,
-	dispatch::DispatchResult, ensure
+	dispatch::DispatchResult, ensure, traits::Get,
+	pallet_prelude::DispatchResultWithPostInfo
 };
 use primitives::Balance;
 use codec::Encode;
-use frame_system::{ensure_signed,ensure_root};
+use codec::Decode;
+use frame_system::ensure_signed;
 use sp_std::vec;
 use alloc::string::ToString;
+use frame_system::RawOrigin;
+use sp_runtime::traits::StaticLookup;
 
 /// Module configuration
-pub trait Config: frame_system::Config  {
+pub trait Config: frame_system::Config + pallet_assets::Config<AssetId = u32, Balance = u128>  {
     type Event: From<Event<Self>> + Into<<Self as frame_system::Config>::Event>;
+	type NativeTokenId: Get<u32>;
 }
 
 // The runtime storage items
@@ -47,6 +52,8 @@ decl_event!(
         VestingAccountCreated(AccountId),
 		/// Vesting Account Destroyed
         VestingAccountDestroyed(AccountId),
+		/// WithdrewVestingAccount
+		WithdrewVestingAccount(AccountId),
 	}
 );
 
@@ -71,6 +78,8 @@ decl_error! {
 		InvalidDeposit,
 		/// Invalid Epoch Time
 		InvalidEpochTime,
+		/// InvalidRecipent
+		InvalidRecipent,
 	}
 }
 
@@ -148,6 +157,36 @@ decl_module! {
             Ok(())
         }
 
+		 #[weight = 10_000]
+        pub fn withdraw_vesting_account(origin, vesting_creator: T::AccountId, uid: u32) -> DispatchResultWithPostInfo {
+			let recipient = ensure_signed(origin)?;
+
+			ensure!(VestingAccount::<T>::contains_key(&vesting_creator, &uid), Error::<T>::VestingAccountDoesNotExist);
+			// decode data
+			let content: Vec<u8> = VestingAccount::<T>::get(vesting_creator.clone(), &uid);
+			let initial_deposit = Self::json_get_value(content.clone(),"initial_deposit".as_bytes().to_vec());
+			let initial_deposit = str::parse::<Balance>(sp_std::str::from_utf8(&initial_deposit).unwrap()).unwrap();
+			let current_deposit = Self::json_get_value(content.clone(),"current_deposit".as_bytes().to_vec());
+			let current_deposit = str::parse::<Balance>(sp_std::str::from_utf8(&current_deposit).unwrap()).unwrap();
+			let expire_time = Self::json_get_value(content.clone(),"expire_time".as_bytes().to_vec());
+			let expire_time = str::parse::<T::BlockNumber>(sp_std::str::from_utf8(&expire_time).unwrap()).ok().unwrap();
+
+			let recipient_account= Self::json_get_value(content.clone(),"recipient_account".as_bytes().to_vec());
+			let recipient_account = T::AccountId::decode(&mut &recipient_account[1..33]).unwrap_or_default();
+			let staking = Self::json_get_value(content.clone(),"staking".as_bytes().to_vec());
+			let staking = str::parse::<Balance>(sp_std::str::from_utf8(&staking).unwrap()).unwrap();
+
+			ensure!(recipient == recipient_account, Error::<T>::InvalidRecipent);
+			let current_time: T::BlockNumber = frame_system::Module::<T>::block_number();
+			ensure!(initial_deposit == current_deposit , Error::<T>::InvalidDeposit);
+			ensure!(expire_time > current_time, Error::<T>::InvalidEpochTime);
+
+			pallet_assets::Module::<T>::transfer(RawOrigin::Signed(vesting_creator.clone()).into(), T::NativeTokenId::get(), T::Lookup::unlookup(recipient.clone()), staking)?;
+			// Generate event
+            Self::deposit_event(RawEvent::WithdrewVestingAccount(vesting_creator));
+            // Return a successful DispatchResult
+           	Ok(().into())
+        }
 	}
 }
 

@@ -92,7 +92,7 @@ pub use primitives::{currency::*, time::*};
 /// import pallet contracts (!Ink Native language)
 use pallet_contracts::weights::WeightInfo;
 use pallet_transaction_payment::CurrencyAdapter;
-
+use primitives::BITG_TOKEN;
 
 mod weights;
 
@@ -910,8 +910,13 @@ impl pallet_bridge::Config for Runtime {
 	type Event = Event;
 }
 
+parameter_types! {
+  pub const NativeTokenId: u32 = BITG_TOKEN;
+}
+
 impl pallet_vesting::Config for Runtime {
 	type Event = Event;
+	type NativeTokenId = ();
 }
 
 // TODO: Implementation of `From` is preferred since it gives you `Into<_>` for free where the reverse isn't true.
