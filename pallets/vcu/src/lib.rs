@@ -59,8 +59,10 @@ decl_storage! {
 		AssetsGeneratingVCU get(fn asset_generating_vcu): double_map hasher(blake2_128_concat) T::AccountId, hasher(blake2_128_concat) u32 => Vec<u8>;
 		/// AssetsGeneratingVCUShares The AGV shares can be minted/burned from the Authorized account up to the maximum number set in the AssetsGeneratingVCU.
 		AssetsGeneratingVCUShares get(fn asset_generating_vcu_shares): double_map hasher(blake2_128_concat) Vec<u8>, hasher(blake2_128_concat)  T::AccountId   => u32;
-		/// AssetsGeneratingVCUSharesMinted
+		/// AssetsGeneratingVCUSharesMinted the total AGV shares minted for a shareholder
 		AssetsGeneratingVCUSharesMinted get(fn asset_generating_vcu_shares_minted): double_map hasher(blake2_128_concat) T::AccountId, hasher(blake2_128_concat) u32  => u32;
+		/// AssetsGeneratingVCUSharesMintedTotal the total AGV shares minted for a specific AGV
+		AssetsGeneratingVCUSharesMintedTotal get(fn asset_generating_vcu_shares_minted_total): double_map hasher(blake2_128_concat) T::AccountId, hasher(blake2_128_concat) u32  => u32;
 		/// AssetsGeneratingVCUSchedule (Verified Carbon Credit) should be stored on chain from the authorized accounts.
 		AssetsGeneratingVCUSchedule get(fn asset_generating_vcu_schedule): double_map hasher(blake2_128_concat) T::AccountId, hasher(blake2_128_concat) u32 => Vec<u8>;
 		/// AssetsGeneratingVCUGenerated Minting of Scheduled VCU
@@ -209,6 +211,8 @@ decl_error! {
 		ReservedTokenId,
 		/// Asset Already In Use
 		AssetAlreadyInUse,
+		/// The AVG has not yet shares minted
+		NoAVGSharesNotFound,
   }
 }
 
@@ -433,15 +437,21 @@ decl_module! {
 			let total_shares = Self::json_get_value(content,"numberOfShares".as_bytes().to_vec());
 			let int_shares = str::parse::<u32>(sp_std::str::from_utf8(&total_shares).unwrap()).unwrap();
 
-			// increase the total shares minted
+			// increase the total shares minted for the recipient/shareholder
 			AssetsGeneratingVCUSharesMinted::<T>::try_mutate(&account_id, &agv_id, |share| -> DispatchResult {
 				let total_sh = share.checked_add(number_of_shares).ok_or(Error::<T>::Overflow)?;
 				ensure!(total_sh <= int_shares, Error::<T>::TooManyShares);
 				*share = total_sh;
 				Ok(())
 			})?;
-
-			// increase the total shares minted for the recipient
+			// increase the total shares minted per AGV
+			AssetsGeneratingVCUSharesMintedTotal::<T>::try_mutate(&account_id,&agv_id, |share| -> DispatchResult {
+				let total_sh = share.checked_add(number_of_shares).ok_or(Error::<T>::Overflow)?;
+				ensure!(total_sh <= int_shares, Error::<T>::TooManyShares);
+				*share = total_sh;
+				Ok(())
+			})?;
+			// increase the shares minted for the recipient
 			AssetsGeneratingVCUShares::<T>::try_mutate( &agv_account,&recipient, |share| -> DispatchResult {
 				let total_sha = share.checked_add(number_of_shares).ok_or(Error::<T>::Overflow)?;
 				*share = total_sha;
@@ -842,9 +852,23 @@ decl_module! {
 			ensure!(OraclesTokenMintingVCU::<T>::contains_key(&agv_account_id, &agv_id),Error::<T>::OraclesTokenMintingVCUNotFound);
 			// get the token id
 			let token_id=OraclesTokenMintingVCU::<T>::get(&agv_account_id, &agv_id);
+			// create token if it does not exist yet
 			if !Asset::<T>::contains_key(token_id) {
 				pallet_assets::Module::<T>::force_create(RawOrigin::Root.into(), token_id, T::Lookup::unlookup(oracle_account.clone()), One::one(), One::one())?;
 			}
+			// check for existing shares
+			ensure!(AssetsGeneratingVCUSharesMintedTotal::<T>::contains_key(agv_account_id.clone(),agv_id.clone()),Error::<T>::NoAVGSharesNotFound);
+			// read totals shares minted for the AGV
+			let totalshares=AssetsGeneratingVCUSharesMintedTotal::<T>::get(agv_account_id.clone(),agv_id.clone());
+			// set the key of search
+			 //let mut k=Vec::new();
+			//k.push(b'a');
+			let mut k=agv_account_id.as_slice();
+			//let shareholders=AssetsGeneratingVCUShares::<T>::iter_prefix(k);
+			/*for numsh in shareholders {
+				let shareholder=numsh.0;
+				let numshares=numsh.1;
+			}*/
 			/*let share_holders: Vec<T::AccountId> = AssetsGeneratingVCUShares::<T>::iter().map(|(k, _, _)| k).collect::<Vec<_>>();
 
 			let _ = share_holders.iter().map(|share_holder| {
