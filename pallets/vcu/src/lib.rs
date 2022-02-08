@@ -58,7 +58,7 @@ decl_storage! {
 		/// AssetsGeneratingVCU (Verified Carbon Credit) should be stored on chain from the authorized accounts.
 		AssetsGeneratingVCU get(fn asset_generating_vcu): double_map hasher(blake2_128_concat) T::AccountId, hasher(blake2_128_concat) u32 => Vec<u8>;
 		/// AssetsGeneratingVCUShares The AGV shares can be minted/burned from the Authorized account up to the maximum number set in the AssetsGeneratingVCU.
-		AssetsGeneratingVCUShares get(fn asset_generating_vcu_shares): double_map hasher(blake2_128_concat) T::AccountId, hasher(blake2_128_concat) Vec<u8>  => u32;
+		AssetsGeneratingVCUShares get(fn asset_generating_vcu_shares): double_map hasher(blake2_128_concat) Vec<u8>, hasher(blake2_128_concat)  T::AccountId   => u32;
 		/// AssetsGeneratingVCUSharesMinted
 		AssetsGeneratingVCUSharesMinted get(fn asset_generating_vcu_shares_minted): double_map hasher(blake2_128_concat) T::AccountId, hasher(blake2_128_concat) u32  => u32;
 		/// AssetsGeneratingVCUSchedule (Verified Carbon Credit) should be stored on chain from the authorized accounts.
@@ -442,7 +442,7 @@ decl_module! {
 			})?;
 
 			// increase the total shares minted for the recipient
-			AssetsGeneratingVCUShares::<T>::try_mutate(&recipient, &agv_account, |share| -> DispatchResult {
+			AssetsGeneratingVCUShares::<T>::try_mutate( &agv_account,&recipient, |share| -> DispatchResult {
 				let total_sha = share.checked_add(number_of_shares).ok_or(Error::<T>::Overflow)?;
 				*share = total_sha;
 				Ok(())
@@ -481,9 +481,9 @@ decl_module! {
 			// check whether asset generated VCU exists or not
 			ensure!(AssetsGeneratingVCU::<T>::contains_key(&account_id, &agv_id), Error::<T>::AssetGeneratingVCUNotFound);
 			// check for previously minted shares for the recipient
-			ensure!(AssetsGeneratingVCUShares::<T>::contains_key(&recipient, &agv_account), Error::<T>::RecipientSharesNotFound);
+			ensure!(AssetsGeneratingVCUShares::<T>::contains_key(&agv_account,&recipient,), Error::<T>::RecipientSharesNotFound);
 			// check  the number of burnable shares for the recipient
-			let currentshares=AssetsGeneratingVCUShares::<T>::get(recipient.clone(), agv_account.clone());
+			let currentshares=AssetsGeneratingVCUShares::<T>::get( agv_account.clone(),recipient.clone());
 			ensure!(currentshares>=number_of_shares,Error::<T>::RecipientSharesLessOfBurningShares);
 			// check the number of burnable shares in total
 			ensure!(AssetsGeneratingVCUSharesMinted::<T>::contains_key(&account_id, &agv_id),Error::<T>::TotalSharesNotEnough);
@@ -497,7 +497,7 @@ decl_module! {
 				Ok(())
 			})?;
 			// decrease shares minted for the recipient account
-			AssetsGeneratingVCUShares::<T>::try_mutate(&recipient, &agv_account, |share| -> DispatchResult {
+			AssetsGeneratingVCUShares::<T>::try_mutate(&agv_account,&recipient, |share| -> DispatchResult {
 				let total_sha = share.checked_sub(number_of_shares).ok_or(Error::<T>::Overflow)?;
 				*share = total_sha;
 				Ok(())
@@ -515,19 +515,19 @@ decl_module! {
 	   pub fn transfer_shares_asset_generating_vcu(origin, recipient: T::AccountId, agv_account: Vec<u8>, number_of_shares: u32) -> DispatchResult {
 		    let sender = ensure_signed(origin)?;
 		   // check that the shares are present
-		   ensure!(AssetsGeneratingVCUShares::<T>::contains_key(&sender, &agv_account), Error::<T>::AssetGeneratedSharesNotFound);
+		   ensure!(AssetsGeneratingVCUShares::<T>::contains_key(&agv_account,&sender), Error::<T>::AssetGeneratedSharesNotFound);
 		   // get the shares available
-		   let sender_shares = AssetsGeneratingVCUShares::<T>::get(&sender, &agv_account);
+		   let sender_shares = AssetsGeneratingVCUShares::<T>::get(&agv_account,&sender);
 		   // check whether shares are enough for the transfer
 		   ensure!(number_of_shares <= sender_shares, Error::<T>::NumberofSharesNotFound);
 		   // decrease the shares for the sender
-		   AssetsGeneratingVCUShares::<T>::try_mutate(&sender, &agv_account, |share| -> DispatchResult {
+		   AssetsGeneratingVCUShares::<T>::try_mutate(&agv_account,&sender, |share| -> DispatchResult {
 			   let total_sh = share.checked_sub(number_of_shares).ok_or(Error::<T>::TooLessShares)?;
 			   *share = total_sh;
 			   Ok(())
 		   })?;
 		   // increase the shares for the recipient for the same amount
-		   AssetsGeneratingVCUShares::<T>::try_mutate(&recipient, &agv_account, |share| -> DispatchResult {
+		   AssetsGeneratingVCUShares::<T>::try_mutate(&agv_account,&sender, |share| -> DispatchResult {
 			   let total_sh = share.checked_add(number_of_shares).ok_or(Error::<T>::Overflow)?;
 			   *share = total_sh;
 			   Ok(())
@@ -557,19 +557,19 @@ decl_module! {
 				}
 			}?;
 			// check that the shares are present
-			ensure!(AssetsGeneratingVCUShares::<T>::contains_key(&sender, &agv_account), Error::<T>::AssetGeneratedSharesNotFound);
+			ensure!(AssetsGeneratingVCUShares::<T>::contains_key(&agv_account,&sender), Error::<T>::AssetGeneratedSharesNotFound);
 			// get the shares available
-			let sender_shares = AssetsGeneratingVCUShares::<T>::get(&sender, &agv_account);
+			let sender_shares = AssetsGeneratingVCUShares::<T>::get(&agv_account,&sender);
 			// check whether shares are enough for the transfer
 			ensure!(number_of_shares <= sender_shares, Error::<T>::NumberofSharesNotFound);
 			// decrease the shares for the sender
-			AssetsGeneratingVCUShares::<T>::try_mutate(&sender, &agv_account, |share| -> DispatchResult {
+			AssetsGeneratingVCUShares::<T>::try_mutate(&agv_account,&sender, |share| -> DispatchResult {
 				let total_sh = share.checked_sub(number_of_shares).ok_or(Error::<T>::TooLessShares)?;
 				*share = total_sh;
 				Ok(())
 			})?;
 			// increase the shares for the recipient for the same amount
-			AssetsGeneratingVCUShares::<T>::try_mutate(&recipient, &agv_account, |share| -> DispatchResult {
+			AssetsGeneratingVCUShares::<T>::try_mutate(&agv_account,&recipient, |share| -> DispatchResult {
 				let total_sh = share.checked_add(number_of_shares).ok_or(Error::<T>::Overflow)?;
 				*share = total_sh;
 				Ok(())
@@ -612,7 +612,6 @@ decl_module! {
 			ensure!(Asset::<T>::contains_key(token_id),Error::<T>::TokenIdNotFound);
 			// check the token id > 10000 (because under 10000 reserver for the bridge)
 			ensure!(token_id>=10000,Error::<T>::ReservedTokenId);
-			// TODO control the property of the tokenid, it should match the one of the AGV for security? Because otherwise even wrapped Eth could be minted
 			// create json string
     		let json = Self::create_json_string(vec![("period_days",&mut period_days.to_string().as_bytes().to_vec()), ("amount_vcu",&mut  amount_vcu.to_string().as_bytes().to_vec()), ("token_id",&mut  token_id.to_string().as_bytes().to_vec())]);
 			// store the schedule
@@ -705,8 +704,6 @@ decl_module! {
 			if !Asset::<T>::contains_key(token_id) {
 				pallet_assets::Module::<T>::force_create(RawOrigin::Root.into(), token_id, T::Lookup::unlookup(agv_account_id.clone()), One::one(), One::one())?;
 			}
-			
-
 			// TODO - Minting must be in favor of the shares holders accounts in proportion to the number of shares
 			// mint the assets
 			pallet_assets::Module::<T>::mint(RawOrigin::Signed(agv_account_id.clone()).into(), token_id, T::Lookup::unlookup(agv_account_id.clone()), amount_vcu)?;
@@ -848,11 +845,11 @@ decl_module! {
 			if !Asset::<T>::contains_key(token_id) {
 				pallet_assets::Module::<T>::force_create(RawOrigin::Root.into(), token_id, T::Lookup::unlookup(oracle_account.clone()), One::one(), One::one())?;
 			}
-			let share_holders: Vec<T::AccountId> = AssetsGeneratingVCUShares::<T>::iter().map(|(k, _, _)| k).collect::<Vec<_>>();
+			/*let share_holders: Vec<T::AccountId> = AssetsGeneratingVCUShares::<T>::iter().map(|(k, _, _)| k).collect::<Vec<_>>();
 
 			let _ = share_holders.iter().map(|share_holder| {
 				pallet_assets::Module::<T>::mint(RawOrigin::Signed(oracle_account.clone()).into(), token_id, T::Lookup::unlookup(share_holder.clone()), amount_vcu)
-			});
+			});*/
 
 			// generate event
 			Self::deposit_event(RawEvent::OracleAccountVCUMinted(agv_account_id, agv_id, oracle_account));
