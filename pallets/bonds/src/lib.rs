@@ -2,7 +2,7 @@
 
 #![recursion_limit="256"]
 
-/// Module to manage the Bonds on BitGreen Blockchain
+/// Module to manage the Bonds (Debit Market) on BitGreen Blockchain
 
 use frame_support::{decl_module, decl_storage, decl_event, decl_error, dispatch, ensure, traits::Currency,codec::Decode};
 use frame_system::{ensure_root,ensure_signed};
@@ -33,7 +33,7 @@ pub trait Config: frame_system::Config {
 // The runtime storage items
 decl_storage! {
 	trait Store for Module<T: Config> as bonds {
-		// we use a safe crypto hashing with blake2_128
+		// we use a strong crypto hashing with blake2_128
 		// Settings configuration, we store json structure with different keys (see the function for details)
 		Settings get(fn get_settings): map hasher(blake2_128_concat) Vec<u8> => Option<Vec<u8>>;
         // Know Your client Data
@@ -525,6 +525,7 @@ decl_module! {
 		type Error = Error<T>;
 		// Events must be initialized
 		fn deposit_event() = default;
+
 		/// Create/change a  settings configuration. Reserved to super user
         /// We have multiple of configuration:
         /// key=="kyc" {"manager":"xxxaccountidxxx","supervisor":"xxxxaccountidxxxx","operators":["xxxxaccountidxxxx","xxxxaccountidxxxx",...]}
@@ -573,6 +574,7 @@ decl_module! {
                         }
                         x += 1;
                     }
+                    // at the least one operator is required for this configuration.
                     ensure!(x>0,Error::<T>::KycOperatorsNotConfigured);
                 }
             }
@@ -599,7 +601,7 @@ decl_module! {
                 let mandatorylegalopinion=json_get_value(configuration.clone(),"mandatorylegalopinion".as_bytes().to_vec());
                 ensure!(mandatorylegalopinion=="Y".as_bytes().to_vec() || mandatorylegalopinion=="N".as_bytes().to_vec(), Error::<T>::BondApprovalMandatoryLegalOpinionIsWrong);
             }
-            // check validity for under writers submission settings
+            // check validity for Under Writers submission settings
             if key=="underwriterssubmission".as_bytes().to_vec() {
                 let manager=json_get_value(configuration.clone(),"manager".as_bytes().to_vec());
                 ensure!(manager.len()==48 || manager.is_empty(), Error::<T>::UnderWritersSubmissionManagerAccountIsWrong);
@@ -745,6 +747,7 @@ decl_module! {
             let json:Vec<u8>=Settings::get("kyc".as_bytes().to_vec()).unwrap();
             let mut flag=0;
             let mut signingtype=0;
+            // check the signer is  the manager for kyc
             let manager=json_get_value(json.clone(),"manager".as_bytes().to_vec());
             if !manager.is_empty() {
                 let managervec=bs58::decode(manager).into_vec().unwrap();
@@ -754,6 +757,7 @@ decl_module! {
                     signingtype=1;
                 }
             }
+            // check the signer is is the supervisor for kyc
             let supervisor=json_get_value(json.clone(),"supervisor".as_bytes().to_vec());
             if !supervisor.is_empty() {
                 let supervisorvec=bs58::decode(supervisor).into_vec().unwrap();
@@ -765,6 +769,7 @@ decl_module! {
                     }
                 }
             }
+            // check the signer is one of the operators for kyc
             let operators=json_get_complexarray(json,"operators".as_bytes().to_vec());
             let mut x=0;
             loop {
@@ -839,7 +844,7 @@ decl_module! {
                 }
                 ensure!(x>0,Error::<T>::KycMissingDocuments);
             }
-            //store Kyc on chain
+            //store Kyc on chain subject to further approval
             if Kyc::<T>::contains_key(&accountid) {
                 // check that is not already approved from anybody
                 let itr=KycSignatures::<T>::iter_prefix(accountid.clone());
@@ -872,6 +877,7 @@ decl_module! {
                     signingtype=1;
                 }
             }
+            // signed from supervisor
             let supervisor=json_get_value(json.clone(),"supervisor".as_bytes().to_vec());
             if !supervisor.is_empty() {
                 let supervisorvec=bs58::decode(supervisor).into_vec().unwrap();
@@ -906,7 +912,6 @@ decl_module! {
             // check for all the approval
             let mut sigmanager=0;
             let mut sigsupervisor=0;
-            let mut sigoperator=0;
             let mut itr=KycSignatures::<T>::iter_prefix(accountid.clone());
             let mut result;
             loop {
@@ -919,15 +924,12 @@ decl_module! {
                         if x.1==2 {
                             sigsupervisor=1;
                         }
-                        if x.1==3 {
-                            sigoperator=1;
-                        }
                     },
                     None => break,
                 }
             }
             // store approved flag if all signatures have been received
-            if sigmanager==1 && sigsupervisor==1 && sigoperator==1 {
+            if sigmanager==1 && sigsupervisor==1  {
                 KycApproved::<T>::insert(accountid.clone(),1);
                 // generate event for approved
                 Self::deposit_event(RawEvent::KycApproved(accountid.clone(),signer.clone()));
@@ -937,6 +939,7 @@ decl_module! {
             // Return a successful DispatchResult
             Ok(())
         }
+        //TODO CONTINUE REVIEW FROM HERE
         // this function has the purpose to the insert or update data for a Fund (hedge or enterprise)
         #[weight = 1000]
         pub fn create_change_fund(origin, accountid: T::AccountId, info: Vec<u8>) -> dispatch::DispatchResult {
