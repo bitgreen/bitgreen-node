@@ -213,6 +213,10 @@ decl_error! {
 		AssetAlreadyInUse,
 		/// The AVG has not yet shares minted
 		NoAVGSharesNotFound,
+		/// Too many shares
+		TooManyNumberofShares,
+		/// AGV not found
+		AssetGeneratedVCUNotFound,
   }
 }
 

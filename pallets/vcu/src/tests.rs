@@ -272,9 +272,8 @@ fn mint_scheduled_vcu_should_work_if_signed_by_root_or_authorized_user() {
 		assert_ok!(VCU::create_asset_generating_vcu_schedule(Origin::signed(11), 1, 1, 0, amount_vcu, token_id));
 
 		assert_eq!(Assets::total_supply(token_id), 0);
-
-		assert_ok!(VCU::mint_scheduled_vcu(Origin::signed(11), 1, 1));
-
+		let avg_account = r#"1-1"#.as_bytes().to_vec();
+		assert_ok!(VCU::mint_scheduled_vcu(Origin::signed(11), avg_account));
 		assert_eq!(Assets::total_supply(token_id), amount_vcu);
 
 	});
@@ -283,8 +282,9 @@ fn mint_scheduled_vcu_should_work_if_signed_by_root_or_authorized_user() {
 #[test]
 fn mint_scheduled_vcu_should_not_work_if_not_exists() {
 	new_test_ext().execute_with(|| {
+		let avg_account = r#"1-1"#.as_bytes().to_vec();
 		assert_noop!(
-			VCU::mint_scheduled_vcu(Origin::root(), 1, 1),
+			VCU::mint_scheduled_vcu(Origin::root(), avg_account),
 			Error::<Test>::AssetGeneratedVCUScheduleNotFound
 		);
 	});
@@ -307,7 +307,7 @@ fn mint_scheduled_vcu_should_not_mint_if_schedule_has_been_expired() {
 
 
 		// assert_noop!(
-		// 	VCU::mint_scheduled_vcu(Origin::signed(11), 1, 1),
+		//VCU::mint_scheduled_vcu(Origin::signed(11), 1, 1),
 		// 	Error::<Test>::AssetGeneratedScheduleExpired
 		// );
 
@@ -318,16 +318,14 @@ fn mint_scheduled_vcu_should_not_mint_if_schedule_has_been_expired() {
 #[test]
 fn create_oracle_account_minting_vcu_should_work() {
 	new_test_ext().execute_with(|| {
-		assert_ok!(VCU::create_oracle_account_minting_vcu(Origin::root(), 1, 1, 10));
-		assert_eq!(VCU::oracle_generating_vcu(1, 1), 10);
+		assert_ok!(VCU::create_oracle_account_minting_vcu(Origin::root(), 1, 1, 10,1));
 	});
 }
 
 #[test]
 fn destroy_oracle_account_minting_vcu_should_work() {
 	new_test_ext().execute_with(|| {
-		assert_ok!(VCU::create_oracle_account_minting_vcu(Origin::root(), 1, 1, 10));
-
+		assert_ok!(VCU::create_oracle_account_minting_vcu(Origin::root(), 1, 1, 10,1));
 		assert_ok!(VCU::destroy_oracle_account_minting_vcu(Origin::root(), 1, 1));
 	});
 }
@@ -353,9 +351,10 @@ fn mint_vcu_from_oracle_should_work() {
 		let asset_id:u32 = 1;
 		let amount_vcu: u128 = 1000;
 
-		assert_ok!(VCU::create_oracle_account_minting_vcu(Origin::root(), 11, 1, 10));
+		assert_ok!(VCU::create_oracle_account_minting_vcu(Origin::root(), 11, 1, 10,1));
 		assert_eq!(Assets::total_supply(asset_id), 0);
-		assert_ok!(VCU::mint_vcu_from_oracle(Origin::root(), 11, 1, amount_vcu, asset_id));
+		let avg_account = r#"11-1"#.as_bytes().to_vec();
+		assert_ok!(VCU::mint_vcu_from_oracle(Origin::root(), avg_account, amount_vcu));
 		assert_eq!(Assets::total_supply(asset_id), amount_vcu);
 
 	});
