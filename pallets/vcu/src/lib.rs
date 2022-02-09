@@ -396,7 +396,7 @@ decl_module! {
 
 			// check whether asset generated VCU exists or not
 			ensure!(AssetsGeneratingVCU::<T>::contains_key(&agv_account_id, &agv_id), Error::<T>::AssetGeneratingVCUNotFound);
-			// TODO check for VCU already generated to avoid orphans
+			// TODO check for VCU already generated to avoid orphans or leave the decision to the administrator?
 			// renove the assets generating VCU
 			AssetsGeneratingVCU::<T>::remove(agv_account_id, agv_id);
 			// Generate event
@@ -678,7 +678,7 @@ decl_module! {
 		/// The dispatch origin for this call must be `Signed` either by the Root or authorized account.
 		/// the first minting can be done anytime, the  following minting not before the scheduled time
 		#[weight = 10_000 + T::DbWeight::get().writes(1)]
-		pub fn mint_scheduled_vcu(origin, agv_account_id: T::AccountId, agv_id: u32) -> DispatchResultWithPostInfo {
+		pub fn mint_scheduled_vcu(origin, agv_account: Vec<u8>) -> DispatchResultWithPostInfo {
 			// check for Sudo or other admnistrator account	
 			match ensure_root(origin.clone()) {
 				Ok(()) => Ok(()),
@@ -692,6 +692,12 @@ decl_module! {
 					})
 				}
 			}?;
+			// get avg_account_id  and agv_id from the vector agv_account
+			let agv_id_vec: Vec<&str> = sp_std::str::from_utf8(&agv_account).unwrap().split('-').collect();
+			ensure!(agv_id_vec.len() >= 1, Error::<T>::InvalidAGVId);
+			let (str_account_id, agv_id): (&str, u32) = (agv_id_vec[0], str::parse::<u32>(agv_id_vec[1]).unwrap());
+			let agv_account_id = T::AccountId::decode(&mut &str_account_id.as_bytes().to_vec()[1..33]).unwrap_or_default();
+			// check for AGV
 			ensure!(AssetsGeneratingVCUSchedule::<T>::contains_key(&agv_account_id, &agv_id), Error::<T>::AssetGeneratedVCUScheduleNotFound);
 			let content: Vec<u8> = AssetsGeneratingVCUSchedule::<T>::get(agv_account_id.clone(), &agv_id);
 			let period_days = Self::json_get_value(content.clone(),"period_days".as_bytes().to_vec());
@@ -704,19 +710,47 @@ decl_module! {
 			let now:u64 = T::UnixTime::now().as_secs();
 			// check for the last minting done
 			if AssetsGeneratingVCUGenerated::<T>::contains_key(&agv_account_id, &agv_id) {
-				timestamp = AssetsGeneratingVCUGenerated::<T>::get(&agv_account_id, &agv_id);
-				
+				timestamp = AssetsGeneratingVCUGenerated::<T>::get(&agv_account_id, &agv_id);	
 			}
 			let elapse:u64=period_days*24*60;
 			ensure!(now+elapse<=timestamp,Error::<T>::AssetGeneratedScheduleNotYetArrived);
-
+			// create token if it does not exists
 			ensure!(token_id>=10000,Error::<T>::ReservedTokenId);
 			if !Asset::<T>::contains_key(token_id) {
 				pallet_assets::Module::<T>::force_create(RawOrigin::Root.into(), token_id, T::Lookup::unlookup(agv_account_id.clone()), One::one(), One::one())?;
 			}
-			// TODO - Minting must be in favor of the shares holders accounts in proportion to the number of shares
+			// check for existing shares
+			ensure!(AssetsGeneratingVCUSharesMintedTotal::<T>::contains_key(agv_account_id.clone(),agv_id.clone()),Error::<T>::NoAVGSharesNotFound);
+			// read totals shares minted for the AGV
+			let totalshares:u128=AssetsGeneratingVCUSharesMintedTotal::<T>::get(agv_account_id.clone(),agv_id.clone()).into();
+			// set the key of search
+			let shareholdersc=AssetsGeneratingVCUShares::<T>::iter_prefix(agv_account.clone());
+			let nshareholders=shareholdersc.count();
+			// iter for the available shareholders
+			let shareholders=AssetsGeneratingVCUShares::<T>::iter_prefix(agv_account);
+			let mut vcuminted:u128=0;
+			let mut nshareholdersprocessed: usize=0;
+			for numsh in shareholders {
+				let shareholder=numsh.0;
+				let numshares:u128=numsh.1.into();
+				//compute VCU for the shareholder
+				let mut nvcu=amount_vcu/totalshares*numshares;
+				// increase counter shareholders processed
+				nshareholdersprocessed=nshareholdersprocessed+1;
+				// manage overflow for rounding
+				if nshareholdersprocessed==nshareholders && vcuminted+nvcu>amount_vcu {
+					nvcu=amount_vcu-vcuminted;
+				}
+				// manage underflow for rounding
+				if nshareholdersprocessed==nshareholders && vcuminted+nvcu<amount_vcu {
+					nvcu=amount_vcu-vcuminted;
+				}
+				//mint the vcu in proportion to the shares owned
+				pallet_assets::Module::<T>::mint(RawOrigin::Signed(agv_account_id.clone()).into(), token_id, T::Lookup::unlookup(shareholder.clone()), nvcu).unwrap();
+				// increase counter minted
+				vcuminted=vcuminted+nvcu;
+			}
 			// mint the assets
-			pallet_assets::Module::<T>::mint(RawOrigin::Signed(agv_account_id.clone()).into(), token_id, T::Lookup::unlookup(agv_account_id.clone()), amount_vcu)?;
 			// store the last minting time in AssetsGeneratingVCUGenerated
 			if AssetsGeneratingVCUGenerated::<T>::contains_key(&agv_account_id, &agv_id){
 				AssetsGeneratingVCUGenerated::<T>::take(&agv_account_id, &agv_id);		
