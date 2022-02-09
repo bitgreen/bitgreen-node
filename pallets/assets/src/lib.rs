@@ -404,7 +404,7 @@ pub mod pallet {
 					t.balance = new_balance;
 					Ok(().into())
 				})?;
-				Self::deposit_event(Event::Issued(id, beneficiary, amount));
+				Self::deposit_event(Event::Issued(id, beneficiary));
 				Ok(().into())
 			})
 		}
@@ -458,7 +458,7 @@ pub mod pallet {
 
 				d.supply = d.supply.saturating_sub(burned);
 
-				Self::deposit_event(Event::Burned(id, who, burned));
+				Self::deposit_event(Event::Burned(id, who));
 				Ok(().into())
 			})
 		}
@@ -532,7 +532,7 @@ pub mod pallet {
 					}
 				}
 
-				Self::deposit_event(Event::Transferred(id, origin, dest, amount));
+				Self::deposit_event(Event::Transferred(id, origin, dest));
 				Ok(().into())
 			})
 		}
@@ -607,7 +607,7 @@ pub mod pallet {
 					}
 				}
 
-				Self::deposit_event(Event::ForceTransferred(id, source, dest, amount));
+				Self::deposit_event(Event::ForceTransferred(id, source, dest));
 				Ok(().into())
 			})
 		}
@@ -916,22 +916,22 @@ pub mod pallet {
 
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
-	#[pallet::metadata(T::AccountId = "AccountId", T::Balance = "Balance", T::AssetId = "AssetId")]
+	#[pallet::metadata(T::AccountId = "AccountId", T::AssetId = "AssetId")]
 	pub enum Event<T: Config> {
 		/// Some asset class was created. \[asset_id, creator, owner\]
 		Created(T::AssetId, T::AccountId, T::AccountId),
 		/// Some assets were issued. \[asset_id, owner, total_supply\]
-		Issued(T::AssetId, T::AccountId, T::Balance),
+		Issued(T::AssetId, T::AccountId),
 		/// Some assets were transferred. \[asset_id, from, to, amount\]
-		Transferred(T::AssetId, T::AccountId, T::AccountId, T::Balance),
+		Transferred(T::AssetId, T::AccountId, T::AccountId),
 		/// Some assets were destroyed. \[asset_id, owner, balance\]
-		Burned(T::AssetId, T::AccountId, T::Balance),
+		Burned(T::AssetId, T::AccountId),
 		/// The management team changed \[asset_id, issuer, admin, freezer\]
 		TeamChanged(T::AssetId, T::AccountId, T::AccountId, T::AccountId),
 		/// The owner changed \[asset_id, owner\]
 		OwnerChanged(T::AssetId, T::AccountId),
 		/// Some assets was transferred by an admin. \[asset_id, from, to, amount\]
-		ForceTransferred(T::AssetId, T::AccountId, T::AccountId, T::Balance),
+		ForceTransferred(T::AssetId, T::AccountId, T::AccountId),
 		/// Some account `who` was frozen. \[asset_id, who\]
 		Frozen(T::AssetId, T::AccountId),
 		/// Some account `who` was thawed. \[asset_id, who\]
