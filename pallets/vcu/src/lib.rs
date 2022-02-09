@@ -841,8 +841,13 @@ decl_module! {
 		///
 		/// The dispatch origin for this call must be `Signed` either by the Root or authorized account.
 		#[weight = 10_000 + T::DbWeight::get().writes(1)]
-		pub fn mint_vcu_from_oracle(origin, agv_account_id: T::AccountId, agv_id: u32, amount_vcu: Balance) -> DispatchResultWithPostInfo {
+		pub fn mint_vcu_from_oracle(origin, agv_account: Vec<u8>, amount_vcu: Balance) -> DispatchResultWithPostInfo {
 			let sender=ensure_signed(origin)?;
+			// get avg_account_id  and agv_id from the vector agv_account
+			let agv_id_vec: Vec<&str> = sp_std::str::from_utf8(&agv_account).unwrap().split('-').collect();
+			ensure!(agv_id_vec.len() >= 1, Error::<T>::InvalidAGVId);
+			let (str_account_id, agv_id): (&str, u32) = (agv_id_vec[0], str::parse::<u32>(agv_id_vec[1]).unwrap());
+			let agv_account_id = T::AccountId::decode(&mut &str_account_id.as_bytes().to_vec()[1..33]).unwrap_or_default();
 			// check for Oracle presence on chain
 			ensure!(OraclesAccountMintingVCU::<T>::contains_key(&agv_account_id, &agv_id), Error::<T>::OraclesAccountMintingVCUNotFound);
 			// check for matching signer with Oracle Account
@@ -859,22 +864,35 @@ decl_module! {
 			// check for existing shares
 			ensure!(AssetsGeneratingVCUSharesMintedTotal::<T>::contains_key(agv_account_id.clone(),agv_id.clone()),Error::<T>::NoAVGSharesNotFound);
 			// read totals shares minted for the AGV
-			let totalshares=AssetsGeneratingVCUSharesMintedTotal::<T>::get(agv_account_id.clone(),agv_id.clone());
+			let totalshares:u128=AssetsGeneratingVCUSharesMintedTotal::<T>::get(agv_account_id.clone(),agv_id.clone()).into();
 			// set the key of search
-			 //let mut k=Vec::new();
-			//k.push(b'a');
-			//let mut k=agv_account_id.as_slice();
-			//let shareholders=AssetsGeneratingVCUShares::<T>::iter_prefix(k);
-			/*for numsh in shareholders {
+			let shareholdersc=AssetsGeneratingVCUShares::<T>::iter_prefix(agv_account.clone());
+			let nshareholders=shareholdersc.count();
+			// iter for the available shareholders
+			let shareholders=AssetsGeneratingVCUShares::<T>::iter_prefix(agv_account);
+			let mut vcuminted:u128=0;
+			let mut nshareholdersprocessed: usize=0;
+			for numsh in shareholders {
 				let shareholder=numsh.0;
-				let numshares=numsh.1;
-			}*/
-			/*let share_holders: Vec<T::AccountId> = AssetsGeneratingVCUShares::<T>::iter().map(|(k, _, _)| k).collect::<Vec<_>>();
-
-			let _ = share_holders.iter().map(|share_holder| {
-				pallet_assets::Module::<T>::mint(RawOrigin::Signed(oracle_account.clone()).into(), token_id, T::Lookup::unlookup(share_holder.clone()), amount_vcu)
-			});*/
-
+				let numshares:u128=numsh.1.into();
+				//compute VCU for the shareholder
+				let mut nvcu=amount_vcu/totalshares*numshares;
+				// increase counter shareholders processed
+				nshareholdersprocessed=nshareholdersprocessed+1;
+				// manage overflow for rounding
+				if nshareholdersprocessed==nshareholders && vcuminted+nvcu>amount_vcu {
+					nvcu=amount_vcu-vcuminted;
+				}
+				// manage underflow for rounding
+				if nshareholdersprocessed==nshareholders && vcuminted+nvcu<amount_vcu {
+					nvcu=amount_vcu-vcuminted;
+				}
+				//mint the vcu in proportion to the shares owned
+				pallet_assets::Module::<T>::mint(RawOrigin::Signed(oracle_account.clone()).into(), token_id, T::Lookup::unlookup(shareholder.clone()), nvcu).unwrap();
+				// increase counter minted
+				vcuminted=vcuminted+nvcu;
+			}
+			// here the total vcu minted should be exactly the amount received as parameter.
 			// generate event
 			Self::deposit_event(RawEvent::OracleAccountVCUMinted(agv_account_id, agv_id, oracle_account));
 			Ok(().into())
