@@ -863,7 +863,7 @@ decl_module! {
 			// set the key of search
 			 //let mut k=Vec::new();
 			//k.push(b'a');
-			let mut k=agv_account_id.as_slice();
+			//let mut k=agv_account_id.as_slice();
 			//let shareholders=AssetsGeneratingVCUShares::<T>::iter_prefix(k);
 			/*for numsh in shareholders {
 				let shareholder=numsh.0;
