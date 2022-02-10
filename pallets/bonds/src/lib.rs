@@ -941,6 +941,7 @@ decl_module! {
             // Return a successful DispatchResult
             Ok(())
         }
+        // function to delete a KYC data set, it can be executed only frm the manager or supervisor of KYC till the KYC is not yet fully approved.
         #[weight = 1000]
         pub fn kyc_delete(origin, accountid: T::AccountId) -> dispatch::DispatchResult {
             let signer = ensure_signed(origin)?;
@@ -976,7 +977,7 @@ decl_module! {
         }
         // this function has the purpose to the insert or update data for a Fund (hedge or enterprise)
         #[weight = 1000]
-        pub fn create_change_fund(origin, accountid: T::AccountId, info: Vec<u8>) -> dispatch::DispatchResult {
+        pub fn fund_create_change(origin, accountid: T::AccountId, info: Vec<u8>) -> dispatch::DispatchResult {
             let signer = ensure_signed(origin)?;
             // check the signer is one of the operators for kyc
             ensure!(Settings::contains_key("kyc".as_bytes().to_vec()),Error::<T>::SettingsDoesNotExist);

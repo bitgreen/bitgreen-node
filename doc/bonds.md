@@ -86,7 +86,6 @@ Where:
 {"name":"Smith and Wesson Inc","address":"103, Paris Boulevard","city":"London","zip":"00100","state":"England","country":"Great Britain","phone":"+441232322332","website":"https://www.smith.co.uk","ipfsdocs":[{"description":"Balance Sheet 2020","ipfsaddress":"42ff96731ce1f53aa014c55662a3964b61422c2c9c3f38c11b2cf3ee45440c7c"},{"description":"Revenue Report 2021","ipfsaddress":"b26707691ce34a738fa5dab526e800be831bcc63a199a7d83414f5d6b0a8836c"}]}  
 ```
 
-
 ## Approve KYC
 The KYC must be approved from a supervisors and the manager. The function for approval is:  
 ```rust
@@ -103,11 +102,73 @@ kyc_delete(account:AccoundId)
 ```
 where the account is the account id of the KYC to be deleted.
 
+## Investment Fund - Create/Change
+The KYC operators are enabled to create/change an investment fund using the following function:
+```rust
+fund_create_change(accountid: T::AccountId, info: Vec<u8>)
+```
+Where:  
+- accountid is the account of the fund manager.
+- info is  json structure with the fund data:  
+```json
+{
+	"name": "Smith and Wesson Investments Inc",
+	"address": "103, Paris Boulevard",
+	"city": "London",
+	"zip": "00100",
+	"state": "England",
+	"country": "Great Britain",
+	"phone": "+441232322332",
+	"website": "https://www.smith.co.uk",
+	"ipfsdocs": [{
+		"description": "Balance Sheet 2020",
+		"ipfsaddress": "42ff96731ce1f53aa014c55662a3964b61422c2c9c3f38c11b2cf3ee45440c7c"
+	}, {
+		"description": "Revenue Report 2021",
+		"ipfsaddress": "b26707691ce34a738fa5dab526e800be831bcc63a199a7d83414f5d6b0a8836c"
+	}],
+	"initialfees": "0.10",
+	"yearlyfees": "0.02",
+	"performancefees": "0.50",
+	"fundtype": "H",
+	"depositaccountid": "5GhRnzRTohd8f4bLvozc9u7qqDy9whnoZMF7hzaFVQBRsMxG",
+	"fundmanagers": ["5H1TaQBgtVwPA3Bk7r9feEcKTFgLAHKHPu5ghZaMU8iqbdXu", "5DoHzjMEKoWfjbmSEYDHU7RWkiJFMZwUfiqENomJgGfysQbk"]
+}
+```
+for copy/paste:
+```json
+{"name":"Smith and Wesson Inc","address":"103, Paris Boulevard","city":"London","zip":"00100","state":"England","country":"Great Britain","phone":"+441232322332","website":"https://www.smith.co.uk","ipfsdocs":[{"description":"Balance Sheet 2020","ipfsaddress":"42ff96731ce1f53aa014c55662a3964b61422c2c9c3f38c11b2cf3ee45440c7c"},{"description":"Revenue Report 2021","ipfsaddress":"b26707691ce34a738fa5dab526e800be831bcc63a199a7d83414f5d6b0a8836c"}],"initialfees":"0.10","yearlyfees":"0.02","performancefees":"0.50","fundtype":"H","depositaccountid":"5GhRnzRTohd8f4bLvozc9u7qqDy9whnoZMF7hzaFVQBRsMxG","fundmanagers":["5H1TaQBgtVwPA3Bk7r9feEcKTFgLAHKHPu5ghZaMU8iqbdXu","5DoHzjMEKoWfjbmSEYDHU7RWkiJFMZwUfiqENomJgGfysQbk"]}  
+```
+Where:
+- "ipfsdocs" are the public documents published on IPFS part of the information set.  
+- "initialfees" - is the pergentage of fees to pay at the subscription on the invested capital.  
+- "yearlyfees" - is the percentage of annual fees computed on the invested capital.  
+- "performancefees" - is the percentage of performance fees computed on the capital gain.  
+- "fundtype" - can be "H" for Hedge Fund or "E" for enterprise fund.  
+- "depositaccountid" - is the account where to received the funds.  
+- "fundmanagers" - are the accounts enabled to manage the fund operations.
+
+## Investment Fund - Approval
+
+The investment fund is subject to approval from the supervisor and manager of KYC.
+The Manager and the Supervisor can use this function to approve the submitted fund:
+```rust
+fund_approve(accountid: T::AccountId)
+```
+where account id is the account id used to identify the fund.
+Once both Manager and Supervisors has signed the approval, a new state in "FundsApproved" will be stored.
+
+
+
 TODO:
 - To add function to delete FUNDS (till not approved)
 - Add function to freeze the fund from further operations
 - Deny approval for KYC ?
 - Possibility to lock bond for getting additional subscriber ?
+- review weights
+- clippy on the pallet
+- testing suite
+
 
 
 
