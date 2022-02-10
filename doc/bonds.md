@@ -21,34 +21,48 @@ create_change_settings(key: Vec<u8>, configuration: Vec<u8>)
 where:
 - key is a string identifying a specific settings
 - configuration is a json structure that can be different for each "key".
-  
+
+- This configuration allows to set the accounts of the operator enabled to submit and approve the KYC (Know Your Client Data).    
 key=="kyc" {"manager":"xxxaccountidxxx","supervisor":"xxxxaccountidxxxx","operators":["xxxxaccountidxxxx","xxxxaccountidxxxx",...]}
 for example:  
 {"manager":"5GNJqTPyNqANBkUVMN1LPPrxXnFouWXoe2wNSmmEoLctxiZY","supervisor":"5FHneW46xGXgs5mUiveU4sbTyGBzmstUspZC92UhjJM694ty","operators":["5HpG9w8EBLe5XCrbczpwq5TSXvedjrBGCwqxK1iQ7qUsSWFc"]}  
 
+- This configuration allows to set the accounts of the operator enabled to approve a Bond. The Bond is submitted from the operator of the Fund.  
 key=="bondapproval" {"manager":"xxxaccountidxxx","committee":["xxxxaccountidxxxx","xxxxaccountidxxxx",...],"mandatoryunderwriting":"Y/N","mandatorycreditrating":"Y/N","mandatorylegalopinion":"Y/N"}  
 for example: {"manager":"5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY","committee":["5FLSigC9HGRKVhB9FiEo4Y3koPsNmBmLJbpXg2mp1hXcS59Y","5HpG9w8EBLe5XCrbczpwq5TSXvedjrBGCwqxK1iQ7qUsSWFc"],"mandatoryunderwriting":"Y","mandatorycreditrating":"Y","mandatorylegalopinion":"Y"}  
 
+- This configuration allows to set the accounts of the operator enabled to approve an underwriter.  
 key=="underwriterssubmission" {"manager":"xxxaccountidxxx","committee":["xxxxaccountidxxxx","xxxxaccountidxxxx",...]}  
 for example: {"manager":"5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY","committee":["5FLSigC9HGRKVhB9FiEo4Y3koPsNmBmLJbpXg2mp1hXcS59Y","5HpG9w8EBLe5XCrbczpwq5TSXvedjrBGCwqxK1iQ7qUsSWFc"]}  
 
+- This configuration allows to set the accounts of the operator enabled to submit the data for an insurer.  
 key=="insurerssubmission" {"manager":"xxxaccountidxxx","committee":["xxxxaccountidxxxx","xxxxaccountidxxxx",...]}  
 for example: {"manager":"5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY","committee":["5FLSigC9HGRKVhB9FiEo4Y3koPsNmBmLJbpXg2mp1hXcS59Y","5HpG9w8EBLe5XCrbczpwq5TSXvedjrBGCwqxK1iQ7qUsSWFc"]}  
 
+- This configuration allows to set the accounts of the operator enabled to submit the data for a credit agency.  
 key=="creditratingagencies" {"manager":"xxxaccountidxxx","committee":["xxxxaccountidxxxx","xxxxaccountidxxxx",...]}  
 for example: {"manager":"5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY","committee":["5FLSigC9HGRKVhB9FiEo4Y3koPsNmBmLJbpXg2mp1hXcS59Y","5HpG9w8EBLe5XCrbczpwq5TSXvedjrBGCwqxK1iQ7qUsSWFc"]}  
 
+- This configuration allows to set the accounts of the operator enabled to submit the data for a lawyer.  
 key=="lawyerssubmission" {"manager":"xxxaccountidxxx","committee":["xxxxaccountidxxxx","xxxxaccountidxxxx",...]}  
 for example: {"manager":"5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY","committee":["5FLSigC9HGRKVhB9FiEo4Y3koPsNmBmLJbpXg2mp1hXcS59Y","5HpG9w8EBLe5XCrbczpwq5TSXvedjrBGCwqxK1iQ7qUsSWFc"]}  
 
+- This configuration allows to set the accounts of the operator enabled to approve the collaterals data.  
 key=="collateralsverification" {"manager":"xxxaccountidxxx","committee":["xxxxaccountidxxxx","xxxxaccountidxxxx",...]}  
 for example: {"manager":"5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY","committee":["5FLSigC9HGRKVhB9FiEo4Y3koPsNmBmLJbpXg2mp1hXcS59Y","5HpG9w8EBLe5XCrbczpwq5TSXvedjrBGCwqxK1iQ7qUsSWFc"]}  
 
+- This configuration allows to set the accounts of the operator enabled to approve a new fund.
 key=="fundapproval" {"manager":"xxxaccountidxxx","committee":["xxxxaccountidxxxx","xxxxaccountidxxxx",...]}  
 for example: {"manager":"5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY","committee":["5FLSigC9HGRKVhB9FiEo4Y3koPsNmBmLJbpXg2mp1hXcS59Y","5HpG9w8EBLe5XCrbczpwq5TSXvedjrBGCwqxK1iQ7qUsSWFc"]}  
 
+- This configuration allows to configure the type of document requested (general configuration).  
 key=="infodocuments" {"documents:[{"document":"xxxxdescription"},{"document":"xxxxdescription"}]}  
 for example: {"documents":[{"document":"Profit&Loss Previous year"},{"document":"Board Members/Director List"}]}  
+
+- This configuration allows to configure the minum reserve required for the insurer (general configuration) (no decimals).  
+key=="insuranceminreserve" {"currency":"xxxx"},"reserve":"xxxamountxx"}]}  
+for example:  {"currency":"USDC"},"reserve":"1000000"}]}  
+
         
 ## Query Settings
 You can query the settings above calling the function:  
@@ -68,22 +82,33 @@ create_change_kyc(accountid: T::AccountId, info: Vec<u8>)
 Where:
 - accountid is the Account Id on the blockchain of the identified entity. 
 - info is a json structure with the KYC data as follows:
-
-{"name":"Smith and Wesson Inc","address":"103, Paris Boulevard","city":"London","zip":"00100","state":"England","country":"Great Britain","phone":"+441232322332","website":"https://www.smith.co.uk","ipfsdocs":[{"description":"Balance Sheet 2020","ipfsaddress":"42ff96731ce1f53aa014c55662a3964b61422c2c9c3f38c11b2cf3ee45440c7c"},{"description":"Revenue Report 2021","ipfsaddress":"b26707691ce34a738fa5dab526e800be831bcc63a199a7d83414f5d6b0a8836c"}]}
+```json
+{"name":"Smith and Wesson Inc","address":"103, Paris Boulevard","city":"London","zip":"00100","state":"England","country":"Great Britain","phone":"+441232322332","website":"https://www.smith.co.uk","ipfsdocs":[{"description":"Balance Sheet 2020","ipfsaddress":"42ff96731ce1f53aa014c55662a3964b61422c2c9c3f38c11b2cf3ee45440c7c"},{"description":"Revenue Report 2021","ipfsaddress":"b26707691ce34a738fa5dab526e800be831bcc63a199a7d83414f5d6b0a8836c"}]}  
+```
 
 
 ## Approve KYC
 The KYC must be approved from a supervisors and the manager. The function for approval is:  
 ```rust
-kycApprove(account:AccoundId)
+kyc_approve(account:AccoundId)
 ```
 where the account is the account id to be approved.
-The KYC is finalized once both a supervisor and manager has approved.
+The KYC is finalized once both a supervisor and manager has signed the approval.
+Till it's not finalized the KYC can be cancelled from the manager/supervisor
 
-
+## Delete KYC
+The KYC can be deleted from the manager of supervisors till it's not approved, calling this function:  
+```rust
+kyc_delete(account:AccoundId)
+```
+where the account is the account id of the KYC to be deleted.
 
 TODO:
-Deny approval for KYC
+- To add function to delete FUNDS (till not approved)
+- Add function to freeze the fund from further operations
+- Deny approval for KYC ?
+- Possibility to lock bond for getting additional subscriber ?
+
 
 
 

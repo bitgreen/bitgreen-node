@@ -219,6 +219,8 @@ decl_error! {
         KycSettingsNotConfigured,
         /// The signer is not authorized to approve a KYC
         SignerIsNotAuthorizedForKycApproval,
+        /// The signer is not authorized to delet a KYC
+        SignerIsNotAuthorizedForKycCancellation,
         /// Bond id cannot be zero
         BondIdIsWrongCannotBeZero,
         /// Bond id has been already used
@@ -939,7 +941,39 @@ decl_module! {
             // Return a successful DispatchResult
             Ok(())
         }
-        //TODO CONTINUE REVIEW FROM HERE
+        #[weight = 1000]
+        pub fn kyc_delete(origin, accountid: T::AccountId) -> dispatch::DispatchResult {
+            let signer = ensure_signed(origin)?;
+            //check id >0
+            ensure!(Kyc::<T>::contains_key(&accountid),Error::<T>::KycIdNotFound);
+            // check the signer is one of the supervisors or manager for kyc
+            let json:Vec<u8>=Settings::get("kyc".as_bytes().to_vec()).unwrap();
+            let mut flag=0;
+            let manager=json_get_value(json.clone(),"manager".as_bytes().to_vec());
+            if !manager.is_empty() {
+                let managervec=bs58::decode(manager).into_vec().unwrap();
+                let accountidmanager=T::AccountId::decode(&mut &managervec[1..33]).unwrap_or_default();
+                if signer==accountidmanager {
+                    flag=1;
+                }
+            }
+            // signed from supervisor
+            let supervisor=json_get_value(json.clone(),"supervisor".as_bytes().to_vec());
+            if !supervisor.is_empty() {
+                let supervisorvec=bs58::decode(supervisor).into_vec().unwrap();
+                let accountidsupervisor=T::AccountId::decode(&mut &supervisorvec[1..33]).unwrap_or_default();
+                if signer==accountidsupervisor {
+                    flag=1;
+                }
+            }
+            ensure!(flag==1,Error::<T>::SignerIsNotAuthorizedForKycCancellation);
+            // delete the KYC
+            Kyc::<T>::take(&accountid).unwrap();
+            // generate event for the cancellation
+            Self::deposit_event(RawEvent::KycSignedforApproval(accountid,signer));
+            // Return a successful DispatchResult
+            Ok(())
+        }
         // this function has the purpose to the insert or update data for a Fund (hedge or enterprise)
         #[weight = 1000]
         pub fn create_change_fund(origin, accountid: T::AccountId, info: Vec<u8>) -> dispatch::DispatchResult {
@@ -1058,9 +1092,10 @@ decl_module! {
             // check fund type E==Enterprise Fund  H==Hedge Fund
             let fundtype=json_get_value(info.clone(),"fundtype".as_bytes().to_vec());
             ensure!(fundtype[0]==b'E' || fundtype[0]==b'H',Error::<T>::BondInterestTypeIsWrong);
-            // check deposit account id for the fund
+            // check deposit account id for the fund (Wallet Address)
             let depositaccountid=json_get_value(info.clone(),"depositaccountid".as_bytes().to_vec());
             ensure!(depositaccountid.len()==48, Error::<T>::FundDepositAccountIdIsWrong);
+            // check fund managers id for the fund (Wallet Addresses) - At the least one is mandatory
             let fundmanagers=json_get_complexarray(info.clone(),"fundmanagers".as_bytes().to_vec());
             let mut x=0;
             if fundmanagers.len()>2 {
@@ -1088,14 +1123,16 @@ decl_module! {
             // Return a successful DispatchResult
             Ok(())
         }
+        // This function allow the manager/supervisors for fund approval, to approve a new fund 
         #[weight = 1000]
         pub fn fund_approve(origin, accountid: T::AccountId) -> dispatch::DispatchResult {
             let signer = ensure_signed(origin)?;
             let mut signingtype=0;
-            //check id >0
+            //check that the fund Id exists
             ensure!(Funds::<T>::contains_key(&accountid),Error::<T>::KycIdNotFound);
+            // check for possibile duplicated signatures
             ensure!(!FundsSignatures::<T>::contains_key(&accountid,&signer),Error::<T>::FundsSignatureAlreadyPresentrSameSigner);
-            // check the signer is one of the operators for fundapproval
+            // check the signer is one of the operators for fund approval
             let json:Vec<u8>=Settings::get("fundapproval".as_bytes().to_vec()).unwrap();
             let mut flag=0;
             let manager=json_get_value(json.clone(),"manager".as_bytes().to_vec());
@@ -1118,30 +1155,12 @@ decl_module! {
                     }
                 }
             }
-            let operators=json_get_complexarray(json,"operators".as_bytes().to_vec());
-            let mut x=0;
-            loop {
-                let operator=json_get_arrayvalue(operators.clone(),x);
-                if operator.is_empty() {
-                    break;
-                }
-                let operatorvec=bs58::decode(operator).into_vec().unwrap();
-                let accountidoperator=T::AccountId::decode(&mut &operatorvec[1..33]).unwrap_or_default();
-                if accountidoperator==signer {
-                    flag=1;
-                    if signingtype==0 {
-                        signingtype=3;
-                    }
-                }
-                x += 1;
-            }
             ensure!(flag==1,Error::<T>::SignerIsNotAuthorizedForFundApproval);
             // write/update signature
             FundsSignatures::<T>::insert(accountid.clone(),signer.clone(),signingtype);
             // check for all the approval
             let mut sigmanager=0;
             let mut sigsupervisor=0;
-            let mut sigoperator=0;
             let mut itr=FundsSignatures::<T>::iter_prefix(accountid.clone());
             let mut result;
             loop {
@@ -1154,15 +1173,12 @@ decl_module! {
                         if x.1==2 {
                             sigsupervisor=1;
                         }
-                        if x.1==3 {
-                            sigoperator=1;
-                        }
                     },
                     None => break,
                 }
             }
             // store approved flag if all signatures have been received
-            if sigmanager==1 && sigsupervisor==1 && sigoperator==1 {
+            if sigmanager==1 && sigsupervisor==1 {
                 FundsApproved::<T>::insert(accountid.clone(),1);
                 // generate event for approved
                 Self::deposit_event(RawEvent::FundApproved(accountid.clone(),signer.clone()));
@@ -1172,13 +1188,14 @@ decl_module! {
             // Return a successful DispatchResult
             Ok(())
         }
+        //TODO CONTINUE REVIEW FROM HERE
         // Function to create a new bond subject to approval. The info field is a json structure with the following fields:
         // totalamount: total amount considering 0 decimals
         // currency: is the currency code as from the blockchain storage "Currencies"
         // country: is the the iso conty code as from blockchain storage "IsoCountries"
         // interestrate: is the interest rate expressed in an integer assumin 2 decimals, for example 200 is equivalent to 2.00 %
         // interest type: X=Fixed Rate / F=Floating Rate /Z= Zero Interest/ I= Inflation Linked
-        // TODO - Oracle to get Inflation rate
+        // TODO - Oracle to get Inflation rate and store periodically on Chain.
         // for example:
         // {"totalamount":100000000,
         #[weight = 1000]
