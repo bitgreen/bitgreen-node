@@ -127,9 +127,9 @@ Where:
 		"description": "Revenue Report 2021",
 		"ipfsaddress": "b26707691ce34a738fa5dab526e800be831bcc63a199a7d83414f5d6b0a8836c"
 	}],
-	"initialfees": "0.10",
-	"yearlyfees": "0.02",
-	"performancefees": "0.50",
+	"initialfees": "100",
+	"yearlyfees": "75",
+	"performancefees": "50",
 	"fundtype": "H",
 	"depositaccountid": "5GhRnzRTohd8f4bLvozc9u7qqDy9whnoZMF7hzaFVQBRsMxG",
 	"fundmanagers": ["5H1TaQBgtVwPA3Bk7r9feEcKTFgLAHKHPu5ghZaMU8iqbdXu", "5DoHzjMEKoWfjbmSEYDHU7RWkiJFMZwUfiqENomJgGfysQbk"]
@@ -137,13 +137,13 @@ Where:
 ```
 for copy/paste:
 ```json
-{"name":"Smith and Wesson Inc","address":"103, Paris Boulevard","city":"London","zip":"00100","state":"England","country":"Great Britain","phone":"+441232322332","website":"https://www.smith.co.uk","ipfsdocs":[{"description":"Balance Sheet 2020","ipfsaddress":"42ff96731ce1f53aa014c55662a3964b61422c2c9c3f38c11b2cf3ee45440c7c"},{"description":"Revenue Report 2021","ipfsaddress":"b26707691ce34a738fa5dab526e800be831bcc63a199a7d83414f5d6b0a8836c"}],"initialfees":"0.10","yearlyfees":"0.02","performancefees":"0.50","fundtype":"H","depositaccountid":"5GhRnzRTohd8f4bLvozc9u7qqDy9whnoZMF7hzaFVQBRsMxG","fundmanagers":["5H1TaQBgtVwPA3Bk7r9feEcKTFgLAHKHPu5ghZaMU8iqbdXu","5DoHzjMEKoWfjbmSEYDHU7RWkiJFMZwUfiqENomJgGfysQbk"]}  
+{"name":"Smith and Wesson Inc","address":"103, Paris Boulevard","city":"London","zip":"00100","state":"England","country":"Great Britain","phone":"+441232322332","website":"https://www.smith.co.uk","ipfsdocs":[{"description":"Balance Sheet 2020","ipfsaddress":"42ff96731ce1f53aa014c55662a3964b61422c2c9c3f38c11b2cf3ee45440c7c"},{"description":"Revenue Report 2021","ipfsaddress":"b26707691ce34a738fa5dab526e800be831bcc63a199a7d83414f5d6b0a8836c"}],"initialfees":"100","yearlyfees":"75","performancefees":"50","fundtype":"H","depositaccountid":"5GhRnzRTohd8f4bLvozc9u7qqDy9whnoZMF7hzaFVQBRsMxG","fundmanagers":["5H1TaQBgtVwPA3Bk7r9feEcKTFgLAHKHPu5ghZaMU8iqbdXu","5DoHzjMEKoWfjbmSEYDHU7RWkiJFMZwUfiqENomJgGfysQbk"]}  
 ```
 Where:
 - "ipfsdocs" are the public documents published on IPFS part of the information set.  
-- "initialfees" - is the pergentage of fees to pay at the subscription on the invested capital.  
-- "yearlyfees" - is the percentage of annual fees computed on the invested capital.  
-- "performancefees" - is the percentage of performance fees computed on the capital gain.  
+- "initialfees" - is the pergentage of fees to pay at the subscription on the invested capital (2 decimals as integer so 100 = 1%).  
+- "yearlyfees" - is the percentage of annual fees computed on the invested capital (2 decimals as integer so 100 = 1%).  
+- "performancefees" - is the percentage of performance fees computed on the capital gain (2 decimals as integer so 100 = 1%).  
 - "fundtype" - can be "H" for Hedge Fund or "E" for enterprise fund.  
 - "depositaccountid" - is the account where to received the funds.  
 - "fundmanagers" - are the accounts enabled to manage the fund operations.

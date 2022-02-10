@@ -445,6 +445,8 @@ decl_error! {
         FundUnderProcessItCannotBeChanged,
         /// Fund signatures is already present on chain for the same signer
         FundsSignatureAlreadyPresentrSameSigner,
+        /// Fund type is wrong it can be H for Hedge Fund or E for Enterprise fund
+        FundTypeIsWrong,
         /// Signer is not authorized for fund approval
         SignerIsNotAuthorizedForFundApproval,
         /// Currency in the Insurance configuration is wrong
@@ -1092,7 +1094,7 @@ decl_module! {
             ensure!(performancefeesv>0,Error::<T>::FundPerformanceFeesCannotBeZero);
             // check fund type E==Enterprise Fund  H==Hedge Fund
             let fundtype=json_get_value(info.clone(),"fundtype".as_bytes().to_vec());
-            ensure!(fundtype[0]==b'E' || fundtype[0]==b'H',Error::<T>::BondInterestTypeIsWrong);
+            ensure!(fundtype[0]==b'E' || fundtype[0]==b'H',Error::<T>::FundTypeIsWrong);
             // check deposit account id for the fund (Wallet Address)
             let depositaccountid=json_get_value(info.clone(),"depositaccountid".as_bytes().to_vec());
             ensure!(depositaccountid.len()==48, Error::<T>::FundDepositAccountIdIsWrong);
@@ -1189,7 +1191,6 @@ decl_module! {
             // Return a successful DispatchResult
             Ok(())
         }
-        //TODO CONTINUE REVIEW FROM HERE
         // Function to create a new bond subject to approval. The info field is a json structure with the following fields:
         // totalamount: total amount considering 0 decimals
         // currency: is the currency code as from the blockchain storage "Currencies"
@@ -1204,28 +1205,31 @@ decl_module! {
             let signer = ensure_signed(origin)?;
             //check id >0
             ensure!(id>0, Error::<T>::BondIdIsWrongCannotBeZero);
+            // check the bond id is not yet used
             ensure!(!Bonds::contains_key(&id),Error::<T>::BondIdAlreadyUsed);
-            // check the signer has been subject to KYC approval
+            // check the signer has been subject has a KYC 
             ensure!(Kyc::<T>::contains_key(&signer),Error::<T>::MissingKycForSigner);
             // check the Kyc has been approved
             ensure!(KycApproved::<T>::contains_key(&signer),Error::<T>::KycSignerIsNotApproved);
-            // check total amount
+            // TODO check that the signer is a fund manager
+            // check total amount >0
             let totalamount=json_get_value(info.clone(),"totalamount".as_bytes().to_vec());
             let totalamountv=vecu8_to_u32(totalamount);
             ensure!(totalamountv>0,Error::<T>::BondTotalAmountCannotBeZero);
-            // check currency
+            // check currency is one of the ISO set
             let currency=json_get_value(info.clone(),"currency".as_bytes().to_vec());
             ensure!(Currencies::contains_key(&currency), Error::<T>::CurrencyCodeNotFound);
-            // check country
+            // check country is a valid ISO set
             let country=json_get_value(info.clone(),"country".as_bytes().to_vec());
             ensure!(IsoCountries::contains_key(&country), Error::<T>::CountryCodeNotFound);
             let country=json_get_value(info.clone(),"country".as_bytes().to_vec());
             ensure!(IsoCountries::contains_key(&country), Error::<T>::CountryCodeNotFound);
-            // check interest rate
+            // check interest rate >0 considering 2 decimals as integer
             let interestrate=json_get_value(info.clone(),"interestrate".as_bytes().to_vec());
             let interestratev=vecu8_to_u32(interestrate);
             ensure!(interestratev>0,Error::<T>::BondInterestRateCannotBeZero);
-            // check interest type
+            //TODO CONTINUE REVIEW FROM HERE
+            // check interest type where X=
             let interestype=json_get_value(info.clone(),"interestype".as_bytes().to_vec());
             ensure!(interestype[0]==b'X'
                 || interestype[0]==b'F'
