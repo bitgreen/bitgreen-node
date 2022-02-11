@@ -12,5 +12,5 @@ pub fn set_balance(currency_id: CurrencyId, who: &AccountId, balance: Balance) {
 }
 
 pub fn set_bitg_balance(who: &AccountId, balance: Balance) {
-	set_balance(CurrencyId::Token(TokenSymbol::BITG), who, balance)
+	set_balance(CurrencyId::Token(TokenSymbol::BBB), who, balance)
 }

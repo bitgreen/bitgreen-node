@@ -90,11 +90,11 @@ impl pallet_balances::Config for Test {
 	type MaxLocks = ();
 }
 
-pub const BITG: CurrencyId = CurrencyId::Token(TokenSymbol::BITG);
+pub const BBB: CurrencyId = CurrencyId::Token(TokenSymbol::BBB);
 pub const USDG: CurrencyId = CurrencyId::Token(TokenSymbol::USDG);
 
 parameter_types! {
-	pub const GetNativeCurrencyId: CurrencyId = BITG;
+	pub const GetNativeCurrencyId: CurrencyId = BBB;
 }
 
 impl module_currencies::Config for Test {
@@ -295,7 +295,7 @@ pub fn evm_genesis() -> BTreeMap<H160, module_evm::GenesisAccount<Balance, u64>>
 }
 
 pub const INITIAL_BALANCE: Balance = 1_000_000_000_000;
-pub const BITG_ERC20_ADDRESS: &str = "0x0000000000000000000000000000000001000000";
+pub const BBB_ERC20_ADDRESS: &str = "0x0000000000000000000000000000000001000000";
 
 type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
 type Block = frame_system::mocking::MockBlock<Test>;
@@ -365,7 +365,7 @@ pub fn new_test_ext() -> sp_io::TestExternalities {
 		assert_ok!(Currencies::update_balance(
 			Origin::root(),
 			ALICE,
-			BITG,
+			BBB,
 			1_000_000_000_000
 		));
 		assert_ok!(Currencies::update_balance(Origin::root(), ALICE, USDG, 1_000_000_000));

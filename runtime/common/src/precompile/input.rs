@@ -241,7 +241,7 @@ mod tests {
 	#[test]
 	fn currency_id_works() {
 		let input = TestInput::new(&[0u8; 32][..]);
-		assert_ok!(input.currency_id_at(0), CurrencyId::Token(TokenSymbol::BITG));
+		assert_ok!(input.currency_id_at(0), CurrencyId::Token(TokenSymbol::BBB));
 
 		let mut raw_input = [0u8; 32];
 		raw_input[30] = 1;

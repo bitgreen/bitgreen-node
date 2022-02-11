@@ -145,7 +145,7 @@ pub mod module {
 			T::NativeCurrency::transfer(&from, &to, amount)?;
 
 			Self::deposit_event(Event::Transferred(
-				CurrencyId::Token(TokenSymbol::BITG),
+				CurrencyId::Token(TokenSymbol::BBB),
 				from,
 				to,
 				amount,
@@ -178,7 +178,7 @@ impl<T: Config> MultiCurrency<T::AccountId> for Pallet<T> {
 	fn minimum_balance(currency_id: Self::CurrencyId) -> Self::Balance {
 		match currency_id {
 			CurrencyId::ERC20(_) => Default::default(),
-			CurrencyId::Token(TokenSymbol::BITG) => T::NativeCurrency::minimum_balance(),
+			CurrencyId::Token(TokenSymbol::BBB) => T::NativeCurrency::minimum_balance(),
 			_ => T::MultiCurrency::minimum_balance(currency_id),
 		}
 	}
@@ -191,7 +191,7 @@ impl<T: Config> MultiCurrency<T::AccountId> for Pallet<T> {
 				origin: Default::default(),
 			})
 			.unwrap_or_default(),
-			CurrencyId::Token(TokenSymbol::BITG) => T::NativeCurrency::total_issuance(),
+			CurrencyId::Token(TokenSymbol::BBB) => T::NativeCurrency::total_issuance(),
 			_ => T::MultiCurrency::total_issuance(currency_id),
 		}
 	}
@@ -209,7 +209,7 @@ impl<T: Config> MultiCurrency<T::AccountId> for Pallet<T> {
 				}
 				Default::default()
 			}
-			CurrencyId::Token(TokenSymbol::BITG) => T::NativeCurrency::total_balance(who),
+			CurrencyId::Token(TokenSymbol::BBB) => T::NativeCurrency::total_balance(who),
 			_ => T::MultiCurrency::total_balance(currency_id, who),
 		}
 	}
@@ -227,7 +227,7 @@ impl<T: Config> MultiCurrency<T::AccountId> for Pallet<T> {
 				}
 				Default::default()
 			}
-			CurrencyId::Token(TokenSymbol::BITG) => T::NativeCurrency::free_balance(who),
+			CurrencyId::Token(TokenSymbol::BBB) => T::NativeCurrency::free_balance(who),
 			_ => T::MultiCurrency::free_balance(currency_id, who),
 		}
 	}
@@ -248,7 +248,7 @@ impl<T: Config> MultiCurrency<T::AccountId> for Pallet<T> {
 				ensure!(balance >= amount, Error::<T>::BalanceTooLow);
 				Ok(())
 			}
-			CurrencyId::Token(TokenSymbol::BITG) => T::NativeCurrency::ensure_can_withdraw(who, amount),
+			CurrencyId::Token(TokenSymbol::BBB) => T::NativeCurrency::ensure_can_withdraw(who, amount),
 			_ => T::MultiCurrency::ensure_can_withdraw(currency_id, who, amount),
 		}
 	}
@@ -279,7 +279,7 @@ impl<T: Config> MultiCurrency<T::AccountId> for Pallet<T> {
 					amount,
 				)?;
 			}
-			CurrencyId::Token(TokenSymbol::BITG) => T::NativeCurrency::transfer(from, to, amount)?,
+			CurrencyId::Token(TokenSymbol::BBB) => T::NativeCurrency::transfer(from, to, amount)?,
 			_ => T::MultiCurrency::transfer(currency_id, from, to, amount)?,
 		}
 
@@ -293,7 +293,7 @@ impl<T: Config> MultiCurrency<T::AccountId> for Pallet<T> {
 		}
 		match currency_id {
 			CurrencyId::ERC20(_) => return Err(Error::<T>::ERC20InvalidOperation.into()),
-			CurrencyId::Token(TokenSymbol::BITG) => T::NativeCurrency::deposit(who, amount)?,
+			CurrencyId::Token(TokenSymbol::BBB) => T::NativeCurrency::deposit(who, amount)?,
 			_ => T::MultiCurrency::deposit(currency_id, who, amount)?,
 		}
 		Self::deposit_event(Event::Deposited(currency_id, who.clone(), amount));
@@ -306,7 +306,7 @@ impl<T: Config> MultiCurrency<T::AccountId> for Pallet<T> {
 		}
 		match currency_id {
 			CurrencyId::ERC20(_) => return Err(Error::<T>::ERC20InvalidOperation.into()),
-			CurrencyId::Token(TokenSymbol::BITG) => T::NativeCurrency::withdraw(who, amount)?,
+			CurrencyId::Token(TokenSymbol::BBB) => T::NativeCurrency::withdraw(who, amount)?,
 			_ => T::MultiCurrency::withdraw(currency_id, who, amount)?,
 		}
 		Self::deposit_event(Event::Withdrawn(currency_id, who.clone(), amount));
@@ -316,7 +316,7 @@ impl<T: Config> MultiCurrency<T::AccountId> for Pallet<T> {
 	fn can_slash(currency_id: Self::CurrencyId, who: &T::AccountId, amount: Self::Balance) -> bool {
 		match currency_id {
 			CurrencyId::ERC20(_) => false,
-			CurrencyId::Token(TokenSymbol::BITG) => T::NativeCurrency::can_slash(who, amount),
+			CurrencyId::Token(TokenSymbol::BBB) => T::NativeCurrency::can_slash(who, amount),
 			_ => T::MultiCurrency::can_slash(currency_id, who, amount),
 		}
 	}
@@ -324,7 +324,7 @@ impl<T: Config> MultiCurrency<T::AccountId> for Pallet<T> {
 	fn slash(currency_id: Self::CurrencyId, who: &T::AccountId, amount: Self::Balance) -> Self::Balance {
 		match currency_id {
 			CurrencyId::ERC20(_) => Default::default(),
-			CurrencyId::Token(TokenSymbol::BITG) => T::NativeCurrency::slash(who, amount),
+			CurrencyId::Token(TokenSymbol::BBB) => T::NativeCurrency::slash(who, amount),
 			_ => T::MultiCurrency::slash(currency_id, who, amount),
 		}
 	}
@@ -336,7 +336,7 @@ impl<T: Config> MultiCurrencyExtended<T::AccountId> for Pallet<T> {
 	fn update_balance(currency_id: Self::CurrencyId, who: &T::AccountId, by_amount: Self::Amount) -> DispatchResult {
 		match currency_id {
 			CurrencyId::ERC20(_) => return Err(Error::<T>::ERC20InvalidOperation.into()),
-			CurrencyId::Token(TokenSymbol::BITG) => T::NativeCurrency::update_balance(who, by_amount)?,
+			CurrencyId::Token(TokenSymbol::BBB) => T::NativeCurrency::update_balance(who, by_amount)?,
 			_ => T::MultiCurrency::update_balance(currency_id, who, by_amount)?,
 		}
 		Self::deposit_event(Event::BalanceUpdated(currency_id, who.clone(), by_amount));
@@ -355,7 +355,7 @@ impl<T: Config> MultiLockableCurrency<T::AccountId> for Pallet<T> {
 	) -> DispatchResult {
 		match currency_id {
 			CurrencyId::ERC20(_) => Err(Error::<T>::ERC20InvalidOperation.into()),
-			CurrencyId::Token(TokenSymbol::BITG) => T::NativeCurrency::set_lock(lock_id, who, amount),
+			CurrencyId::Token(TokenSymbol::BBB) => T::NativeCurrency::set_lock(lock_id, who, amount),
 			_ => T::MultiCurrency::set_lock(lock_id, currency_id, who, amount),
 		}
 	}
@@ -368,7 +368,7 @@ impl<T: Config> MultiLockableCurrency<T::AccountId> for Pallet<T> {
 	) -> DispatchResult {
 		match currency_id {
 			CurrencyId::ERC20(_) => Err(Error::<T>::ERC20InvalidOperation.into()),
-			CurrencyId::Token(TokenSymbol::BITG) => T::NativeCurrency::extend_lock(lock_id, who, amount),
+			CurrencyId::Token(TokenSymbol::BBB) => T::NativeCurrency::extend_lock(lock_id, who, amount),
 			_ => T::MultiCurrency::extend_lock(lock_id, currency_id, who, amount),
 		}
 	}
@@ -376,7 +376,7 @@ impl<T: Config> MultiLockableCurrency<T::AccountId> for Pallet<T> {
 	fn remove_lock(lock_id: LockIdentifier, currency_id: Self::CurrencyId, who: &T::AccountId) -> DispatchResult {
 		match currency_id {
 			CurrencyId::ERC20(_) => Err(Error::<T>::ERC20InvalidOperation.into()),
-			CurrencyId::Token(TokenSymbol::BITG) => T::NativeCurrency::remove_lock(lock_id, who),
+			CurrencyId::Token(TokenSymbol::BBB) => T::NativeCurrency::remove_lock(lock_id, who),
 			_ => T::MultiCurrency::remove_lock(lock_id, currency_id, who),
 		}
 	}
@@ -386,7 +386,7 @@ impl<T: Config> MultiReservableCurrency<T::AccountId> for Pallet<T> {
 	fn can_reserve(currency_id: Self::CurrencyId, who: &T::AccountId, value: Self::Balance) -> bool {
 		match currency_id {
 			CurrencyId::ERC20(_) => Self::ensure_can_withdraw(currency_id, who, value).is_ok(),
-			CurrencyId::Token(TokenSymbol::BITG) => T::NativeCurrency::can_reserve(who, value),
+			CurrencyId::Token(TokenSymbol::BBB) => T::NativeCurrency::can_reserve(who, value),
 			_ => T::MultiCurrency::can_reserve(currency_id, who, value),
 		}
 	}
@@ -394,7 +394,7 @@ impl<T: Config> MultiReservableCurrency<T::AccountId> for Pallet<T> {
 	fn slash_reserved(currency_id: Self::CurrencyId, who: &T::AccountId, value: Self::Balance) -> Self::Balance {
 		match currency_id {
 			CurrencyId::ERC20(_) => value,
-			CurrencyId::Token(TokenSymbol::BITG) => T::NativeCurrency::slash_reserved(who, value),
+			CurrencyId::Token(TokenSymbol::BBB) => T::NativeCurrency::slash_reserved(who, value),
 			_ => T::MultiCurrency::slash_reserved(currency_id, who, value),
 		}
 	}
@@ -415,7 +415,7 @@ impl<T: Config> MultiReservableCurrency<T::AccountId> for Pallet<T> {
 				}
 				Default::default()
 			}
-			CurrencyId::Token(TokenSymbol::BITG) => T::NativeCurrency::reserved_balance(who),
+			CurrencyId::Token(TokenSymbol::BBB) => T::NativeCurrency::reserved_balance(who),
 			_ => T::MultiCurrency::reserved_balance(currency_id, who),
 		}
 	}
@@ -437,7 +437,7 @@ impl<T: Config> MultiReservableCurrency<T::AccountId> for Pallet<T> {
 					value,
 				)
 			}
-			CurrencyId::Token(TokenSymbol::BITG) => T::NativeCurrency::reserve(who, value),
+			CurrencyId::Token(TokenSymbol::BBB) => T::NativeCurrency::reserve(who, value),
 			_ => T::MultiCurrency::reserve(currency_id, who, value),
 		}
 	}
@@ -475,7 +475,7 @@ impl<T: Config> MultiReservableCurrency<T::AccountId> for Pallet<T> {
 				}
 				value
 			}
-			CurrencyId::Token(TokenSymbol::BITG) => T::NativeCurrency::unreserve(who, value),
+			CurrencyId::Token(TokenSymbol::BBB) => T::NativeCurrency::unreserve(who, value),
 			_ => T::MultiCurrency::unreserve(currency_id, who, value),
 		}
 	}
@@ -540,7 +540,7 @@ impl<T: Config> MultiReservableCurrency<T::AccountId> for Pallet<T> {
 				}
 				.map(|_| value - actual)
 			}
-			CurrencyId::Token(TokenSymbol::BITG) => {
+			CurrencyId::Token(TokenSymbol::BBB) => {
 				T::NativeCurrency::repatriate_reserved(slashed, beneficiary, value, status)
 			}
 			_ => T::MultiCurrency::repatriate_reserved(currency_id, slashed, beneficiary, value, status),

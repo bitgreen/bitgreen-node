@@ -26,7 +26,7 @@ mod tests;
 pub const SYSTEM_CONTRACT_ADDRESS_PREFIX: [u8; 11] = [0u8; 11];
 /// Ethereum precompiles
 /// 0 - 0x400
-/// Bitg precompiles
+/// BBB precompiles
 /// 0x400 - 0x800
 pub const PRECOMPILE_ADDRESS_START: u64 = 0x400;
 /// Predeployed system contracts
@@ -39,7 +39,7 @@ pub const NETWORK_CONTRACT_START: u64 = 0x1000;
 /// 0x01000000
 pub const MIRRORED_TOKENS_ADDRESS_START: u64 = 0x01000000;
 
-pub const BITG_TOKEN: u32 = 1;
+pub const BBB_TOKEN: u32 = 1;
 
 /// Amounts
 pub mod currency {
@@ -48,9 +48,9 @@ pub mod currency {
 	pub const DOLLARS: Balance = 1_000_000_000_000_000_000;
 	pub const CENTS: Balance = DOLLARS / 100;
 
-	pub const BITG: Balance = DOLLARS;
-	pub const MILLI_BITG: Balance = BITG / 1_000;
-	pub const MICRO_BITG: Balance = BITG / 1_000_000;
+	pub const BBB: Balance = DOLLARS;
+	pub const MILLI_BBB: Balance = BBB / 1_000;
+	pub const MICRO_BBB: Balance = BBB / 1_000_000;
 }
 
 /// Time and blocks.
@@ -130,7 +130,7 @@ pub use sp_runtime::OpaqueExtrinsic as UncheckedExtrinsic;
 #[derive(Encode, Decode, Eq, PartialEq, Copy, Clone, RuntimeDebug, PartialOrd, Ord)]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 pub enum TokenSymbol {
-	BITG = 0,
+	BBB = 0,
 	USDG = 1,
 }
 
@@ -139,7 +139,7 @@ impl TryFrom<u8> for TokenSymbol {
 
 	fn try_from(v: u8) -> Result<Self, Self::Error> {
 		match v {
-			0 => Ok(TokenSymbol::BITG),
+			0 => Ok(TokenSymbol::BBB),
 			1 => Ok(TokenSymbol::USDG),
 			_ => Err(()),
 		}

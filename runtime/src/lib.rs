@@ -92,7 +92,7 @@ pub use primitives::{currency::*, time::*};
 /// import pallet contracts (!Ink Native language)
 use pallet_contracts::weights::WeightInfo;
 use pallet_transaction_payment::CurrencyAdapter;
-use primitives::BITG_TOKEN;
+use primitives::BBB_TOKEN;
 
 mod weights;
 
@@ -207,7 +207,7 @@ pub mod opaque {
 
 /// Fee-related
 pub mod fee {
-	use super::{Balance, MILLI_BITG};
+	use super::{Balance, MILLI_BBB};
 	use frame_support::weights::{
 		constants::ExtrinsicBaseWeight, WeightToFeeCoefficient, WeightToFeeCoefficients, WeightToFeePolynomial,
 	};
@@ -230,7 +230,7 @@ pub mod fee {
 	impl WeightToFeePolynomial for WeightToFee {
 		type Balance = Balance;
 		fn polynomial() -> WeightToFeeCoefficients<Self::Balance> {
-			let p = MILLI_BITG;
+			let p = MILLI_BBB;
 			let q = Balance::from(ExtrinsicBaseWeight::get()); // 125_000_000
 			smallvec![WeightToFeeCoefficient {
 				degree: 1,
@@ -243,8 +243,8 @@ pub mod fee {
 }
 
 pub const VERSION: RuntimeVersion = RuntimeVersion {
-	spec_name: create_runtime_str!("bitg"),
-	impl_name: create_runtime_str!("bitg"),
+	spec_name: create_runtime_str!("bitgreen"),
+	impl_name: create_runtime_str!("bitgreen"),
 	authoring_version: 1,
 	spec_version: 5,
 	impl_version: 5,
@@ -554,9 +554,9 @@ impl pallet_im_online::Config for Runtime {
 }
 
 parameter_types! {
-	pub const BasicDeposit: Balance =      100 * BITG;
-	pub const FieldDeposit: Balance =        1 * BITG;
-	pub const SubAccountDeposit: Balance =  20 * BITG;
+	pub const BasicDeposit: Balance =      100 * BBB;
+	pub const FieldDeposit: Balance =        1 * BBB;
+	pub const SubAccountDeposit: Balance =  20 * BBB;
 	pub const MaxSubAccounts: u32 = 100;
 	pub const MaxAdditionalFields: u32 = 100;
 	pub const MaxRegistrars: u32 = 20;
@@ -579,7 +579,7 @@ impl pallet_identity::Config for Runtime {
 
 
 parameter_types! {
-	pub const IndexDeposit: Balance = 1 * BITG;
+	pub const IndexDeposit: Balance = 1 * BBB;
 }
 
 impl pallet_indices::Config for Runtime {
@@ -616,7 +616,7 @@ impl orml_tokens::Config for Runtime {
 }
 
 parameter_types! {
-	pub const GetNativeCurrencyId: CurrencyId = CurrencyId::Token(TokenSymbol::BITG);
+	pub const GetNativeCurrencyId: CurrencyId = CurrencyId::Token(TokenSymbol::BBB);
 	pub const GetStableCurrencyId: CurrencyId = CurrencyId::Token(TokenSymbol::USDG);
 	// All currency types except for native currency, Sort by fee charge order
 	pub AllNonNativeCurrencyIds: Vec<CurrencyId> = vec![];
@@ -624,7 +624,7 @@ parameter_types! {
 }
 
 parameter_types! {
-	pub const TransactionByteFee: Balance = 1 * MILLI_BITG;
+	pub const TransactionByteFee: Balance = 1 * MILLI_BBB;
 	pub const TargetBlockFullness: Perquintill = Perquintill::from_percent(25);
 	pub AdjustmentVariable: Multiplier = Multiplier::saturating_from_rational(1, 100_000);
 	pub MinimumMultiplier:  Multiplier = Multiplier::saturating_from_rational(1, 1_000_000_000 as u128);
@@ -675,13 +675,13 @@ parameter_types! {
 	//In [3]: random.randint(1000, 100_000)
 	//Out[3]: 13939
 	pub const ChainId: u64 = 13939;
-	// 10 BITG minimum storage deposit
+	// 10 BBB minimum storage deposit
 	pub const NewContractExtraBytes: u32 = 10_000;
-	pub const StorageDepositPerByte: Balance = 1 * MILLI_BITG;
+	pub const StorageDepositPerByte: Balance = 1 * MILLI_BBB;
 	pub const MaxCodeSize: u32 = 60 * 1024;
 	pub NetworkContractSource: H160 = H160::from_low_u64_be(0);
-	pub const DeveloperDeposit: Balance = 1_000 * BITG;
-	pub const DeploymentFee: Balance    = 100 * BITG;
+	pub const DeveloperDeposit: Balance = 1_000 * BBB;
+	pub const DeploymentFee: Balance    = 100 * BBB;
 }
 
 pub type MultiCurrencyPrecompile =
@@ -735,8 +735,8 @@ impl module_evm_bridge::Config for Runtime {
 parameter_types! {
 	// note: if we add other native tokens (USDG) we have to set native
 	// existential deposit to 0 or check for other tokens on account pruning
-	pub const NativeTokenExistentialDeposit: Balance =       1 * BITG;
-	pub const MaxNativeTokenExistentialDeposit: Balance = 1000 * BITG;
+	pub const NativeTokenExistentialDeposit: Balance =       1 * BBB;
+	pub const MaxNativeTokenExistentialDeposit: Balance = 1000 * BBB;
 	pub const MaxLocks: u32 = 50;
 }
 
@@ -828,9 +828,9 @@ parameter_types! {
 
 	pub const NominatorAPY: Perbill =     Perbill::from_percent(10);
 	pub const CouncilInflation: Perbill = Perbill::from_percent(1);
-	pub const CandidacyDeposit: Balance =   1_000_000 * primitives::currency::BITG;
-	pub const MinLockAmount: Balance =        100_000 * primitives::currency::BITG;
-	pub const TotalLockedCap: Balance = 2_000_000_000 * primitives::currency::BITG;
+	pub const CandidacyDeposit: Balance =   1_000_000 * primitives::currency::BBB;
+	pub const MinLockAmount: Balance =        100_000 * primitives::currency::BBB;
+	pub const TotalLockedCap: Balance = 2_000_000_000 * primitives::currency::BBB;
 }
 
 impl pallet_collective::Config<TechCouncilInstance> for Runtime {
@@ -911,7 +911,7 @@ impl pallet_bridge::Config for Runtime {
 }
 
 parameter_types! {
-  pub const NativeTokenId: u32 = BITG_TOKEN;
+  pub const NativeTokenId: u32 = BBB_TOKEN;
 }
 
 impl pallet_vesting::Config for Runtime {

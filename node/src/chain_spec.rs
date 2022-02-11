@@ -4,7 +4,7 @@ use bitg_runtime::{
 	BabeConfig, BalancesConfig, BridgeConfig, GenesisConfig, GrandpaConfig, SudoConfig, SystemConfig,
 	IndicesConfig, EvmConfig, StakingConfig, SessionConfig, AuthorityDiscoveryConfig,ContractsConfig,
 	WASM_BINARY,
-	TokenSymbol, TokensConfig, BITG,
+	TokenSymbol, TokensConfig, BBB,
 	StakerStatus,
 	ImOnlineId, AuthorityDiscoveryId,
 	MaxNativeTokenExistentialDeposit,
@@ -28,7 +28,7 @@ use sp_core::{crypto::UncheckedInto, bytes::from_hex};
 use bitg_primitives::{AccountPublic, Balance, Nonce};
 
 // The URL for the telemetry server.
-const TELEMETRY_URL: &str = "wss://telemetry.polkadot.io/submit/";
+const TELEMETRY_URL: &str = "wss://telemetry.bitgreen.org/submit/";
 
 /// Node `ChainSpec` extensions.
 ///
@@ -243,7 +243,7 @@ pub fn mainnet_config() -> Result<ChainSpec, String> {
 	let wasm_binary = WASM_BINARY.ok_or_else(|| "WASM binary not available".to_string())?;
 	Ok(ChainSpec::from_genesis(
 		// Name
-		"Bitg Mainnet",
+		"Bitgreen Mainnet",
 		// ID
 		"bitg_mainnet",
 		ChainType::Live,
@@ -305,9 +305,9 @@ pub fn mainnet_config() -> Result<ChainSpec, String> {
 		),
 		// Bootnodes
 		vec![
-			"/dns/bootnode-1.bitg.org/tcp/30333/p2p/12D3KooWFHSc9cUcyNtavUkLg4VBAeBnYNgy713BnovUa9WNY5pp".parse().unwrap(),
-			"/dns/bootnode-2.bitg.org/tcp/30333/p2p/12D3KooWAQqcXvcvt4eVEgogpDLAdGWgR5bY1drew44We6FfJAYq".parse().unwrap(),
-			"/dns/bootnode-3.bitg.org/tcp/30333/p2p/12D3KooWCT7rnUmEK7anTp7svwr4GTs6k3XXnSjmgTcNvdzWzgWU".parse().unwrap(),
+			"/dns/bootnode-1.bitgreen.org/tcp/30333/p2p/12D3KooWFHSc9cUcyNtavUkLg4VBAeBnYNgy713BnovUa9WNY5pp".parse().unwrap(),
+			"/dns/bootnode-2.bitgreen.org/tcp/30333/p2p/12D3KooWAQqcXvcvt4eVEgogpDLAdGWgR5bY1drew44We6FfJAYq".parse().unwrap(),
+			"/dns/bootnode-3.bitgreen.org/tcp/30333/p2p/12D3KooWCT7rnUmEK7anTp7svwr4GTs6k3XXnSjmgTcNvdzWzgWU".parse().unwrap(),
 		],
 		// Telemetry
 		TelemetryEndpoints::new(vec![(TELEMETRY_URL.into(), 0)]).ok(),
@@ -329,8 +329,8 @@ fn testnet_genesis(
 
 	let evm_genesis_accounts = evm_genesis();
 
-	const INITIAL_BALANCE: u128 = 100_000_000 * BITG;
-	const INITIAL_STAKING: u128 =   1_000_000 * BITG;
+	const INITIAL_BALANCE: u128 = 100_000_000 * BBB;
+	const INITIAL_STAKING: u128 =   1_000_000 * BBB;
 	let existential_deposit = MaxNativeTokenExistentialDeposit::get();
 	let enable_println=true;
 	let balances = initial_authorities
@@ -432,13 +432,13 @@ fn mainnet_genesis(
 
 	let evm_genesis_accounts = evm_genesis();
 
-	const INITIAL_STAKING: u128 = 1_000_000 * BITG;
+	const INITIAL_STAKING: u128 = 1_000_000 * BBB;
 	let existential_deposit = MaxNativeTokenExistentialDeposit::get();
 	let enable_println=true;
 	let balances = initial_authorities
 		.iter()
 		.map(|x| (x.0.clone(), INITIAL_STAKING*2))
-		.chain(endowed_accounts.iter().cloned().map(|x| (x.0.clone(), x.1 * BITG)))
+		.chain(endowed_accounts.iter().cloned().map(|x| (x.0.clone(), x.1 * BBB)))
 		.chain(
 			get_all_module_accounts()
 				.iter()
@@ -524,7 +524,7 @@ pub fn bitg_properties() -> Properties {
 	let mut p = Properties::new();
 	p.insert("ss58format".into(), 42.into());
 	p.insert("tokenDecimals".into(), 18.into());
-	p.insert("tokenSymbol".into(), "BITG".into());
+	p.insert("tokenSymbol".into(), "BBB".into());
 	p
 }
 
