@@ -158,6 +158,17 @@ fund_approve(accountid: T::AccountId)
 where account id is the account id used to identify the fund.
 Once both Manager and Supervisors has signed the approval, a new state in "FundsApproved" will be stored.
 
+## Bond - Create/Change
+This function allows a fund manager to submit a Bond structure for further approval.
+The bond data is changeble till the approval process is not started.  
+The function to call is the following:  
+```rust
+bond_create_change(id: u32,info: Vec<u8>)
+```
+Where:
+- id is a unique number that must be different for each Bond.
+- info is a json structure with a huge set of fields as follows:
+{"}
 
 
 TODO:

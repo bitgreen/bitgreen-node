@@ -91,7 +91,7 @@ decl_event!(
         IsoCountryDestroyed(Vec<u8>),                   // Iso country destroyed
         CurrencyCodeCreated(Vec<u8>,Vec<u8>),           // a currency code has been created
         CurrencyDestroyed(Vec<u8>),                     // Currency code has been destroyed
-        BondCreated(u32,Vec<u8>),                       // New bond has been created
+        BondCreated(AccountId,u32,Vec<u8>),                       // New bond has been created
         BondApproved(u32,AccountId),                    // A bond has been approved
         BondSignedforApproval(u32,AccountId),           // A bond has been assigned for approval
         CreditRatingAgencyStored(AccountId,Vec<u8>),    // Credit rating agency has been stored/updated
@@ -260,7 +260,7 @@ decl_error! {
         /// Currency code is already present
         CurrencyCodeAlreadyPresent,
         /// Bond interest rate cannot be zero
-        BondInterestRateCannotBeZero,
+        BondInterestRateIsWrong,
         /// Bond interest type is wrong, it can be X,F,Z,I only.
         BondInterestTypeIsWrong,
         /// Bond maturity cannot be zero
@@ -519,6 +519,16 @@ decl_error! {
 		Overflow,
         /// Underflow after substrate
         Underflow,
+        /// The signer is not owning any approved Fund
+        FundNotFoundforSigner,
+        /// The fund owned from the signer is not yet approved
+        FundNotYetApproved,
+        /// Signer is not matching the Owner account in the json structure.
+        SignerIsNotMatchingOwnerAccount,
+        /// The owner account field is mandatory, it must match the signer of the transaction
+        OwnerAccountIsMissing,
+        /// Bond is under approval it cannot be changed more
+        BondUnderApprovalCannotBeChanged,
 	}
 }
 
@@ -707,7 +717,7 @@ decl_module! {
                 }
                 ensure!(x>0,Error::<T>::FundApprovalCommitteeIsWrong);
             }
-            // check validity for info documents
+            // check validity for info documents, with this option you can configure the mandatory documents required when creating a bond.
             if key=="infodocuments".as_bytes().to_vec() {
                 let documents=json_get_complexarray(configuration.clone(),"documents".as_bytes().to_vec());
                 let mut x=0;
@@ -1199,19 +1209,38 @@ decl_module! {
         // interest type: X=Fixed Rate / F=Floating Rate /Z= Zero Interest/ I= Inflation Linked
         // TODO - Oracle to get Inflation rate and store periodically on Chain.
         // for example:
-        // {"totalamount":100000000,
+        //  
         #[weight = 1000]
-        pub fn bond_create(origin, id: u32,info: Vec<u8>) -> dispatch::DispatchResult {
+        pub fn bond_create_change(origin, id: u32,info: Vec<u8>) -> dispatch::DispatchResult {
             let signer = ensure_signed(origin)?;
             //check id >0
             ensure!(id>0, Error::<T>::BondIdIsWrongCannotBeZero);
-            // check the bond id is not yet used
-            ensure!(!Bonds::contains_key(&id),Error::<T>::BondIdAlreadyUsed);
+            // check that the signer is the Owner of an authorized Fund
+            ensure!(Funds::<T>::contains_key(&signer),Error::<T>::FundNotFoundforSigner);
+            ensure!(FundsApproved::<T>::contains_key(&signer),Error::<T>::FundNotYetApproved);
             // check the signer has been subject has a KYC 
             ensure!(Kyc::<T>::contains_key(&signer),Error::<T>::MissingKycForSigner);
             // check the Kyc has been approved
             ensure!(KycApproved::<T>::contains_key(&signer),Error::<T>::KycSignerIsNotApproved);
-            // TODO check that the signer is a fund manager
+            // check owner field 
+            let owner=json_get_value(info.clone(),"owner".as_bytes().to_vec());
+            ensure!(owner.len()==48,Error::<T>::OwnerAccountIsMissing);
+            let ownervec=bs58::decode(owner).into_vec().unwrap();
+            let accountidowner=T::AccountId::decode(&mut &ownervec[1..33]).unwrap_or_default();
+            // check that the owner matches the signer of the transaction
+            ensure!(signer==accountidowner,Error::<T>::SignerIsNotMatchingOwnerAccount);
+            // check if the bond exists is not yet under approval and belong to the signer
+            if Bonds::contains_key(&id){
+                // check there are not yet approval signatures
+                let itrs=BondsSignatures::<T>::iter_prefix(id);
+                ensure!(itrs.count()==0,Error::<T>::BondUnderApprovalCannotBeChanged);
+                // check owner stored is matching the signer
+                let cinfo=Bonds::get(&id).unwrap();
+                let cowner=json_get_value(cinfo.clone(),"owner".as_bytes().to_vec());
+                let cownervec=bs58::decode(cowner).into_vec().unwrap();
+                let caccountidowner=T::AccountId::decode(&mut &cownervec[1..33]).unwrap_or_default();
+                ensure!(caccountidowner==signer,Error::<T>::SignerIsNotMatchingOwnerAccount);
+            }
             // check total amount >0
             let totalamount=json_get_value(info.clone(),"totalamount".as_bytes().to_vec());
             let totalamountv=vecu8_to_u32(totalamount);
@@ -1227,20 +1256,20 @@ decl_module! {
             // check interest rate >0 considering 2 decimals as integer
             let interestrate=json_get_value(info.clone(),"interestrate".as_bytes().to_vec());
             let interestratev=vecu8_to_u32(interestrate);
-            ensure!(interestratev>0,Error::<T>::BondInterestRateCannotBeZero);
-            //TODO CONTINUE REVIEW FROM HERE
-            // check interest type where X=
             let interestype=json_get_value(info.clone(),"interestype".as_bytes().to_vec());
+            ensure!(interestratev>0 || (interestratev==0 && interestype[0]==b'Z'),Error::<T>::BondInterestRateIsWrong); // Zero Interest Rate must be possible
+            // check interest type where X= FiXed Rate, F=Floating Rate, Z= Zero Interest Rate, I=Inflation Linked Rate
             ensure!(interestype[0]==b'X'
                 || interestype[0]==b'F'
                 || interestype[0]==b'Z'
                 || interestype[0]==b'I'
                 ,Error::<T>::BondInterestTypeIsWrong);
-            // check maturity
+            // check maturity in months from the approval time
             let maturity=json_get_value(info.clone(),"maturity".as_bytes().to_vec());
             let maturityv=vecu8_to_u32(maturity);
             ensure!(maturityv>0,Error::<T>::BondMaturityCannotBeZero);
-            ensure!(maturityv<=600,Error::<T>::BondMaturityTooLong);  // 50 years maximum
+            // 50 years maximum for any bond type
+            ensure!(maturityv<=600,Error::<T>::BondMaturityTooLong);  
             // check Instalments
             let instalments=json_get_value(info.clone(),"instalments".as_bytes().to_vec());
             let instalmentsv=vecu8_to_u32(instalments);
@@ -1265,10 +1294,10 @@ decl_module! {
                 }
                 ensure!(x>0, Error::<T>::BondAcceptedCurrenciesCannotBeEmpty);
             }
-            // check subordinated field
+            // check subordinated field Y/N
             let subordinated=json_get_value(info.clone(),"subordinated".as_bytes().to_vec());
             ensure!(subordinated[0]==b'Y'  || subordinated[0]==b'N',Error::<T>::BondSubordinatedIsWrong);
-            // check put option field
+            // check put option field Y/N
             let putoption=json_get_value(info.clone(),"putoption".as_bytes().to_vec());
             ensure!(putoption[0]==b'Y'  || putoption[0]==b'N',Error::<T>::BondPutOptionIsWrong);
             // check vesting period for put option
@@ -1277,7 +1306,7 @@ decl_module! {
                 let putvestingperiodv=vecu8_to_u32(putvestingperiod);
                 ensure!(putvestingperiodv>0,Error::<T>::BondPutVestingPeriodCannotBeZero);
             }
-            // check call option field
+            // check call option field Y/N
             let calloption=json_get_value(info.clone(),"calloption".as_bytes().to_vec());
             ensure!(calloption[0]==b'Y'  || calloption[0]==b'N',Error::<T>::BondCallOptionIsWrong);
             // check vesting period for call option
@@ -1286,14 +1315,14 @@ decl_module! {
                 let callvestingperiodv=vecu8_to_u32(callvestingperiod);
                 ensure!(callvestingperiodv>0,Error::<T>::BondCallVestingPeriodCannotBeZero);
             }
-            // check put convertible option field
+            // check put convertible option field Y/N
             let putconvertibleoption=json_get_value(info.clone(),"putconvertibleoption".as_bytes().to_vec());
             ensure!(putconvertibleoption[0]==b'Y'  || putconvertibleoption[0]==b'N',Error::<T>::BondPutConvertibleOptionIsWrong);
-             // check call convertible option field
+             // check call convertible option field Y/N
              let callconvertibleoption=json_get_value(info.clone(),"callconvertibleoption".as_bytes().to_vec());
              ensure!(callconvertibleoption[0]==b'Y'  || callconvertibleoption[0]==b'N',Error::<T>::BondCallConvertibleOptionIsWrong);
             // check the info documents
-            // get required documents
+            // get required documents as from settings
             let mut settingdocs="".as_bytes().to_vec();
             let mut settingconf=0;
             let mut ndocuments=0;
@@ -1333,7 +1362,6 @@ decl_module! {
                                     break;
                                 }
                                 let wdescription=json_get_value(ww.clone(),"description".as_bytes().to_vec());
-
                                 if wdescription==description {
                                     ndocuments -= 1;
                                 }
@@ -1344,15 +1372,19 @@ decl_module! {
                 }
                 ensure!(x>0 && ndocuments==0,Error::<T>::BondMissingDocuments);
             }
+            // remove previous data if any
+            if Bonds::contains_key(&id){
+                Bonds::take(&id);    
+            }
             //store bond
             Bonds::insert(id,info.clone());
             // Generate event
-            Self::deposit_event(RawEvent::BondCreated(id,info));
+            Self::deposit_event(RawEvent::BondCreated(signer,id,info));
             // Return a successful DispatchResult
             Ok(())
         }
         #[weight = 1000]
-        pub fn bond_approve(origin, bondid: u32) -> dispatch::DispatchResult {
+        pub fn bond_approve(origin,bondid: u32) -> dispatch::DispatchResult {
             let signer = ensure_signed(origin)?;
             let mut signingtype=0;
             //check id >0
