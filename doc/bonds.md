@@ -168,8 +168,51 @@ bond_create_change(id: u32,info: Vec<u8>)
 Where:
 - id is a unique number that must be different for each Bond.
 - info is a json structure with a huge set of fields as follows:
-{"}
-
+```json
+{
+	"owner": "5GhRnzRTohd8f4bLvozc9u7qqDy9whnoZMF7hzaFVQBRsMxG",
+	"totalamount": "10000000",
+	"currency": "USDC",
+	"country": "US",
+	"interestrate": "100",
+	"interestype": "X",
+	"maturity": "36",
+	"instalments": "1",
+	"graceperiod": "0",
+	"acceptedcurrencies": ["USDC", "USDT", "DAI"],
+	"subordinated": "N",
+	"putoption": "Y",
+	"callption": "N",
+	"ipfsdocs": [{
+		"description": "Balance Sheet 2020",
+		"ipfsaddress": "42ff96731ce1f53aa014c55662a3964b61422c2c9c3f38c11b2cf3ee45440c7c"
+	}, {
+		"description": "Revenue Report 2021",
+		"ipfsaddress": "b26707691ce34a738fa5dab526e800be831bcc63a199a7d83414f5d6b0a8836c"
+	}]
+}
+```
+for copy/paste:  
+```json
+{"owner":"5GhRnzRTohd8f4bLvozc9u7qqDy9whnoZMF7hzaFVQBRsMxG","totalamount":"10000000","currency":"USDC","country":"US","interestrate":"100","interestype":"X","maturity":"36","instalments":"1","graceperiod":"0","acceptedcurrencies":["USDC","USDT","DAI"],"subordinated":"N","putoption":"Y","callption":"N","ipfsdocs":[{"description":"Balance Sheet 2020","ipfsaddress":"42ff96731ce1f53aa014c55662a3964b61422c2c9c3f38c11b2cf3ee45440c7c"},{"description":"Revenue Report 2021","ipfsaddress":"b26707691ce34a738fa5dab526e800be831bcc63a199a7d83414f5d6b0a8836c"}]}
+```
+where:
+- "owner" is the account of the owner and signer.  
+- "totalamount" is the amount of the bond in the designated currency with 0 decimals.  
+- "currency" is the designated currency usuallya  stable coing.  
+- "country" is the country of reference od the bond. It's used specially for indexed interest rates.  
+- "interestrate" is the base interest rate of the bond as integer considering 2 decimals, for example 100 = 1%.  
+- "interestype" is the type of interest that can be: X= FiXed Rate, F=Floating Rate, Z= Zero Interest Rate, I=Inflation Linked Rate.  
+- "maturity" is the number of months till the natural end of the bond.  
+- "instalments" is the number of instalment for the pay back till the natural end of the bond.  
+- "graceperiod" the months of grace period, where no interested are accrued.  
+- "acceptedcurrencies" is an array of acceptec currency to buy shares of the bond.  
+- "subordinated" Y/N for subordinated bond.  
+- "putoption" Y/N if there is a "PUT option.  
+- "putvestingperiod" is the number of months of vesting for the Put Option.  
+- "calloption" Y/N if there is a "CALL" option.  
+- "callconvertibleoption" Y/N for convertible option for the CALL.  
+- "ipfsdocs" are the documents annexed to the bond.  
 
 TODO:
 - To add function to delete FUNDS (till not approved)
@@ -179,6 +222,7 @@ TODO:
 - review weights
 - clippy on the pallet
 - testing suite
+- Oracle to get Inflation rate and store periodically on Chain.
 
 
 
