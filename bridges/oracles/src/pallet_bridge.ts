@@ -1,14 +1,18 @@
-import { ApiPromise, WsProvider } from '@polkadot/api';
+import { ApiPromise, WsProvider, Keyring } from '@polkadot/api';
 import { KeyringPair } from '@polkadot/keyring/types';
 import { Channel } from 'async-channel';
 import { readFileSync } from 'fs';
 import { dirname, join, normalize, format } from 'path';
 import { fileURLToPath } from 'url';
 import type { AccountId } from '@polkadot/types/interfaces';
+import { Compact, u128 } from '@polkadot/types-codec';
+import { AnyNumber } from '@polkadot/types-codec/types';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 const node_address = 'ws://127.0.0.1:9944';
+export const SECRETSEED = process.env.KEEPER_PALLET_MNEMONIC || "//Alice";
+export const TOKEN = process.env.TOKEN || "BBB";
 
 const get_custom_types = async () => {
     const relative_path = join('..', '..', '..');
@@ -31,6 +35,52 @@ export const setup_substrate = async () => {
         provider: wsProvider, "types": custom_types
     });
     return api;
+}
+
+export const native_transfer = async (api: ApiPromise, keyspair: KeyringPair, amount: Compact<u128> | AnyNumber, address: string) => {
+    const chan = new Channel(0 /* default */);
+    const unsub = await api.tx.balances.transfer(address, amount)
+        .signAndSend(keyspair, ({ status, events, dispatchError }) => {
+            console.log(`Current status is ${status}`);
+            try {
+                // status would still be set, but in the case of error we can shortcut
+                // to just check it (so an error would indicate InBlock or Finalized)
+                if (dispatchError) {
+                    if (dispatchError.isModule) {
+                        // for module errors, we have the section indexed, lookup
+                        const decoded = api.registry.findMetaError(dispatchError.asModule);
+                        const { name, section } = decoded;
+                        console.log(`${section}.${name}`);
+                    } else {
+                        // Other, CannotLookup, BadOrigin, no extra info
+                        console.log(`other: ${dispatchError.toString()}`);
+                    }
+                    unsub();
+                    chan.push("error");
+                }
+
+                if (status.isInBlock) {
+                    console.log(`Transaction included at blockHash ${status.asInBlock}`);
+                    chan.push(`isInBlock.`);
+                } else if (status.isFinalized) {
+                    console.log(`Transaction finalized at blockHash ${status.asFinalized}`);
+
+                    // Loop through Vec<EventRecord> to display all events
+                    events.forEach(({ phase, event: { data, method, section } }) => {
+                        console.log(`\t' ${phase}: ${section}.${method}:: ${data}`);
+                    });
+                    unsub();
+                    // chan.push(`Event report end.`);
+                }
+            } catch {
+                console.log("[Error] Too many transactions in short time");
+            }
+        });
+    await chan.get().then(
+        value => console.log(value),
+        error => console.error(error)
+    );
+    chan.close();
 }
 
 export const pallet_assets_create = async (api: ApiPromise, keyspair: KeyringPair, id: any, admin: any, maxZombies: any, minBalance: any) => {
@@ -412,7 +462,7 @@ export const subscription_pallet_bridge = async (api: ApiPromise) => {
 
 }
 
-const setup_bridge_test = async (api: ApiPromise, keyspair: KeyringPair) => {
+export const setup_bridge_test = async (api: ApiPromise, keyspair: KeyringPair) => {
     console.log("before pallet_assets_force_create");
     await pallet_assets_force_create(api, keyspair, 1, keyspair.address, 1, 1);
     console.log("after pallet_assets_force_create");
@@ -420,8 +470,52 @@ const setup_bridge_test = async (api: ApiPromise, keyspair: KeyringPair) => {
     console.log("after bridge_create_settings_smoke_test");
 }
 
+export const setup_basic_bridge_test = async (api: ApiPromise, keyspair: KeyringPair) => {
+
+    // const keyring = new Keyring({ type: 'sr25519' });
+    // const charlie = keyring.addFromUri('//Charlie');
+    // const dave = keyring.addFromUri('//Dave');
+    // await native_transfer(api, keyspair, 10000 , charlie.address);
+    // await native_transfer(api, keyspair, 1, dave.address);
+
+    await pallet_assets_force_create(api, keyspair, 1, keyspair.address, 1, 1);
+    await bridge_create_basic_settings_test(api, keyspair);
+    // const eve = keyring.addFromUri('//Eve');
+    // const recipient = api.createType('AccountId', eve.address);
+    // const bitg_token_bytes = api.createType('Bytes', TOKEN);
+    // const transaction_id_bytes = api.createType('Bytes', "a123");
+    // const balance = api.createType('Balance', "1000");
+    // await pallet_bridge_mint(api, charlie, bitg_token_bytes, recipient, transaction_id_bytes, balance);
+}
+
+const bridge_create_basic_settings_test = async (api: ApiPromise, keyspair: KeyringPair) => {
+    const bitg_key_bytes = api.createType('Bytes', TOKEN);
+    const keyring = new Keyring({ type: 'sr25519' });
+    const bob = keyring.addFromUri('//Bob');
+    const charlie = keyring.addFromUri('//Charlie');
+    const dave = keyring.addFromUri('//Dave');
+
+    const json_data = {
+        chainid: 1,
+        description: "xxxxxxxxxx",
+        address: keyspair.address,
+        assetid: 1,
+        internalthreshold: 3,
+        externathreshold: 3,
+        internalkeepers: [bob.address, charlie.address, dave.address],
+        externalkeepers: [bob.address, charlie.address, dave.address],
+        internalwatchdogs: [bob.address, charlie.address, dave.address],
+        externalwatchdogs: [bob.address, charlie.address, dave.address],
+        internalwatchcats: [bob.address, charlie.address, dave.address],
+        externalwatchcats: [bob.address, charlie.address, dave.address]
+    };
+    const json_data_bytes = api.createType('Bytes', JSON.stringify(json_data));
+
+    await pallet_bridge_create_settings(api, keyspair, bitg_key_bytes, json_data_bytes);
+}
+
 const bridge_create_settings_smoke_test = async (api: ApiPromise, keyspair: KeyringPair) => {
-    const bitg_key_bytes = api.createType('Bytes', "BITG");
+    const bitg_key_bytes = api.createType('Bytes', TOKEN);
     const json_data = {
         chainid: 1,
         description: "xxxxxxxxxx",
@@ -442,7 +536,7 @@ const bridge_create_settings_smoke_test = async (api: ApiPromise, keyspair: Keyr
 }
 
 const bridge_mint_smoke_test = async (api: ApiPromise, keyspair: KeyringPair, recipient: AccountId) => {
-    const bitg_token_bytes = api.createType('Bytes', "BITG");
+    const bitg_token_bytes = api.createType('Bytes', TOKEN);
     const transaction_id_bytes = api.createType('Bytes', "a123");
     const balance = api.createType('Balance', "1");
 
@@ -450,7 +544,7 @@ const bridge_mint_smoke_test = async (api: ApiPromise, keyspair: KeyringPair, re
 }
 
 const bridge_burn_smoke_test = async (api: ApiPromise, keyspair: KeyringPair, recipient: AccountId) => {
-    const bitg_token_bytes = api.createType('Bytes', "BITG");
+    const bitg_token_bytes = api.createType('Bytes', TOKEN);
     const transaction_id_bytes = api.createType('Bytes', "a123");
     const balance = api.createType('Balance', "1");
 

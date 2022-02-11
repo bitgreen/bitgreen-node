@@ -7,9 +7,15 @@
   "type": "module",
   "scripts": {
     "build": "tsc",
-    "js": "NODE_PATH='../../assets' node ./js/app.js",
-    "start": "NODE_PATH='../../assets' node ./bin/app.js",
-    "dev": "NODE_PATH='../../assets' node --loader ts-node/esm ./src/app.ts"
+    "setup": "NODE_PATH='../../assets' node ./bin/setup_test.js",
+    "pallet_evm": "NODE_PATH='../../assets' node ./bin/teleport_pallet_evm.js",
+    "keeper": "NODE_PATH='../../assets' node ./bin/keeper.js",
+    "keeper1": "NODE_PATH='../../assets' KEEPER_MNEMONIC_PHRASE='//Bob' PRIVATE_KEY='0x542abf2c1b48d1ff05946d7b2cf49fca95f019d7d690082aca60e2e917b57d41' node ./bin/keeper.js",
+    "keeper2": "NODE_PATH='../../assets' KEEPER_MNEMONIC_PHRASE='//Charlie' PRIVATE_KEY='0x9aa20bbb2ac15b4e232b9894bc5550ed680f523b5a3b4e3d3bd006a26b4efd84' node ./bin/keeper.js",
+    "keeper3": "NODE_PATH='../../assets' KEEPER_MNEMONIC_PHRASE='//Dave' PRIVATE_KEY='0x1460104fbb1d8b9a3bd78441133da544f4f8fd4f5ebb219c1806a792970f0f68' node ./bin/keeper.js",
+    "js": "NODE_PATH='../../assets' node ./js/setup_test.js",
+    "start": "NODE_PATH='../../assets' node ./bin/setup_test.js",
+    "dev": "NODE_PATH='../../assets' node --loader ts-node/esm ./src/setup_test.ts"
   },
   "dependencies": {
     "@polkadot/api": "^7.5.1",

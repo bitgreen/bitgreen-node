@@ -8,23 +8,20 @@ import { AbiItem } from 'web3-utils';
 import { Contract } from 'web3-eth-contract';
 
 export const NODE_ADDRESS = process.env.NODE_ADDRESS || Web3.givenProvider || 'ws://127.0.0.1:8545';
-const ROUTER_ADDRESS = process.env.ROUTER_ADDRESS || '0x0b6Ac598caE6d1ef48AC79FF34975f890dC677D9';
+const ROUTER_ADDRESS = process.env.ROUTER_ADDRESS || '0x3FE1Cb25045C88Ab015B61e08D420dC9f91389D8';
 // const mnemonicPhrase = process.env.MNEMONIC_PHRASE || "until ethics hollow size piano patient pole abuse model soon slender wall"; // 12 word mnemonic
-export const privateKey = process.env.PRIVATE_KEY || "0x6006595a717b2f0cc275f573ddbfad265b68c35fe52d875d31596d518fa2b2b5";
+export const privateKey = process.env.PRIVATE_KEY || "0x0dd63bbcc9b6a366897b68d683ca994e0273ed4b996808cfab0857c8beb914dc";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
-export const keeper_pk = '0x277efcac40fa6a9b91ad31e6a6f72eb49671472bc292088069d991ca16a29552';
+export const keeper_pk1 = '0x542abf2c1b48d1ff05946d7b2cf49fca95f019d7d690082aca60e2e917b57d41';
+export const keeper_pk2 = '0x9aa20bbb2ac15b4e232b9894bc5550ed680f523b5a3b4e3d3bd006a26b4efd84';
+export const keeper_pk3 = '0x1460104fbb1d8b9a3bd78441133da544f4f8fd4f5ebb219c1806a792970f0f68';
 
 
-// export const get_provider = async () => {
-//     let provider = new HDWalletProvider({
-//         mnemonic: {
-//             phrase: mnemonicPhrase
-//         },
-//         providerOrUrl: NODE_ADDRESS,
-//     });
-//     return provider;
-// }
+export const get_erc20 = async (asset_id: string) => {
+    const erc20 = '0x0000000000000000000000000000000000000000';
+    return erc20;
+}
 
 export async function call_contractsumary(web3: Web3, contract: Contract) {
     const account = web3.eth.accounts.privateKeyToAccount(privateKey).address;
@@ -80,13 +77,7 @@ export async function call_contractsumary(web3: Web3, contract: Contract) {
     await contract.methods.getWatchcats().call()
         .then(function(result: any) {
         console.log('getWatchcats: \t ', result);
-    });        
-    // await contract.methods.txqueue().call()
-    //     .then(function(result: any) {
-    //     console.log('txqueue: \t ', result);
-    // });      
- 
-  
+    });
 }
 
 async function send(web3: Web3, gasPrice: any, contract: Contract, method: string | number, params: any) {
@@ -336,11 +327,48 @@ export const subscription_contract = async (web3: Web3) => {
         });
 }
 
+export const basic_evm_setup_test = async (web3: Web3, BitgreenBridge: Contract) => {
+    await call_contractsumary(web3, BitgreenBridge);
+    const gasPrice = await web3.eth.getGasPrice();
+    await send_unsetLockdown(web3, gasPrice, BitgreenBridge);
+    const account_keeper1 = web3.eth.accounts.privateKeyToAccount(keeper_pk1).address;
+    const account_keeper2 = web3.eth.accounts.privateKeyToAccount(keeper_pk2).address;
+    const account_keeper3 = web3.eth.accounts.privateKeyToAccount(keeper_pk3).address;
+    const keepers = [
+        account_keeper1,
+        account_keeper2,
+        account_keeper3,
+      '0x0000000000000000000000000000000000000000',
+      '0x0000000000000000000000000000000000000000',
+      '0x0000000000000000000000000000000000000000',
+      '0x0000000000000000000000000000000000000000',
+      '0x0000000000000000000000000000000000000000',
+      '0x0000000000000000000000000000000000000000',
+      '0x0000000000000000000000000000000000000000'
+    ];
+    await send_setKeepers(web3, gasPrice, BitgreenBridge, keepers);
+    const watchdogs = [
+        account_keeper1,
+        account_keeper2,
+        account_keeper3
+    ];
+    await send_setWatchdogs(web3, gasPrice, BitgreenBridge, watchdogs);
+    await send_setWatchcats(web3, gasPrice, BitgreenBridge, watchdogs);
+    await send_setThreshold(web3, gasPrice, BitgreenBridge, 1);
+    await send_setWithDrawalFews(web3, gasPrice, BitgreenBridge, 1);
+    await send_setMinimumWithDrawalFees(web3, gasPrice, BitgreenBridge, 1);
+    const amount = 1000;
+    const receipt = await deposit(web3, gasPrice, BitgreenBridge, privateKey, amount);
+    console.log('transactionHash: \t ', receipt?.transactionHash);    
+    await call_contractsumary(web3, BitgreenBridge);
+}
+
+
 export const smoke_test = async (web3: Web3, BitgreenBridge: Contract) => {
     await call_contractsumary(web3, BitgreenBridge);
     const gasPrice = await web3.eth.getGasPrice();
     await send_unsetLockdown(web3, gasPrice, BitgreenBridge);
-    const account_keeper = web3.eth.accounts.privateKeyToAccount(keeper_pk).address;
+    const account_keeper = web3.eth.accounts.privateKeyToAccount(keeper_pk1).address;
     const keepers = [
       account_keeper,
       '0x0000000000000000000000000000000000000000',
@@ -375,7 +403,7 @@ export const smoke_restore_ownership = async (web3: Web3, BitgreenBridge: Contra
     const gasPrice = await web3.eth.getGasPrice();
     const account_original_address = web3.eth.accounts.privateKeyToAccount(privateKey).address;
     await call_contractsumary(web3, BitgreenBridge);
-    await send_transferOwnership(web3, gasPrice, BitgreenBridge, keeper_pk, account_original_address);
+    await send_transferOwnership(web3, gasPrice, BitgreenBridge, keeper_pk1, account_original_address);
     await call_contractsumary(web3, BitgreenBridge);    
 }
 
@@ -387,13 +415,13 @@ export const smoke_transfer = async (web3: Web3, BitgreenBridge: Contract) => {
     console.log('transactionHash: \t ', receipt?.transactionHash);
     const recipient = web3.eth.accounts.privateKeyToAccount(pk).address;
     const erc20 = "0x0000000000000000000000000000000000000000";
-    const keeper = web3.eth.accounts.privateKeyToAccount(keeper_pk).address;
+    const keeper = web3.eth.accounts.privateKeyToAccount(keeper_pk1).address;
     let balance = await web3.eth.getBalance(recipient);
     console.log(balance);
     console.log('Balance: \t %s \t %d', recipient, balance);
     balance = await web3.eth.getBalance(ROUTER_ADDRESS);
     console.log('Balance: \t %s \t %d', ROUTER_ADDRESS, balance);    
-    await send_transfer(web3, gasPrice, BitgreenBridge, keeper_pk, receipt?.transactionHash, recipient, amount, erc20);
+    await send_transfer(web3, gasPrice, BitgreenBridge, keeper_pk1, receipt?.transactionHash, recipient, amount, erc20);
     balance = await web3.eth.getBalance(recipient);
     console.log(balance);
     console.log('Balance: \t %s \t %d', recipient, balance); 
@@ -665,64 +693,6 @@ async function get_transaction_data(web3: Web3, log: any) {
         console.log('Skipping unwatched address:', hash);
     }
 }
-
-
-// async function store_swap_tokens(client: { querySync: (arg0: string, arg1: any[] | undefined) => void; },txhash: string,tokenOrigin: string,tokenDestination: string,amountTokenOrigin: string | number,amountTokenDestination: string | number){
-//     let tor=hex_trim_left_zeroes(tokenOrigin);
-//     let des=hex_trim_left_zeroes(tokenDestination);
-//     //const sq="select * from avalanche.tokenswaps_pangolin where txhash='"+txhash+"'";
-//     const sq="select * from tokenswaps_pangolin where txhash='"+txhash+"'";
-//     console.log("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ storing swap ");
-//           let r=client.querySync(sq);
-//           if(r.length>0){
-//               console.log("[Info] already present:",txhash);
-//               // we update the data
-//               let s='';
-//               if(amountTokenOrigin>0){
-//                   s="update tokenswaps_pangolin set amountorigin=$1 where txhash=$2";
-//                   const values=[amountTokenOrigin,txhash];
-//                   client.querySync(s, values);
-//                 //   subscription_alert(tor,des);
-//               }
-//               if(amountTokenDestination>0){
-//                   s="update tokenswaps_pangolin set amountdestination=$1 where txhash=$2";
-//                   const values=[amountTokenDestination,txhash];
-//                   client.querySync(s, values);
-//                 //   subscription_alert(tor,des);
-//               }
-//           } else {
-//                //console.log("[Info] Adding new record",txhash);
-//     	       const t= Math.round(Date.now() / 1000);
-//     	       //const s="insert into avalanche.tokenswaps_pangolin (txhash,tokenorigin,tokendestination,amountorigin,amountdestination,dtinsert) values($1,$2,$3,$4,$5,$6) RETURNING *"
-//                const s="insert into tokenswaps_pangolin (txhash,tokenorigin,tokendestination,amountorigin,amountdestination,dtinsert) values($1,$2,$3,$4,$5,$6) RETURNING *"
-//                console.log(s);
-//                const values=[txhash,tor,des,amountTokenOrigin,amountTokenDestination,t];
-//                let rows=client.querySync(s, values);
-//                console.log("[Info] inserted:",rows)
-//             //    subscription_alert(tor,des);
-//           }
-// }
-
-// function subscription_alert(tokenorigin,tokendestination){
-//     if (!SEND_SUBSCRIPTION_ALERTS)
-//         return;
-
-//     // send alert to subscription server
-//     console.log("Subscription alert");
-
-//     const alertmsg='{"msg":"alert","tokenspair":"'+tokenorigin+'-'+tokendestination+'"}';
-//     const client = net.createConnection({ port: 8888 }, () => {
-//             console.log("Sending Subscription Alert: "+alertmsg);
-//             client.write(alertmsg);
-//     });
-//     client.on('data', (data) => {
-//         console.log("Subscription alert -> answer:" +data.toString());
-//         client.end();
-//     });
-//     client.on('end', () => {
-//         console.log('Subscription alert -> Disconnected from server');
-//     });
-// }
 
 // function to trim left not meaningful zeroes from an hex string starting with 0x
 function hex_trim_left_zeroes(hex: string) {
