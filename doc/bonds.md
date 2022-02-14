@@ -214,6 +214,17 @@ where:
 - "callconvertibleoption" Y/N for convertible option for the CALL.  
 - "ipfsdocs" are the documents annexed to the bond.  
 
+## Bonds - Approve
+The delegated accounts for the approval process must sign an approval before a bond can be operational.  
+The function to approve a bond, is the following:  
+```rust
+    bond_approve(bondid: u32)
+```
+where:  
+- "bondid" is the unique id of the bond to be approved.
+Once the approval signature has been executed from one member of the commitee and the manager, the bond is approved and an additional state is stored on chain.
+
+
 TODO:
 - To add function to delete FUNDS (till not approved)
 - Add function to freeze the fund from further operations

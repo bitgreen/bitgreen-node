@@ -529,6 +529,8 @@ decl_error! {
         OwnerAccountIsMissing,
         /// Bond is under approval it cannot be changed more
         BondUnderApprovalCannotBeChanged,
+        /// Bond has been already approved
+        BondAlreadyApproved,
 	}
 }
 
@@ -1382,13 +1384,15 @@ decl_module! {
             // Return a successful DispatchResult
             Ok(())
         }
-        // function to approv the bond
+        // function to approve the bond from manager or members of the committee
         #[weight = 1000]
         pub fn bond_approve(origin,bondid: u32) -> dispatch::DispatchResult {
             let signer = ensure_signed(origin)?;
             let mut signingtype=0;
             //check id >0
             ensure!(Bonds::contains_key(&bondid),Error::<T>::BondsIdNotFound);
+            // check for already approved bond
+            ensure!(!BondsApproved::contains_key(bondid),Error::<T>::BondAlreadyApproved);
             //check for duplicated signatures
             ensure!(!BondsSignatures::<T>::contains_key(&bondid,&signer),Error::<T>::BondsSignatureAlreadyPresentrSameSigner);
             // check the signer is one of the operators for Bonds approval
