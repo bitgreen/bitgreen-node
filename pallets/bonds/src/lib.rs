@@ -536,6 +536,8 @@ decl_error! {
         SignerIsNotAuthorizedForCreditRatingAgencyCancellation,
         /// Credit Rating Agency has not been found
         CreditRatingAgencyNotFound,
+        /// Credit rating documents are mandatory
+        CreditRatingDocumentsAreMissing,
 	}
 }
 
@@ -1570,7 +1572,7 @@ decl_module! {
         }
         // this function has the purpose to the insert or update data for Credit Rating
         #[weight = 1000]
-        pub fn create_credit_rating(origin, bondid: u32, info: Vec<u8>) -> dispatch::DispatchResult {
+        pub fn credit_rating_create(origin, bondid: u32, info: Vec<u8>) -> dispatch::DispatchResult {
              let signer = ensure_signed(origin)?;
              // check the signer is a credit rating agency
              ensure!(CreditRatingAgencies::<T>::contains_key(&signer),Error::<T>::SignerIsNotAuthorizedAsCreditRatingAgency);
@@ -1579,11 +1581,13 @@ decl_module! {
              // check json validity
              let js=info.clone();
              ensure!(json_check_validity(js),Error::<T>::InvalidJson);
-             // check name
+             // check description of the rating
              let description=json_get_value(info.clone(),"description".as_bytes().to_vec());
              ensure!(description.len()>=10,Error::<T>::CreditRatingDescriptionTooShort);
              ensure!(description.len()<=64,Error::<T>::CreditRatingDescriptionTooLong);
              let ipfsdocs=json_get_complexarray(info.clone(),"ipfsdocs".as_bytes().to_vec());
+             // check for the presence of Documents
+             ensure!(ipfsdocs.len()>2,Error::<T>::CreditRatingDocumentsAreMissing);
              if ipfsdocs.len()>2 {
                  let mut x=0;
                  loop {

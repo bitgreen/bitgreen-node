@@ -260,6 +260,26 @@ where:
 
 
 
+## Credit Rating - Create
+The credit rating agency can publish on chain his rating. The submission is irrevocable and it can be done calling the following function:  
+```rust
+credit_rating_create(bondid: u32, info: Vec<u8>) -> dispatch::DispatchResult {
+```
+where:  
+- "bondid" is the unique id of the bond the rating is referring to.  
+- "info" is a json structure as follows:  
+```json
+{
+	"description": "xxxxxxx",
+	"ipfsdocs": [{
+		"description": "xxxxxxxx",
+		"ipfsaddress": "zzzzzzzzzz"
+	}, {
+		"description": "xxxxxxxxx",
+		"ipfsaddress": "zzzzz"
+	}]
+}
+```
 
 
 
