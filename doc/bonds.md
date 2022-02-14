@@ -224,6 +224,44 @@ where:
 - "bondid" is the unique id of the bond to be approved.
 Once the approval signature has been executed from one member of the commitee and the manager, the bond is approved and an additional state is stored on chain.
 
+## Credit Rating - Agency Create
+The delegated accounts as from setttings,  can create a credit rating agency on chain calling this function:  
+```rust
+credit_rating_agency_create_change(accountid: T::AccountId, info: Vec<u8>)
+```
+where:  
+- "accountid" is the account of the credit rating agency;
+- info is a json structure as follows:
+```json
+{
+	"name": "xxxxxxx",
+	"website": "xxxxxxxx",
+	"ipfsdocs": [{
+		"description": "xxxxxxxx",
+		"ipfsaddress": "zzzzzzzzzz"
+	}, {
+		"description": "xxxxxxxxx",
+		"ipfsaddress": "zzzzz"
+	}]
+}
+```
+for copy/paste:
+```json
+{"name":"xxxxxxx","website":"xxxxxxxx","ipfsdocs":[{"description":"xxxxxxxx","ipfsaddress":"zzzzzzzzzz"},{"description":"xxxxxxxxx","ipfsaddress":"zzzzz"}]} 
+```
+
+## Credit Rating - Agency Destroy
+The delegated manager as from settings, can delete a credit rating agency on chain calling this function:  
+```rust
+credit_rating_agency_destroy(accountid: T::AccountId)
+```
+where:  
+- "accountid" is the account of the credit rating agency.
+
+
+
+
+
 
 TODO:
 - To add function to delete FUNDS (till not approved)

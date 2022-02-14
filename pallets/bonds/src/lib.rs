@@ -114,6 +114,7 @@ decl_event!(
         InterbankRateDestroyed(Vec<u8>,Vec<u8>),        // An InterbankRate has been destroyed
         InflationRateCreated(Vec<u8>,Vec<u8>),          // An Inflation Rate has been created
         InflationRateDestroyed(Vec<u8>,Vec<u8>),        // An Inflation Rate has been destroyed
+        CreditRatingAgencyDestroyed(AccountId),         // A credit agency ahs been deleted
 	}
 
 );
@@ -531,6 +532,10 @@ decl_error! {
         BondUnderApprovalCannotBeChanged,
         /// Bond has been already approved
         BondAlreadyApproved,
+        /// Only the manager can delete a credit rating agency.
+        SignerIsNotAuthorizedForCreditRatingAgencyCancellation,
+        /// Credit Rating Agency has not been found
+        CreditRatingAgencyNotFound,
 	}
 }
 
@@ -1458,15 +1463,17 @@ decl_module! {
             // Return a successful DispatchResult
             Ok(())
         }
-        // this function has the purpose to the insert or update data for Credit Rating (reserved to Credit Rating Agencies)
+        // this function has the purpose to the insert or update data for Credit Rating Agencies
         #[weight = 1000]
-        pub fn create_change_credit_rating_agency(origin, accountid: T::AccountId, info: Vec<u8>) -> dispatch::DispatchResult {
+        pub fn credit_rating_agency_create_change(origin, accountid: T::AccountId, info: Vec<u8>) -> dispatch::DispatchResult {
              let signer = ensure_signed(origin)?;
              // check the signer is one of the manager or a member of the committee
+             // read configuration on chain
              ensure!(Settings::contains_key("creditratingagencies".as_bytes().to_vec()),Error::<T>::SettingsDoesNotExist);
              let json:Vec<u8>=Settings::get("creditratingagencies".as_bytes().to_vec()).unwrap();
              let mut flag=0;
              let mut signingtype=0;
+             // check for manager
              let manager=json_get_value(json.clone(),"manager".as_bytes().to_vec());
              if !manager.is_empty() {
                  let managervec=bs58::decode(manager).into_vec().unwrap();
@@ -1476,6 +1483,7 @@ decl_module! {
                      signingtype=1;
                  }
              }
+             // check for member of the commitee
              let operators=json_get_complexarray(json,"committee".as_bytes().to_vec());
              let mut x=0;
              loop {
@@ -1526,11 +1534,39 @@ decl_module! {
                  // Replace Credit Rating Agency Data
                  CreditRatingAgencies::<T>::take(accountid.clone());
              }
-                CreditRatingAgencies::<T>::insert(accountid.clone(),info.clone());
+            CreditRatingAgencies::<T>::insert(accountid.clone(),info.clone());
              // Generate event
              Self::deposit_event(RawEvent::CreditRatingAgencyStored(accountid,info));
              // Return a successful DispatchResult
              Ok(())
+        }
+        // this function has the purpose to remove a Rating Agency from the state. Only the manager is enabled
+        #[weight = 1000]
+        pub fn credit_rating_agency_destroy(origin, accountid: T::AccountId) -> dispatch::DispatchResult {
+            let signer = ensure_signed(origin)?;
+            // check that the credit agency exists.
+            ensure!(CreditRatingAgencies::<T>::contains_key(&accountid),Error::<T>::CreditRatingAgencyNotFound);
+            // check the signer is one of the manager 
+            // read configuration on chain
+            ensure!(Settings::contains_key("creditratingagencies".as_bytes().to_vec()),Error::<T>::SettingsDoesNotExist);
+            let json:Vec<u8>=Settings::get("creditratingagencies".as_bytes().to_vec()).unwrap();
+            let mut flag=0;
+            // check for manager
+            let manager=json_get_value(json.clone(),"manager".as_bytes().to_vec());
+            if !manager.is_empty() {
+                let managervec=bs58::decode(manager).into_vec().unwrap();
+                let accountidmanager=T::AccountId::decode(&mut &managervec[1..33]).unwrap_or_default();
+                if signer==accountidmanager {
+                    flag=1;
+                }
+            }
+            ensure!(flag==1,Error::<T>::SignerIsNotAuthorizedForCreditRatingAgencyCancellation);
+            // cancel the credit agency
+            CreditRatingAgencies::<T>::take(accountid.clone());
+            // Generate event
+            Self::deposit_event(RawEvent::CreditRatingAgencyDestroyed(accountid));
+            // Return a successful DispatchResult
+            Ok(())
         }
         // this function has the purpose to the insert or update data for Credit Rating
         #[weight = 1000]
