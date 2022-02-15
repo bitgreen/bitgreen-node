@@ -280,7 +280,49 @@ where:
 	}]
 }
 ```
+## Collaterals
+The bond emitter/owner can submit collaterals guarantees that a are subject to approval.
 
+## Collaterals - Create
+The owner of the bond, can submit a collateral guarantee using the following function:  
+```rust
+collaterals_create(bondid: u32, collateralid: u32, info: Vec<u8>)
+```
+where:  
+- "bondid" is the unique id of the bond the collateral is referring to.  
+- "collateralid" is the unique id of the collateral guarantee.
+- "info" is a json structure as follows:  
+```json
+{
+	"ipfsdocs": [{
+		"description": "xxxxxxxx",
+		"ipfsaddress": "zzzzzzzzzz"
+	}, {
+		"description": "xxxxxxxxx",
+		"ipfsaddress": "zzzzz"
+	}]
+}
+```
+## Collaterals - Approve
+The delegated accounts as configured in the settings can approve the collateral calling the following function:  
+```rust
+collaterals_approve(bondid: u32, collateralid: u32, info: Vec<u8>)
+```
+where: 
+- "bondid" is the unique id of the bond the collateral is referring to.  
+- "collateralid" is the unique id of the collateral guarantee.
+- "info" is a json structure as follows:  
+```json
+{
+	"ipfsdocs": [{
+		"description": "xxxxxxxx",
+		"ipfsaddress": "zzzzzzzzzz"
+	}, {
+		"description": "xxxxxxxxx",
+		"ipfsaddress": "zzzzz"
+	}]
+}
+```
 
 
 TODO:

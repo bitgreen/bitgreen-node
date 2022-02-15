@@ -42,13 +42,16 @@ decl_storage! {
         KycApproved get(fn get_kycapproved): map hasher(blake2_128_concat) T::AccountId => Option<u32>;
         // Bonds data
         Bonds get(fn get_bond): map hasher(blake2_128_concat) u32 => Option<Vec<u8>>;
+        // Bonds Approval signatures
         BondsSignatures get(fn get_bondssignatures): double_map hasher(blake2_128_concat) u32,hasher(blake2_128_concat) T::AccountId => Option<u32>;
+        // Bonds Approved
         BondsApproved get(fn get_bondapproved): map hasher(blake2_128_concat) u32 => Option<u32>;
-        // Credit Rating
+        // Credit Rating Agencies
         CreditRatingAgencies get(fn get_creditrating_agency): map hasher(blake2_128_concat) T::AccountId => Option<Vec<u8>>;
         CreditRatings get(fn get_creditrating): map hasher(blake2_128_concat) u32 => Option<Vec<u8>>;
         // Collaterals
         Collaterals get(fn get_collateral): double_map hasher(blake2_128_concat) u32, hasher(blake2_128_concat) u32 => Option<Vec<u8>>;
+        //Approval Signatures
         CollateralsApproval get(fn get_collateral_approval): double_map hasher(blake2_128_concat) u32, hasher(blake2_128_concat) u32 => Option<Vec<u8>>;
         // Funds
         Funds get(fn get_fund): map hasher(blake2_128_concat) T::AccountId => Option<Vec<u8>>;
@@ -99,6 +102,7 @@ decl_event!(
         UnderwriterCreated(AccountId, Vec<u8>),         // An underwriter has been created
         UnderwriterDestroyed(AccountId),                // An underwriter has been destroyed
         CollateralsStored(u32,u32,Vec<u8>),             // A collaterals has been stored
+        CollateralsDestroyed(u32,u32),                  // A collaterals has been destroyed
         CollateralsApproved(u32,u32,Vec<u8>),           // A collaterals has been approved
         FundStored(AccountId,Vec<u8>),                  // Fund data stored on chain
         FundApproved(AccountId,AccountId),              // Fund approved with all the required signatures
@@ -538,6 +542,10 @@ decl_error! {
         CreditRatingAgencyNotFound,
         /// Credit rating documents are mandatory
         CreditRatingDocumentsAreMissing,
+        /// Collateral Id cannot be found on chain
+        CollateralIdNotFound,
+        /// Collater has been already approved
+        CollateralAlreadyApproved,
 	}
 }
 
@@ -1612,12 +1620,21 @@ decl_module! {
         }
         // this function has the purpose to the insert collaterals document for a bond
         #[weight = 1000]
-        pub fn create_collaterals(origin, bondid: u32, collateralid: u32, info: Vec<u8>) -> dispatch::DispatchResult {
-             let _signer = ensure_signed(origin)?;
-             // check for bond id
-             ensure!(Bonds::contains_key(&bondid),Error::<T>::BondsIdNotFound);
-             // check for collateral id  not already present
-             ensure!(!Collaterals::contains_key(&bondid,&collateralid),Error::<T>::CollateralIdAlreadyPresent);
+        pub fn collaterals_create(origin, bondid: u32, collateralid: u32, info: Vec<u8>) -> dispatch::DispatchResult {
+            let signer = ensure_signed(origin)?;
+            // check for bond id
+            ensure!(Bonds::contains_key(&bondid),Error::<T>::BondsIdNotFound);
+            // check for collateral id  not already present
+            ensure!(!Collaterals::contains_key(&bondid,&collateralid),Error::<T>::CollateralIdAlreadyPresent);
+            // check the signer is the owner of the bond
+            if Bonds::contains_key(&bondid){
+                // check owner stored is matching the signer
+                let cinfo=Bonds::get(&bondid).unwrap();
+                let cowner=json_get_value(cinfo.clone(),"owner".as_bytes().to_vec());
+                let cownervec=bs58::decode(cowner).into_vec().unwrap();
+                let caccountidowner=T::AccountId::decode(&mut &cownervec[1..33]).unwrap_or_default();
+                ensure!(caccountidowner==signer,Error::<T>::SignerIsNotMatchingOwnerAccount);
+            }
              //check info length
              ensure!(info.len() < 8192, Error::<T>::CollateralsInfoIsTooLong);
              // check json validity
@@ -1647,12 +1664,37 @@ decl_module! {
              // Return a successful DispatchResult
              Ok(())
         }
+        // this function has the purpose to remove the collateral from the owner of the bond
+        #[weight = 1000]
+        pub fn collaterals_destroy(origin, bondid: u32, collateralid: u32) -> dispatch::DispatchResult {
+             let signer = ensure_signed(origin)?;
+             // check for bond id
+             ensure!(Bonds::contains_key(&bondid),Error::<T>::BondsIdNotFound);
+             // check the signer is the owner of the bond
+             if Bonds::contains_key(&bondid){
+                // check owner stored is matching the signer
+                let cinfo=Bonds::get(&bondid).unwrap();
+                let cowner=json_get_value(cinfo.clone(),"owner".as_bytes().to_vec());
+                let cownervec=bs58::decode(cowner).into_vec().unwrap();
+                let caccountidowner=T::AccountId::decode(&mut &cownervec[1..33]).unwrap_or_default();
+                ensure!(caccountidowner==signer,Error::<T>::SignerIsNotMatchingOwnerAccount);
+            }
+             // check for collateral id is already present
+             ensure!(Collaterals::contains_key(&bondid,&collateralid),Error::<T>::CollateralIdNotFound);
+             // check the collateral has not yet approved
+             ensure!(!CollateralsApproval::contains_key(bondid,collateralid),Error::<T>::CollateralAlreadyApproved);
+             // Delete Collateral
+             Collaterals::take(bondid,collateralid);
+             // Generate event
+             Self::deposit_event(RawEvent::CollateralsDestroyed(bondid,collateralid));
+             // Return a successful DispatchResult
+             Ok(())
+        }
         // this function has the purpose to the insert collaterals document for a bond
         #[weight = 1000]
-        pub fn confirm_collaterals(origin, bondid: u32, collateralid: u32, info: Vec<u8>) -> dispatch::DispatchResult {
+        pub fn collaterals_approve(origin, bondid: u32, collateralid: u32, info: Vec<u8>) -> dispatch::DispatchResult {
              let signer = ensure_signed(origin)?;
              // check the signer is one of the manager or a member of the committee
-
              ensure!(Settings::contains_key("collateralsverification".as_bytes().to_vec()),Error::<T>::SettingsDoesNotExist);
              let json:Vec<u8>=Settings::get("collateralsverification".as_bytes().to_vec()).unwrap();
              let mut flag=0;
@@ -1710,12 +1752,12 @@ decl_module! {
                  }
                  ensure!(x>0,Error::<T>::CollateralMissingDocuments);
              }
-             // Insert Collateral
-             CollateralsApproval::insert(bondid,collateralid,info.clone());
-             // Generate event
-             Self::deposit_event(RawEvent::CollateralsApproved(bondid,collateralid,info));
-             // Return a successful DispatchResult
-             Ok(())
+            // Insert Collateral
+            CollateralsApproval::insert(bondid,collateralid,info.clone());
+            // Generate event
+            Self::deposit_event(RawEvent::CollateralsApproved(bondid,collateralid,info));
+            // Return a successful DispatchResult
+            Ok(())
         }
         /// Create a new Iso country code and name
         #[weight = 1000]
