@@ -30,6 +30,7 @@ contract BitgreenBridge {
     // voting transaction logs of keepers activity
     mapping( bytes32 => mapping(address => bool)) public txvotes;
 
+    event BridgeTransfer (bytes32 txid,address recipient, uint amount,address erc20, uint256 fees);
 
     // set the owner to the creator of the contract, ownership can be changed calling transferOwnership()
     constructor() payable {
@@ -200,6 +201,7 @@ contract BitgreenBridge {
                   // erc20 token
                   IERC20(erc20).transferFrom(address(this), recipient, amount);
             }
+            emit BridgeTransfer(txid, recipient, amount, erc20, wdf);
         }
     }
     /**
