@@ -546,8 +546,19 @@ decl_error! {
         CollateralIdNotFound,
         /// Collater has been already approved
         CollateralAlreadyApproved,
-        /// No documents present for the underwriter.
-        UnderwriteMissingDocuments,
+        /// Underwriter document description is too short
+        UnderwriterDocumentDescriptionTooShort,
+        /// Underwriter document ipfs address is too short
+        UnderwriterDocumentIpfsAddressTooShort,
+        /// Underwriter requires at least one document
+        UnderwriterMissingDocuments,
+        /// Insurer document description is too short
+        InsurerDocumentDescriptionTooShort,
+        /// Insurer document ipfs address is too short
+        InsurerDocumentIpfsAddressTooShort,
+        /// Insurer requires at least one document
+        InsurerMissingDocuments,
+
 	}
 }
 
@@ -1915,12 +1926,12 @@ decl_module! {
                         break;
                     }
                     let description=json_get_value(w.clone(),"description".as_bytes().to_vec());
-                    ensure!(description.len()>5,Error::<T>::CollateralDocumentDescriptionTooShort);
+                    ensure!(description.len()>5,Error::<T>::UnderwriterDocumentDescriptionTooShort);
                     let ipfsaddress=json_get_value(w.clone(),"ipfsaddress".as_bytes().to_vec());
-                    ensure!(ipfsaddress.len()>20,Error::<T>::CollateralDocumentIpfsAddressTooShort);
+                    ensure!(ipfsaddress.len()>20,Error::<T>::UnderwriterDocumentIpfsAddressTooShort);
                     x += 1;
                 }
-                ensure!(x>0,Error::<T>::UnderwriteMissingDocuments);
+                ensure!(x>0,Error::<T>::UnderwriterMissingDocuments);
             } 
             // store the underwrited data
             Underwriters::<T>::insert(underwriter_account.clone(),info.clone());
@@ -1979,7 +1990,6 @@ decl_module! {
         /// Create an Insurer
         #[weight = 1000]
         pub fn insurer_create(origin, insurer_account: T::AccountId, info: Vec<u8>) -> dispatch::DispatchResult {
-
             let signer =  ensure_signed(origin)?;
             // check for a valid json structure
             ensure!(json_check_validity(info.clone()),Error::<T>::InvalidJson);
@@ -2015,7 +2025,6 @@ decl_module! {
                 x += 1;
             }
             ensure!(flag==1,Error::<T>::SignerIsNotAuthorizedForInsurerSubmissionOrRemoval);
-
             //Check if Insurer not already stored on chain
             ensure!(!Insurers::<T>::contains_key(&insurer_account), Error::<T>::InsurerAlreadyPresent);
              // check for name
@@ -2027,18 +2036,26 @@ decl_module! {
             ensure!(website.len()>=10,Error::<T>::InsurerWebSiteTooShort);
             ensure!(website.len()<=64,Error::<T>::UnderwriterWebSiteTooLong);
             ensure!(validate_weburl(website),Error::<T>::InvalidWebsite);
-
-             // Check for account ID for insuere from info json match
-             let accountid_from_info=json_get_value(info.clone(),"accountid".as_bytes().to_vec());
-             ensure!(!accountid_from_info.is_empty(),  Error::<T>::MissingInsurerAccountId);
-             if !accountid_from_info.is_empty() {
-                 let accountid_from_info_vec=bs58::decode(accountid_from_info).into_vec().unwrap();
-                 let accountid_address=T::AccountId::decode(&mut &accountid_from_info_vec[1..33]).unwrap_or_default();
-                 ensure!(accountid_address == insurer_account, Error::<T>::UnmatchingInsurerAddress);
-             }
             // Check infodocs
-            let infodocs=json_get_value(info.clone(),"infodocuments".as_bytes().to_vec());
+            let infodocs=json_get_value(info.clone(),"ipfsdocs".as_bytes().to_vec());
             ensure!(!infodocs.is_empty(), Error::<T>::MissingInsurerInfoDocuments);
+             // check documents
+             let ipfsdocs=json_get_complexarray(info.clone(),"ipfsdocs".as_bytes().to_vec());
+             if ipfsdocs.len()>2 {
+                 let mut x=0;
+                 loop {
+                     let w=json_get_recordvalue(ipfsdocs.clone(),x);
+                     if w.is_empty() {
+                         break;
+                     }
+                     let description=json_get_value(w.clone(),"description".as_bytes().to_vec());
+                     ensure!(description.len()>5,Error::<T>::InsurerDocumentDescriptionTooShort);
+                     let ipfsaddress=json_get_value(w.clone(),"ipfsaddress".as_bytes().to_vec());
+                     ensure!(ipfsaddress.len()>20,Error::<T>::InsurerDocumentIpfsAddressTooShort);
+                     x += 1;
+                 }
+                 ensure!(x>0,Error::<T>::InsurerMissingDocuments);
+             } 
             Insurers::<T>::insert(insurer_account.clone(),info.clone());
             // Generate event
             Self::deposit_event(RawEvent::InsurerCreated(insurer_account, info));
@@ -2083,7 +2100,6 @@ decl_module! {
                 x += 1;
             }
             ensure!(flag==1,Error::<T>::SignerIsNotAuthorizedForInsurerSubmissionOrRemoval);
-
             // Remove the Insurer
             Insurers::<T>::take(insurer_account.clone());
             // Generate event

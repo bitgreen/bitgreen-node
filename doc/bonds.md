@@ -353,6 +353,41 @@ The delegated accounts can delete an underwriter calling the following function:
 ```rust
 undwerwriter_destroy(underwriter_account: T::AccountId)
 ```
+where:  
+- "underwriter_account" is the account of the under writer to be deleted.
+
+## Insurers 
+It's possible to store information about insurers on the risk of no-payment for the bond. 
+
+## Insurers  - Create
+The delegated accounts can create a new Insurers calling the following function:  
+```rust
+insurer_create(insurer_account: T::AccountId, info: Vec<u8>)
+```
+where:  
+- "insurer_account" is the account of the Insurer.
+- "info" is a json structure as follows:
+```json
+{
+	"name": "xxxxxxx",
+	"website": "xxxxxxxx",
+	"ipfsdocs": [{
+		"description": "xxxxxxxx",
+		"ipfsaddress": "zzzzzzzzzz"
+	}, {
+		"description": "xxxxxxxxx",
+		"ipfsaddress": "zzzzz"
+	}]
+}
+```
+
+## Insurers  - Destroy
+The delegated accounts can delete an Insurers calling the following function:  
+```rust
+undwerwriter_destroy(insurer_account: T::AccountId)
+```
+where:  
+- "insurer_account" is the account of the Insurer to be deleted.
 
 
 ## Countries Codes
