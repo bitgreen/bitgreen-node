@@ -546,6 +546,8 @@ decl_error! {
         CollateralIdNotFound,
         /// Collater has been already approved
         CollateralAlreadyApproved,
+        /// No documents present for the underwriter.
+        UnderwriteMissingDocuments,
 	}
 }
 
@@ -1852,14 +1854,12 @@ decl_module! {
          }
 
         /// Create an Underwriter
+        /// Suggestion: An approval process with multiple signatures may be considered useful.
         #[weight = 1000]
         pub fn undwerwriter_create(origin, underwriter_account: T::AccountId, info: Vec<u8>) -> dispatch::DispatchResult {
-
-          let signer =  ensure_signed(origin)?;
-
-          // check for a valid json structure
-          ensure!(json_check_validity(info.clone()),Error::<T>::InvalidJson);
-
+            let signer =  ensure_signed(origin)?;
+            // check for a valid json structure
+            ensure!(json_check_validity(info.clone()),Error::<T>::InvalidJson);
             // check the signer is one of the manager or a member of the committee
             let json:Vec<u8>=Settings::get("underwriterssubmission".as_bytes().to_vec()).unwrap();
             let mut flag=0;
@@ -1905,19 +1905,24 @@ decl_module! {
             ensure!(website.len()<=64,Error::<T>::UnderwriterWebSiteTooLong);
             ensure!(validate_weburl(website),Error::<T>::InvalidWebsite);
 
-             // Check for account ID for underwriter from info json match
-             let accountid_from_info=json_get_value(info.clone(),"accountid".as_bytes().to_vec());
-             ensure!(!accountid_from_info.is_empty(),  Error::<T>::MissingUnderwriterAccountId);
-             if !accountid_from_info.is_empty() {
-                 let accountid_from_info_vec=bs58::decode(accountid_from_info).into_vec().unwrap();
-                 let accountid_address=T::AccountId::decode(&mut &accountid_from_info_vec[1..33]).unwrap_or_default();
-                 ensure!(accountid_address == underwriter_account, Error::<T>::UnmatchingUnderwriterAddress);
-             }
-
-            // Check infodocs
-            let infodocs=json_get_value(info.clone(),"infodocuments".as_bytes().to_vec());
-            ensure!(!infodocs.is_empty(), Error::<T>::MissingUnderwriterInfoDocuments);
-
+            // check documents
+            let ipfsdocs=json_get_complexarray(info.clone(),"ipfsdocs".as_bytes().to_vec());
+            if ipfsdocs.len()>2 {
+                let mut x=0;
+                loop {
+                    let w=json_get_recordvalue(ipfsdocs.clone(),x);
+                    if w.is_empty() {
+                        break;
+                    }
+                    let description=json_get_value(w.clone(),"description".as_bytes().to_vec());
+                    ensure!(description.len()>5,Error::<T>::CollateralDocumentDescriptionTooShort);
+                    let ipfsaddress=json_get_value(w.clone(),"ipfsaddress".as_bytes().to_vec());
+                    ensure!(ipfsaddress.len()>20,Error::<T>::CollateralDocumentIpfsAddressTooShort);
+                    x += 1;
+                }
+                ensure!(x>0,Error::<T>::UnderwriteMissingDocuments);
+            } 
+            // store the underwrited data
             Underwriters::<T>::insert(underwriter_account.clone(),info.clone());
 
             // Generate event
@@ -1925,7 +1930,6 @@ decl_module! {
             // Return a successful DispatchResult
             Ok(())
         }
-
         /// Destroy an Underwriter
         #[weight = 1000]
         pub fn undwerwriter_destroy(origin, underwriter_account: T::AccountId) -> dispatch::DispatchResult {

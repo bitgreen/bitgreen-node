@@ -323,6 +323,100 @@ where:
 	}]
 }
 ```
+## Underwriters 
+It's possible to store information about underwriters of the bond. 
+
+## Underwriters  - Create
+The delegated accounts can create a new underwriter calling the following function:  
+```rust
+undwerwriter_create(underwriter_account: T::AccountId, info: Vec<u8>)
+```
+where:  
+- "underwriter_account" is the account of the under writer.
+- "info" is a json structure as follows:
+```json
+{
+	"name": "xxxxxxx",
+	"website": "xxxxxxxx",
+	"ipfsdocs": [{
+		"description": "xxxxxxxx",
+		"ipfsaddress": "zzzzzzzzzz"
+	}, {
+		"description": "xxxxxxxxx",
+		"ipfsaddress": "zzzzz"
+	}]
+}
+```
+
+## Underwriters  - Destroy
+The delegated accounts can delete an underwriter calling the following function:  
+```rust
+undwerwriter_destroy(underwriter_account: T::AccountId)
+```
+
+
+## Countries Codes
+Many functions in the pallet need a country code. The super user (by SUDO call), is enabled to load and update a table of country codes and their english name.
+
+## Countries Codes - Create
+The function to load a new country code can be called as follows:  
+```rust
+iso_country_create(countrycode: Vec<u8>, countryname: Vec<u8>)
+```
+where:  
+- "contrycode" should be the ISO standard country code;
+- "countryname" should be the country name in English as published from ISO.
+
+## Countries Codes - Create
+The function to remove an existing country code can be called as follows:  
+```rust
+iso_country_destroy(countrycode: Vec<u8>)
+```
+where:  
+- "contrycode" should be the ISO standard country code.
+
+## Currencies
+The functions are allowing only a certain set of crypto currencies. There are functions to configure them.
+
+## Currencies - Create
+The super user by SUDO calls, can add a new currecies between those acceped as BOND currency. The function to call is:  
+```rust
+currency_create(currencycode: Vec<u8>, info: Vec<u8>)
+```
+where:  
+- "currencycode" is a unique short code for the crypto currency.  
+- "info" is a json structure as follows:  
+```json
+ {
+ 	"name": "xxxxxxx",
+ 	"category": "c(rypto)/f(iat)",
+ 	"country": "countryisocode",
+ 	"blockchain": "Ethereum(...)",
+ 	"address": "xxxfor_crypto_currencyxxx"
+ }
+```
+for example:  
+```json
+{"name":"Bitcoin","category":"c","country":"AE","blockchain":"Bitcoin","address":"not applicable"}
+```
+or
+```json
+{"name":"American Dollars","category":"f","country":"US","blockchain":"not applicable","address":"not applicable"}
+```
+
+## Currencies - Destroy
+The super user by SUDO calls, can removecurrecies from those acceped as BOND currency. The function to call is:  
+```rust
+currency_destroy(currencycode: Vec<u8>)
+```
+where:  
+- "currencycode" is a unique short code for the crypto currency.  
+
+
+
+
+
+
 
 
 TODO:
