@@ -30,6 +30,8 @@ contract BitgreenBridge {
     // voting transaction logs of keepers activity
     mapping( bytes32 => mapping(address => bool)) public txvotes;
 
+    event BridgeTransferQueued (bytes32 txid,address recipient, uint amount,address erc20);
+    event BridgeTransfer (bytes32 txid,address recipient, uint amount,address erc20, uint256 fees);
 
     // set the owner to the creator of the contract, ownership can be changed calling transferOwnership()
     constructor() payable {
@@ -162,6 +164,7 @@ contract BitgreenBridge {
         require(recipient!=address(0),"Recipient cannot be empty");
         require(amount>0,"Amount cannot be zero");
         uint256 wdf=0;
+        uint requestedamount=amount;
         if(withdrawalfees>0){
             wdf=amount*withdrawalfees/100000000000000000000;
             if (wdf<minimumwithdrawalfees && minimumwithdrawalfees>0) {
@@ -200,6 +203,9 @@ contract BitgreenBridge {
                   // erc20 token
                   IERC20(erc20).transferFrom(address(this), recipient, amount);
             }
+            emit BridgeTransfer(txid, recipient, amount, erc20, wdf);
+        } else {
+            emit BridgeTransferQueued(txid, recipient, requestedamount, erc20, msg.sender);
         }
     }
     /**

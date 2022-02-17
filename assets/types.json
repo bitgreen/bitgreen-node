@@ -256,7 +256,9 @@
       "project": "Vec<u8>",
       "amount_co2": "Balance",
       "ipfs_hash": "Vec<u8>"
-    }
+    },
+    "CommitmentOf": "Commitment",
+    "ClassInfoOf":"ClassId"    
 }
 
   
