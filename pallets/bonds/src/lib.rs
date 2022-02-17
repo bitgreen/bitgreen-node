@@ -2218,7 +2218,7 @@ decl_module! {
             // verify the insurance existance
             ensure!(Insurances::<T>::contains_key(signer.clone(),uid), Error::<T>::InsuranceNotFound);
             // check that the insurance is not already counter-signed and paid
-            ensure!(!InsurancesSigned<T>::contains_key(signer.clone(),uid),Error::<T>::InsuranceAlreadySigned);
+            ensure!(!InsurancesSigned::<T>::contains_key(signer.clone(),uid),Error::<T>::InsuranceAlreadySigned);
             // get the insurance value
             let info = Insurances::<T>::get(signer.clone(),uid).unwrap();
             let maxcoverage=json_get_value(info,"maxcoverage".as_bytes().to_vec());
