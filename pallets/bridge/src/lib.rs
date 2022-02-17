@@ -76,13 +76,13 @@ decl_event!(
         /// Minted
         Minted(AccountId, u32, AccountId, Balance),
         /// Minting Request added to the queue
-        MintQueued(AccountId, u32, AccountId, Balance),
+        MintQueued(AccountId, u32, AccountId, Balance, Vec<u8>, Vec<u8>),
         /// Already minted the same transaction
         AlreadyMinted(AccountId, u32, AccountId, Balance),
         /// Burned
         Burned(AccountId, u32, AccountId, Balance),
         /// Burning Request added to the queue
-        BurnQueued(AccountId, u32, AccountId, Balance),
+        BurnQueued(AccountId, u32, AccountId, Balance, Vec<u8>, Vec<u8>),
         /// Already burned the same transaction
         AlreadyBurned(AccountId, u32, AccountId, Balance),
     }
@@ -412,7 +412,7 @@ decl_module! {
             }
  
             // update the counter for the minting requests of the transaction
-            let mut key = token;
+            let mut key = token.clone();
             key.push(b'-');
             key.append(&mut recipient.encode());
             key.push(b'-');
@@ -425,7 +425,7 @@ decl_module! {
             let nmr=MintCounter::get(&key);
             // thresold not reached
             match nmr.cmp(&internalthreshold) {
-                Ordering::Less => Self::deposit_event(RawEvent::MintQueued(signer, asset_id, recipient, amount)),
+                Ordering::Less => Self::deposit_event(RawEvent::MintQueued(signer, asset_id, recipient, amount, transaction_id.clone(), token.clone())),
                 Ordering::Greater => Self::deposit_event(RawEvent::AlreadyMinted(signer, asset_id, recipient, amount)),
                 Ordering::Equal => {
                     // check it's not already confirmed
@@ -494,7 +494,7 @@ decl_module! {
             }
 
             // update the counter for the minting requests of the transaction
-            let mut key = token;
+            let mut key = token.clone();
             key.push(b'-');
             key.append(&mut recipient.encode());
             key.push(b'-');
@@ -507,7 +507,7 @@ decl_module! {
             // get the number of burning requests
             let nmr=BurnCounter::get(&key);
             match nmr.cmp(&internalthreshold) {
-                Ordering::Less => Self::deposit_event(RawEvent::BurnQueued(signer, asset_id, recipient, amount)),
+                Ordering::Less => Self::deposit_event(RawEvent::BurnQueued(signer, asset_id, recipient, amount, transaction_id.clone(), token.clone())),
                 Ordering::Greater => Self::deposit_event(RawEvent::AlreadyBurned(signer, asset_id, recipient, amount)),
                 Ordering::Equal => {
                     // check it's not already confirmed
