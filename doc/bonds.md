@@ -389,6 +389,49 @@ undwerwriter_destroy(insurer_account: T::AccountId)
 where:  
 - "insurer_account" is the account of the Insurer to be deleted.
 
+## Insurance - Create
+An approved insurer can create a new insurance within the reserve has staken. The function to call is:  
+```rust
+insurance_create(uid: u32, info: Vec<u8>) 
+```
+where:  
+- "uid" is a unique id of the insurance for the signing insurer.
+- "info" is a json structure as follows:  
+```json
+{
+	"bondid": "xxx",
+	"maxcoverage": "xxxxxxxxx",			//the max amount of coverage
+	"payer":"xxxxxxxxxxxxxx",			// is the payer account supposed to sign the insurance
+	"beneficiary": "xxxxxxxxxxxx",		// is the account of the beneficiary of the insurance (can be the same of the payer or not)
+	"premium":"xxxxxxx"					// amount of the premium to pay in native tokens
+	"ipfsdocs": [{
+		"description": "xxxxxxxx",
+		"ipfsaddress": "zzzzzzzzzz"
+	}, {
+		"description": "xxxxxxxxx",
+		"ipfsaddress": "zzzzz"
+	}]
+}
+```
+## Insurance - Sign & Pay
+The payer can proceed to sign the insurance and pay the premium requested.The function to call is:  
+```rust
+insurance_sign(insurer_account: T::AccountId,uid: u32)
+```
+where:  
+- "insurer_account" is the account of the insurere.
+- "uid" is the unique id of the insurance to sign and pay.
+
+
+## Insurance - Destroy
+An approved insurer can destroy an insurance if it has not yet been signed and paid. The function to call is:  
+```rust
+insurance_destroy(uid: u32) 
+```
+where:  
+- "uid" is a unique id of the insurance for the signing insurer.
+
+
 
 ## Countries Codes
 Many functions in the pallet need a country code. The super user (by SUDO call), is enabled to load and update a table of country codes and their english name.
