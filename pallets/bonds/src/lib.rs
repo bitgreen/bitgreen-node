@@ -68,7 +68,7 @@ decl_storage! {
         // Insurance Data
         Insurances get(fn get_insurance): double_map hasher(blake2_128_concat) T::AccountId, hasher(blake2_128_concat) u32 => Option<Vec<u8>>;
         //Frozen funds in an Pool Account according to the percentage of mandatory reserves
-        InsurerReserves get(fn get_insurer_reserves): double_map hasher(blake2_128_concat) T::AccountId, hasher(blake2_128_concat) u32 => Balance;
+        InsurerReserves get(fn get_insurer_reserves): map hasher(blake2_128_concat) T::AccountId => Balance;
         // Insurances Signed from Payer
         InsurancesSigned get(fn get_insurance_signature): double_map hasher(blake2_128_concat) T::AccountId, hasher(blake2_128_concat) u32 => Option<T::AccountId>;
         // Lawyers data
@@ -78,7 +78,7 @@ decl_storage! {
 	     // InterbankRate data
         InflationRates get(fn get_inflation_rate): double_map hasher(blake2_128_concat) Vec<u8>, hasher(blake2_128_concat) Vec<u8> => Option<u32>;
         // Total Risks Covered
-        InsurerRisksCovered get(fn get_insurer_risks_covered): double_map hasher(blake2_128_concat) T::AccountId, hasher(blake2_128_concat) u32 => Balance;
+        InsurerRisksCovered get(fn get_insurer_risks_covered): map hasher(blake2_128_concat) T::AccountId => Balance;
     }
 }
 
@@ -510,6 +510,8 @@ decl_error! {
         AccountNotFound,
         ///Current insurer reserves below minimum insurer requirement
         BelowMinimumReserve,
+        /// The current reserve is not enough for the additional insurance
+        InsufficientReserve,
         /// Insurance cannot be found
         InsuranceNotFound,
         ///Insurer reserve not found
@@ -2039,23 +2041,23 @@ decl_module! {
             // Check infodocs
             let infodocs=json_get_value(info.clone(),"ipfsdocs".as_bytes().to_vec());
             ensure!(!infodocs.is_empty(), Error::<T>::MissingInsurerInfoDocuments);
-             // check documents
-             let ipfsdocs=json_get_complexarray(info.clone(),"ipfsdocs".as_bytes().to_vec());
-             if ipfsdocs.len()>2 {
-                 let mut x=0;
-                 loop {
-                     let w=json_get_recordvalue(ipfsdocs.clone(),x);
-                     if w.is_empty() {
-                         break;
-                     }
-                     let description=json_get_value(w.clone(),"description".as_bytes().to_vec());
-                     ensure!(description.len()>5,Error::<T>::InsurerDocumentDescriptionTooShort);
-                     let ipfsaddress=json_get_value(w.clone(),"ipfsaddress".as_bytes().to_vec());
-                     ensure!(ipfsaddress.len()>20,Error::<T>::InsurerDocumentIpfsAddressTooShort);
-                     x += 1;
-                 }
-                 ensure!(x>0,Error::<T>::InsurerMissingDocuments);
-             } 
+            // check documents
+            let ipfsdocs=json_get_complexarray(info.clone(),"ipfsdocs".as_bytes().to_vec());
+            if ipfsdocs.len()>2 {
+                let mut x=0;
+                loop {
+                    let w=json_get_recordvalue(ipfsdocs.clone(),x);
+                    if w.is_empty() {
+                        break;
+                    }
+                    let description=json_get_value(w.clone(),"description".as_bytes().to_vec());
+                    ensure!(description.len()>5,Error::<T>::InsurerDocumentDescriptionTooShort);
+                    let ipfsaddress=json_get_value(w.clone(),"ipfsaddress".as_bytes().to_vec());
+                    ensure!(ipfsaddress.len()>20,Error::<T>::InsurerDocumentIpfsAddressTooShort);
+                    x += 1;
+                }
+                ensure!(x>0,Error::<T>::InsurerMissingDocuments);
+            } 
             Insurers::<T>::insert(insurer_account.clone(),info.clone());
             // Generate event
             Self::deposit_event(RawEvent::InsurerCreated(insurer_account, info));
@@ -2108,18 +2110,20 @@ decl_module! {
             Ok(())
         }
         /// Create an Insurance - Initially as proposal, it's confirmed once signed and the premium paid from the payer
-        /// {"bondid":xxx,"maxcoverage":xxxx,"payer":"xxxxxxxxx","beneficiary":"xxxxoptionalxxxx","premium":xxxxxx,"infodocuments":"xxxxxx"}
+        /// {"bondid":xxx,"maxcoverage":xxxx,"payer":"xxxxxxxxx","beneficiary":"xxxxoptionalxxxx","premium":xxxxxx,"ipfsdocs":"xxxxxx"}
         #[weight = 1000]
         pub fn insurance_create(origin, uid: u32, info: Vec<u8>) -> dispatch::DispatchResult {
             let signer =  ensure_signed(origin)?;
             //Get current reserve Balance
-            let reserves = InsurerReserves::<T>::get(signer.clone(), uid);
+            let reserves = InsurerReserves::<T>::get(signer.clone());
             //Using a key "insuranceminreserve", gets the configuration in Settings
             let settings_reserve: Vec<u8> = Settings::get("insuranceminreserve".as_bytes().to_vec()).unwrap();
             //Second key "reserve" gets the reserve minimum required value
             let reserve=json_get_value(settings_reserve,"reserve".as_bytes().to_vec());
-            let reserve_min=vecu8_to_u32(reserve);
-            ensure!(reserves >= reserve_min.into(), Error::<T>::BelowMinimumReserve);
+            let reserve_min=vecu8_to_u128(reserve);
+            ensure!(reserves >= reserve_min, Error::<T>::BelowMinimumReserve);
+            // check that the insurer has a reserve
+            ensure!(InsurerReserves::<T>::contains_key(signer.clone()),Error::<T>::ReserveNotFound);
             // check for a valid json structure
             ensure!(json_check_validity(info.clone()),Error::<T>::InvalidJson);
             // check the signer is one of the insurers
@@ -2143,28 +2147,51 @@ decl_module! {
             // check premium amount
             let premium=json_get_value(info.clone(),"premium".as_bytes().to_vec());
             ensure!(!premium.is_empty(), Error::<T>::InsurancePremiumCannotBeZero);
-            let premiumv=vecu8_to_u32(premium);
+            let premiumv=vecu8_to_u128(premium);
             ensure!(premiumv>0,Error::<T>::InsurancePremiumCannotBeZero);
-            // Check infodocuments
-            let infodocuments=json_get_value(info.clone(),"infodocuments".as_bytes().to_vec());
-            ensure!(!infodocuments.is_empty(), Error::<T>::MissingInsuranceInfoDocuments);
+            // check that the reserve staken covers the risk covered including the new insurance
+            let reserveamount=InsurerReserves::<T>::get(signer.clone());
+            let mut riskcovered:u128=0;
+            if InsurerRisksCovered::<T>::contains_key(&signer){
+                riskcovered=InsurerRisksCovered::<T>::get(&signer);
+            }
+            ensure!(reserveamount> riskcovered+maxcoveragev,Error::<T>::InsufficientReserve);
+            // Check document
+            let ipfsdocs=json_get_value(info.clone(),"ipfsdocs".as_bytes().to_vec());
+            ensure!(!ipfsdocs.is_empty(), Error::<T>::MissingInsurerInfoDocuments);
+            // check documents
+            let ipfsdocs=json_get_complexarray(info.clone(),"ipfsdocs".as_bytes().to_vec());
+            if ipfsdocs.len()>2 {
+                let mut x=0;
+                loop {
+                    let w=json_get_recordvalue(ipfsdocs.clone(),x);
+                    if w.is_empty() {
+                        break;
+                    }
+                    let description=json_get_value(w.clone(),"description".as_bytes().to_vec());
+                    ensure!(description.len()>5,Error::<T>::InsurerDocumentDescriptionTooShort);
+                    let ipfsaddress=json_get_value(w.clone(),"ipfsaddress".as_bytes().to_vec());
+                    ensure!(ipfsaddress.len()>20,Error::<T>::InsurerDocumentIpfsAddressTooShort);
+                    x += 1;
+                }
+                ensure!(x>0,Error::<T>::InsurerMissingDocuments);
+            } 
             //check insurance Id is not already present
             ensure!(!Insurances::<T>::contains_key(signer.clone(),&uid), Error::<T>::InsuranceIdAlreadyPresent);
-            // store insurance
-            InsurerRisksCovered::<T>::try_mutate(&signer, &uid, |risk| -> DispatchResult {
+            // update insurance Risk Covered
+            InsurerRisksCovered::<T>::try_mutate(&signer,  |risk| -> DispatchResult {
 				let total_risk = risk.checked_add(maxcoveragev).ok_or(Error::<T>::Overflow)?;
-				ensure!(total_risk >= reserve_min.into(), Error::<T>::BelowMinimumReserve);
 				*risk = total_risk;
 				Ok(())
 			})?;
+            // Store insurance on chain ready to be signed from the counterpart
             Insurances::<T>::insert(signer.clone(),uid,info.clone());
             // Generate event
             Self::deposit_event(RawEvent::InsuranceCreated(signer,uid, info));
             // Return a successful DispatchResult
             Ok(())
         }
-        /// Sign an Insurance
-        /// TODO - CHARGE THE SIGNER FOR THE PREMIUM
+        /// Sign an Insurance transferring the premium to the insurer account anyone can pay the premium
         #[weight = 1000]
         pub fn insurance_sign(origin, insurer_account: T::AccountId,uid: u32) -> dispatch::DispatchResult {
             let signer =  ensure_signed(origin)?;
@@ -2184,18 +2211,20 @@ decl_module! {
             // Return a successful DispatchResult
             Ok(())
         }
-        /// Destroy an Insurance
+        /// Destroy an Insurance, only the original creator can remove if the insurance is not yet signed
         #[weight = 1000]
         pub fn insurance_destroy(origin, uid: u32) -> dispatch::DispatchResult {
             let signer =  ensure_signed(origin)?;
             // verify the insurance existance
             ensure!(Insurances::<T>::contains_key(signer.clone(),uid), Error::<T>::InsuranceNotFound);
+            // check that the insurance is not already counter-signed and paid
+            ensure!(!InsurancesSigned<T>::contains_key(signer.clone(),uid),Error::<T>::InsuranceAlreadySigned);
             // get the insurance value
             let info = Insurances::<T>::get(signer.clone(),uid).unwrap();
             let maxcoverage=json_get_value(info,"maxcoverage".as_bytes().to_vec());
             let maxcoveragev=vecu8_to_u128(maxcoverage);
             // update total risk
-            InsurerRisksCovered::<T>::try_mutate(&signer, &uid, |risk| -> DispatchResult {
+            InsurerRisksCovered::<T>::try_mutate(&signer,|risk| -> DispatchResult {
 				let total_risk = risk.checked_sub(maxcoveragev).ok_or(Error::<T>::Underflow)?;
 				*risk = total_risk;
 				Ok(())
@@ -2331,7 +2360,6 @@ decl_module! {
          }
     
          /// Create Interbank Rate
-         
         #[weight = 1000] 
         pub fn interbankrate_create(origin, country_code: Vec<u8>, date: Vec<u8>, rate: u32) -> dispatch::DispatchResult {
             ensure_root(origin)?;
@@ -2398,17 +2426,17 @@ decl_module! {
         
         ///Adding to the balance of InsurerReserves
         #[weight = 1000]
-        pub fn insurance_reserve_stake(origin, id: u32, deposit: u32) -> dispatch::DispatchResult {
+        pub fn insurance_reserve_stake(origin, deposit: u32) -> dispatch::DispatchResult {
             let signer = ensure_signed(origin)?;
-            match InsurerReserves::<T>::contains_key(signer.clone(), id) {
+            match InsurerReserves::<T>::contains_key(signer.clone()) {
                 true => {
-                let current_reserve = InsurerReserves::<T>::take(signer.clone(), id);
+                let current_reserve = InsurerReserves::<T>::take(signer.clone());
                 let new_reserve = current_reserve.checked_add(deposit.into()).unwrap();
-                InsurerReserves::<T>::insert(signer, id, new_reserve);
+                InsurerReserves::<T>::insert(signer, new_reserve);
                 },
                 false => {
                     let deposit_into: u128 = deposit.into();
-                    InsurerReserves::<T>::insert(signer, id, deposit_into);
+                    InsurerReserves::<T>::insert(signer,deposit_into);
             }
         }
             Ok(())
@@ -2416,21 +2444,21 @@ decl_module! {
         
         ///Withdraw a certain amount of funds only if the reserve is at minimum required amount
         #[weight = 1000]
-        pub fn insurance_reserve_unstake(origin, id: u32, withdrawal: u32) -> dispatch::DispatchResult {
+        pub fn insurance_reserve_unstake(origin, withdrawal: u32) -> dispatch::DispatchResult {
             let signer = ensure_signed(origin)?;
-            ensure!(InsurerReserves::<T>::contains_key(signer.clone(), id), Error::<T>::ReserveNotFound);
+            ensure!(InsurerReserves::<T>::contains_key(signer.clone()), Error::<T>::ReserveNotFound);
             //Retrieve the current minimum reserve required with key "insuranceminreserve"
             let settings_reserve: Vec<u8> = Settings::get("insuranceminreserve".as_bytes().to_vec()).unwrap();
             let reserve = json_get_value(settings_reserve, "reserve".as_bytes().to_vec());
             //Converting to u32 after getting json value from Settings
-            let reserve_min = vecu8_to_u32(reserve);
+            let reserve_min = vecu8_to_u128(reserve);     
             //Retrieve reserve from InsurerReserves double map
-            let current_reserves = InsurerReserves::<T>::get(signer.clone(), id);
+            let current_reserves = InsurerReserves::<T>::get(signer.clone());
             //Current reserves if the withdrawal is done
             let withdrawn_reserve: u128 = current_reserves.checked_sub(withdrawal.into()).unwrap();
-            ensure!(withdrawn_reserve >= reserve_min.into(), Error::<T>::BelowMinimumReserve);  
-            InsurerReserves::<T>::take(signer.clone(), id);
-            InsurerReserves::<T>::insert(signer, id, withdrawn_reserve);
+            ensure!(withdrawn_reserve >= reserve_min, Error::<T>::BelowMinimumReserve);  
+            InsurerReserves::<T>::take(signer.clone());
+            InsurerReserves::<T>::insert(signer, withdrawn_reserve);
             Ok(())
         }
     }
