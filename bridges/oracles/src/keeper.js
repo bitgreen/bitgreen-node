@@ -1,12 +1,11 @@
 import { Keyring } from '@polkadot/api';
-// import type { AccountId } from '@polkadot/types/interfaces';
 import '@polkadot/api-augment';
 import { Channel } from 'async-channel';
 import { setup_substrate, SECRETSEED, pallet_bridge_burn, pallet_bridge_mint } from './pallet_bridge.js';
-import { subscription_contract, NODE_ADDRESS, get_bitgreen_bridge_contract } from './evm_bridge.js';
+import { NODE_ADDRESS, get_bitgreen_bridge_contract, privateKey, send_transfer } from './evm_bridge.js';
 import Web3 from 'web3';
 let api;
-const handle_events = async (api, web3, BitgreenBridge, keypair, value) => {
+const handle_events = async (api, keypair, value) => {
     console.log(value.method);
     switch (value.method) {
         case 'BurnQueued': {
@@ -31,10 +30,6 @@ const handle_events = async (api, web3, BitgreenBridge, keypair, value) => {
                     }
                 }
             }
-            // const asset_id = value[1];
-            // const erc20 = get_erc20(asset_id);
-            // const gasPrice = await web3.eth.getGasPrice();
-            // await send_transfer(web3, gasPrice, BitgreenBridge, privateKey, transaction_id.toString(), recipient.toString(), balance.toString(), erc20);
         }
             break;
         case 'MintQueued': {
@@ -64,10 +59,11 @@ const handle_events = async (api, web3, BitgreenBridge, keypair, value) => {
         }
             break;
         default:
-            console.log(value);
+            break;
+            // console.log(value);
     }
 };
-const keepers_subscription_pallet_bridge = async (api, web3, BitgreenBridge) => {
+const keepers_subscription_pallet_bridge = async (api) => {
     const keyring = new Keyring({ type: 'sr25519' });
     const keypair = keyring.addFromUri(SECRETSEED);
     const chan = new Channel(1 /* default */);
@@ -109,26 +105,51 @@ const keepers_subscription_pallet_bridge = async (api, web3, BitgreenBridge) => 
         });
     });
     for await (const value of chan) {
-        await handle_events(api, web3, BitgreenBridge, keypair, value);
+        await handle_events(api, keypair, value);
     }
     console.log('after events');
 };
+
+const handle_evm_events = async (web3, BitgreenBridge, returnValues) => {
+    const gasPrice = await web3.eth.getGasPrice();
+    const account = web3.eth.accounts.privateKeyToAccount(privateKey).address;
+    const txid = returnValues['0'];
+    const voted = await BitgreenBridge.methods.txvotes(txid, account).call();
+    if (!voted) {
+        const threshold = await BitgreenBridge.methods.getThreshold().call();
+
+        const queue = await BitgreenBridge.methods.txqueue(txid).call();
+        const cnt = queue.cnt;
+
+        if (cnt < threshold) {
+            const recipient = returnValues['1'];
+            console.log('recipient: \t ', recipient);
+            const balance = returnValues['2'];
+            console.log('balance: \t ', balance);
+            const erc20 = returnValues['3'];
+            console.log('erc20: \t ', erc20);    
+            // TODO: check evm reverting error
+            // await send_transfer(web3, gasPrice, BitgreenBridge, privateKey, txid, recipient, balance, erc20);
+        }
+    }
+}
+
 const main = async () => {
     try {
         api = await setup_substrate();
         const web3 = new Web3(NODE_ADDRESS);
         // Wait until we are ready and connected
         await api.isReady;
-        await subscription_contract(web3);
+        // await subscription_contract(web3);
         const BitgreenBridge = await get_bitgreen_bridge_contract(web3);
-        BitgreenBridge.events.allEvents([], function (error, event) {
-            if (error) {
-                console.error('error: \t ', error);
-            }
-            console.log('event: \t ', event);
-        })
-            .on('error', console.error);
-        await keepers_subscription_pallet_bridge(api, web3, BitgreenBridge);
+        BitgreenBridge.events.BridgeTransferQueued()
+        .on('data', function(event){
+            handle_evm_events(web3, BitgreenBridge, event.returnValues);
+        }).on('changed', function(event){
+            console.log('event changed BridgeTransferQueued: \t ', event);
+        }).on('error', console.error);
+
+        await keepers_subscription_pallet_bridge(api);
     }
     catch (err) {
         console.error('Error', err);

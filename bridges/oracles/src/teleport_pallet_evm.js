@@ -4,7 +4,7 @@ import '@polkadot/api-augment';
 import { setup_substrate, pallet_bridge_burn } from './pallet_bridge.js';
 import { NODE_ADDRESS, get_bitgreen_bridge_contract, get_erc20, send_transfer, privateKey } from './evm_bridge.js';
 import Web3 from 'web3';
-const destination_address = '0x47cb0700281F259aB8cF804628C9aE30DEf205D9';
+const destination_address = '0xE617985640737D2AB30e9eA0F484195eF106C983';
 let api;
 const main = async () => {
     // let provider = null;
@@ -24,14 +24,14 @@ const main = async () => {
         const BitgreenBridge = await get_bitgreen_bridge_contract(web3);
         const recipient = api.createType('AccountId', eve.address);
         const bitg_token_bytes = api.createType('Bytes', 'WETH');
-        const transaction_id_bytes = api.createType('Bytes', "a123");
+        const transaction_id_bytes = api.createType('Bytes', "a135");
         const balance = api.createType('Balance', "1");
         const gasPrice = await web3.eth.getGasPrice();
         let txid = await pallet_bridge_burn(api, charlie, bitg_token_bytes, recipient, transaction_id_bytes, balance);
         console.log(`txid: \t ${txid}`);
         const asset_id = '1';
         const erc20 = await get_erc20(asset_id);
-        await send_transfer(web3, gasPrice, BitgreenBridge, privateKey, transaction_id_bytes.toString(), destination_address, balance.toString(), erc20);
+        await send_transfer(web3, gasPrice, BitgreenBridge, privateKey, txid.toString(), destination_address, balance.toString(), erc20);
     }
     catch (err) {
         console.error('Error', err);
