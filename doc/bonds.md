@@ -431,6 +431,35 @@ insurance_destroy(uid: u32)
 where:  
 - "uid" is a unique id of the insurance for the signing insurer.
 
+## Lawyer 
+It's possible to store on blockchain the data of approved lawyers. Only the delegate accounts can mamage the lawyer registraton and cancellation.  
+
+## Lawyer - Create
+The delegated accounts can create a new lawyer calling the following function:  
+```rust
+lawyer_create(lawyer_account: T::AccountId, info: Vec<u8>)
+```
+where:  
+- "lawyeraccount" is the account of the Lawyer.
+- "info" is a json structure as follows:
+```json
+{
+	"name": "xxxxxxx",
+	"website": "xxxxxxxx",
+	"ipfsdocs": [{
+		"description": "xxxxxxxx",
+		"ipfsaddress": "zzzzzzzzzz"
+	}, {
+		"description": "xxxxxxxxx",
+		"ipfsaddress": "zzzzz"
+	}]
+}
+```
+## Lawyer - Destroy
+The delegated accounts can removed new lawyer calling the following function:  
+```rust
+lawyer_destroy(lawyer_account: T::AccountId)
+```
 
 
 ## Countries Codes

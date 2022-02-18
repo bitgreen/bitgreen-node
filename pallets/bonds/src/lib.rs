@@ -560,7 +560,12 @@ decl_error! {
         InsurerDocumentIpfsAddressTooShort,
         /// Insurer requires at least one document
         InsurerMissingDocuments,
-
+        /// Lawyer document description is too short
+        LawyerDocumentDescriptionTooShort,
+        /// Lawyer document ipfs address is too short
+        LawyerDocumentIpfsAddressTooShort,
+        /// Lawyer requires at least one document
+        LawyerMissingDocuments,
 	}
 }
 
@@ -2240,12 +2245,8 @@ decl_module! {
         /// Create a lawyer
         #[weight = 1000]
         pub fn lawyer_create(origin, lawyer_account: T::AccountId, info: Vec<u8>) -> dispatch::DispatchResult {
-
-          let signer =  ensure_signed(origin)?;
-
-          // check for a valid json structure
-          ensure!(json_check_validity(info.clone()),Error::<T>::InvalidJson);
-
+            // check for signed transaction
+            let signer =  ensure_signed(origin)?;
             // check the signer is one of the manager or a member of the committee
             let json:Vec<u8>=Settings::get("lawyerssubmission".as_bytes().to_vec()).unwrap();
             let mut flag=0;
@@ -2277,35 +2278,40 @@ decl_module! {
                 x += 1;
             }
             ensure!(flag==1,Error::<T>::SignerIsNotAuthorizedForSubmissionOrRemoval);
-
+            // check for a valid json structure
+            ensure!(json_check_validity(info.clone()),Error::<T>::InvalidJson);
             //Check if lawyer not already stored on chain
             ensure!(!Lawyers::<T>::contains_key(&lawyer_account), Error::<T>::AlreadyPresent);
-
-             // check for name
-             let name=json_get_value(info.clone(),"name".as_bytes().to_vec());
-             ensure!(name.len()>=3, Error::<T>::NameTooShort);
-
+            // check for name
+            let name=json_get_value(info.clone(),"name".as_bytes().to_vec());
+            ensure!(name.len()>=3, Error::<T>::NameTooShort);
             // check Website
             let website=json_get_value(info.clone(),"website".as_bytes().to_vec());
             ensure!(website.len()>=10,Error::<T>::WebSiteTooShort);
             ensure!(website.len()<=64,Error::<T>::WebSiteTooLong);
             ensure!(validate_weburl(website),Error::<T>::InvalidWebsite);
-
-             // Check for account ID for lawyer from info json match
-             let accountid_from_info=json_get_value(info.clone(),"accountid".as_bytes().to_vec());
-             ensure!(!accountid_from_info.is_empty(),  Error::<T>::MissingAccountId);
-             if !accountid_from_info.is_empty() {
-                 let accountid_from_info_vec=bs58::decode(accountid_from_info).into_vec().unwrap();
-                 let accountid_address=T::AccountId::decode(&mut &accountid_from_info_vec[1..33]).unwrap_or_default();
-                 ensure!(accountid_address == lawyer_account, Error::<T>::UnmatchingAddress);
-             }
-
-            // Check infodocs
-            let infodocs=json_get_value(info.clone(),"infodocuments".as_bytes().to_vec());
-            ensure!(!infodocs.is_empty(), Error::<T>::MissingInfoDocuments);
-
+            // Check for documents
+            let ipfsdocs=json_get_value(info.clone(),"ipfsdocs".as_bytes().to_vec());
+            ensure!(!ipfsdocs.is_empty(), Error::<T>::LawyerMissingDocuments);
+            // check documents
+            let ipfsdocs=json_get_complexarray(info.clone(),"ipfsdocs".as_bytes().to_vec());
+            if ipfsdocs.len()>2 {
+                let mut x=0;
+                loop {
+                    let w=json_get_recordvalue(ipfsdocs.clone(),x);
+                    if w.is_empty() {
+                        break;
+                    }
+                    let description=json_get_value(w.clone(),"description".as_bytes().to_vec());
+                    ensure!(description.len()>5,Error::<T>::LawyerDocumentDescriptionTooShort);
+                    let ipfsaddress=json_get_value(w.clone(),"ipfsaddress".as_bytes().to_vec());
+                    ensure!(ipfsaddress.len()>20,Error::<T>::LawyerDocumentIpfsAddressTooShort);
+                    x += 1;
+                }
+                ensure!(x>0,Error::<T>::LawyerMissingDocuments);
+            } 
+            // store the lawyer on chain
             Lawyers::<T>::insert(lawyer_account.clone(),info.clone());
-
             // Generate event LawyerCreated
             Self::deposit_event(RawEvent::LawyerCreated(lawyer_account, info));
             // Return a successful DispatchResult
