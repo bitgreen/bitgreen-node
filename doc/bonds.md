@@ -462,7 +462,7 @@ lawyer_destroy(lawyer_account: T::AccountId)
 ```
 
 ## Interbank Rates
-Some bonds are linked to the interbank rates, so we have some function to store on chain the interbanks rates. Such function are accessible only to the super user (Sudo Call).  
+Some bonds are linked to the interbank rates, so we have some function to store on chain the interbanks rates. Such functions are accessible only to the super user (Sudo Call).  
 
 ## Interbank Rates - Create
 The super user can create a new interbank rate calling the following function:  
@@ -482,6 +482,28 @@ interbankrate_destroy(country_code: Vec<u8>, date: Vec<u8>)
 where:  
 - "country_code" is the ISo country code of the country of reference for the rate.
 - "date" is the date of validity of the interbank rate in the format YYYY-MM-DD.
+
+## Inflation Rates
+Some bonds are linked to the Inflation rates, so we have some function to store on chain the Inflation rates. Such functions are accessible only to the super user (Sudo Call).  
+
+## Inflation Rates - Create
+The super user can create a new Inflation rate calling the following function:  
+```rust
+inflationrate_create(country_code: Vec<u8>, date: Vec<u8>, rate: u32)
+```
+where:  
+- "country_code" is the ISo country code of the country of reference for the rate.
+- "date" is the date of validity of the Inflation rate in the format YYYY-MM-DD.
+- "rate" is the Inflation rate stored as integered considering 2 decimals. For example 320 = 3.2%.
+
+## Inflation Rates - Destroy
+The super user can remove an Inflation rate calling the following function:  
+```rust
+inflationrate_destroy(country_code: Vec<u8>, date: Vec<u8>)
+```
+where:  
+- "country_code" is the ISo country code of the country of reference for the rate.
+- "date" is the date of validity of the Inflation rate in the format YYYY-MM-DD.
 
 
 ## Countries Codes

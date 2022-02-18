@@ -568,6 +568,8 @@ decl_error! {
         LawyerMissingDocuments,
         /// Interbank rate is already stored for the same date of reference.
         InterbankRateAlreadyPresent,
+        /// Inflation rate is already stored for the same date of reference.
+        InflationRateAlreadyPresent,
 	}
 }
 
@@ -2376,7 +2378,7 @@ decl_module! {
             ensure!(IsoCountries::contains_key(&country_code), Error::<T>::CountryCodeNotFound);
             // check for the date validity
             ensure!(validate_date(&date), Error::<T>::InvalidDateFormat);
-            // check Interbank code does not exists 
+            // check Interbank rate does not exists 
             ensure!(!InterbankRates::contains_key(&country_code,&date), Error::<T>::InterbankRateAlreadyPresent);
             // Store Interbank info an integer considering 2 decimals
             InterbankRates::insert(country_code.clone(),date.clone(),rate);
@@ -2409,6 +2411,8 @@ decl_module! {
             ensure!(IsoCountries::contains_key(&country_code), Error::<T>::CountryCodeNotFound);
             // check for the date validity
             ensure!(validate_date(&date), Error::<T>::InvalidDateFormat);
+            // check inflation code does not exists 
+            ensure!(!InflationRates::contains_key(&country_code,&date), Error::<T>::InflationRateAlreadyPresent);
             // Store inflation rate info
             InflationRates::insert(country_code.clone(),date.clone(),rate);
             // Generate event
@@ -2420,19 +2424,19 @@ decl_module! {
         /// Remove Inflation Rate
         #[weight = 1000]
         pub fn inflationrate_destroy(origin, country_code: Vec<u8>, date: Vec<u8>) -> dispatch::DispatchResult {
+            // check the transaction is signed from the super user
             ensure_root(origin)?;
-            
             // check country
             ensure!(IsoCountries::contains_key(&country_code), Error::<T>::CountryCodeNotFound);            
-            // remove Interbank info
+            // remove inflation rate info
             InflationRates::take(country_code.clone(),date.clone());
             // Generate event
             Self::deposit_event(RawEvent::InflationRateDestroyed(country_code,date));
             // Return a successful DispatchResult
             Ok(())
         }
-        
-        ///Adding to the balance of InsurerReserves
+        // TODO: Refactor for proper staking/unstaking of native tokens
+        /// Stake Reserves for insurers
         #[weight = 1000]
         pub fn insurance_reserve_stake(origin, deposit: u32) -> dispatch::DispatchResult {
             let signer = ensure_signed(origin)?;
@@ -2450,7 +2454,7 @@ decl_module! {
             Ok(())
         }
         
-        ///Withdraw a certain amount of funds only if the reserve is at minimum required amount
+        ///Unstake Reserves for insurers
         #[weight = 1000]
         pub fn insurance_reserve_unstake(origin, withdrawal: u32) -> dispatch::DispatchResult {
             let signer = ensure_signed(origin)?;
