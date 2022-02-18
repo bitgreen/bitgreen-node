@@ -461,6 +461,28 @@ The delegated accounts can removed new lawyer calling the following function:
 lawyer_destroy(lawyer_account: T::AccountId)
 ```
 
+## Interbank Rates
+Some bonds are linked to the interbank rates, so we have some function to store on chain the interbanks rates. Such function are accessible only to the super user (Sudo Call).  
+
+## Interbank Rates - Create
+The super user can create a new interbank rate calling the following function:  
+```rust
+interbankrate_create(country_code: Vec<u8>, date: Vec<u8>, rate: u32)
+```
+where:  
+- "country_code" is the ISo country code of the country of reference for the rate.
+- "date" is the date of validity of the interbank rate in the format YYYY-MM-DD.
+- "rate" is the interbank rate stored as integered considering 2 decimals. For example 320 = 3.2%.
+
+## Interbank Rates - Destroy
+The super user can remove an interbank rate calling the following function:  
+```rust
+interbankrate_destroy(country_code: Vec<u8>, date: Vec<u8>)
+```
+where:  
+- "country_code" is the ISo country code of the country of reference for the rate.
+- "date" is the date of validity of the interbank rate in the format YYYY-MM-DD.
+
 
 ## Countries Codes
 Many functions in the pallet need a country code. The super user (by SUDO call), is enabled to load and update a table of country codes and their english name.

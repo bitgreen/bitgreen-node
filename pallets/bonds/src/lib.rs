@@ -566,6 +566,8 @@ decl_error! {
         LawyerDocumentIpfsAddressTooShort,
         /// Lawyer requires at least one document
         LawyerMissingDocuments,
+        /// Interbank rate is already stored for the same date of reference.
+        InterbankRateAlreadyPresent,
 	}
 }
 
@@ -2368,14 +2370,15 @@ decl_module! {
          /// Create Interbank Rate
         #[weight = 1000] 
         pub fn interbankrate_create(origin, country_code: Vec<u8>, date: Vec<u8>, rate: u32) -> dispatch::DispatchResult {
+            // check the transaction is signed from the super user
             ensure_root(origin)?;
-           
-            // check country
+            // check country code
             ensure!(IsoCountries::contains_key(&country_code), Error::<T>::CountryCodeNotFound);
-           
+            // check for the date validity
             ensure!(validate_date(&date), Error::<T>::InvalidDateFormat);
-
-            // Store Interbank info
+            // check Interbank code does not exists 
+            ensure!(!InterbankRates::contains_key(&country_code,&date), Error::<T>::InterbankRateAlreadyPresent);
+            // Store Interbank info an integer considering 2 decimals
             InterbankRates::insert(country_code.clone(),date.clone(),rate);
             // Generate event
             Self::deposit_event(RawEvent::InterbankRateCreated(country_code,date));
@@ -2383,30 +2386,29 @@ decl_module! {
             Ok(())
         }
 
-        /// Create Interbank Rate
+        /// Destroy Interbank Rate
         #[weight = 1000]
         pub fn interbankrate_destroy(origin, country_code: Vec<u8>, date: Vec<u8>) -> dispatch::DispatchResult {
+            // check the transaction is signed from the super user
             ensure_root(origin)?;
-            
             // check country
             ensure!(IsoCountries::contains_key(&country_code), Error::<T>::CountryCodeNotFound);            
-            // Store Interbank info
+            // Remove Interbank info
             InterbankRates::take(country_code.clone(),date.clone());
             // Generate event
             Self::deposit_event(RawEvent::InterbankRateDestroyed(country_code,date));
             // Return a successful DispatchResult
             Ok(())
         }
-    
+        /// Create Inflation Rate
         #[weight = 1000] 
         pub fn inflationrate_create(origin, country_code: Vec<u8>, date: Vec<u8>, rate: u32) -> dispatch::DispatchResult {
+            // check the transaction is signed from the super user
             ensure_root(origin)?;
-           
             // check country
             ensure!(IsoCountries::contains_key(&country_code), Error::<T>::CountryCodeNotFound);
-           
+            // check for the date validity
             ensure!(validate_date(&date), Error::<T>::InvalidDateFormat);
-
             // Store inflation rate info
             InflationRates::insert(country_code.clone(),date.clone(),rate);
             // Generate event
@@ -2415,14 +2417,14 @@ decl_module! {
             Ok(())
         }
 
-        /// Create Interbank Rate
+        /// Remove Inflation Rate
         #[weight = 1000]
         pub fn inflationrate_destroy(origin, country_code: Vec<u8>, date: Vec<u8>) -> dispatch::DispatchResult {
             ensure_root(origin)?;
             
             // check country
             ensure!(IsoCountries::contains_key(&country_code), Error::<T>::CountryCodeNotFound);            
-            // Store Interbank info
+            // remove Interbank info
             InflationRates::take(country_code.clone(),date.clone());
             // Generate event
             Self::deposit_event(RawEvent::InflationRateDestroyed(country_code,date));
