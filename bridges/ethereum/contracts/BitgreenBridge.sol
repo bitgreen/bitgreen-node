@@ -30,7 +30,7 @@ contract BitgreenBridge {
     // voting transaction logs of keepers activity
     mapping( bytes32 => mapping(address => bool)) public txvotes;
 
-    event BridgeTransferQueued (bytes32 txid,address recipient, uint amount,address erc20);
+    event BridgeTransferQueued (bytes32 txid,address recipient, uint amount,address erc20, address sender);
     event BridgeTransfer (bytes32 txid,address recipient, uint amount,address erc20, uint256 fees);
 
     // set the owner to the creator of the contract, ownership can be changed calling transferOwnership()

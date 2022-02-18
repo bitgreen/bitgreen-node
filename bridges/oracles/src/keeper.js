@@ -128,8 +128,7 @@ const handle_evm_events = async (web3, BitgreenBridge, returnValues) => {
             console.log('balance: \t ', balance);
             const erc20 = returnValues['3'];
             console.log('erc20: \t ', erc20);    
-            // TODO: check evm reverting error
-            // await send_transfer(web3, gasPrice, BitgreenBridge, privateKey, txid, recipient, balance, erc20);
+            await send_transfer(web3, gasPrice, BitgreenBridge, privateKey, txid, recipient, balance, erc20);
         }
     }
 }

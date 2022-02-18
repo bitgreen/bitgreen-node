@@ -4,9 +4,9 @@ import { readFileSync } from 'fs';
 import { dirname, join, normalize, format } from 'path';
 import { fileURLToPath } from 'url';
 export const NODE_ADDRESS = process.env.NODE_ADDRESS || Web3.givenProvider || 'ws://127.0.0.1:8545';
-const ROUTER_ADDRESS = process.env.ROUTER_ADDRESS || '0xBBF7dB796891cBf1E0C1CB13ff11E74ae77A4686';
+const ROUTER_ADDRESS = process.env.ROUTER_ADDRESS || '0xF2F1638BD16Ff7029F390e24C75011CFA9A9a974';
 // const mnemonicPhrase = process.env.MNEMONIC_PHRASE || "until ethics hollow size piano patient pole abuse model soon slender wall"; // 12 word mnemonic
-export const privateKey = process.env.PRIVATE_KEY || "0xefcc5c4e0576bdac3fd36b3584be50a54c7a7fbfd3ed0c9ba9e90cfca0c37b85";
+export const privateKey = process.env.PRIVATE_KEY || "0xfda5d6b43c4ab15843b90c380e7e8fb98fa98115981197708f7f5fabfdfa3eb3";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 export const keeper_pk1 = '0x4e3c355bb747069260a1fd102c2b84658911681e8315142b82f6b4e79a3e610c';
@@ -200,15 +200,16 @@ export async function send_setWithDrawalFews(web3, gasPrice, contract, value) {
     }
     return receipt;
 }
-export const deposit = async (web3, gasPrice, contract, pk, amount) => {
+export const deposit = async (web3, gasPrice, contract, pk, amount, destination) => {
     const account = web3.eth.accounts.privateKeyToAccount(pk).address;
     const transaction = contract.methods.deposit();
     const options = {
         to: transaction._parent._address,
         data: transaction.encodeABI(),
-        gas: await transaction.estimateGas({ from: account }),
+        gas: await transaction.estimateGas({ from: account }) + 400,
         gasPrice: gasPrice,
-        value: amount
+        value: amount,
+        data: destination
     };
     const signed = (await web3.eth.accounts.signTransaction(options, pk)).rawTransaction;
     let receipt = null;
@@ -329,12 +330,12 @@ export const basic_evm_setup_test = async (web3, BitgreenBridge) => {
     ];
     await send_setWatchdogs(web3, gasPrice, BitgreenBridge, watchdogs);
     await send_setWatchcats(web3, gasPrice, BitgreenBridge, watchdogs);
-    await send_setThreshold(web3, gasPrice, BitgreenBridge, 2);
+    await send_setThreshold(web3, gasPrice, BitgreenBridge, 3);
     await send_setWithDrawalFews(web3, gasPrice, BitgreenBridge, 1);
     await send_setMinimumWithDrawalFees(web3, gasPrice, BitgreenBridge, 1);
     const amount = 1000;
-    const receipt = await deposit(web3, gasPrice, BitgreenBridge, privateKey, amount);
-    console.log('transactionHash: \t ', receipt?.transactionHash);
+    // const receipt = await deposit(web3, gasPrice, BitgreenBridge, privateKey, amount, null);
+    // console.log('transactionHash: \t ', receipt?.transactionHash);
     await call_contractsumary(web3, BitgreenBridge);
 };
 export const smoke_test = async (web3, BitgreenBridge) => {

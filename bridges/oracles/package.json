@@ -8,12 +8,12 @@
   "scripts": {
     "build": "tsc",
     "setup": "NODE_PATH='../../assets' node ./src/setup_test.js",
-    "pallet_evm": "NODE_PATH='../../assets' PRIVATE_KEY='0x30e767129278a242f1416fe1071fb991331fba4077dbf7800623bd7bdf417bd3' node ./src/teleport_pallet_evm.js",
-    "evm_pallet": "NODE_PATH='../../assets' node ./src/teleport_evm_pallet.js",
+    "pallet_evm": "NODE_PATH='../../assets' PRIVATE_KEY='0xd3a6a3b8b7c8c089144eeb0d78b3002e6f6d7fd9539c512c443cd7d1b9603812' node ./src/teleport_pallet_evm.js",
+    "evm_pallet": "NODE_PATH='../../assets' PRIVATE_KEY='0xd3a6a3b8b7c8c089144eeb0d78b3002e6f6d7fd9539c512c443cd7d1b9603812' node ./src/teleport_evm_pallet.js",
     "keeper": "NODE_PATH='../../assets' node ./src/keeper.js",
-    "keeper1": "NODE_PATH='../../assets' KEEPER_PALLET_MNEMONIC='//Bob' PRIVATE_KEY='0x30e767129278a242f1416fe1071fb991331fba4077dbf7800623bd7bdf417bd3' node ./src/keeper.js",
-    "keeper2": "NODE_PATH='../../assets' KEEPER_PALLET_MNEMONIC='//Charlie' PRIVATE_KEY='0x9052c9fa53a8794d23c7bea99480b5dc7bf5dddee80d300368238c350a81a00a' node ./src/keeper.js",
-    "keeper3": "NODE_PATH='../../assets' KEEPER_PALLET_MNEMONIC='//Dave' PRIVATE_KEY='0x65870a9f86711261c024d827a83742d0557c7896e029bf3b6d0a078d6671d9ff' node ./src/keeper.js"
+    "keeper1": "NODE_PATH='../../assets' KEEPER_PALLET_MNEMONIC='//Bob' PRIVATE_KEY='0x8b30afee574929c76b3fe52c73fbf0389bb206203c5354ddb09f939c450c4e4f' node ./src/keeper.js",
+    "keeper2": "NODE_PATH='../../assets' KEEPER_PALLET_MNEMONIC='//Charlie' PRIVATE_KEY='0x2fa9b1f89f1690d97a4b0c0a15ccb9d9af85aee42f15409c1f552ea362f38e1a' node ./src/keeper.js",
+    "keeper3": "NODE_PATH='../../assets' KEEPER_PALLET_MNEMONIC='//Dave' PRIVATE_KEY='0x493913d5abc080b76e3fb6ea3b92a46a787eec18e22e9b6122e235ab1099cf9b' node ./src/keeper.js"
   },
   "dependencies": {
     "@polkadot/api": "^7.5.1",
