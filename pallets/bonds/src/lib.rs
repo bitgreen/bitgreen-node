@@ -25,9 +25,7 @@ pub type Balance = u128;
 pub trait Config: frame_system::Config {
 //pub trait Config: frame_system::Config + Sized {
 	type Event: From<Event<Self>> + Into<<Self as frame_system::Config>::Event>;
-	type Currency: Currency<Self::AccountId, Balance = Balance>;
-
-
+	type Currency: Currency<Self::AccountId, Balance = Balance>;    
 }
 
 // The runtime storage items
@@ -119,6 +117,7 @@ decl_event!(
         InflationRateCreated(Vec<u8>,Vec<u8>),          // An Inflation Rate has been created
         InflationRateDestroyed(Vec<u8>,Vec<u8>),        // An Inflation Rate has been destroyed
         CreditRatingAgencyDestroyed(AccountId),         // A credit agency ahs been deleted
+        InsuranceFundStaken(AccountId,Balance),         // Some funds have been stake for Insurer reserve
 	}
 
 );
@@ -570,6 +569,10 @@ decl_error! {
         InterbankRateAlreadyPresent,
         /// Inflation rate is already stored for the same date of reference.
         InflationRateAlreadyPresent,
+        /// Insurance reserve account is wrong
+        InsuranceReserveAccountIswrong,
+        /// Insurance reserve account is not set
+        InsuranceReserveAccountNotSet,
 	}
 }
 
@@ -689,6 +692,11 @@ decl_module! {
                     }
                 }
                 ensure!(x>0,Error::<T>::InsurerSubmissionCommitteeIsWrong);
+            }
+            // check validity for insurance reserve account
+            if key=="insurancereserve".as_bytes().to_vec() {
+                let account=json_get_value(configuration.clone(),"account".as_bytes().to_vec());
+                ensure!(account.len()==48 || account.is_empty(), Error::<T>::InsuranceReserveAccountIswrong);
             }
             // check validity for the submission settings of credit rating agencies
             if key=="creditratingagencies".as_bytes().to_vec() {
@@ -2438,19 +2446,32 @@ decl_module! {
         // TODO: Refactor for proper staking/unstaking of native tokens
         /// Stake Reserves for insurers
         #[weight = 1000]
-        pub fn insurance_reserve_stake(origin, deposit: u32) -> dispatch::DispatchResult {
+        pub fn insurance_reserve_stake(origin, amount: Balance) -> dispatch::DispatchResult {
+            // check signature of insurer
             let signer = ensure_signed(origin)?;
+            // check it's an approved insurer
+            ensure!(Insurers::<T>::contains_key(signer.clone()),Error::<T>::InsurerAccountNotFound);
+            ensure!(Settings::contains_key("insurancereserve".as_bytes().to_vec()),Error::<T>::InsuranceReserveAccountNotSet);
+            let json:Vec<u8>=Settings::get("insurancereserve".as_bytes().to_vec()).unwrap();
+            let account=json_get_value(json.clone(),"account".as_bytes().to_vec());
+            let accountvec=bs58::decode(account).into_vec().unwrap();
+                let accountid=T::AccountId::decode(&mut &accountvec[1..33]).unwrap_or_default();
+            //transfer the amount to the reserve account
+            T::Currency::transfer(&signer, &accountid, amount, KeepAlive)?;
+            // update total reserve for the insurance
             match InsurerReserves::<T>::contains_key(signer.clone()) {
                 true => {
                 let current_reserve = InsurerReserves::<T>::take(signer.clone());
-                let new_reserve = current_reserve.checked_add(deposit.into()).unwrap();
-                InsurerReserves::<T>::insert(signer, new_reserve);
+                let new_reserve = current_reserve.checked_add(amount.into()).unwrap();
+                InsurerReserves::<T>::insert(signer.clone(), new_reserve);
                 },
                 false => {
-                    let deposit_into: u128 = deposit.into();
-                    InsurerReserves::<T>::insert(signer,deposit_into);
+                    let deposit_into: u128 = amount.into();
+                    InsurerReserves::<T>::insert(signer.clone(),deposit_into);
+                }
             }
-        }
+            // emit event
+            Self::deposit_event(RawEvent::InsuranceFundStaken(signer,amount));
             Ok(())
         }
         
