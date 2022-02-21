@@ -460,6 +460,25 @@ The delegated accounts can removed new lawyer calling the following function:
 ```rust
 lawyer_destroy(lawyer_account: T::AccountId)
 ```
+## Insurance Reserves
+The insurere should keep enough reserves to cover the risk. The reserve can be staken and unstaken if in excess the coverage.  
+
+## Insurance Reserves - Stake
+The insurer can use the following function to increase the staken reserves:  
+```rust
+insurance_reserve_stake(amount: Balance)
+```
+Where:  
+- "amount" it the amount of additional deposit in to a reserve account.  
+
+## Insurance Reserves - Unstake
+The insurer can use the following function to decreaste the staken reserves:  
+```rust
+insurance_reserve_unstake(amount: Balance)
+```
+Where:  
+- "amount" it the amount to withdraw.
+
 
 ## Interbank Rates
 Some bonds are linked to the interbank rates, so we have some function to store on chain the interbanks rates. Such functions are accessible only to the super user (Sudo Call).  
@@ -504,7 +523,6 @@ inflationrate_destroy(country_code: Vec<u8>, date: Vec<u8>)
 where:  
 - "country_code" is the ISo country code of the country of reference for the rate.
 - "date" is the date of validity of the Inflation rate in the format YYYY-MM-DD.
-
 
 ## Countries Codes
 Many functions in the pallet need a country code. The super user (by SUDO call), is enabled to load and update a table of country codes and their english name.
@@ -564,13 +582,8 @@ where:
 - "currencycode" is a unique short code for the crypto currency.  
 
 
-
-
-
-
-
-
 TODO:
+- Transfer/Sell of Bonds on market place (fixed price only)
 - To add function to delete FUNDS (till not approved)
 - Add function to freeze the fund from further operations
 - Deny approval for KYC ?

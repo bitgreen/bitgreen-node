@@ -118,6 +118,7 @@ decl_event!(
         InflationRateDestroyed(Vec<u8>,Vec<u8>),        // An Inflation Rate has been destroyed
         CreditRatingAgencyDestroyed(AccountId),         // A credit agency ahs been deleted
         InsuranceFundStaken(AccountId,Balance),         // Some funds have been stake for Insurer reserve
+        InsuranceFundUnstaken(AccountId,Balance),       // Some funds have been unstaken from Insurer reserve
 	}
 
 );
@@ -573,6 +574,8 @@ decl_error! {
         InsuranceReserveAccountIswrong,
         /// Insurance reserve account is not set
         InsuranceReserveAccountNotSet,
+        /// Current reserve is not enough
+        CurrentReserveIsNotEnough,
 	}
 }
 
@@ -2443,7 +2446,6 @@ decl_module! {
             // Return a successful DispatchResult
             Ok(())
         }
-        // TODO: Refactor for proper staking/unstaking of native tokens
         /// Stake Reserves for insurers
         #[weight = 1000]
         pub fn insurance_reserve_stake(origin, amount: Balance) -> dispatch::DispatchResult {
@@ -2477,21 +2479,40 @@ decl_module! {
         
         ///Unstake Reserves for insurers
         #[weight = 1000]
-        pub fn insurance_reserve_unstake(origin, withdrawal: u32) -> dispatch::DispatchResult {
+        pub fn insurance_reserve_unstake(origin, amount: Balance) -> dispatch::DispatchResult {
+            // check the transaction is signed
             let signer = ensure_signed(origin)?;
+            // check for an available reserve
             ensure!(InsurerReserves::<T>::contains_key(signer.clone()), Error::<T>::ReserveNotFound);
-            //Retrieve the current minimum reserve required with key "insuranceminreserve"
-            let settings_reserve: Vec<u8> = Settings::get("insuranceminreserve".as_bytes().to_vec()).unwrap();
-            let reserve = json_get_value(settings_reserve, "reserve".as_bytes().to_vec());
-            //Converting to u32 after getting json value from Settings
-            let reserve_min = vecu8_to_u128(reserve);     
+            // check the signer is an insurer 
+            ensure!(Insurers::<T>::contains_key(signer.clone()),Error::<T>::InsurerAccountNotFound);
+            //check the amount is <= the available reserve
+            let reserve=Insurers::<T>::get(signer.clone()).unwrap();
+            let reservev=vecu8_to_u128(reserve);
+            ensure!(reservev>=amount,Error::<T>::CurrentReserveIsNotEnough);
+            // check that the reserve - amount > Insurance Coverage
+            let reserveamount=InsurerReserves::<T>::get(signer.clone());
+            let mut riskcovered:u128=0;
+            if InsurerRisksCovered::<T>::contains_key(&signer){
+                riskcovered=InsurerRisksCovered::<T>::get(&signer);
+            }
+            ensure!(reserveamount-amount> riskcovered,Error::<T>::InsufficientReserve);
+            ensure!(Settings::contains_key("insurancereserve".as_bytes().to_vec()),Error::<T>::InsuranceReserveAccountNotSet);
+            let json:Vec<u8>=Settings::get("insurancereserve".as_bytes().to_vec()).unwrap();
+            let account=json_get_value(json.clone(),"account".as_bytes().to_vec());
+            let accountvec=bs58::decode(account).into_vec().unwrap();
+            let accountid=T::AccountId::decode(&mut &accountvec[1..33]).unwrap_or_default();
+            // unstake the reserve
+            T::Currency::transfer(&accountid, &signer, amount, KeepAlive)?;
+            // reduce the counter of the reserve
             //Retrieve reserve from InsurerReserves double map
             let current_reserves = InsurerReserves::<T>::get(signer.clone());
             //Current reserves if the withdrawal is done
-            let withdrawn_reserve: u128 = current_reserves.checked_sub(withdrawal.into()).unwrap();
-            ensure!(withdrawn_reserve >= reserve_min, Error::<T>::BelowMinimumReserve);  
+            let new_reserve: u128 = current_reserves.checked_sub(amount.into()).unwrap();
             InsurerReserves::<T>::take(signer.clone());
-            InsurerReserves::<T>::insert(signer, withdrawn_reserve);
+            InsurerReserves::<T>::insert(signer.clone(), new_reserve);
+            // Emit Event for unstaken
+            Self::deposit_event(RawEvent::InsuranceFundUnstaken(signer,amount));
             Ok(())
         }
     }
