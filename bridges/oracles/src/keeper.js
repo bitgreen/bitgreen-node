@@ -63,9 +63,7 @@ const handle_events = async (api, keypair, value) => {
             // console.log(value);
     }
 };
-const keepers_subscription_pallet_bridge = async (api) => {
-    const keyring = new Keyring({ type: 'sr25519' });
-    const keypair = keyring.addFromUri(SECRETSEED);
+const keepers_subscription_pallet_bridge = async (api, keypair) => {
     const chan = new Channel(1 /* default */);
     // Subscribe to system events via storage
     api.query.system.events((events) => {
@@ -110,7 +108,7 @@ const keepers_subscription_pallet_bridge = async (api) => {
     console.log('after events');
 };
 
-const handle_evm_events = async (web3, BitgreenBridge, returnValues) => {
+const handle_evm_transfer_events = async (web3, BitgreenBridge, returnValues) => {
     const gasPrice = await web3.eth.getGasPrice();
     const account = web3.eth.accounts.privateKeyToAccount(privateKey).address;
     const txid = returnValues['0'];
@@ -133,22 +131,58 @@ const handle_evm_events = async (web3, BitgreenBridge, returnValues) => {
     }
 }
 
+const handle_evm_deposit_events = async (api, keypair, returnValues, transaction_id) => {
+    const recipient = returnValues['0'];
+    // const transaction_id = '0x0000000000000000000000000000000000000000';
+    const signer = returnValues['2'];
+    console.log(`signer: \t ${signer}`);
+    const token = api.createType('Bytes', 'WETH');
+    console.log(`token: \t ${token}`);
+    // TODO: make it search for encoded key
+    const threshold = await api.query.bridge.mintConfirmation(token);
+    const balance = api.createType('Balance', returnValues['1']);
+    console.log(`mint threshold: \t ${threshold}`);
+    if (threshold.eq(false)) {
+        const account = api.createType('AccountId', keypair.address);
+        console.log(`account: \t ${account}`);
+        const asset_id = await api.query.bridge.transactionMintTracker(transaction_id, account);
+        console.log(asset_id);
+        console.log(`asset_id: \t ${asset_id}`);
+        if (asset_id.toNumber() == 0) {
+            const txid = await pallet_bridge_mint(api, keypair, token, recipient, transaction_id, balance);
+            console.log(`txid: \t ${txid}`);
+        }
+    }
+
+}
+
 const main = async () => {
     try {
         api = await setup_substrate();
         const web3 = new Web3(NODE_ADDRESS);
         // Wait until we are ready and connected
         await api.isReady;
+
+        const keyring = new Keyring({ type: 'sr25519' });
+        const keypair = keyring.addFromUri(SECRETSEED);
+    
         // await subscription_contract(web3);
         const BitgreenBridge = await get_bitgreen_bridge_contract(web3);
         BitgreenBridge.events.BridgeTransferQueued()
         .on('data', function(event){
-            handle_evm_events(web3, BitgreenBridge, event.returnValues);
+            handle_evm_transfer_events(web3, BitgreenBridge, event.returnValues);
         }).on('changed', function(event){
             console.log('event changed BridgeTransferQueued: \t ', event);
         }).on('error', console.error);
+        BitgreenBridge.events.BridgeDepositRequest()
+        .on('data', function(event){
+            console.log('event BridgeDepositRequest: \t ', event);
+            handle_evm_deposit_events(api, keypair, event.returnValues, event.transactionHash);
+        }).on('changed', function(event){
+            console.log('event changed BridgeDepositRequest: \t ', event);
+        }).on('error', console.error);        
 
-        await keepers_subscription_pallet_bridge(api);
+        await keepers_subscription_pallet_bridge(api, keypair);
     }
     catch (err) {
         console.error('Error', err);

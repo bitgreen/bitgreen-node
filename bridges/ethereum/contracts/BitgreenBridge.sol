@@ -32,6 +32,7 @@ contract BitgreenBridge {
 
     event BridgeTransferQueued (bytes32 txid,address recipient, uint amount,address erc20, address sender);
     event BridgeTransfer (bytes32 txid,address recipient, uint amount,address erc20, uint256 fees);
+    event BridgeDepositRequest (bytes32 destination, uint amount, address sender);
 
     // set the owner to the creator of the contract, ownership can be changed calling transferOwnership()
     constructor() payable {
@@ -129,7 +130,11 @@ contract BitgreenBridge {
         owner = newOwner;
     }
     // functiont to receive deposit of native token
-    function deposit() public payable {}
+    function deposit(bytes32 destination) public payable {
+        require(lockdown==false,"contract in lockdown, please try later");
+        require(destination.length>0,"destination is required");
+        emit BridgeDepositRequest(destination, msg.value, msg.sender);
+    }
 
     //function to send back the balance
     function getBalance() public view returns (uint) {

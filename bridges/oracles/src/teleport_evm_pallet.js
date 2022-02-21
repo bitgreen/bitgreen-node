@@ -2,7 +2,7 @@ import { Keyring } from '@polkadot/api';
 // import type { AccountId } from '@polkadot/types/interfaces';
 import '@polkadot/api-augment';
 import { setup_substrate, pallet_bridge_mint } from './pallet_bridge.js';
-import { NODE_ADDRESS, get_bitgreen_bridge_contract, privateKey, deposit} from './evm_bridge.js';
+import { NODE_ADDRESS, get_bitgreen_bridge_contract, privateKey, deposit_method} from './evm_bridge.js';
 import Web3 from 'web3';
 let api;
 const main = async () => {
@@ -25,14 +25,15 @@ const main = async () => {
         const bitg_token_bytes = api.createType('Bytes', 'WETH');
         const gasPrice = await web3.eth.getGasPrice();
 
-        const amount = 1000;
-        const receipt = await deposit(web3, gasPrice, BitgreenBridge, privateKey, amount);
+        const amount = 10;
+
+        const receipt = await deposit_method(web3, gasPrice, BitgreenBridge, privateKey, amount, recipient.toHex());
         console.log('transactionHash: \t ', receipt.transactionHash);
-        const transaction_id_bytes = api.createType('Bytes', receipt.transactionHash);
-        const balance = api.createType('Balance', amount);
+        // const transaction_id_bytes = api.createType('Bytes', receipt.transactionHash);
+        // const balance = api.createType('Balance', amount);
     
-        let txid = await pallet_bridge_mint(api, charlie, bitg_token_bytes, recipient, transaction_id_bytes, balance);
-        console.log(`txid: \t ${txid}`);
+        // let txid = await pallet_bridge_mint(api, charlie, bitg_token_bytes, recipient, transaction_id_bytes, balance);
+        // console.log(`txid: \t ${txid}`);
     }
     catch (err) {
         console.error('Error', err);

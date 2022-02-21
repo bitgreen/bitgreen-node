@@ -4,14 +4,14 @@ import { readFileSync } from 'fs';
 import { dirname, join, normalize, format } from 'path';
 import { fileURLToPath } from 'url';
 export const NODE_ADDRESS = process.env.NODE_ADDRESS || Web3.givenProvider || 'ws://127.0.0.1:8545';
-const ROUTER_ADDRESS = process.env.ROUTER_ADDRESS || '0xF2F1638BD16Ff7029F390e24C75011CFA9A9a974';
+const ROUTER_ADDRESS = process.env.ROUTER_ADDRESS || '0x69d57f4e97429D436Ac40Db266760fe059eea209';
 // const mnemonicPhrase = process.env.MNEMONIC_PHRASE || "until ethics hollow size piano patient pole abuse model soon slender wall"; // 12 word mnemonic
-export const privateKey = process.env.PRIVATE_KEY || "0xfda5d6b43c4ab15843b90c380e7e8fb98fa98115981197708f7f5fabfdfa3eb3";
+export const privateKey = process.env.PRIVATE_KEY || "0x6572972c810b569375b0c2e62611a91cd9f6538aa9fd3031f6493ba97fcf5d45";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
-export const keeper_pk1 = '0x4e3c355bb747069260a1fd102c2b84658911681e8315142b82f6b4e79a3e610c';
-export const keeper_pk2 = '0x97497ce45c433a941579b41e5622ca449a8c5899567539832e45ed9b004848f0';
-export const keeper_pk3 = '0xd1deba904eb0508b4b7bb9583bcfc77d769c3d1d8f174f60292e5404bdd23aa2';
+export const keeper_pk1 = '0x5f12f2818d2ed95ba37ed7a2ebb78d72bd6417ebb98c79607878574e8a41f638';
+export const keeper_pk2 = '0x6376004d26cd8cacacc14fbbc77e01a116ed1b8a2af8adb19c333995f1133395';
+export const keeper_pk3 = '0x21906a8ae0d513bdc1b8891a2a238d84b1a25c6f84dea06531d7425e855fd96a';
 export const get_erc20 = async (asset_id) => {
     const erc20 = '0x0000000000000000000000000000000000000000';
     return erc20;
@@ -200,13 +200,30 @@ export async function send_setWithDrawalFews(web3, gasPrice, contract, value) {
     }
     return receipt;
 }
-export const deposit = async (web3, gasPrice, contract, pk, amount, destination) => {
+export const deposit_method = async (web3, gasPrice, contract, pk, amount, destination) => {
     const account = web3.eth.accounts.privateKeyToAccount(pk).address;
-    const transaction = contract.methods.deposit();
+    const transaction = contract.methods.deposit(destination);
+    const gas = await transaction.estimateGas({ from: account });
+    console.log(gas);
     const options = {
         to: transaction._parent._address,
         data: transaction.encodeABI(),
-        gas: await transaction.estimateGas({ from: account }) + 400,
+        gas:  gas,
+        gasPrice: gasPrice,
+        value: amount,
+    };
+    const signed = (await web3.eth.accounts.signTransaction(options, pk)).rawTransaction;
+    let receipt = null;
+    if (signed) {
+        receipt = await web3.eth.sendSignedTransaction(signed);
+    }
+    return receipt;
+};
+
+export const deposit = async (web3, gasPrice, pk, amount, destination) => {
+    const options = {
+        to: ROUTER_ADDRESS,
+        gas:  22496,
         gasPrice: gasPrice,
         value: amount,
         data: destination
@@ -218,6 +235,7 @@ export const deposit = async (web3, gasPrice, contract, pk, amount, destination)
     }
     return receipt;
 };
+
 export async function send_transfer(web3, gasPrice, contract, pk, txid, recipient, amount, erc20) {
     const account = web3.eth.accounts.privateKeyToAccount(pk).address;
     const transaction = contract.methods.transfer(txid, recipient, amount, erc20);
@@ -330,7 +348,7 @@ export const basic_evm_setup_test = async (web3, BitgreenBridge) => {
     ];
     await send_setWatchdogs(web3, gasPrice, BitgreenBridge, watchdogs);
     await send_setWatchcats(web3, gasPrice, BitgreenBridge, watchdogs);
-    await send_setThreshold(web3, gasPrice, BitgreenBridge, 3);
+    await send_setThreshold(web3, gasPrice, BitgreenBridge, 1);
     await send_setWithDrawalFews(web3, gasPrice, BitgreenBridge, 1);
     await send_setMinimumWithDrawalFees(web3, gasPrice, BitgreenBridge, 1);
     const amount = 1000;
