@@ -80,11 +80,13 @@ decl_event!(
         /// Already minted the same transaction
         AlreadyMinted(AccountId, u32, AccountId, Balance),
         /// Burned
-        Burned(AccountId, u32, AccountId, Balance),
+        Burned(AccountId, u32, AccountId, Balance, Vec<u8>),
         /// Burning Request added to the queue
         BurnQueued(AccountId, u32, AccountId, Balance, Vec<u8>, Vec<u8>),
         /// Already burned the same transaction
         AlreadyBurned(AccountId, u32, AccountId, Balance),
+        /// User Request
+        Request(AccountId, Vec<u8>, Vec<u8>, Balance),
     }
 );
 
@@ -163,7 +165,7 @@ decl_error! {
         /// Signer is not Authorized
         SignerIsNotAuthorized,
         /// Not allowed due to lockdown mode
-        NotAllowedSystemLockdown,
+        NotAllowedSystemLockdown,             
   }
 }
 
@@ -443,6 +445,20 @@ decl_module! {
             Ok(().into())
         }
 
+        #[weight = 1 + T::DbWeight::get().writes(1)]
+        pub fn request(origin, token:Vec<u8>, destination: Vec<u8>, amount: Balance) -> DispatchResultWithPostInfo {
+            let signer = ensure_signed(origin)?;
+            // check if lockdownmode is off
+            ensure!(!Lockdown::get(), Error::<T>::NotAllowedSystemLockdown);
+            ensure!(Settings::contains_key(&token), Error::<T>::SettingsKeyNotFound);
+            // let content: Vec<u8> = Settings::get(&token).unwrap();
+            // let asset_idv = Self::json_get_value(content.clone(),"assetid".as_bytes().to_vec());
+			// let asset_id = vecu8_to_u32(asset_idv);
+            // generate an event
+            Self::deposit_event(RawEvent::Request(signer, token, destination.clone(), amount));
+            Ok(().into())            
+        }
+
         #[weight = 10_000 + T::DbWeight::get().writes(1)]
         pub fn burn(origin, token:Vec<u8>, recipient: T::AccountId, transaction_id:Vec<u8>, amount: Balance)-> DispatchResultWithPostInfo {
             let signer = ensure_signed(origin)?;
@@ -518,7 +534,7 @@ decl_module! {
                     let asset_owner = Asset::<T>::get(asset_id).unwrap().owner;
                     pallet_assets::Module::<T>::burn(RawOrigin::Signed(asset_owner.clone()).into(), asset_id, T::Lookup::unlookup(recipient.clone()), amount)?;
                     // generate an event
-                    Self::deposit_event(RawEvent::Burned(signer, asset_id, recipient, amount));
+                    Self::deposit_event(RawEvent::Burned(signer, asset_id, recipient, amount, transaction_id.clone()));
                 },
             };
 

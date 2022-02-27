@@ -18,7 +18,7 @@ const main = async () => {
         await api.isReady;
         const web3 = new Web3(NODE_ADDRESS);
         const BitgreenBridge = await get_bitgreen_bridge_contract(web3);
-        // await setup_basic_bridge_test(api, keyspair);
+        await setup_basic_bridge_test(api, keyspair);
         await basic_evm_setup_test(web3, BitgreenBridge);
         // await native_transfer(api, alice, 100, charlie.address);
         // await native_transfer(api, alice, 100, dave.address);
