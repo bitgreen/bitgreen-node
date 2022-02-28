@@ -12,6 +12,7 @@ use core::str::FromStr;
 use sp_runtime::DispatchResult;
 use sp_std::borrow::ToOwned;
 use frame_support::traits::ExistenceRequirement::KeepAlive;
+use pallet_assets::Asset;
 
 #[cfg(test)]
 mod mock;
@@ -22,11 +23,12 @@ mod tests;
 pub type Balance = u128;
 
 /// Module configuration
-pub trait Config: frame_system::Config {
-//pub trait Config: frame_system::Config + Sized {
+//pub trait Config: frame_system::Config + Sized + pallet_assets::Config{
+pub trait Config: frame_system::Config + Sized + pallet_assets::Config<AssetId = u32, Balance = u128>{
 	type Event: From<Event<Self>> + Into<<Self as frame_system::Config>::Event>;
 	type Currency: Currency<Self::AccountId, Balance = Balance>;    
 }
+
 
 // The runtime storage items
 decl_storage! {
@@ -44,6 +46,8 @@ decl_storage! {
         BondsSignatures get(fn get_bondssignatures): double_map hasher(blake2_128_concat) u32,hasher(blake2_128_concat) T::AccountId => Option<u32>;
         // Bonds Approved
         BondsApproved get(fn get_bondapproved): map hasher(blake2_128_concat) u32 => Option<u32>;
+        // Bond Shares (subscription )
+        BondsShares get(fn get_bondsshares): double_map hasher(blake2_128_concat) u32,hasher(blake2_128_concat) T::AccountId => Option<u32>;
         // Credit Rating Agencies
         CreditRatingAgencies get(fn get_creditrating_agency): map hasher(blake2_128_concat) T::AccountId => Option<Vec<u8>>;
         CreditRatings get(fn get_creditrating): map hasher(blake2_128_concat) u32 => Option<Vec<u8>>;
@@ -77,6 +81,8 @@ decl_storage! {
         InflationRates get(fn get_inflation_rate): double_map hasher(blake2_128_concat) Vec<u8>, hasher(blake2_128_concat) Vec<u8> => Option<u32>;
         // Total Risks Covered
         InsurerRisksCovered get(fn get_insurer_risks_covered): map hasher(blake2_128_concat) T::AccountId => Balance;
+        // Order book
+        OrderBook get(fn get_order_book): map hasher(blake2_128_concat) u32 => Option<Vec<u8>>;
     }
 }
 
@@ -119,6 +125,7 @@ decl_event!(
         CreditRatingAgencyDestroyed(AccountId),         // A credit agency ahs been deleted
         InsuranceFundStaken(AccountId,Balance),         // Some funds have been stake for Insurer reserve
         InsuranceFundUnstaken(AccountId,Balance),       // Some funds have been unstaken from Insurer reserve
+        BondSubscribed(u32,AccountId,u32),           // Subscription of shares of a bond
 	}
 
 );
@@ -576,6 +583,12 @@ decl_error! {
         InsuranceReserveAccountNotSet,
         /// Current reserve is not enough
         CurrentReserveIsNotEnough,
+        /// Insufficient funds available for the payment
+        InsufficientFunds, 
+        /// Currency code has not a valid address in the blockchain
+        CurrencyCodeHasNotValidAddress,
+        ///Default Token id cannot be zero
+        TokenidCannotBeZero,
 	}
 }
 
@@ -618,6 +631,7 @@ decl_module! {
                 || key=="lawyerssubmission".as_bytes().to_vec()
                 || key=="infodocuments".as_bytes().to_vec()
                 || key=="insuranceminreserve".as_bytes().to_vec(),
+                || key=="stablecoin".as_bytes().to_vec(),
                 Error::<T>::SettingsKeyIsWrong);
             // check validity for kyc settings
             if key=="kyc".as_bytes().to_vec() {
@@ -768,6 +782,12 @@ decl_module! {
                     }
                 }
                 ensure!(x>0,Error::<T>::FundApprovalCommitteeIsWrong);
+            }
+            // check validity for stable coin settings
+            if key=="stablecoin".as_bytes().to_vec() {
+                let tokenid=json_get_value(configuration.clone(),"tokenid".as_bytes().to_vec());
+                let tokenidv=vecu8_to_u32(tokenid);
+                ensure!(tokenidv>0, Error::<T>::TokenidCannotBeZero);
             }
             // check validity for info documents, with this option you can configure the mandatory documents required when creating a bond.
             if key=="infodocuments".as_bytes().to_vec() {
@@ -1508,6 +1528,38 @@ decl_module! {
             // Return a successful DispatchResult
             Ok(())
         }
+        // function to a bond paying for the amount requested
+        #[weight = 1000]
+        pub fn bond_subscribe(origin,bondid: u32,amount: u32) -> dispatch::DispatchResult {
+            // veryfy the transaction is signed
+            let signer = ensure_signed(origin)?;
+            //check bondid
+            ensure!(Bonds::contains_key(&bondid),Error::<T>::BondsIdNotFound);
+            // check for already approved bond
+            ensure!(!BondsApproved::contains_key(bondid),Error::<T>::BondAlreadyApproved);
+            // get the currency address (tokenid) from the bond
+            let bondv=Bonds::get(&bondid).unwrap();
+            let currency=json_get_value(bondv.clone(),"currency".as_bytes().to_vec());
+            // search for the currency
+            ensure!(!Currencies::contains_key(currency.clone()),Error::<T>::CurrencyCodeNotFound);
+            let currencyv=Currencies::get(currency).unwrap();
+            let tokenidv=json_get_value(currencyv,"address".as_bytes().to_vec());
+            let tokenid=vecu8_to_u32(tokenidv);
+            ensure!(tokenid>0,Error::<T>::CurrencyCodeHasNotValidAddress);
+            // check for enough balance in the stable coin
+			let depositstablecoin = pallet_assets::Module::<T>::balance(tokenid, signer.clone());
+			//ensure!(depositstablecoin >= amount, Error::<T>::InsufficientFunds);
+            // check for quantity requested vs total subscribed
+            // transfer amount of stable coins to the Fund account
+
+            // mint the shares
+            // update the total subscription for the bond.
+
+            // generate event for the subscription
+            Self::deposit_event(RawEvent::BondSubscribed(bondid,signer,amount));
+            // Return a successful DispatchResult
+            Ok(())
+        }
         // this function has the purpose to the insert or update data for Credit Rating Agencies
         #[weight = 1000]
         pub fn credit_rating_agency_create_change(origin, accountid: T::AccountId, info: Vec<u8>) -> dispatch::DispatchResult {
@@ -2225,7 +2277,7 @@ decl_module! {
             let info = Insurances::<T>::get(insurer_account.clone(),uid).unwrap();
             let premium = json_get_value(info.clone(),"premium".as_bytes().to_vec());
             let premiumv = vecu8_to_u128(premium);
-            T::Currency::transfer(&signer, &insurer_account, premiumv, KeepAlive)?;
+            //T::Currency::transfer(&signer, &insurer_account, premiumv, KeepAlive)?;
             // Generate event
             Self::deposit_event(RawEvent::InsuranceSigned(insurer_account,uid,signer));
             // Return a successful DispatchResult
@@ -2459,7 +2511,7 @@ decl_module! {
             let accountvec=bs58::decode(account).into_vec().unwrap();
                 let accountid=T::AccountId::decode(&mut &accountvec[1..33]).unwrap_or_default();
             //transfer the amount to the reserve account
-            T::Currency::transfer(&signer, &accountid, amount, KeepAlive)?;
+            //T::Currency::transfer(&signer, &accountid, amount, KeepAlive)?;
             // update total reserve for the insurance
             match InsurerReserves::<T>::contains_key(signer.clone()) {
                 true => {
@@ -2503,7 +2555,7 @@ decl_module! {
             let accountvec=bs58::decode(account).into_vec().unwrap();
             let accountid=T::AccountId::decode(&mut &accountvec[1..33]).unwrap_or_default();
             // unstake the reserve
-            T::Currency::transfer(&accountid, &signer, amount, KeepAlive)?;
+            //T::Currency::transfer(&accountid, &signer, amount, KeepAlive)?;
             // reduce the counter of the reserve
             //Retrieve reserve from InsurerReserves double map
             let current_reserves = InsurerReserves::<T>::get(signer.clone());
@@ -2513,6 +2565,15 @@ decl_module! {
             InsurerReserves::<T>::insert(signer.clone(), new_reserve);
             // Emit Event for unstaken
             Self::deposit_event(RawEvent::InsuranceFundUnstaken(signer,amount));
+            Ok(())
+        }
+        ///Create new order book entry for sale or purhcase
+        #[weight = 1000]
+        pub fn order_book_create(origin, uid: u32,info: Vec<u8>) -> dispatch::DispatchResult {
+            // check the transaction is signed
+            let signer = ensure_signed(origin)?;
+            // Emit Event for new book order
+            //Self::deposit_event(RawEvent::InsuranceFundUnstaken(signer,amount));
             Ok(())
         }
     }

@@ -1,7 +1,7 @@
 [package]
-authors = ['BitGreen <https://bitg.org>']
+authors = ['BitGreen <https://bitgreen.org>']
 edition = '2018'
-homepage = 'https://bitg.org'
+homepage = 'https://bitgreen.org'
 license = 'Unlicense'
 name = 'pallet-vcu'
 description = "Module to tokenize VCU"

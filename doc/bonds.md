@@ -63,6 +63,11 @@ for example: {"documents":[{"document":"Profit&Loss Previous year"},{"document":
 key=="insuranceminreserve" {"currency":"xxxx"},"reserve":"xxxamountxx"}]}  
 for example:  {"currency":"USDC"},"reserve":"1000000"}]}  
 
+- This configuration allows to configure the stable coin by asset id (tokenid)(general configuration).  
+key=="stablecoin" {"tokenid","1"}  
+for example: {"documents":[{"document":"Profit&Loss Previous year"},{"document":"Board Members/Director List"}]}  
+
+
         
 ## Query Settings
 You can query the settings above calling the function:  
@@ -583,11 +588,12 @@ where:
 
 
 TODO:
+- Subscribe Bonds in different currencies
 - Transfer/Sell of Bonds on market place (fixed price only)
 - To add function to delete FUNDS (till not approved)
 - Add function to freeze the fund from further operations
 - Deny approval for KYC ?
-- Possibility to lock bond for getting additional subscriber ?
+- Possibility to lock bond from getting additional subscriber ?
 - review weights
 - clippy on the pallet
 - testing suite
