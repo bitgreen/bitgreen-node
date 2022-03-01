@@ -13,6 +13,8 @@ use sp_runtime::DispatchResult;
 use sp_std::borrow::ToOwned;
 use frame_support::traits::ExistenceRequirement::KeepAlive;
 use pallet_assets::Asset;
+use frame_system::RawOrigin;
+use sp_runtime::traits::StaticLookup;
 
 #[cfg(test)]
 mod mock;
@@ -48,6 +50,8 @@ decl_storage! {
         BondsApproved get(fn get_bondapproved): map hasher(blake2_128_concat) u32 => Option<u32>;
         // Bond Shares (subscription )
         BondsShares get(fn get_bondsshares): double_map hasher(blake2_128_concat) u32,hasher(blake2_128_concat) T::AccountId => Option<u32>;
+        // Bond Total Subscribed
+        BondsTotalShares get(fn get_bondstotalshares): map hasher(blake2_128_concat) u32 => Option<u32>;
         // Credit Rating Agencies
         CreditRatingAgencies get(fn get_creditrating_agency): map hasher(blake2_128_concat) T::AccountId => Option<Vec<u8>>;
         CreditRatings get(fn get_creditrating): map hasher(blake2_128_concat) u32 => Option<Vec<u8>>;
@@ -589,6 +593,8 @@ decl_error! {
         CurrencyCodeHasNotValidAddress,
         ///Default Token id cannot be zero
         TokenidCannotBeZero,
+        /// Total shares available are not enough
+        TotalShareAvailablesNotEnough,
 	}
 }
 
@@ -1548,12 +1554,35 @@ decl_module! {
             ensure!(tokenid>0,Error::<T>::CurrencyCodeHasNotValidAddress);
             // check for enough balance in the stable coin
 			let depositstablecoin = pallet_assets::Module::<T>::balance(tokenid, signer.clone());
-			//ensure!(depositstablecoin >= amount, Error::<T>::InsufficientFunds);
-            // check for quantity requested vs total subscribed
-            // transfer amount of stable coins to the Fund account
-
+			ensure!(depositstablecoin >= amount.into(), Error::<T>::InsufficientFunds);
+            // check for quantity requested + total subscribe <= total bond amount
+            let totalbondamount=json_get_value(bondv.clone(),"totalamount".as_bytes().to_vec());
+            let totalbondamountv=vecu8_to_u32(totalbondamount);
+            let mut totalshares=BondsTotalShares::get(bondid).unwrap();
+            ensure!(totalbondamountv>=totalshares+amount,Error::<T>::TotalShareAvailablesNotEnough);
+            // get bond fund account
+            let owner=json_get_value(bondv.clone(),"owner".as_bytes().to_vec());
+            ensure!(owner.len()==48,Error::<T>::OwnerAccountIsMissing);
+            let ownervec=bs58::decode(owner).into_vec().unwrap();
+            let accountidowner=T::AccountId::decode(&mut &ownervec[1..33]).unwrap_or_default();
+            // transfer amount of stable coins to the Bond Owner account
+            pallet_assets::Module::<T>::transfer(RawOrigin::Signed(signer.clone()).into(), bondid, T::Lookup::unlookup(accountidowner.clone()), amount.into()).unwrap();
             // mint the shares
-            // update the total subscription for the bond.
+            let mut sharessubscribed=0;
+            if BondsShares::<T>::contains_key(bondid,signer.clone()) {
+                sharessubscribed=BondsShares::<T>::get(bondid,signer.clone()).unwrap();
+                let tss=sharessubscribed+amount;
+                BondsShares::<T>::take(bondid,signer.clone());
+                BondsShares::<T>::insert(bondid,signer.clone(),tss);
+            }else {
+                BondsShares::<T>::insert(bondid,signer.clone(),amount+sharessubscribed);
+            }
+            // update the total shares subscribed for the bond.
+            if totalshares>0 {
+                BondsTotalShares::take(bondid);        
+            }
+            totalshares=totalshares+amount;
+            BondsTotalShares::insert(bondid,amount);        
 
             // generate event for the subscription
             Self::deposit_event(RawEvent::BondSubscribed(bondid,signer,amount));
