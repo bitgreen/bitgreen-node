@@ -630,7 +630,7 @@ decl_module! {
                 || key=="fundapproval".as_bytes().to_vec()
                 || key=="lawyerssubmission".as_bytes().to_vec()
                 || key=="infodocuments".as_bytes().to_vec()
-                || key=="insuranceminreserve".as_bytes().to_vec(),
+                || key=="insuranceminreserve".as_bytes().to_vec() 
                 || key=="stablecoin".as_bytes().to_vec(),
                 Error::<T>::SettingsKeyIsWrong);
             // check validity for kyc settings
