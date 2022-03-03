@@ -11,8 +11,6 @@ use core::str;
 use core::str::FromStr;
 use sp_runtime::DispatchResult;
 use sp_std::borrow::ToOwned;
-use frame_support::traits::ExistenceRequirement::KeepAlive;
-use pallet_assets::Asset;
 use frame_system::RawOrigin;
 use sp_runtime::traits::StaticLookup;
 
@@ -595,6 +593,8 @@ decl_error! {
         TokenidCannotBeZero,
         /// Total shares available are not enough
         TotalShareAvailablesNotEnough,
+        // Stable coin has not been configured
+        MissingStableCoinConfiguration,
 	}
 }
 
@@ -1582,7 +1582,7 @@ decl_module! {
                 BondsTotalShares::take(bondid);        
             }
             totalshares=totalshares+amount;
-            BondsTotalShares::insert(bondid,amount);        
+            BondsTotalShares::insert(bondid,totalshares);        
 
             // generate event for the subscription
             Self::deposit_event(RawEvent::BondSubscribed(bondid,signer,amount));
@@ -2302,11 +2302,17 @@ decl_module! {
             ensure!(!InsurancesSigned::<T>::contains_key(insurer_account.clone(),uid), Error::<T>::InsuranceAlreadySigned);
             // store the signature
             InsurancesSigned::<T>::insert(insurer_account.clone(),uid,signer.clone());
+            // get defaul stable coin
+            ensure!(Settings::contains_key("stablecoin".as_bytes().to_vec()),Error::<T>::MissingStableCoinConfiguration);
+            let stablecoin=Settings::get("stablecoin".as_bytes().to_vec()).unwrap();
+            let stablecoinv=json_get_value(stablecoin,"tokenid".as_bytes().to_vec());
+            let tokenid=vecu8_to_u32(stablecoinv);
             // transfer the premium
             let info = Insurances::<T>::get(insurer_account.clone(),uid).unwrap();
             let premium = json_get_value(info.clone(),"premium".as_bytes().to_vec());
             let premiumv = vecu8_to_u128(premium);
-            //T::Currency::transfer(&signer, &insurer_account, premiumv, KeepAlive)?;
+            pallet_assets::Module::<T>::transfer(RawOrigin::Signed(signer.clone()).into(), tokenid, T::Lookup::unlookup(insurer_account.clone()), premiumv.into()).unwrap();
+            
             // Generate event
             Self::deposit_event(RawEvent::InsuranceSigned(insurer_account,uid,signer));
             // Return a successful DispatchResult
@@ -2538,10 +2544,15 @@ decl_module! {
             let json:Vec<u8>=Settings::get("insurancereserve".as_bytes().to_vec()).unwrap();
             let account=json_get_value(json.clone(),"account".as_bytes().to_vec());
             let accountvec=bs58::decode(account).into_vec().unwrap();
-                let accountid=T::AccountId::decode(&mut &accountvec[1..33]).unwrap_or_default();
+            let accountid=T::AccountId::decode(&mut &accountvec[1..33]).unwrap_or_default();
+            // get defaul stable coin
+            ensure!(Settings::contains_key("stablecoin".as_bytes().to_vec()),Error::<T>::MissingStableCoinConfiguration);
+            let stablecoin=Settings::get("stablecoin".as_bytes().to_vec()).unwrap();
+            let stablecoinv=json_get_value(stablecoin,"tokenid".as_bytes().to_vec());
+            let tokenid=vecu8_to_u32(stablecoinv);
             //transfer the amount to the reserve account
-            //T::Currency::transfer(&signer, &accountid, amount, KeepAlive)?;
-            // update total reserve for the insurance
+            pallet_assets::Module::<T>::transfer(RawOrigin::Signed(signer.clone()).into(), tokenid, T::Lookup::unlookup(accountid.clone()), amount.into()).unwrap();
+            // update total reserve for the insurances
             match InsurerReserves::<T>::contains_key(signer.clone()) {
                 true => {
                 let current_reserve = InsurerReserves::<T>::take(signer.clone());
@@ -2583,8 +2594,13 @@ decl_module! {
             let account=json_get_value(json.clone(),"account".as_bytes().to_vec());
             let accountvec=bs58::decode(account).into_vec().unwrap();
             let accountid=T::AccountId::decode(&mut &accountvec[1..33]).unwrap_or_default();
-            // unstake the reserve
-            //T::Currency::transfer(&accountid, &signer, amount, KeepAlive)?;
+            // get defaul stable coin
+            ensure!(Settings::contains_key("stablecoin".as_bytes().to_vec()),Error::<T>::MissingStableCoinConfiguration);
+            let stablecoin=Settings::get("stablecoin".as_bytes().to_vec()).unwrap();
+            let stablecoinv=json_get_value(stablecoin,"tokenid".as_bytes().to_vec());
+            let tokenid=vecu8_to_u32(stablecoinv);
+            //transfer the amount to the reserve account
+            pallet_assets::Module::<T>::transfer(RawOrigin::Signed(accountid.clone()).into(), tokenid, T::Lookup::unlookup(signer.clone()), amount.into()).unwrap();
             // reduce the counter of the reserve
             //Retrieve reserve from InsurerReserves double map
             let current_reserves = InsurerReserves::<T>::get(signer.clone());
@@ -2596,15 +2612,16 @@ decl_module! {
             Self::deposit_event(RawEvent::InsuranceFundUnstaken(signer,amount));
             Ok(())
         }
+        /*
         ///Create new order book entry for sale or purhcase
         #[weight = 1000]
-        pub fn order_book_create(origin, uid: u32,info: Vec<u8>) -> dispatch::DispatchResult {
+        pub fn order_book_create(origin, _uid: u32,_info: Vec<u8>) -> dispatch::DispatchResult {
             // check the transaction is signed
-            let signer = ensure_signed(origin)?;
+            let _signer = ensure_signed(origin)?;
             // Emit Event for new book order
             //Self::deposit_event(RawEvent::InsuranceFundUnstaken(signer,amount));
             Ok(())
-        }
+        }*/
     }
 }
 // function to validate a json string for no/std. It does not allocate of memory
