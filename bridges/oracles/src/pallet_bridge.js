@@ -206,6 +206,56 @@ export const pallet_bridge_destroy_settings = async (api, keyspair, key) => {
         }
     });
 };
+
+export const pallet_bridge_request = async (api, keyspair, token, destination, amount) => {
+    const chan = new Channel(0 /* default */);
+    const unsub = await api.tx.bridge.request(token, destination, amount)
+        .signAndSend(keyspair, ({ status, events, dispatchError }) => {
+        try {
+            // status would still be set, but in the case of error we can shortcut
+            // to just check it (so an error would indicate InBlock or Finalized)
+            if (dispatchError) {
+                if (dispatchError.isModule) {
+                    // for module errors, we have the section indexed, lookup
+                    const decoded = api.registry.findMetaError(dispatchError.asModule);
+                    const { name, section } = decoded;
+                    console.log(`${section}.${name}`);
+                }
+                else {
+                    // Other, CannotLookup, BadOrigin, no extra info
+                    console.log(`other: ${dispatchError.toString()}`);
+                }
+                unsub();
+                chan.push("error");
+            }
+            if (status.isInBlock) {
+                console.log(`Transaction included at blockHash ${status.asInBlock}`);
+            }
+            else if (status.isFinalized) {
+                console.log(`Transaction finalized at blockHash ${status.asFinalized}`);
+                // Loop through Vec<EventRecord> to display all events
+                events.forEach(({ phase, event: { data, method, section } }) => {
+                    console.log(`\t' ${phase}: ${section}.${method}:: ${data}`);
+                });
+                unsub();
+                chan.push(status.asFinalized);
+            }
+        }
+        catch {
+            console.log("[Error] Too many transactions in short time");
+        }
+    });
+    const txid = await chan.get().then(value => {   
+        chan.close();
+        return value;
+    }, error => {      
+        console.error(error);
+        chan.close();
+        return null;
+    });
+    return txid;
+};
+
 export const pallet_bridge_mint = async (api, keyspair, token, recipient, transaction_id, amount) => {
     const chan = new Channel(0 /* default */);
     const unsub = await api.tx.bridge.mint(token, recipient, transaction_id, amount)
@@ -467,7 +517,7 @@ const bridge_create_basic_settings_test = async (api, keyspair) => {
         chainid: 1,
         description: "xxxxxxxxxx",
         address: keyspair.address,
-        assetid: 0,
+        assetid: 1,
         internalthreshold: 3,
         externathreshold: 3,
         internalkeepers: [bob.address, charlie.address, dave.address],
