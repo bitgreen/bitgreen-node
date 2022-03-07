@@ -29,6 +29,24 @@ export const setup_substrate = async () => {
     });
     return api;
 };
+
+export const destination = async (api, block, index) => {
+    try {
+        const blockHash = await api.rpc.chain.getBlockHash(block);
+        const signedBlock = await api.rpc.chain.getBlock(blockHash);
+        const { method: { args, method, section } } = signedBlock.block.extrinsics[index];
+        if (section === 'bridge' && method === 'request') {
+            return args[1].toHex();
+        } else {
+            return null;
+        }
+    }
+    catch (err) {
+        console.error('Error', err);
+        return null;
+    }     
+}
+
 export const native_transfer = async (api, keyspair, amount, address) => {
     const chan = new Channel(0 /* default */);
     const unsub = await api.tx.balances.transfer(address, amount)
@@ -498,8 +516,9 @@ export const setup_basic_bridge_test = async (api, keyspair) => {
     // const dave = keyring.addFromUri('//Dave');
     // await native_transfer(api, keyspair, 10000 , charlie.address);
     // await native_transfer(api, keyspair, 1, dave.address);
-    await pallet_assets_force_create(api, keyspair, 1, keyspair.address, 1, 1);
-    await bridge_create_basic_settings_weth(api, keyspair);
+    // await pallet_assets_force_create(api, keyspair, 1, keyspair.address, 1, 1);
+    // await bridge_create_basic_settings_weth(api, keyspair);
+    await bridge_create_settings_smoke_test(api, keyspair);
     // const eve = keyring.addFromUri('//Eve');
     // const recipient = api.createType('AccountId', eve.address);
     // const bitg_token_bytes = api.createType('Bytes', TOKEN);
@@ -530,7 +549,7 @@ const bridge_create_basic_settings_test = async (api, keyspair) => {
     const json_data_bytes = api.createType('Bytes', JSON.stringify(json_data));
     await pallet_bridge_create_settings(api, keyspair, bitg_key_bytes, json_data_bytes);
 };
-const bridge_create_basic_settings_weth = async (api, keyspair) => {
+const bridge_create_basic_settings_weth_with3 = async (api, keyspair) => {
     const bitg_key_bytes = api.createType('Bytes', 'WETH');
     const keyring = new Keyring({ type: 'sr25519' });
     const bob = keyring.addFromUri('//Bob');
