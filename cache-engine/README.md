@@ -1,8 +1,12 @@
 # Cache Engine for BitGreen BlockChain
-The purpose of this module is to store the transactions  of the blockchain in mysql database and offer an API interface for the applications client.
-The solution is divided in 2 modules: 
-- A crawler that  store the transaction of the blockchain in a database
-- A Web Api server to query the data stored in the database
+Bitgreen is a parachain on the Polkadot Network. This repository will manage a caching engine that will (1) download and store blocks to a Postgresql DB, (2) calculate derived data from on-chain sources, which is also stored in the DB, and (3) make this data available via public API.
+
+The solution is managed by 2 shell script:  
+
+- bitgreen-cache-server-install.sh will install and configure a clean Debian install as a (1) Bitgreen node, (2) Posstgresql database for cached chain data and calculated values, and (3) an API server to make public endpoint available on the server
+- bitgreen-cache-server-manager.sh can be used to check the status of services and launch all required programs after a reboot. 
+
+The install script will handle install and configure your node.
 
 ## CRAWLER
 The crawler has the mission to wait for new blocks and store the transactions in the database.
@@ -11,17 +15,17 @@ Written in Python 3, the library used is:   [https://github.com/polkascan/py-sub
 ### Requirements:
 
 You should have installed:  
-- [Python 3.x](https://www.python.org)  
-- [Python Package Index (pip)](https://pypi.org)  
-- [Mariadb Server](https://mariadb.org)  
+- A clean Debian install
 
-## Installation  
+## Installation and Setup  
 This instructions refers to an installation for LINUX operating system.  
 Execute from command line:
 ```sh
-pip3 install substrate-interface
-pip3 install mysql-connector-python
+chmod +x bitgreen-cache-server-install.sh
+./bitgreen-cache-server-install.sh
 ```
+
+
 
 ## Create Database and grant access
 Launch the mysql cli:  
