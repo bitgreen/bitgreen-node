@@ -6,7 +6,7 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 const node_address = 'ws://127.0.0.1:9944';
-export const SECRETSEED = process.env.KEEPER_PALLET_MNEMONIC || "//Alice";
+export const SECRETSEED = process.env.PALLET_MNEMONIC || "//Alice";
 export const TOKEN = process.env.TOKEN || "BBB";
 const get_custom_types = async () => {
     const relative_path = join('..', '..', '..');
@@ -142,10 +142,32 @@ export const pallet_assets_force_create = async (api, keyspair, id, admin, maxZo
             }
             else if (status.isFinalized) {
                 console.log(`Transaction finalized at blockHash ${status.asFinalized}`);
-                // Loop through Vec<EventRecord> to display all events
-                events.forEach(({ phase, event: { data, method, section } }) => {
-                    console.log(`\t' ${phase}: ${section}.${method}:: ${data}`);
-                });
+                events
+                      // We know this tx should result in `Sudid` event.
+                      .filter(({ event }) =>
+                        api.events.sudo.Sudid.is(event)
+                      )
+                      // We know that `Sudid` returns just a `Result`
+                      .forEach(({ event : { data: [result] } }) => {
+                        // Now we look to see if the extrinsic was actually successful or not...
+                        if (result.isError) {
+                          let error = result.asError;
+                          if (error.isModule) {
+                            // for module errors, we have the section indexed, lookup
+                            const decoded = api.registry.findMetaError(error.asModule);
+                            const { docs, name, section } = decoded;
+              
+                            console.log(`${section}.${name}: ${docs.join(' ')}`);
+                          } else {
+                            // Other, CannotLookup, BadOrigin, no extra info
+                            console.log(error.toString());
+                          }
+                          unsub();
+                          chan.push("error");                          
+                        } else {
+
+                        }
+                      });
                 unsub();
                 chan.push(`Event report end.`);
             }
@@ -185,10 +207,33 @@ export const pallet_bridge_create_settings = async (api, keyspair, key, data) =>
             }
             else if (status.isFinalized) {
                 console.log(`Transaction finalized at blockHash ${status.asFinalized}`);
-                // Loop through Vec<EventRecord> to display all events
-                events.forEach(({ phase, event: { data, method, section } }) => {
-                    console.log(`\t' ${phase}: ${section}.${method}:: ${data}`);
-                });
+                events
+                      // We know this tx should result in `Sudid` event.
+                      .filter(({ event }) =>
+                        api.events.sudo.Sudid.is(event)
+                      )
+                      // We know that `Sudid` returns just a `Result`
+                      .forEach(({ event : { data: [result] } }) => {
+                        // Now we look to see if the extrinsic was actually successful or not...
+                        if (result.isError) {
+                          let error = result.asError;
+                          if (error.isModule) {
+                            // for module errors, we have the section indexed, lookup
+                            const decoded = api.registry.findMetaError(error.asModule);
+                            const { docs, name, section } = decoded;
+              
+                            console.log(`${section}.${name}: ${docs.join(' ')}`);
+                          } else {
+                            // Other, CannotLookup, BadOrigin, no extra info
+                            console.log(error.toString());
+                          }
+                          unsub();
+                          chan.push("error");                          
+                        } else {
+
+                        }
+                      });
+
                 unsub();
                 chan.push(`Event report end.`);
             }
@@ -274,7 +319,7 @@ export const pallet_bridge_request = async (api, keyspair, token, destination, a
     return txid;
 };
 
-export const pallet_bridge_mint = async (api, keyspair, token, recipient, transaction_id, amount) => {
+const pallet_bridge_mint_old = async (api, keyspair, token, recipient, transaction_id, amount) => {
     const chan = new Channel(0 /* default */);
     const unsub = await api.tx.bridge.mint(token, recipient, transaction_id, amount)
         .signAndSend(keyspair, ({ status, events, dispatchError }) => {
@@ -322,95 +367,26 @@ export const pallet_bridge_mint = async (api, keyspair, token, recipient, transa
     });
     return txid;
 };
+
+export const pallet_bridge_mint = async (api, keyspair, token, recipient, transaction_id, amount) => {
+    const txhash = await api.tx.bridge.mint(token, recipient, transaction_id, amount)
+        .signAndSend(keyspair,  { nonce: -1 });
+    return txhash;
+};
+
+
 export const pallet_bridge_burn = async (api, keyspair, token, recipient, transaction_id, amount) => {
-    const chan = new Channel(0 /* default */);
-    const unsub = await api.tx.bridge.burn(token, recipient, transaction_id, amount)
-        .signAndSend(keyspair, ({ status, events, dispatchError }) => {
-        try {
-            // status would still be set, but in the case of error we can shortcut
-            // to just check it (so an error would indicate InBlock or Finalized)
-            if (dispatchError) {
-                if (dispatchError.isModule) {
-                    // for module errors, we have the section indexed, lookup
-                    const decoded = api.registry.findMetaError(dispatchError.asModule);
-                    const { name, section } = decoded;
-                    console.log(`${section}.${name}`);
-                }
-                else {
-                    // Other, CannotLookup, BadOrigin, no extra info
-                    console.log(`other: ${dispatchError.toString()}`);
-                }
-                unsub();
-                chan.push("error");
-            }
-            if (status.isInBlock) {
-                console.log(`Transaction included at blockHash ${status.asInBlock}`);
-            }
-            else if (status.isFinalized) {
-                console.log(`Transaction finalized at blockHash ${status.asFinalized}`);
-                // Loop through Vec<EventRecord> to display all events
-                events.forEach(({ phase, event: { data, method, section } }) => {
-                    console.log(`\t' ${phase}: ${section}.${method}:: ${data}`);
-                });
-                unsub();
-                chan.push(status.asFinalized);
-            }
-        }
-        catch {
-            console.log("[Error] Too many transactions in short time");
-        }
-    });
-    const txid = await chan.get().then(value => {   
-        chan.close();
-        return value;
-    }, error => {      
-        console.error(error);
-        chan.close();
-        return null;
-    });
-    return txid;
+    const txhash = await api.tx.bridge.burn(token, recipient, transaction_id, amount)
+        .signAndSend(keyspair, { nonce: -1 });
+    return txhash;
 };
+
 export const pallet_bridge_set_lockdown = async (api, keyspair, token) => {
-    const chan = new Channel(0 /* default */);
-    const unsub = await api.tx.bridge.set_lockdown(token)
-        .signAndSend(keyspair, ({ status, events, dispatchError }) => {
-        try {
-            // status would still be set, but in the case of error we can shortcut
-            // to just check it (so an error would indicate InBlock or Finalized)
-            if (dispatchError) {
-                if (dispatchError.isModule) {
-                    // for module errors, we have the section indexed, lookup
-                    const decoded = api.registry.findMetaError(dispatchError.asModule);
-                    const { name, section } = decoded;
-                    console.log(`${section}.${name}`);
-                }
-                else {
-                    // Other, CannotLookup, BadOrigin, no extra info
-                    console.log(`other: ${dispatchError.toString()}`);
-                }
-                unsub();
-                chan.push("error");
-            }
-            if (status.isInBlock) {
-                console.log(`Transaction included at blockHash ${status.asInBlock}`);
-            }
-            else if (status.isFinalized) {
-                console.log(`Transaction finalized at blockHash ${status.asFinalized}`);
-                // Loop through Vec<EventRecord> to display all events
-                events.forEach(({ phase, event: { data, method, section } }) => {
-                    console.log(`\t' ${phase}: ${section}.${method}:: ${data}`);
-                });
-                unsub();
-                chan.push(`Event report end.`);
-            }
-        }
-        catch {
-            console.log("[Error] Too many transactions in short time");
-        }
-    });
-    await chan.get().then(value => console.log(value), error => console.error(error));
-    chan.close();
+    const txhash = await api.tx.bridge.set_lockdown(token)
+        .signAndSend(keyspair,  { nonce: -1 });
+    return txhash;
 };
+
 export const pallet_bridge_set_unlockdown = async (api, keyspair) => {
     const chan = new Channel(0 /* default */);
     const unsub = await api.tx.bridge.set_unlockdown()
@@ -516,7 +492,7 @@ export const setup_basic_bridge_test = async (api, keyspair) => {
     // const dave = keyring.addFromUri('//Dave');
     // await native_transfer(api, keyspair, 10000 , charlie.address);
     // await native_transfer(api, keyspair, 1, dave.address);
-    // await pallet_assets_force_create(api, keyspair, 1, keyspair.address, 1, 1);
+    await pallet_assets_force_create(api, keyspair, 1, keyspair.address, 1, 1);
     // await bridge_create_basic_settings_weth(api, keyspair);
     await bridge_create_settings_smoke_test(api, keyspair);
     // const eve = keyring.addFromUri('//Eve');

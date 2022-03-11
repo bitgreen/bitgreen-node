@@ -7,13 +7,14 @@
   "type": "module",
   "scripts": {
     "build": "tsc",
-    "setup": "NODE_PATH='../../assets' node ./src/setup_test.js",
-    "pallet_evm": "NODE_PATH='../../assets' PRIVATE_KEY='0xd3a6a3b8b7c8c089144eeb0d78b3002e6f6d7fd9539c512c443cd7d1b9603812' node ./src/teleport_pallet_evm.js",
-    "evm_pallet": "NODE_PATH='../../assets' PRIVATE_KEY='0xd3a6a3b8b7c8c089144eeb0d78b3002e6f6d7fd9539c512c443cd7d1b9603812' node ./src/teleport_evm_pallet.js",
-    "keeper": "NODE_PATH='../../assets' node ./src/keeper.js",
-    "keeper1": "NODE_PATH='../../assets' KEEPER_PALLET_MNEMONIC='//Bob' PRIVATE_KEY='0x8b30afee574929c76b3fe52c73fbf0389bb206203c5354ddb09f939c450c4e4f' node ./src/keeper.js",
-    "keeper2": "NODE_PATH='../../assets' KEEPER_PALLET_MNEMONIC='//Charlie' PRIVATE_KEY='0x2fa9b1f89f1690d97a4b0c0a15ccb9d9af85aee42f15409c1f552ea362f38e1a' node ./src/keeper.js",
-    "keeper3": "NODE_PATH='../../assets' KEEPER_PALLET_MNEMONIC='//Dave' PRIVATE_KEY='0x493913d5abc080b76e3fb6ea3b92a46a787eec18e22e9b6122e235ab1099cf9b' node ./src/keeper.js"
+    "setup": "NODE_PATH='../../assets' TOKEN='WETH' node ./src/setup_test.js",
+    "pallet_evm": "NODE_PATH='../../assets' PRIVATE_KEY='0x7830e09c30e5fc49ce6771fafdedbe1c241daf7828497f78ffb447160769e439' node ./src/teleport_pallet_evm.js",
+    "evm_pallet": "NODE_PATH='../../assets' PRIVATE_KEY='0x7830e09c30e5fc49ce6771fafdedbe1c241daf7828497f78ffb447160769e439' node ./src/teleport_evm_pallet.js",
+    "watchdog": "NODE_PATH='../../assets' PALLET_MNEMONIC='//Bob' PRIVATE_KEY='0x1d5b454dd5885cab88c648873a0a45a28beeb52313c493b2e81560474b2bf8a9' node ./src/watchdog.js",
+    "keeper": "NODE_PATH='../../assets' PRIVATE_KEY='0x1d5b454dd5885cab88c648873a0a45a28beeb52313c493b2e81560474b2bf8a9' node ./src/keeper.js",
+    "keeper1": "NODE_PATH='../../assets' PALLET_MNEMONIC='//Bob' PRIVATE_KEY='0x1d5b454dd5885cab88c648873a0a45a28beeb52313c493b2e81560474b2bf8a9' node ./src/keeper.js",
+    "keeper2": "NODE_PATH='../../assets' PALLET_MNEMONIC='//Charlie' PRIVATE_KEY='0xdbcaf7b88b9b7137ae2571051a7d06b94288f86aece8b1c777db8ebdcd1686c0' node ./src/keeper.js",
+    "keeper3": "NODE_PATH='../../assets' PALLET_MNEMONIC='//Dave' PRIVATE_KEY='0x29f107cb1fb797268e726fec9b7c5b58f07b12cbb1fdb2e838f98e8635cd6aad' node ./src/keeper.js"
   },
   "dependencies": {
     "@polkadot/api": "^7.5.1",

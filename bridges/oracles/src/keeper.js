@@ -4,14 +4,12 @@ import { Channel } from 'async-channel';
 import { setup_substrate, SECRETSEED, pallet_bridge_burn, pallet_bridge_mint, destination } from './pallet_bridge.js';
 import { NODE_ADDRESS, get_bitgreen_bridge_contract, privateKey, send_transfer, get_erc20 } from './evm_bridge.js';
 import Web3 from 'web3';
-// import { u8aToHex } from '@polkadot/util';
-// import BN from 'bn.js';
 
-// import { blake2AsHex } from '@polkadot/util-crypto';
+export const QUEUE_MODE = process.env.QUEUE || false;
 
 let api;
 const handle_events = async (api, keypair, web3, BitgreenBridge, value) => {
-    console.log(value);
+    // console.log(value);
     switch (value['method']) {
         case 'BurnQueued': {
             const transaction_id = value[4];
@@ -29,7 +27,7 @@ const handle_events = async (api, keypair, web3, BitgreenBridge, value) => {
                 if (!signer.eq(account)) {
                     const asset_id = await api.query.bridge.transactionBurnTracker(transaction_id, account);
                     console.log(`asset_id: \t ${asset_id}`);
-                    if (asset_id.toNumber() > 0) {
+                    if (asset_id.toNumber() == 0) {
                         const txid = await pallet_bridge_burn(api, keypair, token, recipient, transaction_id, balance);
                         console.log(`burn txid: \t ${txid}`);
                     }
@@ -55,7 +53,7 @@ const handle_events = async (api, keypair, web3, BitgreenBridge, value) => {
                     const asset_id = await api.query.bridge.transactionMintTracker(transaction_id, account);
                     console.log(asset_id);
                     console.log(`asset_id: \t ${asset_id}`);
-                    if (asset_id.toNumber() > 0) {
+                    if (asset_id.toNumber() == 0) {
                         const txid = await pallet_bridge_mint(api, keypair, token, recipient, transaction_id, balance);
                         console.log(`mint txid: \t ${txid}`);
                     }
@@ -115,7 +113,8 @@ const handle_events = async (api, keypair, web3, BitgreenBridge, value) => {
                         const recipient = await destination(api, block_number, index);
                         console.log('recipient: \t ', recipient);
                         if (recipient) {
-                            const balance = amount.toBigInt();
+                            // const balance = amount.toBigInt();
+                            const balance = amount;
                             console.log('balance: \t ', balance);
                             const erc20 = await get_erc20(asset_id);
                             console.log('erc20: \t ', erc20);
@@ -315,12 +314,14 @@ const main = async () => {
 
         // await subscription_contract(web3);
         const BitgreenBridge = await get_bitgreen_bridge_contract(web3);
-        BitgreenBridge.events.BridgeTransferQueued()
-            .on('data', function (event) {
-                handle_evm_transfer_events(web3, BitgreenBridge, event.returnValues);
-            }).on('changed', function (event) {
-                console.log('event changed BridgeTransferQueued: \t ', event);
-            }).on('error', console.error);
+        if (QUEUE_MODE) {
+            BitgreenBridge.events.BridgeTransferQueued()
+                .on('data', function (event) {
+                    handle_evm_transfer_events(web3, BitgreenBridge, event.returnValues);
+                }).on('changed', function (event) {
+                    console.log('event changed BridgeTransferQueued: \t ', event);
+                }).on('error', console.error);
+        }
         BitgreenBridge.events.BridgeDepositRequest()
             .on('data', function (event) {
                 console.log('event BridgeDepositRequest: \t ', event);
