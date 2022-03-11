@@ -44,138 +44,138 @@ export const destination = async (api, block, index) => {
     catch (err) {
         console.error('Error', err);
         return null;
-    }     
+    }
 }
 
 export const native_transfer = async (api, keyspair, amount, address) => {
     const chan = new Channel(0 /* default */);
     const unsub = await api.tx.balances.transfer(address, amount)
         .signAndSend(keyspair, ({ status, events, dispatchError }) => {
-        console.log(`Current status is ${status}`);
-        try {
-            // status would still be set, but in the case of error we can shortcut
-            // to just check it (so an error would indicate InBlock or Finalized)
-            if (dispatchError) {
-                if (dispatchError.isModule) {
-                    // for module errors, we have the section indexed, lookup
-                    const decoded = api.registry.findMetaError(dispatchError.asModule);
-                    const { name, section } = decoded;
-                    console.log(`${section}.${name}`);
+            console.log(`Current status is ${status}`);
+            try {
+                // status would still be set, but in the case of error we can shortcut
+                // to just check it (so an error would indicate InBlock or Finalized)
+                if (dispatchError) {
+                    if (dispatchError.isModule) {
+                        // for module errors, we have the section indexed, lookup
+                        const decoded = api.registry.findMetaError(dispatchError.asModule);
+                        const { name, section } = decoded;
+                        console.log(`${section}.${name}`);
+                    }
+                    else {
+                        // Other, CannotLookup, BadOrigin, no extra info
+                        console.log(`other: ${dispatchError.toString()}`);
+                    }
+                    unsub();
+                    chan.push("error");
                 }
-                else {
-                    // Other, CannotLookup, BadOrigin, no extra info
-                    console.log(`other: ${dispatchError.toString()}`);
+                if (status.isInBlock) {
+                    console.log(`Transaction included at blockHash ${status.asInBlock}`);
+                    chan.push(`isInBlock.`);
                 }
-                unsub();
-                chan.push("error");
+                else if (status.isFinalized) {
+                    console.log(`Transaction finalized at blockHash ${status.asFinalized}`);
+                    // Loop through Vec<EventRecord> to display all events
+                    events.forEach(({ phase, event: { data, method, section } }) => {
+                        console.log(`\t' ${phase}: ${section}.${method}:: ${data}`);
+                    });
+                    unsub();
+                    // chan.push(`Event report end.`);
+                }
             }
-            if (status.isInBlock) {
-                console.log(`Transaction included at blockHash ${status.asInBlock}`);
-                chan.push(`isInBlock.`);
+            catch {
+                console.log("[Error] Too many transactions in short time");
             }
-            else if (status.isFinalized) {
-                console.log(`Transaction finalized at blockHash ${status.asFinalized}`);
-                // Loop through Vec<EventRecord> to display all events
-                events.forEach(({ phase, event: { data, method, section } }) => {
-                    console.log(`\t' ${phase}: ${section}.${method}:: ${data}`);
-                });
-                unsub();
-                // chan.push(`Event report end.`);
-            }
-        }
-        catch {
-            console.log("[Error] Too many transactions in short time");
-        }
-    });
+        });
     await chan.get().then(value => console.log(value), error => console.error(error));
     chan.close();
 };
 export const pallet_assets_create = async (api, keyspair, id, admin, maxZombies, minBalance) => {
     const unsub = await api.tx.assets.create(id, maxZombies, minBalance)
         .signAndSend(keyspair, ({ status, events, dispatchError }) => {
-        try {
-            // status would still be set, but in the case of error we can shortcut
-            // to just check it (so an error would indicate InBlock or Finalized)
-            if (dispatchError) {
-                if (dispatchError.isModule) {
-                    // for module errors, we have the section indexed, lookup
-                    const decoded = api.registry.findMetaError(dispatchError.asModule);
-                    const { name, section } = decoded;
-                    console.log(`${section}.${name}`);
-                }
-                else {
-                    // Other, CannotLookup, BadOrigin, no extra info
-                    console.log(dispatchError.toString());
+            try {
+                // status would still be set, but in the case of error we can shortcut
+                // to just check it (so an error would indicate InBlock or Finalized)
+                if (dispatchError) {
+                    if (dispatchError.isModule) {
+                        // for module errors, we have the section indexed, lookup
+                        const decoded = api.registry.findMetaError(dispatchError.asModule);
+                        const { name, section } = decoded;
+                        console.log(`${section}.${name}`);
+                    }
+                    else {
+                        // Other, CannotLookup, BadOrigin, no extra info
+                        console.log(dispatchError.toString());
+                    }
                 }
             }
-        }
-        catch {
-            console.log("[Error] Too many transactions in short time");
-        }
-    });
+            catch {
+                console.log("[Error] Too many transactions in short time");
+            }
+        });
 };
 export const pallet_assets_force_create = async (api, keyspair, id, admin, maxZombies, minBalance) => {
     const chan = new Channel(0 /* default */);
     const unsub = await api.tx.sudo
         .sudo(api.tx.assets.forceCreate(id, admin, maxZombies, minBalance))
         .signAndSend(keyspair, ({ status, events, dispatchError }) => {
-        console.log(`Current status is ${status}`);
-        try {
-            // status would still be set, but in the case of error we can shortcut
-            // to just check it (so an error would indicate InBlock or Finalized)
-            if (dispatchError) {
-                if (dispatchError.isModule) {
-                    // for module errors, we have the section indexed, lookup
-                    const decoded = api.registry.findMetaError(dispatchError.asModule);
-                    const { name, section } = decoded;
-                    console.log(`${section}.${name}`);
+            console.log(`Current status is ${status}`);
+            try {
+                // status would still be set, but in the case of error we can shortcut
+                // to just check it (so an error would indicate InBlock or Finalized)
+                if (dispatchError) {
+                    if (dispatchError.isModule) {
+                        // for module errors, we have the section indexed, lookup
+                        const decoded = api.registry.findMetaError(dispatchError.asModule);
+                        const { name, section } = decoded;
+                        console.log(`${section}.${name}`);
+                    }
+                    else {
+                        // Other, CannotLookup, BadOrigin, no extra info
+                        console.log(`other: ${dispatchError.toString()}`);
+                    }
+                    unsub();
+                    chan.push("error");
                 }
-                else {
-                    // Other, CannotLookup, BadOrigin, no extra info
-                    console.log(`other: ${dispatchError.toString()}`);
+                if (status.isInBlock) {
+                    console.log(`Transaction included at blockHash ${status.asInBlock}`);
                 }
-                unsub();
-                chan.push("error");
-            }
-            if (status.isInBlock) {
-                console.log(`Transaction included at blockHash ${status.asInBlock}`);
-            }
-            else if (status.isFinalized) {
-                console.log(`Transaction finalized at blockHash ${status.asFinalized}`);
-                events
-                      // We know this tx should result in `Sudid` event.
-                      .filter(({ event }) =>
-                        api.events.sudo.Sudid.is(event)
-                      )
-                      // We know that `Sudid` returns just a `Result`
-                      .forEach(({ event : { data: [result] } }) => {
-                        // Now we look to see if the extrinsic was actually successful or not...
-                        if (result.isError) {
-                          let error = result.asError;
-                          if (error.isModule) {
-                            // for module errors, we have the section indexed, lookup
-                            const decoded = api.registry.findMetaError(error.asModule);
-                            const { docs, name, section } = decoded;
-              
-                            console.log(`${section}.${name}: ${docs.join(' ')}`);
-                          } else {
-                            // Other, CannotLookup, BadOrigin, no extra info
-                            console.log(error.toString());
-                          }
-                          unsub();
-                          chan.push("error");                          
-                        } else {
+                else if (status.isFinalized) {
+                    console.log(`Transaction finalized at blockHash ${status.asFinalized}`);
+                    events
+                        // We know this tx should result in `Sudid` event.
+                        .filter(({ event }) =>
+                            api.events.sudo.Sudid.is(event)
+                        )
+                        // We know that `Sudid` returns just a `Result`
+                        .forEach(({ event: { data: [result] } }) => {
+                            // Now we look to see if the extrinsic was actually successful or not...
+                            if (result.isError) {
+                                let error = result.asError;
+                                if (error.isModule) {
+                                    // for module errors, we have the section indexed, lookup
+                                    const decoded = api.registry.findMetaError(error.asModule);
+                                    const { docs, name, section } = decoded;
 
-                        }
-                      });
-                unsub();
-                chan.push(`Event report end.`);
+                                    console.log(`${section}.${name}: ${docs.join(' ')}`);
+                                } else {
+                                    // Other, CannotLookup, BadOrigin, no extra info
+                                    console.log(error.toString());
+                                }
+                                unsub();
+                                chan.push("error");
+                            } else {
+
+                            }
+                        });
+                    unsub();
+                    chan.push(`Event report end.`);
+                }
             }
-        }
-        catch {
-            console.log("[Error] Too many transactions in short time");
-        }
-    });
+            catch {
+                console.log("[Error] Too many transactions in short time");
+            }
+        });
     await chan.get().then(value => console.log(value), error => console.error(error));
     chan.close();
 };
@@ -184,193 +184,101 @@ export const pallet_bridge_create_settings = async (api, keyspair, key, data) =>
     const unsub = await api.tx.sudo
         .sudo(api.tx.bridge.createSettings(key, data))
         .signAndSend(keyspair, ({ status, events, dispatchError }) => {
-        console.log(`Current status is ${status}`);
-        try {
-            // status would still be set, but in the case of error we can shortcut
-            // to just check it (so an error would indicate InBlock or Finalized)
-            if (dispatchError) {
-                if (dispatchError.isModule) {
-                    // for module errors, we have the section indexed, lookup
-                    const decoded = api.registry.findMetaError(dispatchError.asModule);
-                    const { name, section } = decoded;
-                    console.log(`${section}.${name}`);
+            console.log(`Current status is ${status}`);
+            try {
+                // status would still be set, but in the case of error we can shortcut
+                // to just check it (so an error would indicate InBlock or Finalized)
+                if (dispatchError) {
+                    if (dispatchError.isModule) {
+                        // for module errors, we have the section indexed, lookup
+                        const decoded = api.registry.findMetaError(dispatchError.asModule);
+                        const { name, section } = decoded;
+                        console.log(`${section}.${name}`);
+                    }
+                    else {
+                        // Other, CannotLookup, BadOrigin, no extra info
+                        console.log(`other: ${dispatchError.toString()}`);
+                    }
+                    unsub();
+                    chan.push("error");
                 }
-                else {
-                    // Other, CannotLookup, BadOrigin, no extra info
-                    console.log(`other: ${dispatchError.toString()}`);
+                if (status.isInBlock) {
+                    console.log(`Transaction included at blockHash ${status.asInBlock}`);
                 }
-                unsub();
-                chan.push("error");
-            }
-            if (status.isInBlock) {
-                console.log(`Transaction included at blockHash ${status.asInBlock}`);
-            }
-            else if (status.isFinalized) {
-                console.log(`Transaction finalized at blockHash ${status.asFinalized}`);
-                events
-                      // We know this tx should result in `Sudid` event.
-                      .filter(({ event }) =>
-                        api.events.sudo.Sudid.is(event)
-                      )
-                      // We know that `Sudid` returns just a `Result`
-                      .forEach(({ event : { data: [result] } }) => {
-                        // Now we look to see if the extrinsic was actually successful or not...
-                        if (result.isError) {
-                          let error = result.asError;
-                          if (error.isModule) {
-                            // for module errors, we have the section indexed, lookup
-                            const decoded = api.registry.findMetaError(error.asModule);
-                            const { docs, name, section } = decoded;
-              
-                            console.log(`${section}.${name}: ${docs.join(' ')}`);
-                          } else {
-                            // Other, CannotLookup, BadOrigin, no extra info
-                            console.log(error.toString());
-                          }
-                          unsub();
-                          chan.push("error");                          
-                        } else {
+                else if (status.isFinalized) {
+                    console.log(`Transaction finalized at blockHash ${status.asFinalized}`);
+                    events
+                        // We know this tx should result in `Sudid` event.
+                        .filter(({ event }) =>
+                            api.events.sudo.Sudid.is(event)
+                        )
+                        // We know that `Sudid` returns just a `Result`
+                        .forEach(({ event: { data: [result] } }) => {
+                            // Now we look to see if the extrinsic was actually successful or not...
+                            if (result.isError) {
+                                let error = result.asError;
+                                if (error.isModule) {
+                                    // for module errors, we have the section indexed, lookup
+                                    const decoded = api.registry.findMetaError(error.asModule);
+                                    const { docs, name, section } = decoded;
 
-                        }
-                      });
+                                    console.log(`${section}.${name}: ${docs.join(' ')}`);
+                                } else {
+                                    // Other, CannotLookup, BadOrigin, no extra info
+                                    console.log(error.toString());
+                                }
+                                unsub();
+                                chan.push("error");
+                            } else {
 
-                unsub();
-                chan.push(`Event report end.`);
+                            }
+                        });
+
+                    unsub();
+                    chan.push(`Event report end.`);
+                }
             }
-        }
-        catch {
-            console.log("[Error] Too many transactions in short time");
-        }
-    });
+            catch {
+                console.log("[Error] Too many transactions in short time");
+            }
+        });
     await chan.get().then(value => console.log(value), error => console.error(error));
     chan.close();
 };
 export const pallet_bridge_destroy_settings = async (api, keyspair, key) => {
     const unsub = await api.tx.bridge.destroy_settings(key)
         .signAndSend(keyspair, ({ status, events, dispatchError }) => {
-        try {
-            // status would still be set, but in the case of error we can shortcut
-            // to just check it (so an error would indicate InBlock or Finalized)
-            if (dispatchError) {
-                if (dispatchError.isModule) {
-                    // for module errors, we have the section indexed, lookup
-                    const decoded = api.registry.findMetaError(dispatchError.asModule);
-                    const { name, section } = decoded;
-                    console.log(`${section}.${name}`);
-                }
-                else {
-                    // Other, CannotLookup, BadOrigin, no extra info
-                    console.log(dispatchError.toString());
+            try {
+                // status would still be set, but in the case of error we can shortcut
+                // to just check it (so an error would indicate InBlock or Finalized)
+                if (dispatchError) {
+                    if (dispatchError.isModule) {
+                        // for module errors, we have the section indexed, lookup
+                        const decoded = api.registry.findMetaError(dispatchError.asModule);
+                        const { name, section } = decoded;
+                        console.log(`${section}.${name}`);
+                    }
+                    else {
+                        // Other, CannotLookup, BadOrigin, no extra info
+                        console.log(dispatchError.toString());
+                    }
                 }
             }
-        }
-        catch {
-            console.log("[Error] Too many transactions in short time");
-        }
-    });
+            catch {
+                console.log("[Error] Too many transactions in short time");
+            }
+        });
 };
 
 export const pallet_bridge_request = async (api, keyspair, token, destination, amount) => {
-    const chan = new Channel(0 /* default */);
-    const unsub = await api.tx.bridge.request(token, destination, amount)
-        .signAndSend(keyspair, ({ status, events, dispatchError }) => {
-        try {
-            // status would still be set, but in the case of error we can shortcut
-            // to just check it (so an error would indicate InBlock or Finalized)
-            if (dispatchError) {
-                if (dispatchError.isModule) {
-                    // for module errors, we have the section indexed, lookup
-                    const decoded = api.registry.findMetaError(dispatchError.asModule);
-                    const { name, section } = decoded;
-                    console.log(`${section}.${name}`);
-                }
-                else {
-                    // Other, CannotLookup, BadOrigin, no extra info
-                    console.log(`other: ${dispatchError.toString()}`);
-                }
-                unsub();
-                chan.push("error");
-            }
-            if (status.isInBlock) {
-                console.log(`Transaction included at blockHash ${status.asInBlock}`);
-            }
-            else if (status.isFinalized) {
-                console.log(`Transaction finalized at blockHash ${status.asFinalized}`);
-                // Loop through Vec<EventRecord> to display all events
-                events.forEach(({ phase, event: { data, method, section } }) => {
-                    console.log(`\t' ${phase}: ${section}.${method}:: ${data}`);
-                });
-                unsub();
-                chan.push(status.asFinalized);
-            }
-        }
-        catch {
-            console.log("[Error] Too many transactions in short time");
-        }
-    });
-    const txid = await chan.get().then(value => {   
-        chan.close();
-        return value;
-    }, error => {      
-        console.error(error);
-        chan.close();
-        return null;
-    });
-    return txid;
-};
-
-const pallet_bridge_mint_old = async (api, keyspair, token, recipient, transaction_id, amount) => {
-    const chan = new Channel(0 /* default */);
-    const unsub = await api.tx.bridge.mint(token, recipient, transaction_id, amount)
-        .signAndSend(keyspair, ({ status, events, dispatchError }) => {
-        try {
-            // status would still be set, but in the case of error we can shortcut
-            // to just check it (so an error would indicate InBlock or Finalized)
-            if (dispatchError) {
-                if (dispatchError.isModule) {
-                    // for module errors, we have the section indexed, lookup
-                    const decoded = api.registry.findMetaError(dispatchError.asModule);
-                    const { name, section } = decoded;
-                    console.log(`${section}.${name}`);
-                }
-                else {
-                    // Other, CannotLookup, BadOrigin, no extra info
-                    console.log(`other: ${dispatchError.toString()}`);
-                }
-                unsub();
-                chan.push("error");
-            }
-            if (status.isInBlock) {
-                console.log(`Transaction included at blockHash ${status.asInBlock}`);
-            }
-            else if (status.isFinalized) {
-                console.log(`Transaction finalized at blockHash ${status.asFinalized}`);
-                // Loop through Vec<EventRecord> to display all events
-                events.forEach(({ phase, event: { data, method, section } }) => {
-                    console.log(`\t' ${phase}: ${section}.${method}:: ${data}`);
-                });
-                unsub();
-                chan.push(status.asFinalized);
-            }
-        }
-        catch {
-            console.log("[Error] Too many transactions in short time");
-        }
-    });
-    const txid = await chan.get().then(value => {   
-        chan.close();
-        return value;
-    }, error => {      
-        console.error(error);
-        chan.close();
-        return null;
-    });
-    return txid;
+    const txhash = await api.tx.bridge.request(token, destination, amount)
+        .signAndSend(keyspair, { nonce: -1 });
+    return txhash;
 };
 
 export const pallet_bridge_mint = async (api, keyspair, token, recipient, transaction_id, amount) => {
     const txhash = await api.tx.bridge.mint(token, recipient, transaction_id, amount)
-        .signAndSend(keyspair,  { nonce: -1 });
+        .signAndSend(keyspair, { nonce: -1 });
     return txhash;
 };
 
@@ -383,51 +291,14 @@ export const pallet_bridge_burn = async (api, keyspair, token, recipient, transa
 
 export const pallet_bridge_set_lockdown = async (api, keyspair, token) => {
     const txhash = await api.tx.bridge.set_lockdown(token)
-        .signAndSend(keyspair,  { nonce: -1 });
+        .signAndSend(keyspair, { nonce: -1 });
     return txhash;
 };
 
 export const pallet_bridge_set_unlockdown = async (api, keyspair) => {
-    const chan = new Channel(0 /* default */);
-    const unsub = await api.tx.bridge.set_unlockdown()
-        .signAndSend(keyspair, ({ status, events, dispatchError }) => {
-        try {
-            // status would still be set, but in the case of error we can shortcut
-            // to just check it (so an error would indicate InBlock or Finalized)
-            if (dispatchError) {
-                if (dispatchError.isModule) {
-                    // for module errors, we have the section indexed, lookup
-                    const decoded = api.registry.findMetaError(dispatchError.asModule);
-                    const { name, section } = decoded;
-                    console.log(`${section}.${name}`);
-                }
-                else {
-                    // Other, CannotLookup, BadOrigin, no extra info
-                    console.log(`other: ${dispatchError.toString()}`);
-                }
-                unsub();
-                chan.push("error");
-            }
-            if (status.isInBlock) {
-                console.log(`Transaction included at blockHash ${status.asInBlock}`);
-            }
-            else if (status.isFinalized) {
-                console.log(`Transaction finalized at blockHash ${status.asFinalized}`);
-                // Loop through Vec<EventRecord> to display all events
-                events.forEach(({ phase, event: { data, method, section } }) => {
-                    console.log(`\t' ${phase}: ${section}.${method}:: ${data}`);
-                });
-                unsub();
-                chan.push(`Event report end.`);
-            }
-        }
-        catch {
-            console.log("[Error] Too many transactions in short time");
-        }
-    });
-    await chan.get().then(value => console.log(value), error => console.error(error));
-    chan.close();
+    return await api.tx.bridge.set_unlockdown().signAndSend(keyspair, { nonce: -1 });
 };
+
 export const subscription_pallet_bridge = async (api) => {
     // Subscribe to system events via storage
     api.query.system.events((events) => {

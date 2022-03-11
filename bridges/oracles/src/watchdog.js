@@ -6,9 +6,10 @@ import { NODE_ADDRESS, get_bitgreen_bridge_contract, privateKey, send_transfer, 
 import Web3 from 'web3';
 
 const total_lockdown = async (api, keypair, web3, BitgreenBridge, token) => {
-    const txid = await pallet_bridge_set_lockdown(api, keyspair, token);
+    const gasPrice = await web3.eth.getGasPrice();
+    const txid = await pallet_bridge_set_lockdown(api, keypair, token);
     console.log(txid);
-    const receipt = await send_setLockdown(web3, keypair);
+    const receipt = await send_setLockdown(web3, gasPrice, BitgreenBridge);
     console.log(receipt);
 }
 
@@ -51,14 +52,14 @@ const handle_events = async (api, keypair, web3, BitgreenBridge, value) => {
                         if (recipient.eq(destination[0])) {
                             if (!amount.eq(value)) {
                                 console.log(`FATAL : \t amount ${amount} <> value ${value}`);
-                                total_lockdown(api, keypair, web3, BitgreenBridge, token);
+                                await total_lockdown(api, keypair, web3, BitgreenBridge, token);
                                 console.log('end');
                                 process.exit();
                             }
-                            else {
-                                console.log('all right');
-                                // total_lockdown(api, keypair, web3, BitgreenBridge, token);                            
-                            }
+                            // else {
+                            // console.log('all right');
+                            // await total_lockdown(api, keypair, web3, BitgreenBridge, token);                            
+                            // }
                         } else {
                             console.log('WARNING: recipient not equal to destination');
                         }
@@ -211,115 +212,114 @@ const watchdog_subscription_pallet_bridge = async (api, keypair, web3, BitgreenB
 };
 
 const handle_evm_transfer_events = async (api, keypair, web3, BitgreenBridge, returnValues) => {
-    const gasPrice = await web3.eth.getGasPrice();
-    const account = web3.eth.accounts.privateKeyToAccount(privateKey).address;
-    const txid = returnValues['0'];
-    console.log(txid);
-    const recipient = returnValues['1'];
-    console.log(recipient);
-    const amount = returnValues['2'];
-    console.log(amount);
-    const erc20 = returnValues['3'];
-    console.log(erc20);
-    const wdf = returnValues['4'];
-    console.log(wdf);
+    try {
+        // const account = web3.eth.accounts.privateKeyToAccount(privateKey).address;
+        const txid = returnValues['0'];
+        console.log(txid);
+        const recipient = returnValues['1'];
+        console.log(recipient);
+        const amount = returnValues['2'];
+        console.log(amount);
+        const erc20 = returnValues['3'];
+        console.log(erc20);
+        const wdf = returnValues['4'];
+        console.log(wdf);
+        const total = wdf + amount;
 
-    const transaction_id = api.createType('(u64,u16)', txid);
-    const [block_number, index] = transaction_id;
-    console.log(block_number);
-    console.log(index);
+        const transaction_id = api.createType('(u64,u16)', txid);
+        const [block_number, index] = transaction_id;
+        console.log(block_number);
+        console.log(index);
 
-    const blockHash = await api.rpc.chain.getBlockHash(block_number);
-    // const signedBlock = await api.rpc.chain.getBlock(blockHash);
-    const allRecords = await api.query.system.events.at(blockHash);
+        const blockHash = await api.rpc.chain.getBlockHash(block_number);
+        // const signedBlock = await api.rpc.chain.getBlock(blockHash);
+        const allRecords = await api.query.system.events.at(blockHash);
 
-    let value = {};
-    allRecords
-        // filter the specific events based on the phase and then the
-        // index of our extrinsic in the block
-        .filter(({ phase }) =>
-            phase.isApplyExtrinsic &&
-            phase.asApplyExtrinsic.eq(index))
-        // test the events against the specific types we are looking for
-        .forEach((record) => {
-            let { event } = record;
-            const types = event.typeDef;
-            if (api.events.system.ExtrinsicSuccess.is(event)) {
-                // extract the data for this event
-                // (In TS, because of the guard above, these will be typed)
-                if (section !== 'timestamp') {
-                    const [dispatchInfo] = event.data;
-                    console.log(`${section}.${method}:: ExtrinsicSuccess:: ${JSON.stringify(dispatchInfo.toHuman())} \t args:: ${args}`);
-                }
-                value['success'] = true;
-            } else if (api.events.system.ExtrinsicFailed.is(event)) {
-                // extract the data for this event
-                const [dispatchError, dispatchInfo] = event.data;
-                let errorInfo;
+        let value = {};
+        allRecords
+            // filter the specific events based on the phase and then the
+            // index of our extrinsic in the block
+            .filter(({ phase }) =>
+                phase.isApplyExtrinsic &&
+                phase.asApplyExtrinsic.eq(index))
+            // test the events against the specific types we are looking for
+            .forEach((record) => {
+                let { event } = record;
+                const types = event.typeDef;
+                if (api.events.system.ExtrinsicSuccess.is(event)) {
+                    value['success'] = true;
+                } else if (api.events.system.ExtrinsicFailed.is(event)) {
+                    // extract the data for this event
+                    const [dispatchError, dispatchInfo] = event.data;
+                    let errorInfo;
 
-                // decode the error
-                if (dispatchError.isModule) {
-                    // for module errors, we have the section indexed, lookup
-                    // (For specific known errors, we can also do a check against the
-                    // api.errors.<module>.<ErrorName>.is(dispatchError.asModule) guard)
-                    const decoded = api.registry.findMetaError(dispatchError.asModule);
+                    // decode the error
+                    if (dispatchError.isModule) {
+                        // for module errors, we have the section indexed, lookup
+                        // (For specific known errors, we can also do a check against the
+                        // api.errors.<module>.<ErrorName>.is(dispatchError.asModule) guard)
+                        const decoded = api.registry.findMetaError(dispatchError.asModule);
 
-                    errorInfo = `${decoded.section}.${decoded.name}`;
-                } else {
-                    // Other, CannotLookup, BadOrigin, no extra info
-                    errorInfo = dispatchError.toString();
-                }
-
-                console.log(`${section}.${method}:: ExtrinsicFailed:: ${errorInfo}`);
-                value['success'] = false;
-            } else {
-                // console.log(`${section}.${method}:: `);
-                // console.log(event);
-
-                event.data.forEach((data, index) => {
-                    console.log(`\tindex[${index}]:\t\t${types[index].type}: ${data.toString()}`);
-                    if (types[index].type === 'DispatchResult') {
-                        const result = api.createType('DispatchResult', data);
-                        if (result.isErr) {
-                            const dispatchError = result.asErr;
-                            if (dispatchError.isModule) {
-                                // for module errors, we have the section indexed, lookup
-                                const decoded = api.registry.findMetaError(dispatchError.asModule);
-                                const { name, section } = decoded;
-                                console.log(`error: \t${section}.${name}`);
-                            }
-                            else {
-                                // Other, CannotLookup, BadOrigin, no extra info
-                                console.log(`other: ${dispatchError.toString()}`);
-                            }
-                            value['success'] = false;
-                            return;
-                        }
+                        errorInfo = `${decoded.section}.${decoded.name}`;
+                    } else {
+                        // Other, CannotLookup, BadOrigin, no extra info
+                        errorInfo = dispatchError.toString();
                     }
-                    value[index] = api.createType(types[index].type, data);
-                });
-                // console.log(event.method);
-                value['method'] = event.method;
+
+                    console.log(`${section}.${method}:: ExtrinsicFailed:: ${errorInfo}`);
+                    value['success'] = false;
+                } else {
+                    // console.log(`${section}.${method}:: `);
+                    // console.log(event);
+
+                    event.data.forEach((data, index) => {
+                        console.log(`\tindex[${index}]:\t\t${types[index].type}: ${data.toString()}`);
+                        if (types[index].type === 'DispatchResult') {
+                            const result = api.createType('DispatchResult', data);
+                            if (result.isErr) {
+                                const dispatchError = result.asErr;
+                                if (dispatchError.isModule) {
+                                    // for module errors, we have the section indexed, lookup
+                                    const decoded = api.registry.findMetaError(dispatchError.asModule);
+                                    const { name, section } = decoded;
+                                    console.log(`error: \t${section}.${name}`);
+                                }
+                                else {
+                                    // Other, CannotLookup, BadOrigin, no extra info
+                                    console.log(`other: ${dispatchError.toString()}`);
+                                }
+                                value['success'] = false;
+                                return;
+                            }
+                        }
+                        value[index] = api.createType(types[index].type, data);
+                    });
+                    // console.log(event.method);
+                    value['method'] = event.method;
+                }
+            });
+
+        const token = value[1];
+        const destination = value[2];
+        const balance = value[3];
+
+        if (destination.eq(recipient)) {
+            if (!balance.eq(total)) {
+                console.log(`FATAL : \t total ${total} <> balance ${balance}`);
+                await total_lockdown(api, keypair, web3, BitgreenBridge, token);
+                console.log('end');
+                process.exit();
             }
-        });
-
-    const token = value[1];
-    const destination = value[2];
-    const balance = value[3];
-
-    if (destination.eq(recipient)) {
-        if (!balance.eq(amount)) {
-            console.log(`FATAL : \t amount ${amount} <> value ${value}`);
-            total_lockdown(api, keypair, web3, BitgreenBridge, token);
-            console.log('end');
-            process.exit();
+            else {
+                console.log('all right');
+                // await total_lockdown(api, keypair, web3, BitgreenBridge, token);                            
+            }
+        } else {
+            console.log('WARNING: recipient not equal to destination');
         }
-        else {
-            console.log('all right');
-            // total_lockdown(api, keypair, web3, BitgreenBridge, token);                            
-        }
-    } else {
-        console.log('WARNING: recipient not equal to destination');
+    }
+    catch (err) {
+        console.error('Error', err);
     }
 
 }
@@ -334,7 +334,6 @@ const main = async () => {
         const keyring = new Keyring({ type: 'sr25519' });
         const keypair = keyring.addFromUri(SECRETSEED);
 
-        // await subscription_contract(web3);
         const BitgreenBridge = await get_bitgreen_bridge_contract(web3);
         BitgreenBridge.events.BridgeTransfer()
             .on('data', function (event) {
