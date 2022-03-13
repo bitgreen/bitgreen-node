@@ -6,7 +6,7 @@ const bodyParser = require('body-parser')
 const axios = require('axios').default
 
 /* modules */
-const db = require('./queries')
+const db = require('./src/queries')
 
 /* config */
 require('dotenv').config()
@@ -24,6 +24,8 @@ const mainLoop = async () => {
     app.get('/', function (req, res) {
         res.send('Hello from BitGreen!');
     });
+
+    app.get('/analyze-data', db.getAnalyzeData)
 
     app.get('/transactions', db.getTransactions)
     app.get('/transaction', db.getTransaction)

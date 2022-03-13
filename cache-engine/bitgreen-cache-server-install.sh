@@ -16,6 +16,13 @@ if [ "$EUID" -ne 0 ]
 fi
 
 # hardware check !!
+# ensure RAM is not less than 32 GB
+if [ `free -m | head -2 | tail -1| awk '{print $2}'` -lt "32000" ]
+    then echo "This computer has less than 32 GB of RAM"
+    exit
+fi
+
+# disc space available 
 
 # set hostname
 echo
@@ -90,6 +97,8 @@ echo 'RPC_PROVIDER=ws://127.0.0.1:9944'>>.env
 echo '# api endpoint port'>>.env
 echo 'API_PORT=3000'>>.env
 
+# display password for admin purposes?
+
 # clear password from environment variable after use
 password="void"
 sqlString="void"
@@ -103,9 +112,29 @@ while true; do
         * ) echo "Please select 'm' for master or 's' for slave.";;
     esac
 done
+
+# POSTGRES TESTS
+# Install initial PostgreSQL 10 cluster and verify it exists
+sudo pg_lsclusters 
+
+# create a second postgres cluster 
+sudo pg_createcluster 10 replica1 
+sudo pg_ctlcluster 10 replica1 status 
+sudo systemctl status postgresql@10-main 
+
+# create archive directories for both clusters 
+sudo -H -u postgres mkdir /var/lib/postgresql/pg_log_archive/main 
+sudo -H -u postgres mkdir /var/lib/postgresql/pg_log_archive/replica1 
+
+# Configuration for master
+
+
+
+# Configuration for slave
+
 '
 
-# configure Postgres
+# configure Postgres with with tables describes in "migrations" folder
 echo "configuring Postres"
 cd cache-engine
 npm install
@@ -113,15 +142,18 @@ npm run migrate up
 echo "Postgres config complete"
 echo 
 
-# run crawler to download blocks and save to Postgres
+# run crawler in detahced screen environment to download blocks and save to Postgres
 screen -d -m npm run node
 echo "Block crawler launched in detached screen environment"
+echo
 
-# run api server to provide public endpoints
+# run api server in detached screen environment to provide public endpoints
 screen -d -m npm run api
 echo "API service launched in detached screen environment"
 echo
 echo "Installation complete. Your Bitgreen node is up and running."
 echo "Our bits are greener :)"
+echo
+
 
 

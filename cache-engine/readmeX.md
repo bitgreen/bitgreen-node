@@ -1,14 +1,5 @@
 # Bitgreen Cache Engine
 
-Bitgreen is a parachain on the Polkadot Network. This repository will manage a caching engine that will (1) download and store blocks to a Postgresql DB, (2) calculate derived data from on-chain sources, which is also stored in the DB, and (3) make this data available via public API.
----
-
-### Installation and Setup
-```
-chmod +x bitgreen-cache-server-install.sh
-./bitgreen-cache-server-install.sh
-```
-
 ### Installation
 ```
 npm install
@@ -19,7 +10,7 @@ npm install
 #### Database
 **node-pg-migrate** package is being used for `postgresql` migrations.
 
-Run migrations for this project with the following commands. It will create all necessary tables and configuration.
+To run migrations for this project run the command underneath. It will create all necessary tables and handle configuration.
 ```
 npm run migrate up
 ```
@@ -44,6 +35,23 @@ Edit `.env` file, and save it.
 This script will listen for any new blocks.
 ```
 npm run node
+```
+
+---
+
+### Run Fetcher
+This script will process all blocks from X to Y.
+Ending block number is optional.
+```
+npm run fetch -- --block-start=X --block-end=Y
+```
+To analyze blockchain for data, you can use `-a` flag.
+```
+npm run fetch -- --block-start=X -a
+```
+Run the following command for more details:
+```
+npm run fetch -- --help
 ```
 
 ---

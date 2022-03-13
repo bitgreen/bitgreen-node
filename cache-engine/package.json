@@ -7,6 +7,7 @@
     "test": "echo \"Error: no test specified\" && exit 1",
     "node": "node index.js",
     "api": "node api-server.js",
+    "fetch": "node fetch.js",
     "migrate": "node-pg-migrate"
   },
   "author": "",
@@ -15,6 +16,7 @@
     "@polkadot/api": "^7.9.1",
     "axios": "^0.26.0",
     "body-parser": "^1.19.2",
+    "commander": "^9.0.0",
     "dotenv": "^16.0.0",
     "express": "^4.17.3",
     "node-pg-migrate": "^6.2.1",
