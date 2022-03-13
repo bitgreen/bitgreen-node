@@ -1,10 +1,20 @@
 import { Keyring } from '@polkadot/api';
 // import type { AccountId } from '@polkadot/types/interfaces';
 import '@polkadot/api-augment';
-import { SECRETSEED, setup_substrate, setup_basic_bridge_test } from './pallet_bridge.js';
-import { NODE_ADDRESS, get_bitgreen_bridge_contract, basic_evm_setup_test } from './evm_bridge.js';
+import { SECRETSEED, setup_substrate, setup_basic_bridge_test, pallet_bridge_set_unlockdown } from './pallet_bridge.js';
+import { NODE_ADDRESS, get_bitgreen_bridge_contract, basic_evm_setup_test, send_unsetLockdown } from './evm_bridge.js';
 import Web3 from 'web3';
 let api;
+
+const total_unlockdown = async (api, keypair, web3, BitgreenBridge, token) => {
+    const gasPrice = await web3.eth.getGasPrice();
+    const txid = await pallet_bridge_set_unlockdown(api, keypair, token);
+    console.log(txid);
+    const receipt = await send_unsetLockdown(web3, gasPrice, BitgreenBridge);
+    console.log(receipt);
+}
+
+
 const main = async () => {
     // let provider = null;
     try {

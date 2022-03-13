@@ -74,7 +74,7 @@ decl_event!(
         /// setting has been destroyed.
         SettingsDestroyed(Vec<u8>),
         /// Minted
-        Minted(AccountId, u32, AccountId, Balance),
+        Minted(AccountId, u32, AccountId, Balance, Vec<u8>, Vec<u8>),
         /// Minting Request added to the queue
         MintQueued(AccountId, u32, AccountId, Balance, Vec<u8>, Vec<u8>),
         /// Already minted the same transaction
@@ -438,7 +438,7 @@ decl_module! {
                     let asset_owner = Asset::<T>::get(asset_id).unwrap().owner;
                     pallet_assets::Module::<T>::mint(RawOrigin::Signed(asset_owner).into(), asset_id, T::Lookup::unlookup(recipient.clone()), amount)?;
                     // generate an event
-                    Self::deposit_event(RawEvent::Minted(signer, asset_id, recipient, amount))
+                    Self::deposit_event(RawEvent::Minted(signer, asset_id, recipient, amount, transaction_id.clone(), token.clone()))
                 },
             };
 

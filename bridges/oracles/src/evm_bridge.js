@@ -4,14 +4,14 @@ import { readFileSync } from 'fs';
 import { dirname, join, normalize, format } from 'path';
 import { fileURLToPath } from 'url';
 export const NODE_ADDRESS = process.env.NODE_ADDRESS || Web3.givenProvider || 'ws://127.0.0.1:8545';
-const ROUTER_ADDRESS = process.env.ROUTER_ADDRESS || '0x69d57f4e97429D436Ac40Db266760fe059eea209';
+const ROUTER_ADDRESS = process.env.ROUTER_ADDRESS || '0x4A3699e2f1dB72b37f2939E01A990438231cf34a';
 // const mnemonicPhrase = process.env.MNEMONIC_PHRASE || "until ethics hollow size piano patient pole abuse model soon slender wall"; // 12 word mnemonic
-export const privateKey = process.env.PRIVATE_KEY || "0x6572972c810b569375b0c2e62611a91cd9f6538aa9fd3031f6493ba97fcf5d45";
+export const privateKey = process.env.PRIVATE_KEY || "0x7830e09c30e5fc49ce6771fafdedbe1c241daf7828497f78ffb447160769e439";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
-export const keeper_pk1 = '0x5f12f2818d2ed95ba37ed7a2ebb78d72bd6417ebb98c79607878574e8a41f638';
-export const keeper_pk2 = '0x6376004d26cd8cacacc14fbbc77e01a116ed1b8a2af8adb19c333995f1133395';
-export const keeper_pk3 = '0x21906a8ae0d513bdc1b8891a2a238d84b1a25c6f84dea06531d7425e855fd96a';
+export const keeper_pk1 = '0x1d5b454dd5885cab88c648873a0a45a28beeb52313c493b2e81560474b2bf8a9';
+export const keeper_pk2 = '0xdbcaf7b88b9b7137ae2571051a7d06b94288f86aece8b1c777db8ebdcd1686c0';
+export const keeper_pk3 = '0xf81bf982b97928ba6f48dbe07d0d005edb40d3bcab1e16f1f15e43d47bc4f703';
 export const get_erc20 = async (asset_id) => {
     const erc20 = '0x0000000000000000000000000000000000000000';
     return erc20;
@@ -301,26 +301,26 @@ export const get_bitgreen_bridge_contract = async (web3) => {
     let BitgreenBridge = new web3.eth.Contract(abi, ROUTER_ADDRESS);
     return BitgreenBridge;
 };
-export const subscription_contract = async (web3) => {
-    // subscribe to receive the logs:
-    console.info(`Listening for transactions to address: ${ROUTER_ADDRESS}`);
-    let __subscription = web3.eth.subscribe('logs', { address: ROUTER_ADDRESS, topics: [null] }, function (error, result) {
-        if (!error)
-            //console.log(`[Info] Notification received for address: ${result.address}. Notification: ${JSON.stringify(result)}`);
-            console.log(`[Info] Notification received for address: ${result.address}`);
-        else
-            console.error(error);
-    })
-        .on("connected", async function (subscriptionId) {
-        console.log(`[Info] Subscription activated with id: ${subscriptionId} and chainId: ${await web3.eth.getChainId()}`);
-    })
-        .on("data", await function (log) {
-        get_transaction_data(web3, log);
-    })
-        .on("changed", function (log) {
-        console.log("[Info] Changed: ", log);
-    });
-};
+// export const subscription_contract = async (web3) => {
+//     // subscribe to receive the logs:
+//     console.info(`Listening for transactions to address: ${ROUTER_ADDRESS}`);
+//     let __subscription = web3.eth.subscribe('logs', { address: ROUTER_ADDRESS, topics: [null] }, function (error, result) {
+//         if (!error)
+//             //console.log(`[Info] Notification received for address: ${result.address}. Notification: ${JSON.stringify(result)}`);
+//             console.log(`[Info] Notification received for address: ${result.address}`);
+//         else
+//             console.error(error);
+//     })
+//         .on("connected", async function (subscriptionId) {
+//         console.log(`[Info] Subscription activated with id: ${subscriptionId} and chainId: ${await web3.eth.getChainId()}`);
+//     })
+//         .on("data", await function (log) {
+//         get_transaction_data(web3, log);
+//     })
+//         .on("changed", function (log) {
+//         console.log("[Info] Changed: ", log);
+//     });
+// };
 export const basic_evm_setup_test = async (web3, BitgreenBridge) => {
     await call_contractsumary(web3, BitgreenBridge);
     const gasPrice = await web3.eth.getGasPrice();
@@ -431,273 +431,4 @@ export const smoke_transfer = async (web3, BitgreenBridge) => {
         console.log('txqueue: \t ', result);
     });
 };
-async function get_transaction_data(web3, log) {
-    let hash = log.transactionHash;
-    console.log("Hash: ", hash);
-    let tx = await web3.eth.getTransaction(hash);
-    // we filter transactions of Pancake Swap Contract
-    if (tx.to == ROUTER_ADDRESS) {
-        console.log("**** log ***");
-        console.log(log);
-        console.log("#### tx ####");
-        console.log(tx);
-        let methodid = tx.input.substr(0, 10);
-        console.log(methodid);
-        //function swapExactTokensForAVAX(uint256 amountIn, uint256 amountOutMin, address[] path, address to, uint256 deadline)
-        if (methodid == "0x676528d1") {
-            console.log("[Info] Processing swapExactTokensForAVAX()");
-            let amountInStr = "0x" + tx.input.substr(10, 64);
-            console.log('[Debug] Decoding "amountIn":', amountInStr);
-            let amountIn = BigInt(amountInStr).toString(10);
-            console.log('[Debug] "amountIn" decoded:', amountIn);
-            let amountOutMinStr = "0x" + tx.input.substr(74, 64);
-            console.log('[Debug] Decoding "amountOutMin":', amountOutMinStr);
-            let amountOutMin = BigInt(amountOutMinStr).toString(10);
-            console.log('[Debug] "amountOutMin" decoded:', amountOutMin);
-            let to = "0x" + tx.input.substr(202, 64);
-            console.log('[Debug] "to" decoded:', to);
-            let tokenOrigin = "0x" + tx.input.substr(394, 64);
-            console.log('[Debug] "tokenOrigin" decoded:', tokenOrigin);
-            let tokenDestination = "0x" + tx.input.substr(458, 64);
-            console.log('[Debug] "tokenDestination" decoded:', tokenDestination);
-            // get the amount from the event data
-            let tor = hex_trim_left_zeroes(tokenOrigin).toLowerCase();
-            let des = hex_trim_left_zeroes(tokenDestination).toLowerCase();
-            console.log("[Debug] tokenOrigin: ", tor.toLowerCase(), "tokenDestination:", des.toLowerCase(), "log.address:", log.address.toLowerCase(), "log.topics[0]:", log.topics[0]);
-            if (tor.toLowerCase() == log.address.toLowerCase()) {
-                amountIn = BigInt(log.data).toString(10);
-                amountOutMin = "0";
-                console.log("[Debug] Amount IN: ", amountIn);
-            }
-            if (des.toLowerCase() == log.address.toLowerCase()) {
-                amountOutMin = BigInt(log.data).toString(10);
-                amountIn = "0";
-                console.log("[Debug] Amount OUT: ", amountOutMin);
-            }
-            if ((log.address.toLowerCase() == tor || log.address.toLowerCase() == des)
-                && log.topics[0] == '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef') {
-                // store token swaps
-                // await store_swap_tokens(pgclient,hash,tokenOrigin,tokenDestination,amountIn,amountOutMin);
-            }
-            return;
-        }
-        //function swapTokensForExactAVAX(uint256 amountOut, uint256 amountInMax, address[] path, address to, uint256 deadline)
-        if (methodid == "0x7a42416a") {
-            console.log("[Info] Processing swapExactTokensForAVAX()");
-            let amountOutStr = "0x" + tx.input.substr(10, 64);
-            console.log('[Debug] Decoding "amountOut":', amountOutStr);
-            let amountOut = BigInt(amountOutStr).toString(10);
-            console.log('[Debug] "amountOut" decoded:', amountOut);
-            let amountInMaxStr = "0x" + tx.input.substr(74, 64);
-            console.log('[Debug] Decoding "amountInMax":', amountInMaxStr);
-            let amountInMax = BigInt(amountInMaxStr).toString(10);
-            console.log('[Debug] "amountInMax" decoded:', amountInMax);
-            let to = "0x" + tx.input.substr(202, 64);
-            console.log('[Debug] "to" decoded:', to);
-            let tokenOrigin = "0x" + tx.input.substr(394, 64);
-            console.log('[Debug] "tokenOrigin" decoded:', tokenOrigin);
-            let tokenDestination = "0x" + tx.input.substr(458, 64);
-            console.log('[Debug] "tokenDestination" decoded:', tokenDestination);
-            // get the amount from the event data
-            let tor = hex_trim_left_zeroes(tokenOrigin).toLowerCase();
-            let des = hex_trim_left_zeroes(tokenDestination).toLowerCase();
-            console.log("[Debug] tokenOrigin: ", tor.toLowerCase(), "tokenDestination:", des.toLowerCase(), "log.address:", log.address.toLowerCase(), "log.topics[0]:", log.topics[0]);
-            if (tor.toLowerCase() == log.address.toLowerCase()) {
-                amountInMax = BigInt(log.data).toString(10);
-                amountOut = "0";
-                console.log("[Debug] Amount IN: ", amountInMax);
-            }
-            if (des.toLowerCase() == log.address.toLowerCase()) {
-                amountOut = BigInt(log.data).toString(10);
-                amountInMax = "0";
-                console.log("[Debug] Amount OUT: ", amountOut);
-            }
-            if ((log.address.toLowerCase() == tor || log.address.toLowerCase() == des)
-                && log.topics[0] == '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef') {
-                // store token swaps
-                // await store_swap_tokens(pgclient,hash,tokenOrigin,tokenDestination,amountInMax,amountOut);
-            }
-            return;
-        }
-        if (methodid == "0xa2a1623d") { // swapExactAVAXForTokens(uint256 amountOutMin, address[] path, address to, uint256 deadline)
-            console.log("[Info] Processing swapExactAVAXForTokens()", hash);
-            console.log("[Info] Log swapExactAVAXForTokens()", log);
-            let amountInStr = log.data.substr(0, 64);
-            console.log('[Debug] Decoding "amountIn":', amountInStr);
-            let amountIn = BigInt(amountInStr).toString(10);
-            // if(amountIn==0){
-            //     amountInStr=tx.value;
-            //     amountIn=BigInt(amountInStr).toString(10)
-            //     console.log('[Debug] "amountIn" was 0, getting from "value":',amountInStr);
-            // }
-            console.log('[Debug] "amountIn" decoded:', amountIn);
-            let amountOutStr = "0x" + tx.input.substr(10, 64);
-            console.log('[Debug] Decoding "amountOut":', amountOutStr);
-            let amountOut = BigInt(amountOutStr).toString(10);
-            console.log('[Debug] "amountOut" decoded:', amountOut);
-            let to = "0x" + tx.input.substr(138, 64);
-            console.log('[Debug] "to" decoded:', to);
-            let tokenOrigin = "0x" + tx.input.substr(330, 64);
-            console.log('[Debug] "tokenOrigin" decoded:', tokenOrigin);
-            let tokenDestination = "0x" + tx.input.substr(394, 64);
-            console.log('[Debug] "tokenDestination" decoded:', tokenDestination);
-            // get the amount from the event data
-            let tor = hex_trim_left_zeroes(tokenOrigin).toLowerCase();
-            let des = hex_trim_left_zeroes(tokenDestination).toLowerCase();
-            console.log("[Debug] tokenOrigin: ", tor.toLowerCase(), "tokenDestination:", des.toLowerCase(), "log.address:", log.address.toLowerCase(), "log.topics[0]:", log.topics[0]);
-            if (tor.toLowerCase() == log.address.toLowerCase()) {
-                amountIn = BigInt(log.data).toString(10);
-                console.log("[Debug] Amount IN: ", amountIn);
-                amountOut = "0";
-            }
-            if (des.toLowerCase() == log.address.toLowerCase()) {
-                amountOut = BigInt(log.data).toString(10);
-                console.log("[Debug] Amount OUT: ", amountOut);
-                amountIn = "0";
-            }
-            if ((log.address.toLowerCase() == tor || log.address.toLowerCase() == des)
-                && log.topics[0] == '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef') {
-                // store token swaps
-                // await store_swap_tokens(pgclient,hash,tokenOrigin,tokenDestination,amountIn,amountOut);
-            }
-            return;
-        }
-        if (methodid == "0x8a657e67") { // swapAVAXForExactTokens(uint256 amountOut, address[] path, address to, uint256 deadline)
-            console.log("[Info] Processing swapAVAXForExactTokens()", hash);
-            console.log("[Info] Log swapAVAXForExactTokens()", log);
-            let amountInStr = log.data.substr(0, 64);
-            console.log('[Debug] Decoding "amountIn":', amountInStr);
-            let amountIn = BigInt(amountInStr).toString(10);
-            let amountOutStr = "0x" + tx.input.substr(10, 64);
-            console.log('[Debug] Decoding "amountOut":', amountOutStr);
-            let amountOut = BigInt(amountOutStr).toString(10);
-            console.log('[Debug] "amountOut" decoded:', amountOut);
-            let to = "0x" + tx.input.substr(138, 64);
-            console.log('[Debug] "to" decoded:', to);
-            let tokenOrigin = "0x" + tx.input.substr(330, 64);
-            console.log('[Debug] "tokenOrigin" decoded:', tokenOrigin);
-            let tokenDestination = "0x" + tx.input.substr(394, 64);
-            console.log('[Debug] "tokenDestination" decoded:', tokenDestination);
-            // get the amount from the event data
-            let tor = hex_trim_left_zeroes(tokenOrigin).toLowerCase();
-            let des = hex_trim_left_zeroes(tokenDestination).toLowerCase();
-            console.log("[Debug] tokenOrigin: ", tor.toLowerCase(), "tokenDestination:", des.toLowerCase(), "log.address:", log.address.toLowerCase(), "log.topics[0]:", log.topics[0]);
-            if (tor.toLowerCase() == log.address.toLowerCase()) {
-                amountIn = BigInt(log.data).toString(10);
-                amountOut = "0";
-                console.log("[Debug] Amount IN: ", amountIn);
-            }
-            if (des.toLowerCase() == log.address.toLowerCase()) {
-                amountOut = BigInt(log.data).toString(10);
-                amountIn = "0";
-                console.log("[Debug] Amount OUT: ", amountOut);
-            }
-            if ((log.address.toLowerCase() == tor || log.address.toLowerCase() == des)
-                && log.topics[0] == '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef') {
-                // store token swaps
-                // await store_swap_tokens(pgclient,hash,tokenOrigin,tokenDestination,amountIn,amountOut);
-            }
-            return;
-        }
-        if (methodid == "0x38ed1739") { // swapExactTokensForTokens(uint256 amountIn, uint256 amountOutMin, address[] path, address to, uint256 deadline)
-            console.log("[Info] Processing swapExactTokensForTokens()", hash);
-            let amountInStr = "0x" + tx.input.substr(10, 64);
-            console.log('[Debug] Decoding "amountIn":', amountInStr);
-            let amountIn = BigInt(amountInStr).toString(10);
-            console.log('[Debug] "amountIn" decoded:', amountIn);
-            let amountOutMinStr = "0x" + tx.input.substr(74, 64);
-            console.log('[Debug] Decoding "amountOutMin":', amountOutMinStr);
-            let amountOutMin = BigInt(amountOutMinStr).toString(10);
-            console.log('[Debug] "amountOutMin" decoded:', amountOutMin);
-            let to = "0x" + tx.input.substr(202, 64);
-            console.log('[Debug] "to" decoded:', to);
-            let tokenOrigin = "0x" + tx.input.substr(394, 64);
-            console.log('[Debug] "tokenOrigin" decoded:', tokenOrigin);
-            let tokenDestination = "0x" + tx.input.substr(458, 64);
-            console.log('[Debug] "tokenDestination" decoded:', tokenDestination);
-            // get the amount from the event data
-            let tor = hex_trim_left_zeroes(tokenOrigin).toLowerCase();
-            let des = hex_trim_left_zeroes(tokenDestination).toLowerCase();
-            console.log("[Debug] tokenOrigin: ", tor.toLowerCase(), "tokenDestination:", des.toLowerCase(), "log.address:", log.address.toLowerCase(), "log.topics[0]:", log.topics[0]);
-            if (tor.toLowerCase() == log.address.toLowerCase()) {
-                amountIn = BigInt(log.data).toString(10);
-                amountOutMin = "0";
-                console.log("[Debug] Amount IN: ", amountIn);
-            }
-            if (des.toLowerCase() == log.address.toLowerCase()) {
-                amountOutMin = BigInt(log.data).toString(10);
-                amountIn = "0";
-                console.log("[Debug] Amount OUT: ", amountOutMin);
-            }
-            if ((log.address.toLowerCase() == tor || log.address.toLowerCase() == des)
-                && log.topics[0] == '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef') {
-                // store token swaps
-                // await store_swap_tokens(pgclient,hash,tokenOrigin,tokenDestination,amountIn,amountOutMin);
-            }
-            return;
-        }
-        if (methodid == "0x8803dbee") { // swapTokensForExactTokens(uint256 amountOut, uint256 amountInMax, address[] path, address to, uint256 deadline)
-            console.log("[Info] Processing swapTokensForExactTokens()", hash);
-            let amountOutStr = "0x" + tx.input.substr(10, 64);
-            console.log('[Debug] Decoding "amountOut":', amountOutStr);
-            let amountOut = BigInt(amountOutStr).toString(10);
-            console.log('[Debug] "amountOut" decoded:', amountOut);
-            let amountInMaxStr = "0x" + tx.input.substr(74, 64);
-            console.log('[Debug] Decoding "amountInMax":', amountInMaxStr);
-            let amountInMax = BigInt(amountInMaxStr).toString(10);
-            console.log('[Debug] "amountInMax" decoded:', amountInMax);
-            let to = "0x" + tx.input.substr(202, 64);
-            console.log('[Debug] "to" decoded:', to);
-            let tokenOrigin = "0x" + tx.input.substr(394, 64);
-            console.log('[Debug] "tokenOrigin" decoded:', tokenOrigin);
-            let tokenDestination = "0x" + tx.input.substr(458, 64);
-            console.log('[Debug] "tokenDestination" decoded:', tokenDestination);
-            // get the amount from the event data
-            let tor = hex_trim_left_zeroes(tokenOrigin).toLowerCase();
-            let des = hex_trim_left_zeroes(tokenDestination).toLowerCase();
-            console.log("[Debug] tokenOrigin: ", tor.toLowerCase(), "tokenDestination:", des.toLowerCase(), "log.address:", log.address.toLowerCase(), "log.topics[0]:", log.topics[0]);
-            if (tor.toLowerCase() == log.address.toLowerCase()) {
-                amountInMax = BigInt(log.data).toString(10);
-                amountOut = "0";
-                console.log("[Debug] Amount IN: ", amountInMax);
-            }
-            if (des.toLowerCase() == log.address.toLowerCase()) {
-                amountOut = BigInt(log.data).toString(10);
-                amountInMax = "0";
-                console.log("[Debug] Amount OUT: ", amountOut);
-            }
-            if ((log.address.toLowerCase() == tor || log.address.toLowerCase() == des)
-                && log.topics[0] == '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef') {
-                // store token swaps
-                // await store_swap_tokens(pgclient,hash,tokenOrigin,tokenDestination,amountInMax,amountOut);
-            }
-            return;
-        }
-        console.log("####################################################################");
-        console.log("Unknonwn method id: ", methodid, " hash: ", hash, " input: ", tx.input);
-        console.log("#####################################################################");
-    }
-    else {
-        console.log('Skipping unwatched address:', hash);
-    }
-}
-// function to trim left not meaningful zeroes from an hex string starting with 0x
-function hex_trim_left_zeroes(hex) {
-    if (hex.substr(0, 2) != '0x') {
-        return hex;
-    }
-    let s = "0x";
-    let flag = false;
-    for (let i = 2; i < hex.length; i++) {
-        if (hex.substr(i, 1) == "0" && flag == false) {
-            continue;
-        }
-        if (hex.substr(i, 1) != "0" && flag == false) {
-            flag = true;
-        }
-        if (flag == true) {
-            s = s + hex.substr(i, 1);
-        }
-    }
-    return (s);
-}
+

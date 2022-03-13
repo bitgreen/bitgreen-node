@@ -4,7 +4,7 @@ import '@polkadot/api-augment';
 import { setup_substrate, pallet_bridge_request } from './pallet_bridge.js';
 import { NODE_ADDRESS, get_bitgreen_bridge_contract, get_erc20, send_transfer, privateKey } from './evm_bridge.js';
 import Web3 from 'web3';
-const destination_address = '0xb88cDdF014cB1D0D96676f4bA5aF5c02Ec6da0e5';
+const destination_address = '0x7bF59951e72d85EEF00E54212122174B06BE1768';
 let api;
 const main = async () => {
     // let provider = null;
@@ -25,7 +25,7 @@ const main = async () => {
         // const recipient = api.createType('AccountId', eve.address);
         const bitg_token_bytes = api.createType('Bytes', 'WETH');
         // const transaction_id_bytes = api.createType('Bytes', "a135");
-        const balance = api.createType('Balance', "1");
+        const balance = api.createType('Balance', "2");
         // const gasPrice = await web3.eth.getGasPrice();
         const destination_address_bytes = api.createType('Bytes', destination_address);
 
