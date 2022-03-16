@@ -7,6 +7,7 @@ const axios = require('axios').default
 
 /* modules */
 const db = require('./src/queries')
+const methods = require('./src/methods')
 
 /* config */
 require('dotenv').config()
@@ -24,6 +25,8 @@ const mainLoop = async () => {
     app.get('/', function (req, res) {
         res.send('Hello from BitGreen!');
     });
+
+    app.get('/get-block', methods.getBlock)
 
     app.get('/analyze-data', db.getAnalyzeData)
 
@@ -51,4 +54,4 @@ const mainLoop = async () => {
 }
 
 // run main function
-mainLoop();
+mainLoop().catch(console.error)
