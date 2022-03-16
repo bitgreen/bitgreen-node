@@ -115,7 +115,26 @@ async function processBlock(api, block_number, analyze_only = false) {
     console.log('-----------------------------------------------------');
 }
 
+const getBlock = async(request, response) => {
+    let block_number = request.query.block_number
+
+    const api = await initApi()
+
+    const block_hash = await api.rpc.chain.getBlockHash(block_number)
+
+    let [signed_block, block_events] = await Promise.all([
+        api.rpc.chain.getBlock(block_hash),
+        api.query.system.events.at(block_hash)
+    ]);
+
+    response.json({
+        signed_block: signed_block.toHuman(),
+        block_events: block_events.toHuman(),
+    })
+}
+
 module.exports = {
     initApi,
-    processBlock
+    processBlock,
+    getBlock
 }
