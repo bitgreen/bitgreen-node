@@ -21,9 +21,11 @@ const options = program.opts();
 async function main() {
     const api = await initApi()
 
-    const block_start = !isNaN(options.blockStart) ? options.blockStart : 1;
-    const block_end = !isNaN(options.blockEnd) && options.blockEnd > options.blockStart ? options.blockEnd : 99999999999999;
+    const block_start = !isNaN(options.blockStart) ? parseInt(options.blockStart) : 1;
+    const block_end = !isNaN(options.blockEnd) && parseInt(options.blockEnd) > block_start ? parseInt(options.blockEnd) : 99999999999999;
     const analyze_only = options.analyzeOnly;
+
+    console.log(`Blocks: ${block_start} to ${block_end}`);
 
     for(let block_number = block_start; block_number <= block_end; block_number++) {
         await processBlock(api, block_number, analyze_only)
