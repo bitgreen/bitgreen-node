@@ -364,8 +364,8 @@ export const setup_basic_bridge_test = async (api, keyspair) => {
     // await native_transfer(api, keyspair, 10000 , charlie.address);
     // await native_transfer(api, keyspair, 1, dave.address);
     await pallet_assets_force_create(api, keyspair, 1, keyspair.address, 1, 1);
-    // await bridge_create_basic_settings_weth(api, keyspair);
-    await bridge_create_settings_smoke_test(api, keyspair);
+    await bridge_create_basic_settings_weth_with3(api, keyspair);
+    // await bridge_create_settings_smoke_test(api, keyspair);
     // const eve = keyring.addFromUri('//Eve');
     // const recipient = api.createType('AccountId', eve.address);
     // const bitg_token_bytes = api.createType('Bytes', TOKEN);

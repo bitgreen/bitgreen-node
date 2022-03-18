@@ -3,15 +3,56 @@ import Web3 from 'web3';
 import { readFileSync } from 'fs';
 import { dirname, join, normalize, format } from 'path';
 import { fileURLToPath } from 'url';
-export const NODE_ADDRESS = process.env.NODE_ADDRESS || Web3.givenProvider || 'ws://127.0.0.1:8545';
-const ROUTER_ADDRESS = process.env.ROUTER_ADDRESS || '0x4A3699e2f1dB72b37f2939E01A990438231cf34a';
+
+const options = {
+    timeout: 30000, // ms
+
+    // Useful for credentialed urls, e.g: ws://username:password@localhost:8546
+    // headers: {
+    //   authorization: 'Basic username:password'
+    // },
+
+    clientConfig: {
+      // Useful if requests are large
+      maxReceivedFrameSize: 100000000,   // bytes - default: 1MiB
+      maxReceivedMessageSize: 100000000, // bytes - default: 8MiB
+
+      // Useful to keep a connection alive
+      keepalive: true,
+      keepaliveInterval: 60000 // ms
+    },
+
+    // Enable auto reconnection
+    reconnect: {
+        auto: true,
+        delay: 5000, // ms
+        maxAttempts: 5,
+        onTimeout: false
+    }
+};
+
+export const NODE_ADDRESS = process.env.NODE_ADDRESS || Web3.givenProvider || new Web3.providers.WebsocketProvider('ws://127.0.0.1:8546', options);
+const ROUTER_ADDRESS = process.env.ROUTER_ADDRESS || '0xa7d64D9B075443010154528D43e1dBd9Cde46786';
 // const mnemonicPhrase = process.env.MNEMONIC_PHRASE || "until ethics hollow size piano patient pole abuse model soon slender wall"; // 12 word mnemonic
-export const privateKey = process.env.PRIVATE_KEY || "0x7830e09c30e5fc49ce6771fafdedbe1c241daf7828497f78ffb447160769e439";
+export const privateKey = process.env.PRIVATE_KEY || "0x41c52877d19621b7510636aaa8a6b8c889f3080a161bc4fc86d3b827afb71141";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 export const keeper_pk1 = '0x1d5b454dd5885cab88c648873a0a45a28beeb52313c493b2e81560474b2bf8a9';
-export const keeper_pk2 = '0xdbcaf7b88b9b7137ae2571051a7d06b94288f86aece8b1c777db8ebdcd1686c0';
-export const keeper_pk3 = '0xf81bf982b97928ba6f48dbe07d0d005edb40d3bcab1e16f1f15e43d47bc4f703';
+export const keeper_pk2 = '0x20c56d95edaa777bb405f49ab57710a78d9b2bb5726cb43ff04c3446aa32b842';
+export const keeper_pk3 = '0xd6a123956fe58dabd7072e8c6e325ff37bf04500914c5986287887cfbe5700e1';
+
+var nonce_block = {};
+
+const get_nonce = async (web3, account) => {    
+    if (nonce_block[account]) {
+        nonce_block[account] = nonce_block[account] + 1;
+    } else {
+        nonce_block[account] = await web3.eth.getTransactionCount(account);
+    }
+    return nonce_block[account]
+}
+
+
 export const get_erc20 = async (asset_id) => {
     const erc20 = '0x0000000000000000000000000000000000000000';
     return erc20;
@@ -200,17 +241,23 @@ export async function send_setWithDrawalFews(web3, gasPrice, contract, value) {
     }
     return receipt;
 }
-export const deposit_method = async (web3, gasPrice, contract, pk, amount, destination) => {
+export const deposit_method = async (web3, gasPrice, contract, pk, amount, destination, nonce) => {
     const account = web3.eth.accounts.privateKeyToAccount(pk).address;
     const transaction = contract.methods.deposit(destination);
     const gas = await transaction.estimateGas({ from: account });
-    console.log(gas);
+    // console.log(gas);    
+    let new_nonce = await get_nonce(web3, account);
+    if (nonce) {
+        new_nonce = new_nonce + nonce;
+    }
+    console.log('nonce \t ', new_nonce);
     const options = {
         to: transaction._parent._address,
         data: transaction.encodeABI(),
         gas:  gas,
         gasPrice: gasPrice,
         value: amount,
+        nonce: new_nonce
     };
     const signed = (await web3.eth.accounts.signTransaction(options, pk)).rawTransaction;
     let receipt = null;
@@ -239,12 +286,13 @@ export const deposit = async (web3, gasPrice, pk, amount, destination) => {
 export async function send_transfer(web3, gasPrice, contract, pk, txid, recipient, amount, erc20) {
     const account = web3.eth.accounts.privateKeyToAccount(pk).address;
     const transaction = contract.methods.transfer(txid, recipient, amount, erc20);
-    // console.log(transaction);
+    const nonce = await get_nonce(web3, account);
     const options = {
         to: transaction._parent._address,
         data: transaction.encodeABI(),
         gas: await transaction.estimateGas({ from: account }),
-        gasPrice: gasPrice
+        gasPrice: gasPrice,
+        nonce: nonce
     };
     const signed = (await web3.eth.accounts.signTransaction(options, pk)).rawTransaction;
     let receipt = null;
@@ -348,7 +396,7 @@ export const basic_evm_setup_test = async (web3, BitgreenBridge) => {
     ];
     await send_setWatchdogs(web3, gasPrice, BitgreenBridge, watchdogs);
     await send_setWatchcats(web3, gasPrice, BitgreenBridge, watchdogs);
-    await send_setThreshold(web3, gasPrice, BitgreenBridge, 1);
+    await send_setThreshold(web3, gasPrice, BitgreenBridge, 2);
     await send_setWithDrawalFews(web3, gasPrice, BitgreenBridge, 1);
     await send_setMinimumWithDrawalFees(web3, gasPrice, BitgreenBridge, 1);
     const amount = 1000;

@@ -1,0 +1,10 @@
+{
+  "name": "green",
+  "version": "1.0.0",
+  "main": "index.js",
+  "license": "MIT",
+  "type": "commonjs",
+  "dependencies": {
+    "@truffle/hdwallet-provider": "^2.0.4"
+  }
+}
