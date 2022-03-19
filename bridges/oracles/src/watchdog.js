@@ -54,14 +54,17 @@ const handle_events = async (api, keypair, web3, BitgreenBridge, value) => {
                                 console.log(`FATAL : \t amount ${amount} <> value ${value}`);
                                 await total_lockdown(api, keypair, web3, BitgreenBridge, token);
                                 console.log('end');
-                                process.exit();
+                                // process.exit();
                             }
                             // else {
                             // console.log('all right');
                             // await total_lockdown(api, keypair, web3, BitgreenBridge, token);                            
                             // }
                         } else {
-                            console.log('WARNING: recipient not equal to destination');
+                            console.log('FATAL: recipient not equal to destination');
+                            await total_lockdown(api, keypair, web3, BitgreenBridge, token);
+                            console.log('end');
+                            // process.exit();
                         }
 
                     }
@@ -151,7 +154,6 @@ const watchdog_subscription_pallet_bridge = async (api, keypair, web3, BitgreenB
                                 console.log(`${section}.${method}:: ExtrinsicFailed:: ${errorInfo}`);
                                 value['success'] = false;
                             } else {
-                                // TODO finish event handling refactoring to deal with substrate block, index, tx hash
                                 // console.log(`${section}.${method}:: `);
                                 // console.log(event);
 
@@ -273,7 +275,7 @@ const handle_evm_transfer_events = async (api, keypair, web3, BitgreenBridge, re
                     // console.log(event);
 
                     event.data.forEach((data, index) => {
-                        console.log(`\tindex[${index}]:\t\t${types[index].type}: ${data.toString()}`);
+                        // console.log(`\tindex[${index}]:\t\t${types[index].type}: ${data.toString()}`);
                         if (types[index].type === 'DispatchResult') {
                             const result = api.createType('DispatchResult', data);
                             if (result.isErr) {
@@ -299,24 +301,35 @@ const handle_evm_transfer_events = async (api, keypair, web3, BitgreenBridge, re
                 }
             });
 
-        const token = value[1];
-        const destination = value[2];
-        const balance = value[3];
-
-        if (destination.eq(recipient)) {
-            if (!balance.eq(total)) {
-                console.log(`FATAL : \t total ${total} <> balance ${balance}`);
+        if (value['success']) {
+            const token = value[1];
+            const destination = value[2];
+            const balance = value[3];
+    
+            if (destination.eq(recipient)) {
+                if (!balance.eq(total)) {
+                    console.log(`FATAL : \t total ${total} <> balance ${balance}`);
+                    await total_lockdown(api, keypair, web3, BitgreenBridge, token);
+                    console.log('end');
+                    // process.exit();
+                }
+                // else {
+                //     console.log('all right');
+                //     // await total_lockdown(api, keypair, web3, BitgreenBridge, token);                            
+                // }
+            } else {
+                console.log('FATAL: recipient not equal to destination');
                 await total_lockdown(api, keypair, web3, BitgreenBridge, token);
                 console.log('end');
-                process.exit();
-            }
-            else {
-                console.log('all right');
-                // await total_lockdown(api, keypair, web3, BitgreenBridge, token);                            
-            }
+                // process.exit();    
+            }    
         } else {
-            console.log('WARNING: recipient not equal to destination');
+            console.log(`FATAL : \t block_number,  ${block_number} index ${index} failed`);
+            await total_lockdown(api, keypair, web3, BitgreenBridge, token);
+            console.log('end');
+            // process.exit();
         }
+
     }
     catch (err) {
         console.error('Error', err);
