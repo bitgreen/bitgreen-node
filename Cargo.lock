@@ -5004,6 +5004,8 @@ dependencies = [
  "bs58",
  "frame-support",
  "frame-system",
+ "module-currencies",
+ "orml-traits",
  "pallet-assets",
  "pallet-balances",
  "parity-scale-codec",

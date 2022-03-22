@@ -3,10 +3,12 @@
 use crate::{
 	precompiles::Precompiles,
 	runner::storage_meter::{StorageMeter, StorageMeterHandler},
-	AccountInfo, AccountStorages, Accounts, AddressMapping, Codes, Config, ContractInfo, Error, Event, Log,
-	MergeAccount, Pallet, Vicinity,
+	AccountInfo, AccountStorages, Accounts, AddressMapping, Codes, Config, ContractInfo, Error,
+	Event, Log, MergeAccount, Pallet, Vicinity,
 };
-use evm::{Capture, Context, CreateScheme, ExitError, ExitReason, Opcode, Runtime, Stack, Transfer};
+use evm::{
+	Capture, Context, CreateScheme, ExitError, ExitReason, Opcode, Runtime, Stack, Transfer,
+};
 use evm_gasometer::{self as gasometer, Gasometer};
 use evm_runtime::{Config as EvmRuntimeConfig, Handler as HandlerT};
 use frame_support::{
@@ -40,7 +42,10 @@ fn l64(gas: u64) -> u64 {
 }
 
 impl<'vicinity, 'config, T: Config> Handler<'vicinity, 'config, '_, T> {
-	pub fn run_transaction<R, F: FnOnce(&mut Handler<'vicinity, 'config, '_, T>) -> TransactionOutcome<R>>(
+	pub fn run_transaction<
+		R,
+		F: FnOnce(&mut Handler<'vicinity, 'config, '_, T>) -> TransactionOutcome<R>,
+	>(
 		vicinity: &'vicinity Vicinity,
 		gas_limit: u64,
 		storage_limit: u32,
@@ -54,10 +59,11 @@ impl<'vicinity, 'config, T: Config> Handler<'vicinity, 'config, '_, T> {
 				origin: vicinity.origin,
 				_marker: PhantomData,
 			};
-			let storage_meter = match StorageMeter::new(&mut storage_meter_handler, contract, storage_limit) {
-				Ok(x) => x,
-				Err(e) => return TransactionOutcome::Rollback(Err(e)),
-			};
+			let storage_meter =
+				match StorageMeter::new(&mut storage_meter_handler, contract, storage_limit) {
+					Ok(x) => x,
+					Err(e) => return TransactionOutcome::Rollback(Err(e)),
+				};
 
 			let mut substate = Handler::<'vicinity, 'config, '_, T> {
 				vicinity,
@@ -81,7 +87,10 @@ impl<'vicinity, 'config, T: Config> Handler<'vicinity, 'config, '_, T> {
 	pub fn run_sub_transaction<
 		'a,
 		R,
-		F: FnOnce(&mut Handler<'vicinity, 'config, '_, T>, &mut Gasometer<'_>) -> TransactionOutcome<R>,
+		F: FnOnce(
+			&mut Handler<'vicinity, 'config, '_, T>,
+			&mut Gasometer<'_>,
+		) -> TransactionOutcome<R>,
 	>(
 		&'a mut self,
 		vicinity: &'vicinity Vicinity,
@@ -168,7 +177,10 @@ impl<'vicinity, 'config, T: Config> Handler<'vicinity, 'config, '_, T> {
 		T::Currency::transfer(
 			&source,
 			&target,
-			transfer.value.saturated_into::<u128>().unique_saturated_into(),
+			transfer
+				.value
+				.saturated_into::<u128>()
+				.unique_saturated_into(),
 			ExistenceRequirement::AllowDeath,
 		)
 		.map_err(|_| ExitError::OutOfGas)
@@ -215,7 +227,10 @@ impl<'vicinity, 'config, T: Config> Handler<'vicinity, 'config, '_, T> {
 			CreateScheme::Fixed(naddress) => naddress,
 		};
 
-		if address.as_bytes().starts_with(&SYSTEM_CONTRACT_ADDRESS_PREFIX) {
+		if address
+			.as_bytes()
+			.starts_with(&SYSTEM_CONTRACT_ADDRESS_PREFIX)
+		{
 			Err(ExitError::Other(
 				Into::<&str>::into(Error::<T>::ConflictContractAddress).into(),
 			))
@@ -405,7 +420,11 @@ impl<'vicinity, 'config, 'meter, T: Config> HandlerT for Handler<'vicinity, 'con
 	}
 
 	fn log(&mut self, address: H160, topics: Vec<H256>, data: Vec<u8>) -> Result<(), ExitError> {
-		Pallet::<T>::deposit_event(Event::<T>::Log(Log { address, topics, data }));
+		Pallet::<T>::deposit_event(Event::<T>::Log(Log {
+			address,
+			topics,
+			data,
+		}));
 
 		Ok(())
 	}
@@ -424,7 +443,8 @@ impl<'vicinity, 'config, 'meter, T: Config> HandlerT for Handler<'vicinity, 'con
 			.refund(size.saturating_add(T::NewContractExtraBytes::get()))
 			.map_err(|_| ExitError::Other("RefundStorageError".into()))?;
 
-		T::MergeAccount::merge_account(&source, &dest).map_err(|_| ExitError::Other("MergeAccountError".into()))
+		T::MergeAccount::merge_account(&source, &dest)
+			.map_err(|_| ExitError::Other("MergeAccountError".into()))
 	}
 
 	fn create(
@@ -484,24 +504,43 @@ impl<'vicinity, 'config, 'meter, T: Config> HandlerT for Handler<'vicinity, 'con
 					ExitReason::Succeed(s) => match substate.gasometer.record_deposit(out.len()) {
 						Ok(()) => {
 							try_or_rollback!(gasometer.record_stipend(substate.gasometer.gas()));
-							try_or_rollback!(gasometer.record_refund(substate.gasometer.refunded_gas()));
+							try_or_rollback!(
+								gasometer.record_refund(substate.gasometer.refunded_gas())
+							);
 
 							Handler::<T>::inc_nonce(address);
 							try_or_rollback!(substate
 								.storage_meter
-								.charge((out.len() as u32).saturating_add(T::NewContractExtraBytes::get()))
+								.charge(
+									(out.len() as u32)
+										.saturating_add(T::NewContractExtraBytes::get())
+								)
 								.map_err(|_| ExitError::OutOfGas));
 							match <Pallet<T>>::on_contract_initialization(&address, origin, out) {
-								Ok(()) => {
-									TransactionOutcome::Commit(Capture::Exit((s.into(), Some(address), Vec::new())))
-								}
-								Err(e) => TransactionOutcome::Rollback(Capture::Exit((e.into(), None, Vec::new()))),
+								Ok(()) => TransactionOutcome::Commit(Capture::Exit((
+									s.into(),
+									Some(address),
+									Vec::new(),
+								))),
+								Err(e) => TransactionOutcome::Rollback(Capture::Exit((
+									e.into(),
+									None,
+									Vec::new(),
+								))),
 							}
 						}
-						Err(e) => TransactionOutcome::Rollback(Capture::Exit((e.into(), None, Vec::new()))),
+						Err(e) => TransactionOutcome::Rollback(Capture::Exit((
+							e.into(),
+							None,
+							Vec::new(),
+						))),
 					},
-					ExitReason::Revert(r) => TransactionOutcome::Rollback(Capture::Exit((r.into(), None, out))),
-					ExitReason::Error(e) => TransactionOutcome::Rollback(Capture::Exit((e.into(), None, Vec::new()))),
+					ExitReason::Revert(r) => {
+						TransactionOutcome::Rollback(Capture::Exit((r.into(), None, out)))
+					}
+					ExitReason::Error(e) => {
+						TransactionOutcome::Rollback(Capture::Exit((e.into(), None, Vec::new())))
+					}
 					ExitReason::Fatal(e) => {
 						gasometer.fail();
 						TransactionOutcome::Rollback(Capture::Exit((e.into(), None, Vec::new())))
@@ -571,7 +610,9 @@ impl<'vicinity, 'config, 'meter, T: Config> HandlerT for Handler<'vicinity, 'con
 
 				try_or_rollback!(gasometer.record_cost(target_gas));
 
-				if let Some(ret) = T::Precompiles::execute(code_address, &input, Some(target_gas), &context) {
+				if let Some(ret) =
+					T::Precompiles::execute(code_address, &input, Some(target_gas), &context)
+				{
 					debug::debug!(
 						target: "evm",
 						"handler: call-result: precompile result {:?}",
@@ -583,12 +624,16 @@ impl<'vicinity, 'config, 'meter, T: Config> HandlerT for Handler<'vicinity, 'con
 							// TODO: write some test to make sure following 3 lines is correct
 							try_or_rollback!(substate.gasometer.record_cost(cost));
 							try_or_rollback!(gasometer.record_stipend(substate.gasometer.gas()));
-							try_or_rollback!(gasometer.record_refund(substate.gasometer.refunded_gas()));
+							try_or_rollback!(
+								gasometer.record_refund(substate.gasometer.refunded_gas())
+							);
 							// precompile contract cost 0
 							// try_or_rollback!(self.storage_meter.record_cost(0));
 							TransactionOutcome::Commit(Capture::Exit((s.into(), out)))
 						}
-						Err(e) => TransactionOutcome::Rollback(Capture::Exit((e.into(), Vec::new()))),
+						Err(e) => {
+							TransactionOutcome::Rollback(Capture::Exit((e.into(), Vec::new())))
+						}
 					};
 				}
 
@@ -612,8 +657,12 @@ impl<'vicinity, 'config, 'meter, T: Config> HandlerT for Handler<'vicinity, 'con
 						try_or_rollback!(gasometer.record_refund(substate.gasometer.refunded_gas()));
 						TransactionOutcome::Commit(Capture::Exit((s.into(), out)))
 					}
-					ExitReason::Revert(r) => TransactionOutcome::Rollback(Capture::Exit((r.into(), out))),
-					ExitReason::Error(e) => TransactionOutcome::Rollback(Capture::Exit((e.into(), Vec::new()))),
+					ExitReason::Revert(r) => {
+						TransactionOutcome::Rollback(Capture::Exit((r.into(), out)))
+					}
+					ExitReason::Error(e) => {
+						TransactionOutcome::Rollback(Capture::Exit((e.into(), Vec::new())))
+					}
 					ExitReason::Fatal(e) => {
 						gasometer.fail();
 						TransactionOutcome::Rollback(Capture::Exit((e.into(), Vec::new())))
@@ -629,12 +678,23 @@ impl<'vicinity, 'config, 'meter, T: Config> HandlerT for Handler<'vicinity, 'con
 		})
 	}
 
-	fn pre_validate(&mut self, context: &Context, opcode: Opcode, stack: &Stack) -> Result<(), ExitError> {
+	fn pre_validate(
+		&mut self,
+		context: &Context,
+		opcode: Opcode,
+		stack: &Stack,
+	) -> Result<(), ExitError> {
 		if let Some(cost) = gasometer::static_opcode_cost(opcode) {
 			self.gasometer.record_cost(cost)?;
 		} else {
-			let (gas_cost, memory_cost) =
-				gasometer::dynamic_opcode_cost(context.address, opcode, stack, self.is_static, &self.config, self)?;
+			let (gas_cost, memory_cost) = gasometer::dynamic_opcode_cost(
+				context.address,
+				opcode,
+				stack,
+				self.is_static,
+				&self.config,
+				self,
+			)?;
 
 			self.gasometer.record_dynamic_cost(gas_cost, memory_cost)?;
 		}
@@ -712,14 +772,24 @@ impl<T: Config> StorageMeterHandler for StorageMeterHandlerImpl<T> {
 			// contract_acc could be a new account so we need to do
 			// unreserve/transfer/reserve
 			T::Currency::unreserve(&user, amount);
-			T::Currency::transfer(&user, &contract_acc, amount, ExistenceRequirement::AllowDeath)?;
+			T::Currency::transfer(
+				&user,
+				&contract_acc,
+				amount,
+				ExistenceRequirement::AllowDeath,
+			)?;
 			T::Currency::reserve(&contract_acc, amount)?;
 		} else {
 			let storage = refunded - used;
 			let amount = T::StorageDepositPerByte::get().saturating_mul(storage.into());
 
 			// user can't be a dead account
-			T::Currency::repatriate_reserved(&contract_acc, &user, amount, BalanceStatus::Reserved)?;
+			T::Currency::repatriate_reserved(
+				&contract_acc,
+				&user,
+				amount,
+				BalanceStatus::Reserved,
+			)?;
 		};
 
 		Ok(())

@@ -20,7 +20,14 @@ fn fail_call_return_ok() {
 		let signer: AccountId32 = AccountId32::from(data).into();
 
 		let origin = Origin::signed(signer);
-		assert_ok!(EVM::call(origin.clone(), contract_a(), Vec::new(), 0, 1000000, 0));
+		assert_ok!(EVM::call(
+			origin.clone(),
+			contract_a(),
+			Vec::new(),
+			0,
+			1000000,
+			0
+		));
 		assert_ok!(EVM::call(origin, contract_b(), Vec::new(), 0, 1000000, 0));
 	});
 }
@@ -118,8 +125,15 @@ fn create_reverts_with_message() {
 	// }
 	let contract = from_hex("0x6080604052348015600f57600080fd5b5060006083576040517f08c379a000000000000000000000000000000000000000000000000000000000815260040180806020018281038252600d8152602001807f6572726f72206d6573736167650000000000000000000000000000000000000081525060200191505060405180910390fd5b603e8060906000396000f3fe6080604052600080fdfea265627a7a723158204741083d83bf4e3ee8099dd0b3471c81061237c2e8eccfcb513dfa4c04634b5b64736f6c63430005110032").expect("invalid hex");
 	new_test_ext().execute_with(|| {
-		let result =
-			Runner::<Test>::create(alice(), contract, 0, 12_000_000, 12_000_000, <Test as Config>::config()).unwrap();
+		let result = Runner::<Test>::create(
+			alice(),
+			contract,
+			0,
+			12_000_000,
+			12_000_000,
+			<Test as Config>::config(),
+		)
+		.unwrap();
 		assert_eq!(result.exit_reason, ExitReason::Revert(ExitRevert::Reverted));
 		assert!(String::from_utf8_lossy(&result.output).contains("error message"));
 	});
@@ -208,17 +222,28 @@ fn should_deploy_payable_contract() {
 			from_hex("0x000000000000000000000000000000000000000000000000000000000000007b").unwrap();
 		contract.append(&mut stored_value.clone());
 
-		let result =
-			Runner::<Test>::create(alice(), contract, amount, 100000, 100000, <Test as Config>::config()).unwrap();
+		let result = Runner::<Test>::create(
+			alice(),
+			contract,
+			amount,
+			100000,
+			100000,
+			<Test as Config>::config(),
+		)
+		.unwrap();
 		let contract_address = result.address;
 
 		#[cfg(not(feature = "with-ethereum-compatibility"))]
 		deploy_free(contract_address);
 
-		assert_eq!(result.exit_reason, ExitReason::Succeed(ExitSucceed::Returned));
+		assert_eq!(
+			result.exit_reason,
+			ExitReason::Succeed(ExitSucceed::Returned)
+		);
 		assert_eq!(result.used_storage, 287);
 
-		let alice_balance = INITIAL_BALANCE - amount - 287 * <Test as Config>::StorageDepositPerByte::get();
+		let alice_balance =
+			INITIAL_BALANCE - amount - 287 * <Test as Config>::StorageDepositPerByte::get();
 		assert_eq!(balance(alice()), alice_balance);
 		assert_eq!(balance(contract_address), amount);
 
@@ -235,7 +260,10 @@ fn should_deploy_payable_contract() {
 		)
 		.unwrap();
 
-		assert_eq!(result.exit_reason, ExitReason::Succeed(ExitSucceed::Returned));
+		assert_eq!(
+			result.exit_reason,
+			ExitReason::Succeed(ExitSucceed::Returned)
+		);
 		assert_eq!(result.output, stored_value);
 		assert_eq!(result.used_storage, 0);
 
@@ -272,9 +300,19 @@ fn should_transfer_from_contract() {
 	new_test_ext().execute_with(|| {
 		let amount = 1000u64;
 
-		let result = Runner::<Test>::create(alice(), contract, 0, 10000000, 10000000, <Test as Config>::config())
-			.expect("create shouldn't fail");
-		assert_eq!(result.exit_reason, ExitReason::Succeed(ExitSucceed::Returned));
+		let result = Runner::<Test>::create(
+			alice(),
+			contract,
+			0,
+			10000000,
+			10000000,
+			<Test as Config>::config(),
+		)
+		.expect("create shouldn't fail");
+		assert_eq!(
+			result.exit_reason,
+			ExitReason::Succeed(ExitSucceed::Returned)
+		);
 		assert_eq!(result.used_storage, 892);
 
 		let alice_balance = INITIAL_BALANCE - 892 * <Test as Config>::StorageDepositPerByte::get();
@@ -301,7 +339,10 @@ fn should_transfer_from_contract() {
 		)
 		.expect("call shouldn't fail");
 
-		assert_eq!(result.exit_reason, ExitReason::Succeed(ExitSucceed::Stopped));
+		assert_eq!(
+			result.exit_reason,
+			ExitReason::Succeed(ExitSucceed::Stopped)
+		);
 		assert_eq!(balance(alice()), alice_balance - 1 * amount);
 		assert_eq!(balance(charlie()), 1 * amount);
 
@@ -321,7 +362,10 @@ fn should_transfer_from_contract() {
 		)
 		.expect("call shouldn't fail");
 
-		assert_eq!(result.exit_reason, ExitReason::Succeed(ExitSucceed::Stopped));
+		assert_eq!(
+			result.exit_reason,
+			ExitReason::Succeed(ExitSucceed::Stopped)
+		);
 		assert_eq!(balance(charlie()), 2 * amount);
 		assert_eq!(balance(alice()), alice_balance - 2 * amount);
 
@@ -341,7 +385,10 @@ fn should_transfer_from_contract() {
 		)
 		.expect("call shouldn't fail");
 
-		assert_eq!(result.exit_reason, ExitReason::Succeed(ExitSucceed::Stopped));
+		assert_eq!(
+			result.exit_reason,
+			ExitReason::Succeed(ExitSucceed::Stopped)
+		);
 		assert_eq!(balance(charlie()), 3 * amount);
 		assert_eq!(balance(alice()), alice_balance - 3 * amount);
 	})
@@ -372,7 +419,10 @@ fn contract_should_deploy_contracts() {
 			<Test as Config>::config(),
 		)
 		.unwrap();
-		assert_eq!(result.exit_reason, ExitReason::Succeed(ExitSucceed::Returned));
+		assert_eq!(
+			result.exit_reason,
+			ExitReason::Succeed(ExitSucceed::Returned)
+		);
 		assert_eq!(result.used_storage, 467);
 
 		let alice_balance = INITIAL_BALANCE - 467 * <Test as Config>::StorageDepositPerByte::get();
@@ -403,7 +453,10 @@ fn contract_should_deploy_contracts() {
 			<Test as Config>::config(),
 		)
 		.unwrap();
-		assert_eq!(result.exit_reason, ExitReason::Succeed(ExitSucceed::Stopped));
+		assert_eq!(
+			result.exit_reason,
+			ExitReason::Succeed(ExitSucceed::Stopped)
+		);
 		assert_eq!(result.used_storage, 281);
 
 		assert_eq!(
@@ -441,7 +494,10 @@ fn contract_should_deploy_contracts_without_payable() {
 			<Test as Config>::config(),
 		)
 		.unwrap();
-		assert_eq!(result.exit_reason, ExitReason::Succeed(ExitSucceed::Returned));
+		assert_eq!(
+			result.exit_reason,
+			ExitReason::Succeed(ExitSucceed::Returned)
+		);
 
 		let alice_balance = INITIAL_BALANCE - 464 * <Test as Config>::StorageDepositPerByte::get();
 
@@ -464,11 +520,15 @@ fn contract_should_deploy_contracts_without_payable() {
 			<Test as Config>::config(),
 		)
 		.unwrap();
-		assert_eq!(result.exit_reason, ExitReason::Succeed(ExitSucceed::Stopped));
+		assert_eq!(
+			result.exit_reason,
+			ExitReason::Succeed(ExitSucceed::Stopped)
+		);
 		assert_eq!(result.used_storage, 290);
 		assert_eq!(
 			balance(alice()),
-			alice_balance - (result.used_storage as u64 * <Test as Config>::StorageDepositPerByte::get())
+			alice_balance
+				- (result.used_storage as u64 * <Test as Config>::StorageDepositPerByte::get())
 		);
 		assert_eq!(balance(factory_contract_address), 0);
 	});
@@ -493,13 +553,25 @@ fn deploy_factory() {
 	// }
 	let contract = from_hex("0x608060405234801561001057600080fd5b5060405161001d90610121565b604051809103906000f080158015610039573d6000803e3d6000fd5b506000806101000a81548173ffffffffffffffffffffffffffffffffffffffff021916908373ffffffffffffffffffffffffffffffffffffffff1602179055506000809054906101000a900473ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff1663c29855786040518163ffffffff1660e01b815260040160206040518083038186803b1580156100e057600080fd5b505afa1580156100f4573d6000803e3d6000fd5b505050506040513d602081101561010a57600080fd5b81019080805190602001909291905050505061012d565b60a58061017983390190565b603e8061013b6000396000f3fe6080604052600080fdfea265627a7a7231582064177030ee644a03aaf8d65027df9e0331c8bc4b161de25bfb8aa3142848e0f864736f6c634300051100326080604052348015600f57600080fd5b5060878061001e6000396000f3fe6080604052348015600f57600080fd5b506004361060285760003560e01c8063c298557814602d575b600080fd5b60336049565b6040518082815260200191505060405180910390f35b6000607b90509056fea265627a7a7231582031e5a4abae00962cfe9875df1b5b0d3ce6624e220cb8c714a948794fcddb6b4f64736f6c63430005110032").unwrap();
 	new_test_ext().execute_with(|| {
-		let result = Runner::<Test>::create(alice(), contract, 0, 2_000_000, 5000, <Test as Config>::config()).unwrap();
-		assert_eq!(result.exit_reason, ExitReason::Succeed(ExitSucceed::Returned));
+		let result = Runner::<Test>::create(
+			alice(),
+			contract,
+			0,
+			2_000_000,
+			5000,
+			<Test as Config>::config(),
+		)
+		.unwrap();
+		assert_eq!(
+			result.exit_reason,
+			ExitReason::Succeed(ExitSucceed::Returned)
+		);
 		assert_eq!(result.used_gas.as_u64(), 124_479u64);
 		assert_eq!(result.used_storage, 461);
 		assert_eq!(
 			balance(alice()),
-			INITIAL_BALANCE - (result.used_storage as u64 * <Test as Config>::StorageDepositPerByte::get())
+			INITIAL_BALANCE
+				- (result.used_storage as u64 * <Test as Config>::StorageDepositPerByte::get())
 		);
 	});
 }
@@ -530,10 +602,17 @@ fn create_network_contract_works() {
 			U256::from_str("02").unwrap()
 		);
 
-		let created_event = Event::evm_mod(crate::Event::Created(H160::from_low_u64_be(primitives::NETWORK_CONTRACT_START)));
-		assert!(System::events().iter().any(|record| record.event == created_event));
+		let created_event = Event::evm_mod(crate::Event::Created(H160::from_low_u64_be(
+			primitives::NETWORK_CONTRACT_START,
+		)));
+		assert!(System::events()
+			.iter()
+			.any(|record| record.event == created_event));
 
-		assert_eq!(EVM::network_contract_index(), primitives::NETWORK_CONTRACT_START + 1);
+		assert_eq!(
+			EVM::network_contract_index(),
+			primitives::NETWORK_CONTRACT_START + 1
+		);
 	});
 }
 
@@ -581,9 +660,19 @@ fn should_transfer_maintainer() {
 	// }
 	let contract = from_hex("0x608060405234801561001057600080fd5b5060405161001d90610121565b604051809103906000f080158015610039573d6000803e3d6000fd5b506000806101000a81548173ffffffffffffffffffffffffffffffffffffffff021916908373ffffffffffffffffffffffffffffffffffffffff1602179055506000809054906101000a900473ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff1663c29855786040518163ffffffff1660e01b815260040160206040518083038186803b1580156100e057600080fd5b505afa1580156100f4573d6000803e3d6000fd5b505050506040513d602081101561010a57600080fd5b81019080805190602001909291905050505061012d565b60a58061017983390190565b603e8061013b6000396000f3fe6080604052600080fdfea265627a7a7231582064177030ee644a03aaf8d65027df9e0331c8bc4b161de25bfb8aa3142848e0f864736f6c634300051100326080604052348015600f57600080fd5b5060878061001e6000396000f3fe6080604052348015600f57600080fd5b506004361060285760003560e01c8063c298557814602d575b600080fd5b60336049565b6040518082815260200191505060405180910390f35b6000607b90509056fea265627a7a7231582031e5a4abae00962cfe9875df1b5b0d3ce6624e220cb8c714a948794fcddb6b4f64736f6c63430005110032").unwrap();
 	new_test_ext().execute_with(|| {
-		let result =
-			Runner::<Test>::create(alice(), contract, 0, 12_000_000, 12_000_000, <Test as Config>::config()).unwrap();
-		assert_eq!(result.exit_reason, ExitReason::Succeed(ExitSucceed::Returned));
+		let result = Runner::<Test>::create(
+			alice(),
+			contract,
+			0,
+			12_000_000,
+			12_000_000,
+			<Test as Config>::config(),
+		)
+		.unwrap();
+		assert_eq!(
+			result.exit_reason,
+			ExitReason::Succeed(ExitSucceed::Returned)
+		);
 		assert_eq!(result.used_storage, 461);
 		let alice_balance = INITIAL_BALANCE - 461 * <Test as Config>::StorageDepositPerByte::get();
 
@@ -603,12 +692,20 @@ fn should_transfer_maintainer() {
 		assert_eq!(balance(bob()), INITIAL_BALANCE);
 
 		assert_noop!(
-			EVM::transfer_maintainer(Origin::signed(bob_account_id.clone()), H160::default(), alice()),
+			EVM::transfer_maintainer(
+				Origin::signed(bob_account_id.clone()),
+				H160::default(),
+				alice()
+			),
 			Error::<Test>::ContractNotFound
 		);
 
 		assert_noop!(
-			EVM::transfer_maintainer(Origin::signed(alice_account_id.clone()), result.address, bob()),
+			EVM::transfer_maintainer(
+				Origin::signed(alice_account_id.clone()),
+				result.address,
+				bob()
+			),
 			Error::<Test>::NoPermission
 		);
 		assert_eq!(balance(alice()), alice_balance);
@@ -770,7 +867,9 @@ fn should_deploy_free() {
 fn should_enable_contract_development() {
 	new_test_ext().execute_with(|| {
 		let alice_account_id = <Test as Config>::AddressMapping::get_account_id(&alice());
-		assert_ok!(EVM::enable_contract_development(Origin::signed(alice_account_id)));
+		assert_ok!(EVM::enable_contract_development(Origin::signed(
+			alice_account_id
+		)));
 		assert_eq!(
 			Accounts::<Test>::get(alice()).unwrap().developer_deposit,
 			Some(DeveloperDeposit::get())
@@ -851,7 +950,11 @@ fn should_set_code() {
 		assert_eq!(balance(alice()), alice_balance);
 
 		assert_noop!(
-			EVM::set_code(Origin::signed(bob_account_id), contract_address, contract.clone()),
+			EVM::set_code(
+				Origin::signed(bob_account_id),
+				contract_address,
+				contract.clone()
+			),
 			Error::<Test>::NoPermission
 		);
 		assert_ok!(EVM::set_code(
@@ -876,7 +979,11 @@ fn should_set_code() {
 		));
 
 		assert_noop!(
-			EVM::set_code(Origin::signed(alice_account_id), contract_address, contract_err),
+			EVM::set_code(
+				Origin::signed(alice_account_id),
+				contract_address,
+				contract_err
+			),
 			Error::<Test>::ContractAlreadyDeployed
 		);
 	});
@@ -917,7 +1024,10 @@ fn should_selfdestruct() {
 			EVM::selfdestruct(Origin::signed(bob_account_id), contract_address),
 			Error::<Test>::NoPermission
 		);
-		assert_ok!(EVM::selfdestruct(Origin::signed(alice_account_id), contract_address));
+		assert_ok!(EVM::selfdestruct(
+			Origin::signed(alice_account_id),
+			contract_address
+		));
 	});
 }
 
@@ -939,9 +1049,19 @@ fn storage_limit_should_work() {
 	// contract Contract {}
 	let contract = from_hex("0x608060405234801561001057600080fd5b506101a0806100206000396000f3fe60806040526004361061001e5760003560e01c80639db8d7d514610023575b600080fd5b61004f6004803603602081101561003957600080fd5b8101908080359060200190929190505050610051565b005b60008090505b8181101561010057600060405161006d90610104565b604051809103906000f080158015610089573d6000803e3d6000fd5b50905060008190806001815401808255809150509060018203906000526020600020016000909192909190916101000a81548173ffffffffffffffffffffffffffffffffffffffff021916908373ffffffffffffffffffffffffffffffffffffffff16021790555050508080600101915050610057565b5050565b605b806101118339019056fe6080604052348015600f57600080fd5b50603e80601d6000396000f3fe6080604052600080fdfea265627a7a7231582035666e9471716d6d05ed9f0c1ab13d0371f49d536270f905bff06cd98212dcb064736f6c63430005110032a265627a7a723158203b6aaf6588bc3e6a35986612a62f715255430eab09ffb24401e5f18eb58a05d564736f6c63430005110032").unwrap();
 	new_test_ext().execute_with(|| {
-		let result =
-			Runner::<Test>::create(alice(), contract.clone(), 0, 200_000, 1000, <Test as Config>::config()).unwrap();
-		assert_eq!(result.exit_reason, ExitReason::Succeed(ExitSucceed::Returned));
+		let result = Runner::<Test>::create(
+			alice(),
+			contract.clone(),
+			0,
+			200_000,
+			1000,
+			<Test as Config>::config(),
+		)
+		.unwrap();
+		assert_eq!(
+			result.exit_reason,
+			ExitReason::Succeed(ExitSucceed::Returned)
+		);
 		assert_eq!(result.used_storage, 516);
 		let alice_balance = INITIAL_BALANCE - 516 * <Test as Config>::StorageDepositPerByte::get();
 		assert_eq!(balance(alice()), alice_balance);
@@ -960,7 +1080,8 @@ fn storage_limit_should_work() {
 		// Factory.createContract(1)
 		let amount = 1000000000;
 		let create_contract =
-			from_hex("0x9db8d7d50000000000000000000000000000000000000000000000000000000000000001").unwrap();
+			from_hex("0x9db8d7d50000000000000000000000000000000000000000000000000000000000000001")
+				.unwrap();
 		let result = Runner::<Test>::call(
 			alice(),
 			alice(),
@@ -978,7 +1099,8 @@ fn storage_limit_should_work() {
 		// Factory.createContract(1)
 		let amount = 1000000000;
 		let create_contract =
-			from_hex("0x9db8d7d50000000000000000000000000000000000000000000000000000000000000001").unwrap();
+			from_hex("0x9db8d7d50000000000000000000000000000000000000000000000000000000000000001")
+				.unwrap();
 		let result = Runner::<Test>::call(
 			alice(),
 			alice(),
@@ -990,13 +1112,17 @@ fn storage_limit_should_work() {
 			<Test as Config>::config(),
 		)
 		.unwrap();
-		assert_eq!(result.exit_reason, ExitReason::Succeed(ExitSucceed::Stopped));
+		assert_eq!(
+			result.exit_reason,
+			ExitReason::Succeed(ExitSucceed::Stopped)
+		);
 		assert_eq!(result.used_storage, 290);
 
 		// Factory.createContract(2)
 		let amount = 1000000000;
 		let create_contract =
-			from_hex("0x9db8d7d50000000000000000000000000000000000000000000000000000000000000002").unwrap();
+			from_hex("0x9db8d7d50000000000000000000000000000000000000000000000000000000000000002")
+				.unwrap();
 		let result = Runner::<Test>::call(
 			alice(),
 			alice(),
@@ -1014,7 +1140,8 @@ fn storage_limit_should_work() {
 		// Factory.createContract(2)
 		let amount = 1000000000;
 		let create_contract =
-			from_hex("0x9db8d7d50000000000000000000000000000000000000000000000000000000000000002").unwrap();
+			from_hex("0x9db8d7d50000000000000000000000000000000000000000000000000000000000000002")
+				.unwrap();
 		let result = Runner::<Test>::call(
 			alice(),
 			alice(),
@@ -1026,7 +1153,10 @@ fn storage_limit_should_work() {
 			<Test as Config>::config(),
 		)
 		.unwrap();
-		assert_eq!(result.exit_reason, ExitReason::Succeed(ExitSucceed::Stopped));
+		assert_eq!(
+			result.exit_reason,
+			ExitReason::Succeed(ExitSucceed::Stopped)
+		);
 		assert_eq!(result.used_storage, 452);
 	});
 }
@@ -1049,7 +1179,8 @@ fn evm_execute_mode_should_work() {
 	// contract Contract {}
 	let contract = from_hex("0x608060405234801561001057600080fd5b506101a0806100206000396000f3fe60806040526004361061001e5760003560e01c80639db8d7d514610023575b600080fd5b61004f6004803603602081101561003957600080fd5b8101908080359060200190929190505050610051565b005b60008090505b8181101561010057600060405161006d90610104565b604051809103906000f080158015610089573d6000803e3d6000fd5b50905060008190806001815401808255809150509060018203906000526020600020016000909192909190916101000a81548173ffffffffffffffffffffffffffffffffffffffff021916908373ffffffffffffffffffffffffffffffffffffffff16021790555050508080600101915050610057565b5050565b605b806101118339019056fe6080604052348015600f57600080fd5b50603e80601d6000396000f3fe6080604052600080fdfea265627a7a7231582035666e9471716d6d05ed9f0c1ab13d0371f49d536270f905bff06cd98212dcb064736f6c63430005110032a265627a7a723158203b6aaf6588bc3e6a35986612a62f715255430eab09ffb24401e5f18eb58a05d564736f6c63430005110032").unwrap();
 	new_test_ext().execute_with(|| {
-		let mut alice_balance = INITIAL_BALANCE - 516 * <Test as Config>::StorageDepositPerByte::get();
+		let mut alice_balance =
+			INITIAL_BALANCE - 516 * <Test as Config>::StorageDepositPerByte::get();
 
 		let result = Runner::<Test>::create(
 			alice(),
@@ -1060,7 +1191,10 @@ fn evm_execute_mode_should_work() {
 			<Test as Config>::config(),
 		)
 		.unwrap();
-		assert_eq!(result.exit_reason, ExitReason::Succeed(ExitSucceed::Returned));
+		assert_eq!(
+			result.exit_reason,
+			ExitReason::Succeed(ExitSucceed::Returned)
+		);
 		assert_eq!(result.used_storage, 516);
 		assert_eq!(balance(alice()), alice_balance);
 		let factory_contract_address = result.address;
@@ -1077,7 +1211,8 @@ fn evm_execute_mode_should_work() {
 		// ExecutionMode::EstimateGas
 		// Factory.createContract(1)
 		let create_contract =
-			from_hex("0x9db8d7d50000000000000000000000000000000000000000000000000000000000000001").unwrap();
+			from_hex("0x9db8d7d50000000000000000000000000000000000000000000000000000000000000001")
+				.unwrap();
 		let result = EVM::execute(
 			context,
 			create_contract,
@@ -1099,7 +1234,8 @@ fn evm_execute_mode_should_work() {
 
 		// Factory.createContract(2)
 		let create_contract =
-			from_hex("0x9db8d7d50000000000000000000000000000000000000000000000000000000000000002").unwrap();
+			from_hex("0x9db8d7d50000000000000000000000000000000000000000000000000000000000000002")
+				.unwrap();
 		let result = EVM::execute(
 			context,
 			create_contract,
@@ -1123,7 +1259,8 @@ fn evm_execute_mode_should_work() {
 		// ExecutionMode::Execute
 		// Factory.createContract(1)
 		let create_contract =
-			from_hex("0x9db8d7d50000000000000000000000000000000000000000000000000000000000000001").unwrap();
+			from_hex("0x9db8d7d50000000000000000000000000000000000000000000000000000000000000001")
+				.unwrap();
 		let result = EVM::execute(
 			context,
 			create_contract,
@@ -1145,7 +1282,8 @@ fn evm_execute_mode_should_work() {
 		assert_eq!(balance(alice()), alice_balance);
 
 		let create_contract =
-			from_hex("0x9db8d7d50000000000000000000000000000000000000000000000000000000000000001").unwrap();
+			from_hex("0x9db8d7d50000000000000000000000000000000000000000000000000000000000000001")
+				.unwrap();
 		let result = EVM::execute(
 			context,
 			create_contract,
@@ -1172,7 +1310,8 @@ fn evm_execute_mode_should_work() {
 		// ExecutionMode::View
 		// Discard any state changes
 		let create_contract =
-			from_hex("0x9db8d7d50000000000000000000000000000000000000000000000000000000000000001").unwrap();
+			from_hex("0x9db8d7d50000000000000000000000000000000000000000000000000000000000000001")
+				.unwrap();
 		let result = EVM::execute(
 			context,
 			create_contract,

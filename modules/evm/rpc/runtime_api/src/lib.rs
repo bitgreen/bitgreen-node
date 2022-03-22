@@ -32,7 +32,7 @@ sp_api::decl_runtime_apis! {
 			estimate: bool,
 		) -> Result<CreateInfo, sp_runtime::DispatchError>;
 
- 		fn get_estimate_resources_request(
+		 fn get_estimate_resources_request(
 			data: Vec<u8>
 		) -> Result<EstimateResourcesRequest, sp_runtime::DispatchError>;
 	}

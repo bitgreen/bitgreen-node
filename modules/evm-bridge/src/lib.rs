@@ -57,7 +57,14 @@ impl<T: Config> EVMBridgeTrait<AccountIdOf<T>, BalanceOf<T>> for Pallet<T> {
 		// ERC20.name method hash
 		let input = hex!["06fdde03"].to_vec();
 
-		let info = T::EVM::execute(context, input, Default::default(), 2_100_000, 0, ExecutionMode::View)?;
+		let info = T::EVM::execute(
+			context,
+			input,
+			Default::default(),
+			2_100_000,
+			0,
+			ExecutionMode::View,
+		)?;
 
 		Self::handle_exit_reason(info.exit_reason)?;
 		Self::decode_string(info.output.as_slice().to_vec())
@@ -67,7 +74,14 @@ impl<T: Config> EVMBridgeTrait<AccountIdOf<T>, BalanceOf<T>> for Pallet<T> {
 		// ERC20.symbol method hash
 		let input = hex!["95d89b41"].to_vec();
 
-		let info = T::EVM::execute(context, input, Default::default(), 2_100_000, 0, ExecutionMode::View)?;
+		let info = T::EVM::execute(
+			context,
+			input,
+			Default::default(),
+			2_100_000,
+			0,
+			ExecutionMode::View,
+		)?;
 
 		Self::handle_exit_reason(info.exit_reason)?;
 		Self::decode_string(info.output.as_slice().to_vec())
@@ -77,7 +91,14 @@ impl<T: Config> EVMBridgeTrait<AccountIdOf<T>, BalanceOf<T>> for Pallet<T> {
 		// ERC20.decimals method hash
 		let input = hex!["313ce567"].to_vec();
 
-		let info = T::EVM::execute(context, input, Default::default(), 2_100_000, 0, ExecutionMode::View)?;
+		let info = T::EVM::execute(
+			context,
+			input,
+			Default::default(),
+			2_100_000,
+			0,
+			ExecutionMode::View,
+		)?;
 
 		Self::handle_exit_reason(info.exit_reason)?;
 
@@ -90,7 +111,14 @@ impl<T: Config> EVMBridgeTrait<AccountIdOf<T>, BalanceOf<T>> for Pallet<T> {
 		// ERC20.totalSupply method hash
 		let input = hex!("18160ddd").to_vec();
 
-		let info = T::EVM::execute(context, input, Default::default(), 2_100_000, 0, ExecutionMode::View)?;
+		let info = T::EVM::execute(
+			context,
+			input,
+			Default::default(),
+			2_100_000,
+			0,
+			ExecutionMode::View,
+		)?;
 
 		Self::handle_exit_reason(info.exit_reason)?;
 
@@ -104,7 +132,14 @@ impl<T: Config> EVMBridgeTrait<AccountIdOf<T>, BalanceOf<T>> for Pallet<T> {
 		// append address
 		input.extend_from_slice(H256::from(address).as_bytes());
 
-		let info = T::EVM::execute(context, input, Default::default(), 2_100_000, 0, ExecutionMode::View)?;
+		let info = T::EVM::execute(
+			context,
+			input,
+			Default::default(),
+			2_100_000,
+			0,
+			ExecutionMode::View,
+		)?;
 
 		Self::handle_exit_reason(info.exit_reason)?;
 
@@ -119,9 +154,15 @@ impl<T: Config> EVMBridgeTrait<AccountIdOf<T>, BalanceOf<T>> for Pallet<T> {
 		// append receiver address
 		input.extend_from_slice(H256::from(to).as_bytes());
 		// append amount to be transferred
-		input.extend_from_slice(H256::from_uint(&U256::from(value.saturated_into::<u128>())).as_bytes());
+		input.extend_from_slice(
+			H256::from_uint(&U256::from(value.saturated_into::<u128>())).as_bytes(),
+		);
 
-		let storage_limit = if context.origin == Default::default() { 0 } else { 1_000 };
+		let storage_limit = if context.origin == Default::default() {
+			0
+		} else {
+			1_000
+		};
 
 		let info = T::EVM::execute(
 			context,
@@ -155,7 +196,6 @@ impl<T: Config> EVMBridgeTrait<AccountIdOf<T>, BalanceOf<T>> for Pallet<T> {
 	}
 }
 
-
 impl<T: Config> Pallet<T> {
 	fn handle_exit_reason(exit_reason: ExitReason) -> Result<(), DispatchError> {
 		match exit_reason {
@@ -188,7 +228,9 @@ impl<T: Config> Pallet<T> {
 		);
 
 		let mut data = Vec::new();
-		data.extend_from_slice(&output[offset.as_usize() + 32..offset.as_usize() + 32 + length.as_usize()]);
+		data.extend_from_slice(
+			&output[offset.as_usize() + 32..offset.as_usize() + 32 + length.as_usize()],
+		);
 
 		Ok(data.to_vec())
 	}

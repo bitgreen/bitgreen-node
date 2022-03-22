@@ -14,22 +14,21 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 #![cfg_attr(not(feature = "std"), no_std)]
 extern crate alloc;
-use frame_support::{decl_module, decl_storage, decl_event, decl_error, ensure, traits::Get};
-use primitives::Balance;
+use alloc::string::ToString;
 use codec::Decode;
-use frame_system::{ensure_root, ensure_signed};
 use frame_support::dispatch::DispatchResult;
 use frame_support::pallet_prelude::DispatchResultWithPostInfo;
-use frame_support::traits::{Vec, UnixTime};
-use sp_std::vec;
-use alloc::string::ToString;
-use sp_runtime::traits::StaticLookup;
-use sp_runtime::traits::One;
-use pallet_assets::Asset;
+use frame_support::traits::{UnixTime, Vec};
+use frame_support::{decl_error, decl_event, decl_module, decl_storage, ensure, traits::Get};
 use frame_system::RawOrigin;
+use frame_system::{ensure_root, ensure_signed};
+use pallet_assets::Asset;
+use primitives::Balance;
+use sp_runtime::traits::One;
+use sp_runtime::traits::StaticLookup;
+use sp_std::vec;
 #[cfg(test)]
 mod mock;
 
@@ -37,7 +36,9 @@ mod mock;
 mod tests;
 
 /// Configure the pallet by specifying the parameters and types on which it depends.
-pub trait Config: frame_system::Config + pallet_assets::Config<AssetId = u32, Balance = u128> {
+pub trait Config:
+	frame_system::Config + pallet_assets::Config<AssetId = u32, Balance = u128>
+{
 	/// The overarching event type.
 	type Event: From<Event<Self>> + Into<<Self as frame_system::Config>::Event>;
 
@@ -83,35 +84,38 @@ decl_storage! {
 }
 
 decl_event!(
-	pub enum Event<T> where AccountId = <T as frame_system::Config>::AccountId {
+	pub enum Event<T>
+	where
+		AccountId = <T as frame_system::Config>::AccountId,
+	{
 		/// New proxy setting has been created.
-		SettingsCreated(Vec<u8>,Vec<u8>),
+		SettingsCreated(Vec<u8>, Vec<u8>),
 		/// Proxy setting has been destroyed.
-        SettingsDestroyed(Vec<u8>),
+		SettingsDestroyed(Vec<u8>),
 		/// Added authorized account.
-        AuthorizedAccountAdded(AccountId),
+		AuthorizedAccountAdded(AccountId),
 		/// Destroyed authorized account.
-        AuthorizedAccountsAGVDestroyed(AccountId),
+		AuthorizedAccountsAGVDestroyed(AccountId),
 		/// AssetsGeneratingVCU has been stored.
-        AssetsGeneratingVCUCreated(u32),
+		AssetsGeneratingVCUCreated(u32),
 		/// Destroyed AssetGeneratedVCU.
-        AssetGeneratingVCUDestroyed(u32),
+		AssetGeneratingVCUDestroyed(u32),
 		/// Minted AssetGeneratedVCU.
-        AssetsGeneratingVCUSharesMinted(AccountId, u32),
+		AssetsGeneratingVCUSharesMinted(AccountId, u32),
 		/// Burned AssetGeneratedVCU.
-        AssetsGeneratingVCUSharesBurned(AccountId, u32),
+		AssetsGeneratingVCUSharesBurned(AccountId, u32),
 		/// Transferred AssetGeneratedVCU.
-        AssetsGeneratingVCUSharesTransferred(AccountId),
+		AssetsGeneratingVCUSharesTransferred(AccountId),
 		/// Added AssetsGeneratingVCUSchedule
 		AssetsGeneratingVCUScheduleAdded(AccountId, u32),
 		/// Destroyed AssetsGeneratingVCUSchedule
 		AssetsGeneratingVCUScheduleDestroyed(AccountId, u32),
 		/// Added AssetsGeneratingVCUGenerated.
-        AssetsGeneratingVCUGenerated(AccountId, u32),
+		AssetsGeneratingVCUGenerated(AccountId, u32),
 		/// Added VCUBurned.
-        VCUsBurnedAdded(AccountId, u32, u32),
+		VCUsBurnedAdded(AccountId, u32, u32),
 		/// Added OraclesAccountMintingVCU
-        OraclesAccountMintingVCUAdded(AccountId, u32, AccountId),
+		OraclesAccountMintingVCUAdded(AccountId, u32, AccountId),
 		/// Destroyed OraclesAccountMintingVCUDestroyed
 		OraclesAccountMintingVCUDestroyed(AccountId, u32),
 		/// OracleAccountVCUMinted
@@ -126,23 +130,23 @@ decl_event!(
 decl_error! {
 	pub enum Error for Module<T: Config> {
 		/// Settings Key already exists
-        SettingsKeyExists,
-        /// Settings Key has not been found on the blockchain
-        SettingsKeyNotFound,
-        /// Settings data is too short to be valid
-        SettingsJsonTooShort,
-        /// Settings data is too long to be valid
-        SettingsJsonTooLong,
-        /// Invalid Json structure
-        InvalidJson,
+		SettingsKeyExists,
+		/// Settings Key has not been found on the blockchain
+		SettingsKeyNotFound,
+		/// Settings data is too short to be valid
+		SettingsJsonTooShort,
+		/// Settings data is too long to be valid
+		SettingsJsonTooLong,
+		/// Invalid Json structure
+		InvalidJson,
 		/// Invalid Description
 		InvalidDescription,
 		/// AuthorizedAccountsAGV has not been found on the blockchain
 		AuthorizedAccountsAGVNotFound,
 		/// Settings data is too short to be valid
-        AssetGeneratingJsonTooShort,
-        /// Settings data is too long to be valid
-        AssetGeneratingJsonTooLong,
+		AssetGeneratingJsonTooShort,
+		/// Settings data is too long to be valid
+		AssetGeneratingJsonTooLong,
 		/// ProofOwnership Not found
 		ProofOwnershipNotFound,
 		/// ProofOwnership too long
@@ -176,9 +180,9 @@ decl_error! {
 		/// AOraclesAccountMintingVCU Not Found
 		OraclesAccountMintingVCUNotFound,
 		/// BundleAssetsGeneratingVCU JSON is too short to be valid
-        BundleAssetsGeneratingVCUJsonTooShort,
-        /// BundleAssetsGeneratingVCU is too long to be valid
-        BundleAssetsGeneratingVCUJsonTooLong,
+		BundleAssetsGeneratingVCUJsonTooShort,
+		/// BundleAssetsGeneratingVCU is too long to be valid
+		BundleAssetsGeneratingVCUJsonTooLong,
 		/// InvalidAGVs
 		InvalidAGVs,
 		/// Bundle does not exist,
@@ -242,7 +246,7 @@ decl_module! {
 
 			//check accounts json length
 			ensure!(accounts.len() > 12, Error::<T>::SettingsJsonTooShort);
-            ensure!(accounts.len() < 8192, Error::<T>::SettingsJsonTooLong);
+			ensure!(accounts.len() < 8192, Error::<T>::SettingsJsonTooLong);
 
 			// check json validity
 			let js=accounts.clone();
@@ -265,7 +269,7 @@ decl_module! {
 		/// The dispatch origin for this call must be `Signed` by the Root.
 		#[weight = 10_000 + T::DbWeight::get().writes(1)]
 		pub fn destroy_proxy_settings(origin) -> DispatchResult {
-			// check for SUDO 
+			// check for SUDO
 			ensure_root(origin)?;
 			// search for the key of the proxy settings
 			let key = "admin".as_bytes().to_vec();
@@ -287,9 +291,9 @@ decl_module! {
 		/// The dispatch origin for this call must be `Signed` by the Root.
 		#[weight = 10_000 + T::DbWeight::get().writes(1)]
 		pub fn add_authorized_account(origin, account_id: T::AccountId, description: Vec<u8>) -> DispatchResult {
-			// check for SUDO 
+			// check for SUDO
 			ensure_root(origin)?;
-			// description is mandatory 
+			// description is mandatory
 			ensure!(!description.is_empty(), Error::<T>::InvalidDescription);
 			//minimu lenght of 4 chars
 			ensure!(description.len()>4, Error::<T>::InvalidDescription);
@@ -308,7 +312,7 @@ decl_module! {
 		/// The dispatch origin for this call must be `Signed` by the Root.
 		#[weight = 10_000 + T::DbWeight::get().writes(1)]
 		pub fn destroy_authorized_account(origin, account_id: T::AccountId) -> DispatchResult {
-			// check for SUDO 
+			// check for SUDO
 			ensure_root(origin)?;
 			// check whether authorized account exists or not
 			ensure!(AuthorizedAccountsAGV::<T>::contains_key(&account_id), Error::<T>::AuthorizedAccountsAGVNotFound);
@@ -352,21 +356,21 @@ decl_module! {
 			}?;
 			//check content json length
 			ensure!(content.len() > 12, Error::<T>::AssetGeneratingJsonTooShort);
-            ensure!(content.len() < 8192, Error::<T>::AssetGeneratingJsonTooLong);
+			ensure!(content.len() < 8192, Error::<T>::AssetGeneratingJsonTooLong);
 
 			// check json validity
 			let js = content.clone();
 			ensure!(Self::json_check_validity(js),Error::<T>::InvalidJson);
 			// checj for description validity
 			let description = Self::json_get_value(content.clone(),"description".as_bytes().to_vec());
-            ensure!(!description.is_empty() && description.len()<=64 , Error::<T>::InvalidDescription);
+			ensure!(!description.is_empty() && description.len()<=64 , Error::<T>::InvalidDescription);
 			// check for proof of ownership
 			let proof_ownership = Self::json_get_value(content.clone(),"proofOwnership".as_bytes().to_vec());
-            ensure!(!proof_ownership.is_empty(), Error::<T>::ProofOwnershipNotFound);
+			ensure!(!proof_ownership.is_empty(), Error::<T>::ProofOwnershipNotFound);
 			ensure!(proof_ownership.len()<=128, Error::<T>::ProofOwnershipTooLong);
 			// check for number of shares
 			let number_of_shares = Self::json_get_value(content.clone(),"numberOfShares".as_bytes().to_vec());
-            ensure!(!number_of_shares.is_empty() , Error::<T>::NumberofSharesNotFound);
+			ensure!(!number_of_shares.is_empty() , Error::<T>::NumberofSharesNotFound);
 			ensure!(str::parse::<i32>(sp_std::str::from_utf8(&number_of_shares).unwrap()).unwrap() <= 10000 , Error::<T>::TooManyShares);
 			ensure!(str::parse::<i32>(sp_std::str::from_utf8(&number_of_shares).unwrap()).unwrap() >0 , Error::<T>::NumberofSharesCannotBeZero);
 			// store the asset
@@ -435,7 +439,7 @@ decl_module! {
 			let account_id = T::AccountId::decode(&mut &str_account_id.as_bytes().to_vec()[1..33]).unwrap_or_default();
 			// check whether asset generating VCU (AGV) exists or not
 			ensure!(AssetsGeneratingVCU::<T>::contains_key(&account_id, &agv_id), Error::<T>::AssetGeneratingVCUNotFound);
-			
+
 			// read info about the AGV
 			let content: Vec<u8> = AssetsGeneratingVCU::<T>::get(&account_id, &agv_id);
 			let total_shares = Self::json_get_value(content,"numberOfShares".as_bytes().to_vec());
@@ -461,7 +465,7 @@ decl_module! {
 				*share = total_sha;
 				Ok(())
 			})?;
-			
+
 			// Generate event
 			Self::deposit_event(RawEvent::AssetsGeneratingVCUSharesMinted(account_id, agv_id));
 			// Return a successful DispatchResult
@@ -527,7 +531,7 @@ decl_module! {
 	   /// The dispatch origin for this call must be `Signed` either by the Root or authorized account.
 	   #[weight = 10_000 + T::DbWeight::get().writes(1)]
 	   pub fn transfer_shares_asset_generating_vcu(origin, recipient: T::AccountId, agv_account: Vec<u8>, number_of_shares: u32) -> DispatchResult {
-		    let sender = ensure_signed(origin)?;
+			let sender = ensure_signed(origin)?;
 		   // check that the shares are present
 		   ensure!(AssetsGeneratingVCUShares::<T>::contains_key(&agv_account,&sender), Error::<T>::AssetGeneratedSharesNotFound);
 		   // get the shares available
@@ -551,7 +555,7 @@ decl_module! {
 		   // Return a successful DispatchResult
 		   Ok(())
 	   }
-       /// The administrator can force a transfer of shares from a sender to a recipient
+	   /// The administrator can force a transfer of shares from a sender to a recipient
 	   ///
 	   /// ex: agv_id: 5Hdr4DQufkxmhFcymTR71jqYtTnfkfG5jTs6p6MSnsAcy5ui-1
 	   /// The dispatch origin for this call must be `Signed` either by the Root or authorized account.
@@ -600,7 +604,7 @@ decl_module! {
 		/// The dispatch origin for this call must be `Signed` either by the Root or authorized account.
 		#[weight = 10_000 + T::DbWeight::get().writes(1)]
 		pub fn create_asset_generating_vcu_schedule(origin, agv_account_id: T::AccountId, agv_id: u32, period_days: u64, amount_vcu: Balance, token_id: u32) -> DispatchResult {
-			// check for Sudo or other admnistrator account	
+			// check for Sudo or other admnistrator account
 			match ensure_root(origin.clone()) {
 				Ok(()) => Ok(()),
 				Err(e) => {
@@ -627,7 +631,7 @@ decl_module! {
 			// check the token id > 10000 (because under 10000 reserver for the bridge)
 			ensure!(token_id>=10000,Error::<T>::ReservedTokenId);
 			// create json string
-    		let json = Self::create_json_string(vec![("period_days",&mut period_days.to_string().as_bytes().to_vec()), ("amount_vcu",&mut  amount_vcu.to_string().as_bytes().to_vec()), ("token_id",&mut  token_id.to_string().as_bytes().to_vec())]);
+			let json = Self::create_json_string(vec![("period_days",&mut period_days.to_string().as_bytes().to_vec()), ("amount_vcu",&mut  amount_vcu.to_string().as_bytes().to_vec()), ("token_id",&mut  token_id.to_string().as_bytes().to_vec())]);
 			// store the schedule
 			AssetsGeneratingVCUSchedule::<T>::insert(&agv_account_id, &agv_id, json);
 			// Generate event
@@ -642,7 +646,7 @@ decl_module! {
 		/// The dispatch origin for this call must be `Signed` either by the Root or authorized account.
 		#[weight = 10_000 + T::DbWeight::get().writes(1)]
 		pub fn destroy_asset_generating_vcu_schedule(origin, agv_account_id: T::AccountId, agv_id: u32) -> DispatchResult {
-			// check for Sudo or other admnistrator account	
+			// check for Sudo or other admnistrator account
 			match ensure_root(origin.clone()) {
 				Ok(()) => Ok(()),
 				Err(e) => {
@@ -683,7 +687,7 @@ decl_module! {
 		/// the first minting can be done anytime, the  following minting not before the scheduled time
 		#[weight = 10_000 + T::DbWeight::get().writes(1)]
 		pub fn mint_scheduled_vcu(origin, agv_account: Vec<u8>) -> DispatchResultWithPostInfo {
-			// check for Sudo or other admnistrator account	
+			// check for Sudo or other admnistrator account
 			match ensure_root(origin.clone()) {
 				Ok(()) => Ok(()),
 				Err(e) => {
@@ -714,7 +718,7 @@ decl_module! {
 			let now:u64 = T::UnixTime::now().as_secs();
 			// check for the last minting done
 			if AssetsGeneratingVCUGenerated::<T>::contains_key(&agv_account_id, &agv_id) {
-				timestamp = AssetsGeneratingVCUGenerated::<T>::get(&agv_account_id, &agv_id);	
+				timestamp = AssetsGeneratingVCUGenerated::<T>::get(&agv_account_id, &agv_id);
 			}
 			let elapse:u64=period_days*24*60;
 			ensure!(now+elapse<=timestamp,Error::<T>::AssetGeneratedScheduleNotYetArrived);
@@ -757,9 +761,9 @@ decl_module! {
 			// mint the assets
 			// store the last minting time in AssetsGeneratingVCUGenerated
 			if AssetsGeneratingVCUGenerated::<T>::contains_key(&agv_account_id, &agv_id){
-				AssetsGeneratingVCUGenerated::<T>::take(&agv_account_id, &agv_id);		
+				AssetsGeneratingVCUGenerated::<T>::take(&agv_account_id, &agv_id);
 			}
-			AssetsGeneratingVCUGenerated::<T>::insert(&agv_account_id, &agv_id,now);		
+			AssetsGeneratingVCUGenerated::<T>::insert(&agv_account_id, &agv_id,now);
 			// generate event
 			Self::deposit_event(RawEvent::AssetsGeneratingVCUGenerated(agv_account_id, agv_id));
 			// return
@@ -959,14 +963,14 @@ decl_module! {
 
 			//check accounts json length
 			ensure!(info.len() > 12, Error::<T>::BundleAssetsGeneratingVCUJsonTooShort);
-            ensure!(info.len() < 8192, Error::<T>::BundleAssetsGeneratingVCUJsonTooLong);
+			ensure!(info.len() < 8192, Error::<T>::BundleAssetsGeneratingVCUJsonTooLong);
 
 			// check json validity
 			let js = info.clone();
 			ensure!(Self::json_check_validity(js),Error::<T>::InvalidJson);
 			// check for description validity
 			let description = Self::json_get_value(info.clone(),"description".as_bytes().to_vec());
-            ensure!(!description.is_empty() && description.len()<=64 , Error::<T>::InvalidDescription);
+			ensure!(!description.is_empty() && description.len()<=64 , Error::<T>::InvalidDescription);
 			// check for asset id
 			let asset_id = Self::json_get_value(info.clone(),"assetid".as_bytes().to_vec());
 			let asset_id = str::parse::<u32>(sp_std::str::from_utf8(&asset_id).unwrap()).unwrap();
@@ -1029,68 +1033,67 @@ decl_module! {
 }
 
 impl<T: Config> Module<T> {
-
 	// function to validate a json string for no/std. It does not allocate of memory
-	fn json_check_validity(j:Vec<u8>) -> bool{
+	fn json_check_validity(j: Vec<u8>) -> bool {
 		// minimum lenght of 2
-		if j.len()<2 {
+		if j.len() < 2 {
 			return false;
 		}
 		// checks star/end with {}
-		if *j.get(0).unwrap()==b'{' && *j.last().unwrap()!=b'}' {
+		if *j.get(0).unwrap() == b'{' && *j.last().unwrap() != b'}' {
 			return false;
 		}
 		// checks start/end with []
-		if *j.get(0).unwrap()==b'[' && *j.last().unwrap()!=b']' {
+		if *j.get(0).unwrap() == b'[' && *j.last().unwrap() != b']' {
 			return false;
 		}
 		// check that the start is { or [
-		if *j.get(0).unwrap()!=b'{' && *j.get(0).unwrap()!=b'[' {
+		if *j.get(0).unwrap() != b'{' && *j.get(0).unwrap() != b'[' {
 			return false;
 		}
 		//checks that end is } or ]
-		if *j.last().unwrap()!=b'}' && *j.last().unwrap()!=b']' {
+		if *j.last().unwrap() != b'}' && *j.last().unwrap() != b']' {
 			return false;
 		}
 		//checks " opening/closing and : as separator between name and values
-		let mut s:bool=true;
-		let mut d:bool=true;
-		let mut pg:bool=true;
-		let mut ps:bool=true;
+		let mut s: bool = true;
+		let mut d: bool = true;
+		let mut pg: bool = true;
+		let mut ps: bool = true;
 		let mut bp = b' ';
 		for b in j {
-			if b==b'[' && s {
-				ps=false;
+			if b == b'[' && s {
+				ps = false;
 			}
-			if b==b']' && s && !ps {
-				ps=true;
+			if b == b']' && s && !ps {
+				ps = true;
 			}
 
-			if b==b'{' && s {
-				pg=false;
+			if b == b'{' && s {
+				pg = false;
 			}
-			if b==b'}' && s && !pg {
-				pg=true;
+			if b == b'}' && s && !pg {
+				pg = true;
 			}
 
 			if b == b'"' && s && bp != b'\\' {
-				s=false;
-				bp=b;
-				d=false;
+				s = false;
+				bp = b;
+				d = false;
 				continue;
 			}
 			if b == b':' && s {
-				d=true;
-				bp=b;
+				d = true;
+				bp = b;
 				continue;
 			}
 			if b == b'"' && !s && bp != b'\\' {
-				s=true;
-				bp=b;
-				d=true;
+				s = true;
+				bp = b;
+				d = true;
 				continue;
 			}
-			bp=b;
+			bp = b;
 		}
 
 		//fields are not closed properly
@@ -1114,60 +1117,60 @@ impl<T: Config> Module<T> {
 	}
 
 	// function to get value of a field for Substrate runtime (no std library and no variable allocation)
-	fn json_get_value(j:Vec<u8>,key:Vec<u8>) -> Vec<u8> {
-		let mut result=Vec::new();
-		let mut k=Vec::new();
+	fn json_get_value(j: Vec<u8>, key: Vec<u8>) -> Vec<u8> {
+		let mut result = Vec::new();
+		let mut k = Vec::new();
 		let keyl = key.len();
 		let jl = j.len();
 		k.push(b'"');
-		for xk in 0..keyl{
+		for xk in 0..keyl {
 			k.push(*key.get(xk).unwrap());
 		}
 		k.push(b'"');
 		k.push(b':');
 		let kl = k.len();
-		for x in  0..jl {
-			let mut m=0;
-			if x+kl>jl {
+		for x in 0..jl {
+			let mut m = 0;
+			if x + kl > jl {
 				break;
 			}
-			for (xx, i) in (x..x+kl).enumerate() {
-				if *j.get(i).unwrap()== *k.get(xx).unwrap() {
+			for (xx, i) in (x..x + kl).enumerate() {
+				if *j.get(i).unwrap() == *k.get(xx).unwrap() {
 					m += 1;
 				}
 			}
-			if m==kl{
-				let mut lb=b' ';
-				let mut op=true;
-				let mut os=true;
-				for i in x+kl..jl-1 {
-					if *j.get(i).unwrap()==b'[' && op && os{
-						os=false;
+			if m == kl {
+				let mut lb = b' ';
+				let mut op = true;
+				let mut os = true;
+				for i in x + kl..jl - 1 {
+					if *j.get(i).unwrap() == b'[' && op && os {
+						os = false;
 					}
-					if *j.get(i).unwrap()==b'}' && op && !os{
-						os=true;
+					if *j.get(i).unwrap() == b'}' && op && !os {
+						os = true;
 					}
-					if *j.get(i).unwrap()==b':' && op{
+					if *j.get(i).unwrap() == b':' && op {
 						continue;
 					}
-					if *j.get(i).unwrap()==b'"' && op && lb!=b'\\' {
-						op=false;
-						continue
+					if *j.get(i).unwrap() == b'"' && op && lb != b'\\' {
+						op = false;
+						continue;
 					}
-					if *j.get(i).unwrap()==b'"' && !op && lb!=b'\\' {
+					if *j.get(i).unwrap() == b'"' && !op && lb != b'\\' {
 						break;
 					}
-					if *j.get(i).unwrap()==b'}' && op{
+					if *j.get(i).unwrap() == b'}' && op {
 						break;
 					}
-					if *j.get(i).unwrap()==b']' && op{
+					if *j.get(i).unwrap() == b']' && op {
 						break;
 					}
-					if *j.get(i).unwrap()==b',' && op && os{
+					if *j.get(i).unwrap() == b',' && op && os {
 						break;
 					}
 					result.push(*j.get(i).unwrap());
-					lb= *j.get(i).unwrap();
+					lb = *j.get(i).unwrap();
 				}
 				break;
 			}
@@ -1176,10 +1179,10 @@ impl<T: Config> Module<T> {
 	}
 
 	fn create_json_string(inputs: Vec<(&str, &mut Vec<u8>)>) -> Vec<u8> {
-		let mut v:Vec<u8>= vec![b'{'];
+		let mut v: Vec<u8> = vec![b'{'];
 		let mut flag = false;
 
-		for (arg, val) in  inputs{
+		for (arg, val) in inputs {
 			if flag {
 				v.push(b',');
 			}
@@ -1197,30 +1200,30 @@ impl<T: Config> Module<T> {
 	}
 
 	// function to get record {} from multirecord json structure [{..},{.. }], it returns an empty Vec when the records is not present
-	fn json_get_recordvalue(ar:Vec<u8>,p:i32) -> Vec<u8> {
-		let mut result=Vec::new();
-		let mut op=true;
-		let mut cn=0;
-		let mut lb=b' ';
+	fn json_get_recordvalue(ar: Vec<u8>, p: i32) -> Vec<u8> {
+		let mut result = Vec::new();
+		let mut op = true;
+		let mut cn = 0;
+		let mut lb = b' ';
 		for b in ar {
-			if b==b',' && op {
+			if b == b',' && op {
 				cn += 1;
 				continue;
 			}
-			if b==b'[' && op && lb!=b'\\' {
+			if b == b'[' && op && lb != b'\\' {
 				continue;
 			}
-			if b==b']' && op && lb!=b'\\' {
+			if b == b']' && op && lb != b'\\' {
 				continue;
 			}
-			if b==b'{' && op && lb!=b'\\' {
-				op=false;
+			if b == b'{' && op && lb != b'\\' {
+				op = false;
 			}
-			if b==b'}' && !op && lb!=b'\\' {
-				op=true;
+			if b == b'}' && !op && lb != b'\\' {
+				op = true;
 			}
 			// field found
-			if cn==p {
+			if cn == p {
 				result.push(b);
 			}
 			lb = b;
@@ -1228,36 +1231,36 @@ impl<T: Config> Module<T> {
 		result
 	}
 
-	fn json_get_complexarray(j:Vec<u8>,key:Vec<u8>) -> Vec<u8> {
-		let mut result=Vec::new();
-		let mut k=Vec::new();
+	fn json_get_complexarray(j: Vec<u8>, key: Vec<u8>) -> Vec<u8> {
+		let mut result = Vec::new();
+		let mut k = Vec::new();
 		let keyl = key.len();
 		let jl = j.len();
 		k.push(b'"');
-		for xk in 0..keyl{
+		for xk in 0..keyl {
 			k.push(*key.get(xk).unwrap());
 		}
 		k.push(b'"');
 		k.push(b':');
 		let kl = k.len();
-		for x in  0..jl {
-			let mut m=0;
-			if x+kl>jl {
+		for x in 0..jl {
+			let mut m = 0;
+			if x + kl > jl {
 				break;
 			}
-			for (xx, i) in (x..x+kl).enumerate() {
-				if *j.get(i).unwrap()== *k.get(xx).unwrap() {
+			for (xx, i) in (x..x + kl).enumerate() {
+				if *j.get(i).unwrap() == *k.get(xx).unwrap() {
 					m += 1;
 				}
 			}
-			if m==kl{
-				let mut os=true;
-				for i in x+kl..jl-1 {
-					if *j.get(i).unwrap()==b'[' && os{
-						os=false;
+			if m == kl {
+				let mut os = true;
+				for i in x + kl..jl - 1 {
+					if *j.get(i).unwrap() == b'[' && os {
+						os = false;
 					}
 					result.push(*j.get(i).unwrap());
-					if *j.get(i).unwrap()==b']' && !os {
+					if *j.get(i).unwrap() == b']' && !os {
 						break;
 					}
 				}

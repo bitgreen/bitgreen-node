@@ -6,22 +6,18 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 #![allow(clippy::unused_unit)]
 
+use frame_support::sp_runtime::traits::{CheckedAdd, CheckedDiv, Saturating, Zero};
 use frame_support::{
+	ensure,
 	pallet_prelude::*,
 	traits::{
-		Currency, ReservableCurrency, IsType, WithdrawReasons, ExistenceRequirement,
-		ChangeMembers,
+		ChangeMembers, Currency, ExistenceRequirement, IsType, ReservableCurrency, WithdrawReasons,
 	},
-	weights::Weight,
-	ensure,
 	transactional,
-};
-use sp_runtime::Perbill;
-use frame_support::sp_runtime::traits::{
-	Zero, Saturating,
-	CheckedAdd, CheckedDiv
+	weights::Weight,
 };
 use frame_system::pallet_prelude::*;
+use sp_runtime::Perbill;
 use sp_std::prelude::*;
 
 #[cfg(feature = "std")]
@@ -35,14 +31,13 @@ pub mod weights;
 pub use module::*;
 
 pub type EraIndex = u32;
-pub type BalanceOf<T> = <<T as Config>::Currency as Currency<<T as frame_system::Config>::AccountId>>::Balance;
-pub type CommitmentOf<T> =
-	Commitment<
-		<T as frame_system::Config>::AccountId,
-		BalanceOf<T>,
-		<T as frame_system::Config>::BlockNumber,
-	>;
-
+pub type BalanceOf<T> =
+	<<T as Config>::Currency as Currency<<T as frame_system::Config>::AccountId>>::Balance;
+pub type CommitmentOf<T> = Commitment<
+	<T as frame_system::Config>::AccountId,
+	BalanceOf<T>,
+	<T as frame_system::Config>::BlockNumber,
+>;
 
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 #[derive(Encode, Decode, Clone, PartialEq)]
@@ -101,17 +96,16 @@ pub trait WeightInfo {
 	fn on_initialize_empty() -> Weight;
 }
 
-
 #[frame_support::pallet]
 pub mod module {
 	use super::*;
-	use sp_std::iter::FromIterator;
 	use sp_std::collections::btree_map::BTreeMap;
+	use sp_std::iter::FromIterator;
 
 	#[pallet::config]
 	pub trait Config: frame_system::Config {
 		type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
-        type WeightInfo: WeightInfo;
+		type WeightInfo: WeightInfo;
 		/// Reservable currency for Candidacy bonds
 		type Currency: Currency<Self::AccountId> + ReservableCurrency<Self::AccountId>;
 		/// How long (in block count) is the era
@@ -200,40 +194,38 @@ pub mod module {
 
 	#[pallet::storage]
 	#[pallet::getter(fn current_era)]
-	pub(super) type CurrentEra<T: Config> = StorageValue<_,
-		Era<T::BlockNumber>,
-		ValueQuery,
-		FirstEra<T>>;
+	pub(super) type CurrentEra<T: Config> =
+		StorageValue<_, Era<T::BlockNumber>, ValueQuery, FirstEra<T>>;
 
 	#[pallet::storage]
 	#[pallet::getter(fn voter_rewards)]
-	pub(crate) type VoterRewards<T: Config> = StorageDoubleMap<_,
-		Blake2_128Concat, EraIndex,
-		Blake2_128Concat, T::AccountId, BalanceOf<T>,
-		ValueQuery>;
+	pub(crate) type VoterRewards<T: Config> = StorageDoubleMap<
+		_,
+		Blake2_128Concat,
+		EraIndex,
+		Blake2_128Concat,
+		T::AccountId,
+		BalanceOf<T>,
+		ValueQuery,
+	>;
 
 	#[pallet::storage]
 	#[pallet::getter(fn commitments)]
-	pub(crate) type Commitments<T: Config> = StorageMap<_,
-		Blake2_128Concat, T::AccountId, CommitmentOf<T>,
-		ValueQuery>;
+	pub(crate) type Commitments<T: Config> =
+		StorageMap<_, Blake2_128Concat, T::AccountId, CommitmentOf<T>, ValueQuery>;
 
 	#[pallet::storage]
 	#[pallet::getter(fn members)]
-	pub type Members<T: Config> = StorageValue<_,
-		Vec<T::AccountId>,
-		ValueQuery>;
+	pub type Members<T: Config> = StorageValue<_, Vec<T::AccountId>, ValueQuery>;
 
 	#[pallet::storage]
 	#[pallet::getter(fn candidates)]
-	pub type Candidates<T: Config> = StorageMap<_,
-		Blake2_128Concat, T::AccountId, BalanceOf<T>,
-		ValueQuery>;
+	pub type Candidates<T: Config> =
+		StorageMap<_, Blake2_128Concat, T::AccountId, BalanceOf<T>, ValueQuery>;
 
 	#[pallet::storage]
 	#[pallet::getter(fn n_candidates)]
-	pub type CandidatesCount<T: Config> = StorageValue<_,
-		u32, ValueQuery, DefaultCandidates<T>>;
+	pub type CandidatesCount<T: Config> = StorageValue<_, u32, ValueQuery, DefaultCandidates<T>>;
 
 	#[pallet::type_value]
 	pub fn DefaultCandidates<T: Config>() -> u32 {
@@ -242,14 +234,13 @@ pub mod module {
 
 	#[pallet::storage]
 	#[pallet::getter(fn locked_amount)]
-	pub type LockedAmount<T: Config> = StorageValue<_,
-		BalanceOf<T>, ValueQuery, DefaultLockedAmount<T>>;
+	pub type LockedAmount<T: Config> =
+		StorageValue<_, BalanceOf<T>, ValueQuery, DefaultLockedAmount<T>>;
 
 	#[pallet::type_value]
 	pub fn DefaultLockedAmount<T: Config>() -> BalanceOf<T> {
 		Zero::zero()
 	}
-
 
 	#[pallet::pallet]
 	pub struct Pallet<T>(PhantomData<T>);
@@ -266,7 +257,10 @@ pub mod module {
 			if n >= current_era.start + era_duration {
 				// move the era forward
 				let new_era_index = current_era.index.saturating_add(1);
-				let new_era = Era{index: new_era_index, start: n};
+				let new_era = Era {
+					index: new_era_index,
+					start: n,
+				};
 				<CurrentEra<T>>::set(new_era);
 
 				// clear old voter rewards (to save space)
@@ -277,11 +271,16 @@ pub mod module {
 				let mut commitment_count: u32 = 0;
 				for (_, c) in <Commitments<T>>::iter() {
 					// check if the candidate is running
-					if !<Candidates<T>>::contains_key(&c.candidate) { continue; }
+					if !<Candidates<T>>::contains_key(&c.candidate) {
+						continue;
+					}
 					// accumulate the votes by appropriate voting power
 					if counter.contains_key(&c.candidate) {
 						let acc_w = *counter.get(&c.candidate).unwrap();
-						counter.insert(c.candidate.clone(), Self::voting_weight(&c).saturating_add(acc_w));
+						counter.insert(
+							c.candidate.clone(),
+							Self::voting_weight(&c).saturating_add(acc_w),
+						);
 					} else {
 						counter.insert(c.candidate.clone(), Self::voting_weight(&c));
 					}
@@ -294,11 +293,7 @@ pub mod module {
 				let mut winners: Vec<T::AccountId> = Vec::new();
 				for (candidate, weight) in sorted.iter().take(T::MaxMembers::get() as usize) {
 					winners.push(candidate.clone());
-					Self::deposit_event(Event::Elected(
-							new_era_index,
-							candidate.clone(),
-							*weight
-					));
+					Self::deposit_event(Event::Elected(new_era_index, candidate.clone(), *weight));
 				}
 				// pallet-collective expects sorted list
 				winners.sort();
@@ -312,7 +307,9 @@ pub mod module {
 					// distribute winners rewards
 					let zero = BalanceOf::<T>::from(0 as u32);
 					let rewards = Self::era_council_rewards();
-					let reward = rewards.checked_div(&BalanceOf::<T>::from(winners.len() as u32)).unwrap_or(zero);
+					let reward = rewards
+						.checked_div(&BalanceOf::<T>::from(winners.len() as u32))
+						.unwrap_or(zero);
 					if reward > zero {
 						for winner in winners.iter() {
 							// ignore failed cases
@@ -330,13 +327,18 @@ pub mod module {
 
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
-
 		#[pallet::weight(T::WeightInfo::start_candidacy())]
 		pub fn start_candidacy(origin: OriginFor<T>) -> DispatchResultWithPostInfo {
 			let origin = ensure_signed(origin)?;
-			ensure!(!<Candidates<T>>::contains_key(&origin), Error::<T>::AlreadyCandidate);
+			ensure!(
+				!<Candidates<T>>::contains_key(&origin),
+				Error::<T>::AlreadyCandidate
+			);
 			let n_candidates = <CandidatesCount<T>>::get();
-			ensure!(n_candidates < T::MaxCandidates::get(), Error::<T>::MaxCandidatesReached);
+			ensure!(
+				n_candidates < T::MaxCandidates::get(),
+				Error::<T>::MaxCandidatesReached
+			);
 
 			let deposit = T::CandidacyDeposit::get();
 			T::Currency::reserve(&origin, deposit)?;
@@ -351,8 +353,14 @@ pub mod module {
 		#[pallet::weight(T::WeightInfo::stop_candidacy())]
 		pub fn stop_candidacy(origin: OriginFor<T>) -> DispatchResultWithPostInfo {
 			let origin = ensure_signed(origin)?;
-			ensure!(<Candidates<T>>::contains_key(&origin), Error::<T>::NotCandidate);
-			ensure!(<Members<T>>::get().binary_search(&origin).is_err(), Error::<T>::CannotLeave);
+			ensure!(
+				<Candidates<T>>::contains_key(&origin),
+				Error::<T>::NotCandidate
+			);
+			ensure!(
+				<Members<T>>::get().binary_search(&origin).is_err(),
+				Error::<T>::CannotLeave
+			);
 
 			let deposit = <Candidates<T>>::get(&origin);
 			T::Currency::unreserve(&origin, deposit);
@@ -374,56 +382,81 @@ pub mod module {
 		) -> DispatchResultWithPostInfo {
 			let origin = ensure_signed(origin)?;
 
-			ensure!(!<Commitments<T>>::contains_key(&origin), Error::<T>::AlreadyCommitted);
+			ensure!(
+				!<Commitments<T>>::contains_key(&origin),
+				Error::<T>::AlreadyCommitted
+			);
 
 			// impose a minimum bond size (to make election computation faster)
-			ensure!(amount >= T::MinLockAmount::get(), Error::<T>::InsufficientAmount);
+			ensure!(
+				amount >= T::MinLockAmount::get(),
+				Error::<T>::InsufficientAmount
+			);
 
 			// check if at total locking capacity
 			let locked_total = <LockedAmount<T>>::get().saturating_add(amount);
-			ensure!(locked_total < T::TotalLockedCap::get(), Error::<T>::OverSubscribed);
+			ensure!(
+				locked_total < T::TotalLockedCap::get(),
+				Error::<T>::OverSubscribed
+			);
 
 			T::Currency::withdraw(
-				&origin, amount,
+				&origin,
+				amount,
 				WithdrawReasons::RESERVE,
-				ExistenceRequirement::KeepAlive)?;
+				ExistenceRequirement::KeepAlive,
+			)?;
 
 			// increase total locked amt
 			<LockedAmount<T>>::set(locked_total);
 
 			// create a new commitment
-			<Commitments<T>>::insert(&origin, Commitment {
-				duration,
-				amount,
-				candidate,
-				..Default::default()
-			});
+			<Commitments<T>>::insert(
+				&origin,
+				Commitment {
+					duration,
+					amount,
+					candidate,
+					..Default::default()
+				},
+			);
 			Self::deposit_event(Event::Committed(origin, amount));
 			Ok(().into())
 		}
-
 
 		#[pallet::weight(T::WeightInfo::add_funds())]
 		#[transactional]
 		pub fn add_funds(
 			origin: OriginFor<T>,
-			#[pallet::compact] amount: BalanceOf<T>) -> DispatchResultWithPostInfo {
+			#[pallet::compact] amount: BalanceOf<T>,
+		) -> DispatchResultWithPostInfo {
 			let origin = ensure_signed(origin)?;
 
-			ensure!(<Commitments<T>>::contains_key(&origin), Error::<T>::CommitmentNotFound);
+			ensure!(
+				<Commitments<T>>::contains_key(&origin),
+				Error::<T>::CommitmentNotFound
+			);
 			let mut commitment = <Commitments<T>>::get(&origin);
 
 			ensure!(amount >= Zero::zero(), Error::<T>::InsufficientAmount);
 
 			// check if at total locking capacity
 			let locked_total = <LockedAmount<T>>::get().saturating_add(amount);
-			ensure!(locked_total < T::TotalLockedCap::get(), Error::<T>::OverSubscribed);
+			ensure!(
+				locked_total < T::TotalLockedCap::get(),
+				Error::<T>::OverSubscribed
+			);
 
 			T::Currency::withdraw(
-				&origin, amount,
+				&origin,
+				amount,
 				WithdrawReasons::RESERVE,
-				ExistenceRequirement::KeepAlive)?;
-			commitment.amount = commitment.amount.checked_add(&amount).ok_or("currency overflow")?;
+				ExistenceRequirement::KeepAlive,
+			)?;
+			commitment.amount = commitment
+				.amount
+				.checked_add(&amount)
+				.ok_or("currency overflow")?;
 
 			// increase total locked amt
 			<LockedAmount<T>>::set(locked_total);
@@ -438,14 +471,19 @@ pub mod module {
 			Ok(().into())
 		}
 
-
 		#[pallet::weight(T::WeightInfo::unbond())]
 		pub fn unbond(origin: OriginFor<T>) -> DispatchResultWithPostInfo {
 			let origin = ensure_signed(origin)?;
 
-			ensure!(<Commitments<T>>::contains_key(&origin), Error::<T>::CommitmentNotFound);
+			ensure!(
+				<Commitments<T>>::contains_key(&origin),
+				Error::<T>::CommitmentNotFound
+			);
 			let mut commitment = <Commitments<T>>::get(&origin);
-			ensure!(commitment.state == LockState::Committed, Error::<T>::NotCommitted);
+			ensure!(
+				commitment.state == LockState::Committed,
+				Error::<T>::NotCommitted
+			);
 
 			// record the unbonding block number
 			let current_block: T::BlockNumber = frame_system::Module::<T>::block_number();
@@ -456,23 +494,27 @@ pub mod module {
 			Ok(().into())
 		}
 
-
 		#[pallet::weight(T::WeightInfo::withdraw())]
 		#[transactional]
 		pub fn withdraw(origin: OriginFor<T>) -> DispatchResultWithPostInfo {
 			let origin = ensure_signed(origin)?;
 
-			ensure!(<Commitments<T>>::contains_key(&origin), Error::<T>::CommitmentNotFound);
+			ensure!(
+				<Commitments<T>>::contains_key(&origin),
+				Error::<T>::CommitmentNotFound
+			);
 			let commitment = <Commitments<T>>::get(&origin);
-			ensure!(commitment.state != LockState::Committed, Error::<T>::AlreadyCommitted);
+			ensure!(
+				commitment.state != LockState::Committed,
+				Error::<T>::AlreadyCommitted
+			);
 
 			// check if Unbonding period is over
 			// WARN: if block times are altered, this calculation will become invalid
 			if let LockState::Unbonding(start_block) = commitment.state {
-
 				let lock_period = match commitment.duration {
 					LockDuration::OneMonth => 30,
-					LockDuration::OneYear  => 365,
+					LockDuration::OneYear => 365,
 					LockDuration::TenYears => 3650,
 				} * primitives::time::DAYS;
 				let lock_period: T::BlockNumber = lock_period.into();
@@ -496,7 +538,6 @@ pub mod module {
 			Err(Error::<T>::CannotWithdrawLocked.into())
 		}
 
-
 		#[pallet::weight(T::WeightInfo::vote_candidate())]
 		#[transactional]
 		pub fn vote_candidate(
@@ -505,14 +546,24 @@ pub mod module {
 		) -> DispatchResultWithPostInfo {
 			let origin = ensure_signed(origin)?;
 
-			ensure!(<Commitments<T>>::contains_key(&origin), Error::<T>::CommitmentNotFound);
+			ensure!(
+				<Commitments<T>>::contains_key(&origin),
+				Error::<T>::CommitmentNotFound
+			);
 			let mut commitment = <Commitments<T>>::get(&origin);
-			ensure!(commitment.state == LockState::Committed, Error::<T>::NotCommitted);
+			ensure!(
+				commitment.state == LockState::Committed,
+				Error::<T>::NotCommitted
+			);
 
 			if commitment.candidate != candidate {
 				commitment.candidate = candidate.clone();
 				<Commitments<T>>::insert(&origin, &commitment);
-				Self::deposit_event(Event::Voted(origin.clone(), candidate, Self::voting_weight(&commitment)));
+				Self::deposit_event(Event::Voted(
+					origin.clone(),
+					candidate,
+					Self::voting_weight(&commitment),
+				));
 			}
 
 			let era_reward = Self::era_voter_reward(&commitment);
@@ -522,7 +573,11 @@ pub mod module {
 				if !<VoterRewards<T>>::contains_key(&current_era.index, &origin) {
 					<VoterRewards<T>>::insert(&current_era.index, &origin, &era_reward);
 					T::Currency::deposit_into_existing(&origin, era_reward)?;
-					Self::deposit_event(Event::VoterRewarded(current_era.index, origin, era_reward));
+					Self::deposit_event(Event::VoterRewarded(
+						current_era.index,
+						origin,
+						era_reward,
+					));
 				}
 			}
 			Ok(().into())
@@ -533,13 +588,15 @@ pub mod module {
 impl<T: Config> Pallet<T> {
 	/// Voting shares based on currently committed amount.
 	/// Monthly locks have 1x voting power, yearly 10x and 10 yearly 100x.
-	pub fn voting_weight(commitment: &Commitment<T::AccountId, BalanceOf<T>, T::BlockNumber>) -> BalanceOf<T> {
+	pub fn voting_weight(
+		commitment: &Commitment<T::AccountId, BalanceOf<T>, T::BlockNumber>,
+	) -> BalanceOf<T> {
 		if commitment.state != LockState::Committed {
 			return BalanceOf::<T>::from(0 as u32);
 		}
 		let multiplier = match commitment.duration {
 			LockDuration::OneMonth => 1,
-			LockDuration::OneYear  => 10,
+			LockDuration::OneYear => 10,
 			LockDuration::TenYears => 100,
 		};
 		commitment.amount * BalanceOf::<T>::from(multiplier as u32)
@@ -547,18 +604,16 @@ impl<T: Config> Pallet<T> {
 
 	/// Era reward amount based on currently committed amount.
 	/// Montly locks yield 0% APY. Longer locks yield fixed 10% APY.
-	pub fn era_voter_reward(commitment: &Commitment<T::AccountId, BalanceOf<T>, T::BlockNumber>) -> BalanceOf<T> {
+	pub fn era_voter_reward(
+		commitment: &Commitment<T::AccountId, BalanceOf<T>, T::BlockNumber>,
+	) -> BalanceOf<T> {
 		if commitment.state != LockState::Committed {
 			return Zero::zero();
 		}
 
 		match commitment.duration {
-			LockDuration::OneMonth => {
-				Zero::zero()
-			},
-			_ => {
-				T::NominatorAPY::get() * (Self::proportion_of_era_to_year() * commitment.amount)
-			}
+			LockDuration::OneMonth => Zero::zero(),
+			_ => T::NominatorAPY::get() * (Self::proportion_of_era_to_year() * commitment.amount),
 		}
 	}
 
@@ -571,9 +626,6 @@ impl<T: Config> Pallet<T> {
 
 	/// example: 7/365
 	pub fn proportion_of_era_to_year() -> Perbill {
-		Perbill::from_rational_approximation(
-			T::EraDuration::get(),
-			365 * primitives::time::DAYS
-		)
+		Perbill::from_rational_approximation(T::EraDuration::get(), 365 * primitives::time::DAYS)
 	}
 }

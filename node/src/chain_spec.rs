@@ -1,29 +1,24 @@
-use sp_core::{Pair, Public, sr25519, H160, Bytes};
 use bitg_runtime::{
-	AccountId, CurrencyId,
-	BabeConfig, BalancesConfig, BridgeConfig, GenesisConfig, GrandpaConfig, SudoConfig, SystemConfig,
-	IndicesConfig, EvmConfig, StakingConfig, SessionConfig, AuthorityDiscoveryConfig,ContractsConfig,
-	WASM_BINARY,
-	TokenSymbol, TokensConfig, BBB,
-	StakerStatus,
-	ImOnlineId, AuthorityDiscoveryId,
-	MaxNativeTokenExistentialDeposit,
-	get_all_module_accounts,
-	opaque::SessionKeys,
+	get_all_module_accounts, opaque::SessionKeys, AccountId, AuthorityDiscoveryConfig,
+	AuthorityDiscoveryId, BabeConfig, BalancesConfig, BridgeConfig, ContractsConfig, CurrencyId,
+	EvmConfig, GenesisConfig, GrandpaConfig, ImOnlineId, IndicesConfig,
+	MaxNativeTokenExistentialDeposit, SessionConfig, StakerStatus, StakingConfig, SudoConfig,
+	SystemConfig, TokenSymbol, TokensConfig, BBB, WASM_BINARY,
 };
-use sp_consensus_babe::AuthorityId as BabeId;
-use sp_finality_grandpa::AuthorityId as GrandpaId;
-use sp_runtime::traits::{IdentifyAccount};
 use sc_service::{ChainType, Properties};
 use sc_telemetry::TelemetryEndpoints;
+use sp_consensus_babe::AuthorityId as BabeId;
+use sp_core::{sr25519, Bytes, Pair, Public, H160};
+use sp_finality_grandpa::AuthorityId as GrandpaId;
+use sp_runtime::traits::IdentifyAccount;
 
-use sp_std::{collections::btree_map::BTreeMap, str::FromStr};
 use sc_chain_spec::ChainSpecExtension;
+use sp_std::{collections::btree_map::BTreeMap, str::FromStr};
 
 use serde::{Deserialize, Serialize};
 
 use hex_literal::hex;
-use sp_core::{crypto::UncheckedInto, bytes::from_hex};
+use sp_core::{bytes::from_hex, crypto::UncheckedInto};
 
 use bitg_primitives::{AccountPublic, Balance, Nonce};
 
@@ -51,8 +46,13 @@ fn get_session_keys(
 	babe: BabeId,
 	im_online: ImOnlineId,
 	authority_discovery: AuthorityDiscoveryId,
-	) -> SessionKeys {
-	SessionKeys { babe, grandpa, im_online, authority_discovery }
+) -> SessionKeys {
+	SessionKeys {
+		babe,
+		grandpa,
+		im_online,
+		authority_discovery,
+	}
 }
 
 /// Helper function to generate a crypto pair from seed
@@ -71,8 +71,16 @@ where
 }
 
 /// Generate an authority keys.
-pub fn get_authority_keys_from_seed(seed: &str)
-	-> (AccountId, AccountId, GrandpaId, BabeId, ImOnlineId, AuthorityDiscoveryId) {
+pub fn get_authority_keys_from_seed(
+	seed: &str,
+) -> (
+	AccountId,
+	AccountId,
+	GrandpaId,
+	BabeId,
+	ImOnlineId,
+	AuthorityDiscoveryId,
+) {
 	(
 		get_account_id_from_seed::<sr25519::Public>(&format!("{}//stash", seed)),
 		get_account_id_from_seed::<sr25519::Public>(seed),
@@ -91,22 +99,22 @@ pub fn development_config() -> Result<ChainSpec, String> {
 		// ID
 		"dev",
 		ChainType::Development,
-		move || testnet_genesis(
-			wasm_binary,
-			// Initial PoA authorities
-			vec![
-				get_authority_keys_from_seed("Alice"),
-			],
-			// Sudo account
-			get_account_id_from_seed::<sr25519::Public>("Alice"),
-			// Pre-funded accounts
-			vec![
+		move || {
+			testnet_genesis(
+				wasm_binary,
+				// Initial PoA authorities
+				vec![get_authority_keys_from_seed("Alice")],
+				// Sudo account
 				get_account_id_from_seed::<sr25519::Public>("Alice"),
-				get_account_id_from_seed::<sr25519::Public>("Bob"),
-				get_account_id_from_seed::<sr25519::Public>("Alice//stash"),
-				get_account_id_from_seed::<sr25519::Public>("Bob//stash"),
-			],
-		),
+				// Pre-funded accounts
+				vec![
+					get_account_id_from_seed::<sr25519::Public>("Alice"),
+					get_account_id_from_seed::<sr25519::Public>("Bob"),
+					get_account_id_from_seed::<sr25519::Public>("Alice//stash"),
+					get_account_id_from_seed::<sr25519::Public>("Bob//stash"),
+				],
+			)
+		},
 		// Bootnodes
 		vec![],
 		// Telemetry
@@ -128,31 +136,33 @@ pub fn local_testnet_config() -> Result<ChainSpec, String> {
 		// ID
 		"local_testnet",
 		ChainType::Local,
-		move || testnet_genesis(
-			wasm_binary,
-			// Initial PoA authorities
-			vec![
-				get_authority_keys_from_seed("Alice"),
-				get_authority_keys_from_seed("Bob"),
-			],
-			// Sudo account
-			get_account_id_from_seed::<sr25519::Public>("Alice"),
-			// Pre-funded accounts
-			vec![
+		move || {
+			testnet_genesis(
+				wasm_binary,
+				// Initial PoA authorities
+				vec![
+					get_authority_keys_from_seed("Alice"),
+					get_authority_keys_from_seed("Bob"),
+				],
+				// Sudo account
 				get_account_id_from_seed::<sr25519::Public>("Alice"),
-				get_account_id_from_seed::<sr25519::Public>("Bob"),
-				get_account_id_from_seed::<sr25519::Public>("Charlie"),
-				get_account_id_from_seed::<sr25519::Public>("Dave"),
-				get_account_id_from_seed::<sr25519::Public>("Eve"),
-				get_account_id_from_seed::<sr25519::Public>("Ferdie"),
-				get_account_id_from_seed::<sr25519::Public>("Alice//stash"),
-				get_account_id_from_seed::<sr25519::Public>("Bob//stash"),
-				get_account_id_from_seed::<sr25519::Public>("Charlie//stash"),
-				get_account_id_from_seed::<sr25519::Public>("Dave//stash"),
-				get_account_id_from_seed::<sr25519::Public>("Eve//stash"),
-				get_account_id_from_seed::<sr25519::Public>("Ferdie//stash"),
-			],
-		),
+				// Pre-funded accounts
+				vec![
+					get_account_id_from_seed::<sr25519::Public>("Alice"),
+					get_account_id_from_seed::<sr25519::Public>("Bob"),
+					get_account_id_from_seed::<sr25519::Public>("Charlie"),
+					get_account_id_from_seed::<sr25519::Public>("Dave"),
+					get_account_id_from_seed::<sr25519::Public>("Eve"),
+					get_account_id_from_seed::<sr25519::Public>("Ferdie"),
+					get_account_id_from_seed::<sr25519::Public>("Alice//stash"),
+					get_account_id_from_seed::<sr25519::Public>("Bob//stash"),
+					get_account_id_from_seed::<sr25519::Public>("Charlie//stash"),
+					get_account_id_from_seed::<sr25519::Public>("Dave//stash"),
+					get_account_id_from_seed::<sr25519::Public>("Eve//stash"),
+					get_account_id_from_seed::<sr25519::Public>("Ferdie//stash"),
+				],
+			)
+		},
 		// Bootnodes
 		vec![],
 		// Telemetry
@@ -175,59 +185,85 @@ pub fn public_testnet_config() -> Result<ChainSpec, String> {
 		// ID
 		"bitg_testnet",
 		ChainType::Live,
-		move || testnet_genesis(
-			wasm_binary,
-			// Initial authorities keys:
-			// stash
-			// controller
-			// grandpa
-			// babe
-			// im-online
-			// authority-discovery
-			vec![
-				(
-					// Boot Node/Validator 1: ip address 95.217.2.2
-					hex!["0a8e3c33501c0001bb08efc7511ca0b81f700eb8010ec91dc2d9324b3e0d2860"].into(),
-					hex!["fabe0e7010a320055f706192258876f3e97d237f836c8e1b753175df17d97b40"].into(),
-					hex!["a538f6fbd05fdcd42d91600eca9c7e6b7240fa82fc23b569deea91af6c97a5f1"].unchecked_into(),
-					hex!["a66bdf2c219a5fc728188edfeed3eb1ef17612d65764a71effcffd7f16a72834"].unchecked_into(),
-					hex!["50341e1134ad1a2244caaba520c4fff3a44bcca58c68d2fb9fdf924180c6b67f"].unchecked_into(),
-					hex!["7e4e3fd0a36ae866460c5e857682671a3c9f6a511d589084d400f3fe55672439"].unchecked_into(),
-				),
-				(
-					// Boot Node/Validator 2: ip addres 95.217.4.158
-					hex!["c866ae8a5b961062016bda70138e00b84a2975c22b6f61d44d2004a4ef9c6116"].into(),
-					hex!["ca514d67c95446d8ee62020f22c0b70616b4d6112dfc2c6e5dcafd67e9c27d09"].into(),
-					hex!["7ea36efa84a2e3e9416d94f4979aa9a6423d6a6dd2abb475e496cb571ee99dff"].unchecked_into(),
-					hex!["44c24fd0fc8cda7ba0c2613be44ef78782ee600eea05d4eb3af0a64f12056e6e"].unchecked_into(),
-					hex!["768d7df7f1f8dfbef05c34fa11358a52106a71ada232fa2bd35cb15df86f1b58"].unchecked_into(),
-					hex!["a2c666674fbf9a66df9ad15f1fa3bcea315990f7515c3dd2c26dcccc9d4bc27a"].unchecked_into(),
-				),
-				(
-					// Boot Node/Validator 3: ip addres 95.217.1.25
-					hex!["42547f143cb05a47a8de112e9b8362dec1d586fa241f29f0e591e17815f1d71a"].into(),
-					hex!["8e4ddd28c76a5963b7e81f73495afd663d9ed26ec66dfe8b8b7e3a8b4f01b330"].into(),
-					hex!["b034fb357e174f6c7bf7588dba0e191a24ae4f0b63f4ee41e9fcd9b00fcc5ed0"].unchecked_into(),
-					hex!["a401838c6a5043cc3353517e7c4396090277b568100806fed7769fadc8baa35b"].unchecked_into(),
-					hex!["6acdf720031ddf5d4c7cb06ee7876eef77688956575f5c0480df40b059804a38"].unchecked_into(),
-					hex!["bc2efdfdccb4c371eebd9fc1d9d86a6a2eaf516878a5989b0ddcd4f09101f606"].unchecked_into(),
-				),
-			],
-			// Sudo
-			hex!["caca29e30cce36df2263139cb15dd0e3ecbeb053d37aeac7ac8d2291ff7afa5c"].into(),
-			// Endowed accounts
-			vec![
+		move || {
+			testnet_genesis(
+				wasm_binary,
+				// Initial authorities keys:
+				// stash
+				// controller
+				// grandpa
+				// babe
+				// im-online
+				// authority-discovery
+				vec![
+					(
+						// Boot Node/Validator 1: ip address 95.217.2.2
+						hex!["0a8e3c33501c0001bb08efc7511ca0b81f700eb8010ec91dc2d9324b3e0d2860"]
+							.into(),
+						hex!["fabe0e7010a320055f706192258876f3e97d237f836c8e1b753175df17d97b40"]
+							.into(),
+						hex!["a538f6fbd05fdcd42d91600eca9c7e6b7240fa82fc23b569deea91af6c97a5f1"]
+							.unchecked_into(),
+						hex!["a66bdf2c219a5fc728188edfeed3eb1ef17612d65764a71effcffd7f16a72834"]
+							.unchecked_into(),
+						hex!["50341e1134ad1a2244caaba520c4fff3a44bcca58c68d2fb9fdf924180c6b67f"]
+							.unchecked_into(),
+						hex!["7e4e3fd0a36ae866460c5e857682671a3c9f6a511d589084d400f3fe55672439"]
+							.unchecked_into(),
+					),
+					(
+						// Boot Node/Validator 2: ip addres 95.217.4.158
+						hex!["c866ae8a5b961062016bda70138e00b84a2975c22b6f61d44d2004a4ef9c6116"]
+							.into(),
+						hex!["ca514d67c95446d8ee62020f22c0b70616b4d6112dfc2c6e5dcafd67e9c27d09"]
+							.into(),
+						hex!["7ea36efa84a2e3e9416d94f4979aa9a6423d6a6dd2abb475e496cb571ee99dff"]
+							.unchecked_into(),
+						hex!["44c24fd0fc8cda7ba0c2613be44ef78782ee600eea05d4eb3af0a64f12056e6e"]
+							.unchecked_into(),
+						hex!["768d7df7f1f8dfbef05c34fa11358a52106a71ada232fa2bd35cb15df86f1b58"]
+							.unchecked_into(),
+						hex!["a2c666674fbf9a66df9ad15f1fa3bcea315990f7515c3dd2c26dcccc9d4bc27a"]
+							.unchecked_into(),
+					),
+					(
+						// Boot Node/Validator 3: ip addres 95.217.1.25
+						hex!["42547f143cb05a47a8de112e9b8362dec1d586fa241f29f0e591e17815f1d71a"]
+							.into(),
+						hex!["8e4ddd28c76a5963b7e81f73495afd663d9ed26ec66dfe8b8b7e3a8b4f01b330"]
+							.into(),
+						hex!["b034fb357e174f6c7bf7588dba0e191a24ae4f0b63f4ee41e9fcd9b00fcc5ed0"]
+							.unchecked_into(),
+						hex!["a401838c6a5043cc3353517e7c4396090277b568100806fed7769fadc8baa35b"]
+							.unchecked_into(),
+						hex!["6acdf720031ddf5d4c7cb06ee7876eef77688956575f5c0480df40b059804a38"]
+							.unchecked_into(),
+						hex!["bc2efdfdccb4c371eebd9fc1d9d86a6a2eaf516878a5989b0ddcd4f09101f606"]
+							.unchecked_into(),
+					),
+				],
+				// Sudo
 				hex!["caca29e30cce36df2263139cb15dd0e3ecbeb053d37aeac7ac8d2291ff7afa5c"].into(),
-				hex!["4e5758a750dad72ea2e777a16222765b5b713c9eeda2eb8cd3f3b989203c5008"].into(),
-				hex!["ccf2f08394dde73dd5bd1946552e2042d1f502cb50eb7c29061873f5831caf42"].into(),
-			],
-		),
+				// Endowed accounts
+				vec![
+					hex!["caca29e30cce36df2263139cb15dd0e3ecbeb053d37aeac7ac8d2291ff7afa5c"].into(),
+					hex!["4e5758a750dad72ea2e777a16222765b5b713c9eeda2eb8cd3f3b989203c5008"].into(),
+					hex!["ccf2f08394dde73dd5bd1946552e2042d1f502cb50eb7c29061873f5831caf42"].into(),
+				],
+			)
+		},
 		// Bootnodes
 		vec![
-			"/ip4/95.217.2.2/tcp/30333/p2p/12D3KooWQrG8VAfYs8nXv95XJDu9Yo1iKKQ2KZRJkBVtfxpLvoYe".parse().unwrap(),
-			"/ip4/95.217.4.158/tcp/30333/p2p/12D3KooWCAdsB5VvsQ7eCWPZZ4eCdYbriFVwEJnvE5B9YAmRNTuY".parse().unwrap(),
-			"/ip4/95.217.1.25/tcp/30333/p2p/12D3KooWCRjP5nofPVvE5d7yj7wktKBPKwWxzc4oNd78z63nNvJC".parse().unwrap()
-			],
+			"/ip4/95.217.2.2/tcp/30333/p2p/12D3KooWQrG8VAfYs8nXv95XJDu9Yo1iKKQ2KZRJkBVtfxpLvoYe"
+				.parse()
+				.unwrap(),
+			"/ip4/95.217.4.158/tcp/30333/p2p/12D3KooWCAdsB5VvsQ7eCWPZZ4eCdYbriFVwEJnvE5B9YAmRNTuY"
+				.parse()
+				.unwrap(),
+			"/ip4/95.217.1.25/tcp/30333/p2p/12D3KooWCRjP5nofPVvE5d7yj7wktKBPKwWxzc4oNd78z63nNvJC"
+				.parse()
+				.unwrap(),
+		],
 		// Telemetry
 		TelemetryEndpoints::new(vec![(TELEMETRY_URL.into(), 0)]).ok(),
 		// Protocol ID
@@ -322,21 +358,32 @@ pub fn mainnet_config() -> Result<ChainSpec, String> {
 
 fn testnet_genesis(
 	wasm_binary: &[u8],
-	initial_authorities: Vec<(AccountId, AccountId, GrandpaId, BabeId, ImOnlineId, AuthorityDiscoveryId)>,
+	initial_authorities: Vec<(
+		AccountId,
+		AccountId,
+		GrandpaId,
+		BabeId,
+		ImOnlineId,
+		AuthorityDiscoveryId,
+	)>,
 	root_key: AccountId,
 	endowed_accounts: Vec<AccountId>,
 ) -> GenesisConfig {
-
 	let evm_genesis_accounts = evm_genesis();
 
 	const INITIAL_BALANCE: u128 = 100_000_000 * BBB;
-	const INITIAL_STAKING: u128 =   1_000_000 * BBB;
+	const INITIAL_STAKING: u128 = 1_000_000 * BBB;
 	let existential_deposit = MaxNativeTokenExistentialDeposit::get();
-	let enable_println=true;
+	let enable_println = true;
 	let balances = initial_authorities
 		.iter()
 		.map(|x| (x.0.clone(), INITIAL_STAKING))
-		.chain(endowed_accounts.iter().cloned().map(|k| (k, INITIAL_BALANCE)))
+		.chain(
+			endowed_accounts
+				.iter()
+				.cloned()
+				.map(|k| (k, INITIAL_BALANCE)),
+		)
 		.chain(
 			get_all_module_accounts()
 				.iter()
@@ -369,7 +416,8 @@ fn testnet_genesis(
 		pallet_session: Some(SessionConfig {
 			keys: initial_authorities
 				.iter()
-				.map(|x| (
+				.map(|x| {
+					(
 						x.0.clone(), // stash
 						x.0.clone(), // stash
 						get_session_keys(
@@ -377,7 +425,9 @@ fn testnet_genesis(
 							x.3.clone(), // babe
 							x.4.clone(), // im-online
 							x.5.clone(), // authority-discovery
-						)))
+						),
+					)
+				})
 				.collect::<Vec<_>>(),
 		}),
 		pallet_staking: Some(StakingConfig {
@@ -385,23 +435,36 @@ fn testnet_genesis(
 			minimum_validator_count: initial_authorities.len() as u32,
 			stakers: initial_authorities
 				.iter()
-				.map(|x| (x.0.clone(), x.1.clone(), INITIAL_STAKING, StakerStatus::Validator))
+				.map(|x| {
+					(
+						x.0.clone(),
+						x.1.clone(),
+						INITIAL_STAKING,
+						StakerStatus::Validator,
+					)
+				})
 				.collect(),
 			invulnerables: initial_authorities.iter().map(|x| x.0.clone()).collect(),
 			slash_reward_fraction: sp_runtime::Perbill::from_percent(10),
 			..Default::default()
 		}),
-		pallet_babe: Some(BabeConfig { authorities: vec![] }),
-		pallet_grandpa: Some(GrandpaConfig { authorities: vec![] }),
+		pallet_babe: Some(BabeConfig {
+			authorities: vec![],
+		}),
+		pallet_grandpa: Some(GrandpaConfig {
+			authorities: vec![],
+		}),
 		pallet_authority_discovery: Some(AuthorityDiscoveryConfig { keys: vec![] }),
 		pallet_im_online: Default::default(),
 		orml_tokens: Some(TokensConfig {
 			endowed_accounts: endowed_accounts
 				.iter()
 				.flat_map(|x| {
-					vec![
-						(x.clone(), CurrencyId::Token(TokenSymbol::USDG), INITIAL_BALANCE),
-					]
+					vec![(
+						x.clone(),
+						CurrencyId::Token(TokenSymbol::USDG),
+						INITIAL_BALANCE,
+					)]
 				})
 				.collect(),
 		}),
@@ -415,30 +478,43 @@ fn testnet_genesis(
 		// Smart contracts !Ink Language
 		pallet_contracts: Some(ContractsConfig {
 			current_schedule: pallet_contracts::Schedule {
-					enable_println,
-					..Default::default()
+				enable_println,
+				..Default::default()
 			},
 		}),
-		pallet_bridge: Some(BridgeConfig { lockdown_status: false }),
+		pallet_bridge: Some(BridgeConfig {
+			lockdown_status: false,
+		}),
 	}
 }
 
 fn mainnet_genesis(
 	wasm_binary: &[u8],
-	initial_authorities: Vec<(AccountId, AccountId, GrandpaId, BabeId, ImOnlineId, AuthorityDiscoveryId)>,
+	initial_authorities: Vec<(
+		AccountId,
+		AccountId,
+		GrandpaId,
+		BabeId,
+		ImOnlineId,
+		AuthorityDiscoveryId,
+	)>,
 	root_key: AccountId,
 	endowed_accounts: Vec<(AccountId, Balance)>,
 ) -> GenesisConfig {
-
 	let evm_genesis_accounts = evm_genesis();
 
 	const INITIAL_STAKING: u128 = 1_000_000 * BBB;
 	let existential_deposit = MaxNativeTokenExistentialDeposit::get();
-	let enable_println=true;
+	let enable_println = true;
 	let balances = initial_authorities
 		.iter()
-		.map(|x| (x.0.clone(), INITIAL_STAKING*2))
-		.chain(endowed_accounts.iter().cloned().map(|x| (x.0.clone(), x.1 * BBB)))
+		.map(|x| (x.0.clone(), INITIAL_STAKING * 2))
+		.chain(
+			endowed_accounts
+				.iter()
+				.cloned()
+				.map(|x| (x.0.clone(), x.1 * BBB)),
+		)
 		.chain(
 			get_all_module_accounts()
 				.iter()
@@ -471,7 +547,8 @@ fn mainnet_genesis(
 		pallet_session: Some(SessionConfig {
 			keys: initial_authorities
 				.iter()
-				.map(|x| (
+				.map(|x| {
+					(
 						x.0.clone(), // stash
 						x.0.clone(), // stash
 						get_session_keys(
@@ -479,7 +556,9 @@ fn mainnet_genesis(
 							x.3.clone(), // babe
 							x.4.clone(), // im-online
 							x.5.clone(), // authority-discovery
-						)))
+						),
+					)
+				})
 				.collect::<Vec<_>>(),
 		}),
 		pallet_staking: Some(StakingConfig {
@@ -487,18 +566,29 @@ fn mainnet_genesis(
 			minimum_validator_count: initial_authorities.len() as u32,
 			stakers: initial_authorities
 				.iter()
-				.map(|x| (x.0.clone(), x.1.clone(), INITIAL_STAKING, StakerStatus::Validator))
+				.map(|x| {
+					(
+						x.0.clone(),
+						x.1.clone(),
+						INITIAL_STAKING,
+						StakerStatus::Validator,
+					)
+				})
 				.collect(),
 			invulnerables: initial_authorities.iter().map(|x| x.0.clone()).collect(),
 			slash_reward_fraction: sp_runtime::Perbill::from_percent(10),
 			..Default::default()
 		}),
-		pallet_babe: Some(BabeConfig { authorities: vec![] }),
-		pallet_grandpa: Some(GrandpaConfig { authorities: vec![] }),
+		pallet_babe: Some(BabeConfig {
+			authorities: vec![],
+		}),
+		pallet_grandpa: Some(GrandpaConfig {
+			authorities: vec![],
+		}),
 		pallet_authority_discovery: Some(AuthorityDiscoveryConfig { keys: vec![] }),
 		pallet_im_online: Default::default(),
 		orml_tokens: Some(TokensConfig {
-			endowed_accounts: vec![]
+			endowed_accounts: vec![],
 		}),
 		module_evm: Some(EvmConfig {
 			accounts: evm_genesis_accounts,
@@ -510,14 +600,15 @@ fn mainnet_genesis(
 		// Smart contracts !Ink Language
 		pallet_contracts: Some(ContractsConfig {
 			current_schedule: pallet_contracts::Schedule {
-					enable_println,
-					..Default::default()
+				enable_println,
+				..Default::default()
 			},
 		}),
-		pallet_bridge: Some(BridgeConfig { lockdown_status: false }),
+		pallet_bridge: Some(BridgeConfig {
+			lockdown_status: false,
+		}),
 	}
 }
-
 
 /// Token
 pub fn bitg_properties() -> Properties {
@@ -527,7 +618,6 @@ pub fn bitg_properties() -> Properties {
 	p.insert("tokenSymbol".into(), "BBB".into());
 	p
 }
-
 
 /// Predeployed contract addresses
 pub fn evm_genesis() -> BTreeMap<H160, module_evm::GenesisAccount<Balance, Nonce>> {

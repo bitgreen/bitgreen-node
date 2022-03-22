@@ -15,11 +15,9 @@ use sp_std::{
 	prelude::*,
 };
 
-
 pub type Price = FixedU128;
 pub type Ratio = FixedU128;
 pub type Rate = FixedU128;
-
 
 /// Return true if the call of EVM precompile contract is allowed.
 pub trait PrecompileCallerFilter {
@@ -97,7 +95,8 @@ pub trait EVMStateRentTrait<AccountId, Balance> {
 	/// Query the constants `DeploymentFee` value from evm module.
 	fn query_deployment_fee() -> Balance;
 	/// Transfer the maintainer of the contract address.
-	fn transfer_maintainer(from: AccountId, contract: H160, new_maintainer: H160) -> DispatchResult;
+	fn transfer_maintainer(from: AccountId, contract: H160, new_maintainer: H160)
+		-> DispatchResult;
 }
 
 pub trait TransactionPayment<AccountId, Balance, NegativeImbalance> {
@@ -107,7 +106,11 @@ pub trait TransactionPayment<AccountId, Balance, NegativeImbalance> {
 		who: &AccountId,
 		weight: Weight,
 	) -> Result<(Balance, NegativeImbalance), TransactionValidityError>;
-	fn refund_fee(who: &AccountId, weight: Weight, payed: NegativeImbalance) -> Result<(), TransactionValidityError>;
+	fn refund_fee(
+		who: &AccountId,
+		weight: Weight,
+		payed: NegativeImbalance,
+	) -> Result<(), TransactionValidityError>;
 }
 
 #[cfg(feature = "std")]

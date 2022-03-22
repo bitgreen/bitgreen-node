@@ -1,10 +1,11 @@
 use crate as pallet_bonds;
-use sp_core::H256;
 use frame_support::parameter_types;
-use sp_runtime::{
-	traits::{BlakeTwo256, IdentityLookup}, testing::Header,
-};
 use frame_system as system;
+use sp_core::H256;
+use sp_runtime::{
+	testing::Header,
+	traits::{BlakeTwo256, IdentityLookup},
+};
 
 type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
 type Block = frame_system::mocking::MockBlock<Test>;
@@ -53,7 +54,7 @@ impl system::Config for Test {
 }
 
 parameter_types! {
-    pub const ExistentialDeposit: u64 = 1;
+	pub const ExistentialDeposit: u64 = 1;
 	pub const MaxLocks: u32 = 50;
 }
 impl pallet_balances::Config for Test {
@@ -71,13 +72,12 @@ impl pallet_bonds::Config for Test {
 	type Currency = Balances;
 }
 
-
 // Build genesis storage according to the mock runtime.
 pub fn new_test_ext() -> sp_io::TestExternalities {
-	let mut t = frame_system::GenesisConfig::default().build_storage::<Test>().unwrap();
-	pallet_balances::GenesisConfig::<Test> {
-		balances: vec![],
-	}
+	let mut t = frame_system::GenesisConfig::default()
+		.build_storage::<Test>()
+		.unwrap();
+	pallet_balances::GenesisConfig::<Test> { balances: vec![] }
 		.assimilate_storage(&mut t)
 		.unwrap();
 	let ext = sp_io::TestExternalities::new(t);

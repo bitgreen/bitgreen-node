@@ -29,8 +29,7 @@ use sp_io::{
 };
 use sp_runtime::{
 	traits::{LookupError, StaticLookup},
-	MultiAddress,
-	DispatchResult,
+	DispatchResult, MultiAddress,
 };
 use sp_std::{marker::PhantomData, vec::Vec};
 
@@ -128,15 +127,19 @@ pub mod module {
 			let who = ensure_signed(origin)?;
 
 			// ensure account_id and eth_address has not been mapped
-			ensure!(!EvmAddresses::<T>::contains_key(&who), Error::<T>::AccountIdHasMapped);
+			ensure!(
+				!EvmAddresses::<T>::contains_key(&who),
+				Error::<T>::AccountIdHasMapped
+			);
 			ensure!(
 				!Accounts::<T>::contains_key(eth_address),
 				Error::<T>::EthAddressHasMapped
 			);
 
 			// recover evm address from signature
-			let address = Self::eth_recover(&eth_signature, &who.using_encoded(to_ascii_hex), &[][..])
-				.ok_or(Error::<T>::BadSignature)?;
+			let address =
+				Self::eth_recover(&eth_signature, &who.using_encoded(to_ascii_hex), &[][..])
+					.ok_or(Error::<T>::BadSignature)?;
 			ensure!(eth_address == address, Error::<T>::InvalidSignature);
 
 			// check if the evm padded address already exists
@@ -161,7 +164,10 @@ pub mod module {
 			let who = ensure_signed(origin)?;
 
 			// ensure account_id has not been mapped
-			ensure!(!EvmAddresses::<T>::contains_key(&who), Error::<T>::AccountIdHasMapped);
+			ensure!(
+				!EvmAddresses::<T>::contains_key(&who),
+				Error::<T>::AccountIdHasMapped
+			);
 
 			let eth_address = T::AddressMapping::get_or_create_evm_address(&who);
 
@@ -212,7 +218,10 @@ impl<T: Config> Pallet<T> {
 	}
 
 	pub fn eth_sign(secret: &secp256k1::SecretKey, what: &[u8], extra: &[u8]) -> EcdsaSignature {
-		let msg = keccak_256(&Self::ethereum_signable_message(&to_ascii_hex(what)[..], extra));
+		let msg = keccak_256(&Self::ethereum_signable_message(
+			&to_ascii_hex(what)[..],
+			extra,
+		));
 		let (sig, recovery_id) = secp256k1::sign(&secp256k1::Message::parse(&msg), secret);
 		let mut r = [0u8; 65];
 		r[0..64].copy_from_slice(&sig.serialize()[..]);
@@ -297,7 +306,9 @@ impl<T: Config> StaticLookup for Pallet<T> {
 
 	fn lookup(a: Self::Source) -> Result<Self::Target, LookupError> {
 		match a {
-			MultiAddress::Address20(i) => Ok(T::AddressMapping::get_account_id(&EvmAddress::from_slice(&i))),
+			MultiAddress::Address20(i) => Ok(T::AddressMapping::get_account_id(
+				&EvmAddress::from_slice(&i),
+			)),
 			_ => Err(LookupError),
 		}
 	}

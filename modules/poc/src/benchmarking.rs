@@ -1,7 +1,7 @@
 #![cfg(feature = "runtime-benchmarks")]
 
-use crate::{*};
-use frame_benchmarking::{benchmarks, account, impl_benchmark_test_suite};
+use crate::*;
+use frame_benchmarking::{account, benchmarks, impl_benchmark_test_suite};
 use frame_system::RawOrigin;
 use primitives::{currency::BITG, time::DAYS};
 
@@ -170,4 +170,3 @@ benchmarks! {
 
 // auto-generate benchmark tests
 impl_benchmark_test_suite!(Pallet, mock::new_test_ext(), mock::Runtime);
-

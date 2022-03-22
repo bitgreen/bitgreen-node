@@ -1,5 +1,5 @@
-use crate::{Error, mock::*};
-use frame_support::{assert_ok, assert_noop};
+use crate::{mock::*, Error};
+use frame_support::{assert_noop, assert_ok};
 use sp_runtime::DispatchError::BadOrigin;
 
 #[test]
@@ -13,7 +13,10 @@ fn create_proxy_settings_should_work() {
 fn create_proxy_settings_should_not_work_for_invalid_json() {
 	new_test_ext().execute_with(|| {
 		assert_noop!(
-			VCU::create_proxy_settings(Origin::root(), r#"{"accounts":[ehXCPcNoHGKutQY"]}"#.as_bytes().to_vec()),
+			VCU::create_proxy_settings(
+				Origin::root(),
+				r#"{"accounts":[ehXCPcNoHGKutQY"]}"#.as_bytes().to_vec()
+			),
 			Error::<Test>::InvalidJson
 		);
 	});
@@ -22,10 +25,20 @@ fn create_proxy_settings_should_not_work_for_invalid_json() {
 #[test]
 fn create_proxy_settings_should_not_work_for_existing_key() {
 	new_test_ext().execute_with(|| {
-		assert_ok!(VCU::create_proxy_settings(Origin::root(), r#"{"accounts":["5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY"]}"#.as_bytes().to_vec()));
+		assert_ok!(VCU::create_proxy_settings(
+			Origin::root(),
+			r#"{"accounts":["5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY"]}"#
+				.as_bytes()
+				.to_vec()
+		));
 
 		assert_noop!(
-			VCU::create_proxy_settings(Origin::root(), r#"{"accounts":["5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY"]}"#.as_bytes().to_vec()),
+			VCU::create_proxy_settings(
+				Origin::root(),
+				r#"{"accounts":["5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY"]}"#
+					.as_bytes()
+					.to_vec()
+			),
 			Error::<Test>::SettingsKeyExists
 		);
 	});
@@ -44,7 +57,12 @@ fn create_proxy_settings_should_not_work_for_too_short_json() {
 #[test]
 fn destroy_proxy_settings_should_work() {
 	new_test_ext().execute_with(|| {
-		assert_ok!(VCU::create_proxy_settings(Origin::root(), r#"{"accounts":["5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY"]}"#.as_bytes().to_vec()));
+		assert_ok!(VCU::create_proxy_settings(
+			Origin::root(),
+			r#"{"accounts":["5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY"]}"#
+				.as_bytes()
+				.to_vec()
+		));
 
 		assert_ok!(VCU::destroy_proxy_settings(Origin::root()));
 	});
@@ -63,7 +81,11 @@ fn destroy_proxy_settings_should_not_work_for_non_existing_key() {
 #[test]
 fn add_new_authorized_accounts_should_work() {
 	new_test_ext().execute_with(|| {
-		assert_ok!(VCU::add_authorized_account(Origin::root(), 1, b"Verra".to_vec()));
+		assert_ok!(VCU::add_authorized_account(
+			Origin::root(),
+			1,
+			b"Verra".to_vec()
+		));
 		assert_eq!(VCU::get_authorized_accounts(1), b"Verra".to_vec());
 	});
 }
@@ -71,12 +93,19 @@ fn add_new_authorized_accounts_should_work() {
 #[test]
 fn update_existing_authorized_accounts_should_work() {
 	new_test_ext().execute_with(|| {
-		assert_ok!(VCU::add_authorized_account(Origin::root(), 1, b"Verra".to_vec()));
+		assert_ok!(VCU::add_authorized_account(
+			Origin::root(),
+			1,
+			b"Verra".to_vec()
+		));
 		assert_eq!(VCU::get_authorized_accounts(1), b"Verra".to_vec());
 
-		assert_ok!(VCU::add_authorized_account(Origin::root(), 1, b"Verra22".to_vec()));
+		assert_ok!(VCU::add_authorized_account(
+			Origin::root(),
+			1,
+			b"Verra22".to_vec()
+		));
 		assert_eq!(VCU::get_authorized_accounts(1), b"Verra22".to_vec());
-
 	});
 }
 
@@ -93,7 +122,11 @@ fn add_authorized_accounts_should_not_work_for_invalid_description() {
 #[test]
 fn destroy_authorized_accounts_should_work() {
 	new_test_ext().execute_with(|| {
-		assert_ok!(VCU::add_authorized_account(Origin::root(), 1, b"Verra".to_vec()));
+		assert_ok!(VCU::add_authorized_account(
+			Origin::root(),
+			1,
+			b"Verra".to_vec()
+		));
 		assert_eq!(VCU::get_authorized_accounts(1), b"Verra".to_vec());
 
 		assert_ok!(VCU::destroy_authorized_account(Origin::root(), 1));
@@ -114,12 +147,29 @@ fn destroy_authorized_accounts_should_not_work_for_non_existing_account() {
 #[test]
 fn create_asset_generating_vcu_should_work_if_signed_by_root_or_authorized_user() {
 	new_test_ext().execute_with(|| {
-		let input = r#"{"description":"Description", "proofOwnership":"ipfslink", "numberOfShares":10000}"#.as_bytes().to_vec();
-		assert_ok!(VCU::create_asset_generating_vcu(Origin::root(), 1, 1, input.clone()));
+		let input =
+			r#"{"description":"Description", "proofOwnership":"ipfslink", "numberOfShares":10000}"#
+				.as_bytes()
+				.to_vec();
+		assert_ok!(VCU::create_asset_generating_vcu(
+			Origin::root(),
+			1,
+			1,
+			input.clone()
+		));
 		assert_eq!(VCU::asset_generating_vcu(1, 1), input);
 
-		assert_ok!(VCU::add_authorized_account(Origin::root(), 11, b"Verra".to_vec()));
-		assert_ok!(VCU::create_asset_generating_vcu(Origin::signed(11), 1, 1, input));
+		assert_ok!(VCU::add_authorized_account(
+			Origin::root(),
+			11,
+			b"Verra".to_vec()
+		));
+		assert_ok!(VCU::create_asset_generating_vcu(
+			Origin::signed(11),
+			1,
+			1,
+			input
+		));
 	});
 }
 
@@ -147,7 +197,6 @@ fn create_asset_generating_vcu_should_not_work_if_not_valid_input() {
 		);
 	});
 }
-
 
 #[test]
 fn create_asset_generating_vcu_should_not_work_if_not_signed_by_root_or_authorized_user() {
@@ -318,15 +367,31 @@ fn mint_scheduled_vcu_should_not_mint_if_schedule_has_been_expired() {
 #[test]
 fn create_oracle_account_minting_vcu_should_work() {
 	new_test_ext().execute_with(|| {
-		assert_ok!(VCU::create_oracle_account_minting_vcu(Origin::root(), 1, 1, 10,1));
+		assert_ok!(VCU::create_oracle_account_minting_vcu(
+			Origin::root(),
+			1,
+			1,
+			10,
+			1
+		));
 	});
 }
 
 #[test]
 fn destroy_oracle_account_minting_vcu_should_work() {
 	new_test_ext().execute_with(|| {
-		assert_ok!(VCU::create_oracle_account_minting_vcu(Origin::root(), 1, 1, 10,1));
-		assert_ok!(VCU::destroy_oracle_account_minting_vcu(Origin::root(), 1, 1));
+		assert_ok!(VCU::create_oracle_account_minting_vcu(
+			Origin::root(),
+			1,
+			1,
+			10,
+			1
+		));
+		assert_ok!(VCU::destroy_oracle_account_minting_vcu(
+			Origin::root(),
+			1,
+			1
+		));
 	});
 }
 

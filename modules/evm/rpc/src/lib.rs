@@ -1,7 +1,7 @@
 #![allow(clippy::upper_case_acronyms)]
 
+use ethereum_types::{H160, U256};
 use frame_support::debug;
-use ethereum_types::{U256, H160};
 use jsonrpc_core::{Error, ErrorCode, Result, Value};
 use rustc_hex::ToHex;
 use sp_api::ProvideRuntimeApi;
@@ -31,8 +31,8 @@ mod evm_api;
 // default gas and storage limits:
 // limits only apply to call() API
 // create() API takes values from the caller and is unlimited
-pub const GAS_LIMIT:     u64 = 100_000_000;
-pub const STORAGE_LIMIT: u32 =   1_000_000;
+pub const GAS_LIMIT: u64 = 100_000_000;
+pub const STORAGE_LIMIT: u32 = 1_000_000;
 
 fn internal_err<T: ToString>(message: T) -> Error {
 	Error {
@@ -63,8 +63,9 @@ fn error_on_execution_failure(reason: &ExitReason, data: &[u8]) -> Result<()> {
 		}
 		ExitReason::Revert(_) => Err(Error {
 			code: ErrorCode::InternalError,
-			message: decode_revert_message(data)
-				.map_or("execution revert".into(), |data| format!("execution revert: {}", data)),
+			message: decode_revert_message(data).map_or("execution revert".into(), |data| {
+				format!("execution revert: {}", data)
+			}),
 			data: Some(Value::String(format!("0x{}", data.to_hex::<String>()))),
 		}),
 		ExitReason::Fatal(e) => Err(Error {
@@ -117,7 +118,15 @@ where
 	C: ProvideRuntimeApi<B> + HeaderBackend<B> + Send + Sync + 'static,
 	C::Api: EVMRuntimeRPCApi<B, Balance>,
 	C::Api: TransactionPaymentApi<B, Balance>,
-	Balance: Codec + MaybeDisplay + MaybeFromStr + Default + Send + Sync + 'static + TryFrom<u128> + Into<U256>,
+	Balance: Codec
+		+ MaybeDisplay
+		+ MaybeFromStr
+		+ Default
+		+ Send
+		+ Sync
+		+ 'static
+		+ TryFrom<u128>
+		+ Into<U256>,
 {
 	fn call(&self, request: CallRequest, at: Option<B>) -> Result<Bytes> {
 		let hash = match at {
@@ -320,7 +329,6 @@ where
 		}
 	}
 
-
 	fn estimate_resources(
 		&self,
 		from: H160,
@@ -348,7 +356,6 @@ where
 		};
 
 		let calculate_gas_used = |request| -> Result<(U256, i32)> {
-
 			let CallRequest {
 				from,
 				to,
@@ -482,8 +489,7 @@ where
 			}
 
 			let uxt: <B as BlockT>::Extrinsic =
-				Decode::decode(&mut &*unsigned_extrinsic)
-				.map_err(|e| Error {
+				Decode::decode(&mut &*unsigned_extrinsic).map_err(|e| Error {
 					code: ErrorCode::InternalError,
 					message: "Unable to dry run extrinsic.".into(),
 					data: Some(format!("{:?}", e).into()),
@@ -512,8 +518,7 @@ where
 			let (used_gas, used_storage) = calculate_gas_used(request)?;
 
 			let uxt: <B as BlockT>::Extrinsic =
-				Decode::decode(&mut &*unsigned_extrinsic)
-				.map_err(|e| Error {
+				Decode::decode(&mut &*unsigned_extrinsic).map_err(|e| Error {
 					code: ErrorCode::InternalError,
 					message: "Unable to dry run extrinsic.".into(),
 					data: Some(format!("{:?}", e).into()),
@@ -540,8 +545,6 @@ where
 			})
 		}
 	}
-
-
 }
 
 #[test]
@@ -549,7 +552,9 @@ fn decode_revert_message_should_work() {
 	use sp_core::bytes::from_hex;
 	assert_eq!(decode_revert_message(&vec![]), None);
 
-	let data = from_hex("0x8c379a00000000000000000000000000000000000000000000000000000000000000020").unwrap();
+	let data =
+		from_hex("0x8c379a00000000000000000000000000000000000000000000000000000000000000020")
+			.unwrap();
 	assert_eq!(decode_revert_message(&data), None);
 
 	let data = from_hex("0x8c379a00000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000000d6572726f72206d65737361676").unwrap();

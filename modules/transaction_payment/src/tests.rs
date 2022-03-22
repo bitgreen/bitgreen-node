@@ -4,13 +4,12 @@
 
 use super::*;
 use frame_support::{
-	assert_ok, assert_err,
+	assert_err, assert_ok,
 	weights::{DispatchClass, DispatchInfo, Pays},
 };
 use mock::{
-	AccountId, BlockWeights, Call, Currencies,
-	ExtBuilder, Origin, Runtime, TransactionPayment,
-	BITG, USDG, ALICE, BOB
+	AccountId, BlockWeights, Call, Currencies, ExtBuilder, Origin, Runtime, TransactionPayment,
+	ALICE, BITG, BOB, USDG,
 };
 use orml_traits::MultiCurrency;
 use sp_runtime::testing::TestXt;
@@ -43,7 +42,10 @@ fn charges_fee() {
 				.priority,
 			fee
 		);
-		assert_eq!(Currencies::free_balance(BITG, &ALICE), (100000 - fee).into());
+		assert_eq!(
+			Currencies::free_balance(BITG, &ALICE),
+			(100000 - fee).into()
+		);
 
 		let fee2 = 18 * 2 + 1000; // len * byte + weight
 		assert_eq!(
@@ -53,7 +55,7 @@ fn charges_fee() {
 				.priority,
 			fee2
 		);
-		use sp_runtime::{traits::{UniqueSaturatedInto}};
+		use sp_runtime::traits::UniqueSaturatedInto;
 		assert_eq!(
 			Currencies::free_balance(BITG, &ALICE),
 			(100000 - fee - fee2).unique_saturated_into()
@@ -82,23 +84,40 @@ fn refund_fee_according_to_actual_when_post_dispatch_and_native_currency_is_enou
 		assert_eq!(Currencies::free_balance(BITG, &ALICE), 100000 - fee);
 
 		let refund = 200; // 1000 - 800
-		assert!(ChargeTransactionPayment::<Runtime>::post_dispatch(pre, &INFO, &POST_INFO, 23, &Ok(())).is_ok());
-		assert_eq!(Currencies::free_balance(BITG, &ALICE), 100000 - fee + refund);
+		assert!(ChargeTransactionPayment::<Runtime>::post_dispatch(
+			pre,
+			&INFO,
+			&POST_INFO,
+			23,
+			&Ok(())
+		)
+		.is_ok());
+		assert_eq!(
+			Currencies::free_balance(BITG, &ALICE),
+			100000 - fee + refund
+		);
 	});
 }
 
 #[test]
 fn charges_fee_when_validate_and_native_is_not_enough() {
 	ExtBuilder::default().build().execute_with(|| {
-		assert_ok!(<Currencies as MultiCurrency<_>>::transfer(USDG, &ALICE, &BOB, 1000));
-		assert_eq!(<Currencies as MultiCurrency<_>>::free_balance(BITG, &BOB), 0);
-		assert_eq!(<Currencies as MultiCurrency<_>>::free_balance(USDG, &BOB), 1000);
+		assert_ok!(<Currencies as MultiCurrency<_>>::transfer(
+			USDG, &ALICE, &BOB, 1000
+		));
+		assert_eq!(
+			<Currencies as MultiCurrency<_>>::free_balance(BITG, &BOB),
+			0
+		);
+		assert_eq!(
+			<Currencies as MultiCurrency<_>>::free_balance(USDG, &BOB),
+			1000
+		);
 
 		let _fee = 500 * 2 + 1000; // len * byte + weight
 		assert_err!(
-			ChargeTransactionPayment::<Runtime>::from(0)
-				.validate(&BOB, CALL2, &INFO, 500),
-				TransactionValidityError::Invalid(InvalidTransaction::Payment)
+			ChargeTransactionPayment::<Runtime>::from(0).validate(&BOB, CALL2, &INFO, 500),
+			TransactionValidityError::Invalid(InvalidTransaction::Payment)
 		);
 
 		// // add liquidity to DEX
@@ -121,7 +140,6 @@ fn charges_fee_when_validate_and_native_is_not_enough() {
 		// 	fee
 		// );
 
-
 		// assert_eq!(Currencies::free_balance(BITG, &BOB), 0);
 		// assert_eq!(Currencies::free_balance(USDG, &BOB), 749);
 		// assert_eq!(DEXModule::get_liquidity_pool(BITG, USDG), (10000 - 2000, 1251));
@@ -136,12 +154,17 @@ fn set_default_fee_token_work() {
 			Origin::signed(ALICE),
 			Some(USDG)
 		));
-		assert_eq!(TransactionPayment::default_fee_currency_id(&ALICE), Some(USDG));
-		assert_ok!(TransactionPayment::set_default_fee_token(Origin::signed(ALICE), None));
+		assert_eq!(
+			TransactionPayment::default_fee_currency_id(&ALICE),
+			Some(USDG)
+		);
+		assert_ok!(TransactionPayment::set_default_fee_token(
+			Origin::signed(ALICE),
+			None
+		));
 		assert_eq!(TransactionPayment::default_fee_currency_id(&ALICE), None);
 	});
 }
-
 
 #[test]
 fn query_info_works() {
@@ -151,7 +174,10 @@ fn query_info_works() {
 		.weight_fee(2)
 		.build()
 		.execute_with(|| {
-			let call = Call::PalletBalances(pallet_balances::Call::transfer(AccountId::new([2u8; 32]), 69));
+			let call = Call::PalletBalances(pallet_balances::Call::transfer(
+				AccountId::new([2u8; 32]),
+				69,
+			));
 			let origin = 111111;
 			let extra = ();
 			let xt = TestXt::new(call, Some((origin, extra)));
@@ -290,7 +316,11 @@ fn compute_fee_does_not_overflow() {
 				pays_fee: Pays::Yes,
 			};
 			assert_eq!(
-				Module::<Runtime>::compute_fee(<u32>::max_value(), &dispatch_info, <u128>::max_value()),
+				Module::<Runtime>::compute_fee(
+					<u32>::max_value(),
+					&dispatch_info,
+					<u128>::max_value()
+				),
 				<u128>::max_value()
 			);
 		});

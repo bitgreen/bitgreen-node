@@ -12,36 +12,39 @@ use frame_support::{
 	error::BadOrigin,
 	pallet_prelude::*,
 	traits::{
-		Currency,
-		EnsureOrigin,
-		ExistenceRequirement,
-		Get,
-		OnKilledAccount,
-		ReservableCurrency,
+		Currency, EnsureOrigin, ExistenceRequirement, Get, OnKilledAccount, ReservableCurrency,
 		WithdrawReasons,
 	},
 	transactional,
 	weights::{Pays, PostDispatchInfo, Weight},
 	RuntimeDebug,
 };
-use frame_system::{ensure_root, ensure_signed, pallet_prelude::*, EnsureOneOf, EnsureRoot, EnsureSigned};
+use frame_system::{
+	ensure_root, ensure_signed, pallet_prelude::*, EnsureOneOf, EnsureRoot, EnsureSigned,
+};
 use primitive_types::{H256, U256};
 #[cfg(feature = "std")]
 use serde::{Deserialize, Serialize};
 use sha3::{Digest, Keccak256};
 use sp_runtime::{
-	traits::{Convert, DispatchInfoOf, One, PostDispatchInfoOf, SignedExtension, UniqueSaturatedInto},
+	traits::{
+		Convert, DispatchInfoOf, One, PostDispatchInfoOf, SignedExtension, UniqueSaturatedInto,
+	},
 	transaction_validity::TransactionValidityError,
 	Either, TransactionOutcome,
 };
 use sp_std::{marker::PhantomData, vec::Vec};
-use support::{EVMStateRentTrait, ExecutionMode, InvokeContext, TransactionPayment, EVM as EVMTrait};
+use support::{
+	EVMStateRentTrait, ExecutionMode, InvokeContext, TransactionPayment, EVM as EVMTrait,
+};
 
 pub use crate::precompiles::{Precompile, Precompiles};
 pub use crate::runner::Runner;
 pub use evm::{Context, ExitError, ExitFatal, ExitReason, ExitRevert, ExitSucceed};
 pub use orml_traits::account::MergeAccount;
-pub use primitives::evm::{Account, AddressMapping, CallInfo, CreateInfo, EvmAddress, Log, Vicinity};
+pub use primitives::evm::{
+	Account, AddressMapping, CallInfo, CreateInfo, EvmAddress, Log, Vicinity,
+};
 
 pub mod precompiles;
 pub mod runner;
@@ -53,9 +56,11 @@ mod tests;
 pub use module::*;
 
 /// Type alias for currency balance.
-pub type BalanceOf<T> = <<T as Config>::Currency as Currency<<T as frame_system::Config>::AccountId>>::Balance;
-pub type NegativeImbalanceOf<T> =
-	<<T as Config>::Currency as Currency<<T as frame_system::Config>::AccountId>>::NegativeImbalance;
+pub type BalanceOf<T> =
+	<<T as Config>::Currency as Currency<<T as frame_system::Config>::AccountId>>::Balance;
+pub type NegativeImbalanceOf<T> = <<T as Config>::Currency as Currency<
+	<T as frame_system::Config>::AccountId,
+>>::NegativeImbalance;
 
 pub trait WeightInfo {
 	fn transfer_maintainer() -> Weight;
@@ -148,7 +153,11 @@ pub mod module {
 		type GasToWeight: Convert<u64, Weight>;
 
 		/// ChargeTransactionPayment convert weight to fee.
-		type ChargeTransactionPayment: TransactionPayment<Self::AccountId, BalanceOf<Self>, NegativeImbalanceOf<Self>>;
+		type ChargeTransactionPayment: TransactionPayment<
+			Self::AccountId,
+			BalanceOf<Self>,
+			NegativeImbalanceOf<Self>,
+		>;
 
 		/// EVM config used in the module.
 		fn config() -> &'static EvmConfig {
@@ -250,7 +259,8 @@ pub mod module {
 
 	#[pallet::genesis_config]
 	pub struct GenesisConfig<T: Config> {
-		pub accounts: std::collections::BTreeMap<EvmAddress, GenesisAccount<BalanceOf<T>, T::Index>>,
+		pub accounts:
+			std::collections::BTreeMap<EvmAddress, GenesisAccount<BalanceOf<T>, T::Index>>,
 	}
 
 	#[cfg(feature = "std")]
@@ -275,11 +285,16 @@ pub mod module {
 
 				if !account.code.is_empty() {
 					// if code len > 0 then it's a contract
-					<Pallet<T>>::on_contract_initialization(address, &EvmAddress::default(), account.code.clone())
-						.expect("Genesis contract shouldn't fail");
+					<Pallet<T>>::on_contract_initialization(
+						address,
+						&EvmAddress::default(),
+						account.code.clone(),
+					)
+					.expect("Genesis contract shouldn't fail");
 
 					#[cfg(not(feature = "with-ethereum-compatibility"))]
-					<Pallet<T>>::mark_deployed(*address, None).expect("Genesis contract shouldn't fail");
+					<Pallet<T>>::mark_deployed(*address, None)
+						.expect("Genesis contract shouldn't fail");
 
 					for (index, value) in &account.storage {
 						AccountStorages::<T>::insert(address, index, value);
@@ -400,7 +415,11 @@ pub mod module {
 			if info.exit_reason.is_succeed() {
 				Pallet::<T>::deposit_event(Event::<T>::Executed(target));
 			} else {
-				Pallet::<T>::deposit_event(Event::<T>::ExecutedFailed(target, info.exit_reason, info.output));
+				Pallet::<T>::deposit_event(Event::<T>::ExecutedFailed(
+					target,
+					info.exit_reason,
+					info.output,
+				));
 			}
 
 			let used_gas: u64 = info.used_gas.unique_saturated_into();
@@ -430,17 +449,31 @@ pub mod module {
 			{
 				// unreserve the transaction fee for gas_limit
 				let weight = T::GasToWeight::convert(gas_limit);
-				let (_, imbalance) = T::ChargeTransactionPayment::unreserve_and_charge_fee(&_from_account, weight)
-					.map_err(|_| Error::<T>::ChargeFeeFailed)?;
+				let (_, imbalance) =
+					T::ChargeTransactionPayment::unreserve_and_charge_fee(&_from_account, weight)
+						.map_err(|_| Error::<T>::ChargeFeeFailed)?;
 				_payed = imbalance;
 			}
 
-			let info = Runner::<T>::call(from, from, target, input, value, gas_limit, storage_limit, T::config())?;
+			let info = Runner::<T>::call(
+				from,
+				from,
+				target,
+				input,
+				value,
+				gas_limit,
+				storage_limit,
+				T::config(),
+			)?;
 
 			if info.exit_reason.is_succeed() {
 				Pallet::<T>::deposit_event(Event::<T>::Executed(target));
 			} else {
-				Pallet::<T>::deposit_event(Event::<T>::ExecutedFailed(target, info.exit_reason, info.output));
+				Pallet::<T>::deposit_event(Event::<T>::ExecutedFailed(
+					target,
+					info.exit_reason,
+					info.output,
+				));
 			}
 
 			let used_gas: u64 = info.used_gas.unique_saturated_into();
@@ -479,12 +512,17 @@ pub mod module {
 			let who = ensure_signed(origin)?;
 			let source = T::AddressMapping::get_or_create_evm_address(&who);
 
-			let info = Runner::<T>::create(source, init, value, gas_limit, storage_limit, T::config())?;
+			let info =
+				Runner::<T>::create(source, init, value, gas_limit, storage_limit, T::config())?;
 
 			if info.exit_reason.is_succeed() {
 				Pallet::<T>::deposit_event(Event::<T>::Created(info.address));
 			} else {
-				Pallet::<T>::deposit_event(Event::<T>::CreatedFailed(info.address, info.exit_reason, info.output));
+				Pallet::<T>::deposit_event(Event::<T>::CreatedFailed(
+					info.address,
+					info.exit_reason,
+					info.output,
+				));
 			}
 
 			let used_gas: u64 = info.used_gas.unique_saturated_into();
@@ -508,12 +546,24 @@ pub mod module {
 			let who = ensure_signed(origin)?;
 			let source = T::AddressMapping::get_or_create_evm_address(&who);
 
-			let info = Runner::<T>::create2(source, init, salt, value, gas_limit, storage_limit, T::config())?;
+			let info = Runner::<T>::create2(
+				source,
+				init,
+				salt,
+				value,
+				gas_limit,
+				storage_limit,
+				T::config(),
+			)?;
 
 			if info.exit_reason.is_succeed() {
 				Pallet::<T>::deposit_event(Event::<T>::Created(info.address));
 			} else {
-				Pallet::<T>::deposit_event(Event::<T>::CreatedFailed(info.address, info.exit_reason, info.output));
+				Pallet::<T>::deposit_event(Event::<T>::CreatedFailed(
+					info.address,
+					info.exit_reason,
+					info.output,
+				));
 			}
 
 			let used_gas: u64 = info.used_gas.unique_saturated_into();
@@ -538,15 +588,26 @@ pub mod module {
 
 			let source = T::NetworkContractSource::get();
 			let address = EvmAddress::from_low_u64_be(Self::network_contract_index());
-			let info =
-				Runner::<T>::create_at_address(source, init, value, address, gas_limit, storage_limit, T::config())?;
+			let info = Runner::<T>::create_at_address(
+				source,
+				init,
+				value,
+				address,
+				gas_limit,
+				storage_limit,
+				T::config(),
+			)?;
 
 			NetworkContractIndex::<T>::mutate(|v| *v = v.saturating_add(One::one()));
 
 			if info.exit_reason.is_succeed() {
 				Pallet::<T>::deposit_event(Event::<T>::Created(info.address));
 			} else {
-				Pallet::<T>::deposit_event(Event::<T>::CreatedFailed(info.address, info.exit_reason, info.output));
+				Pallet::<T>::deposit_event(Event::<T>::CreatedFailed(
+					info.address,
+					info.exit_reason,
+					info.output,
+				));
 			}
 
 			let used_gas: u64 = info.used_gas.unique_saturated_into();
@@ -576,12 +637,14 @@ pub mod module {
 		#[transactional]
 		pub fn deploy(origin: OriginFor<T>, contract: EvmAddress) -> DispatchResultWithPostInfo {
 			let who = ensure_signed(origin)?;
-			let address = T::AddressMapping::get_evm_address(&who).ok_or(Error::<T>::AddressNotMapped)?;
+			let address =
+				T::AddressMapping::get_evm_address(&who).ok_or(Error::<T>::AddressNotMapped)?;
 			T::Currency::withdraw(
 				&who,
 				T::DeploymentFee::get(),
 				WithdrawReasons::FEE,
-				ExistenceRequirement::KeepAlive)?;
+				ExistenceRequirement::KeepAlive,
+			)?;
 			Self::mark_deployed(contract, Some(address))?;
 			Pallet::<T>::deposit_event(Event::<T>::ContractDeployed(contract));
 			Ok(().into())
@@ -589,7 +652,10 @@ pub mod module {
 
 		#[pallet::weight(<T as Config>::WeightInfo::deploy_free())]
 		#[transactional]
-		pub fn deploy_free(origin: OriginFor<T>, contract: EvmAddress) -> DispatchResultWithPostInfo {
+		pub fn deploy_free(
+			origin: OriginFor<T>,
+			contract: EvmAddress,
+		) -> DispatchResultWithPostInfo {
 			T::FreeDeploymentOrigin::ensure_origin(origin)?;
 			Self::mark_deployed(contract, None)?;
 			Pallet::<T>::deposit_event(Event::<T>::ContractDeployed(contract));
@@ -624,16 +690,20 @@ pub mod module {
 		#[transactional]
 		pub fn disable_contract_development(origin: OriginFor<T>) -> DispatchResultWithPostInfo {
 			let who = ensure_signed(origin)?;
-			let address = T::AddressMapping::get_evm_address(&who).ok_or(Error::<T>::AddressNotMapped)?;
-			let deposit = Accounts::<T>::mutate(address, |maybe_account_info| -> Result<BalanceOf<T>, Error<T>> {
-				let account_info = maybe_account_info
-					.as_mut()
-					.ok_or(Error::<T>::ContractDevelopmentNotEnabled)?;
-				account_info
-					.developer_deposit
-					.take()
-					.ok_or(Error::<T>::ContractDevelopmentNotEnabled)
-			})?;
+			let address =
+				T::AddressMapping::get_evm_address(&who).ok_or(Error::<T>::AddressNotMapped)?;
+			let deposit = Accounts::<T>::mutate(
+				address,
+				|maybe_account_info| -> Result<BalanceOf<T>, Error<T>> {
+					let account_info = maybe_account_info
+						.as_mut()
+						.ok_or(Error::<T>::ContractDevelopmentNotEnabled)?;
+					account_info
+						.developer_deposit
+						.take()
+						.ok_or(Error::<T>::ContractDevelopmentNotEnabled)
+				},
+			)?;
 			T::Currency::unreserve(&who, deposit);
 			Pallet::<T>::deposit_event(Event::<T>::ContractDevelopmentDisabled(who));
 			Ok(().into())
@@ -641,7 +711,11 @@ pub mod module {
 
 		#[pallet::weight(<T as Config>::WeightInfo::set_code())]
 		#[transactional]
-		pub fn set_code(origin: OriginFor<T>, contract: EvmAddress, code: Vec<u8>) -> DispatchResultWithPostInfo {
+		pub fn set_code(
+			origin: OriginFor<T>,
+			contract: EvmAddress,
+			code: Vec<u8>,
+		) -> DispatchResultWithPostInfo {
 			let root_or_signed = Self::ensure_root_or_signed(origin)?;
 			Self::do_set_code(root_or_signed, contract, code)?;
 
@@ -652,9 +726,13 @@ pub mod module {
 
 		#[pallet::weight(<T as Config>::WeightInfo::selfdestruct())]
 		#[transactional]
-		pub fn selfdestruct(origin: OriginFor<T>, contract: EvmAddress) -> DispatchResultWithPostInfo {
+		pub fn selfdestruct(
+			origin: OriginFor<T>,
+			contract: EvmAddress,
+		) -> DispatchResultWithPostInfo {
 			let who = ensure_signed(origin)?;
-			let maintainer = T::AddressMapping::get_evm_address(&who).ok_or(Error::<T>::AddressNotMapped)?;
+			let maintainer =
+				T::AddressMapping::get_evm_address(&who).ok_or(Error::<T>::AddressNotMapped)?;
 			Self::do_selfdestruct(who, &maintainer, contract)?;
 
 			Pallet::<T>::deposit_event(Event::<T>::ContractSelfdestructed(contract));
@@ -697,7 +775,8 @@ impl<T: Config> Pallet<T> {
 	pub fn account_basic(address: &EvmAddress) -> Account {
 		let account_id = T::AddressMapping::get_account_id(address);
 
-		let nonce = Self::accounts(address).map_or(Default::default(), |account_info| account_info.nonce);
+		let nonce =
+			Self::accounts(address).map_or(Default::default(), |account_info| account_info.nonce);
 		let balance = T::Currency::free_balance(&account_id);
 
 		Account {
@@ -766,7 +845,8 @@ impl<T: Config> Pallet<T> {
 			if let Some(account_info) = maybe_account_info.as_mut() {
 				account_info.contract_info = Some(contract_info.clone());
 			} else {
-				let account_info = AccountInfo::<T>::new(Default::default(), Some(contract_info.clone()));
+				let account_info =
+					AccountInfo::<T>::new(Default::default(), Some(contract_info.clone()));
 				*maybe_account_info = Some(account_info);
 			}
 		});
@@ -774,7 +854,11 @@ impl<T: Config> Pallet<T> {
 		Ok(())
 	}
 
-	fn do_transfer_maintainer(who: T::AccountId, contract: EvmAddress, new_maintainer: EvmAddress) -> DispatchResult {
+	fn do_transfer_maintainer(
+		who: T::AccountId,
+		contract: EvmAddress,
+		new_maintainer: EvmAddress,
+	) -> DispatchResult {
 		Accounts::<T>::get(contract).map_or(Err(Error::<T>::ContractNotFound), |account_info| {
 			account_info
 				.contract_info
@@ -782,14 +866,20 @@ impl<T: Config> Pallet<T> {
 		})?;
 
 		Accounts::<T>::mutate(contract, |maybe_account_info| -> DispatchResult {
-			let account_info = maybe_account_info.as_mut().ok_or(Error::<T>::ContractNotFound)?;
+			let account_info = maybe_account_info
+				.as_mut()
+				.ok_or(Error::<T>::ContractNotFound)?;
 			let contract_info = account_info
 				.contract_info
 				.as_mut()
 				.ok_or(Error::<T>::ContractNotFound)?;
 
-			let maintainer = T::AddressMapping::get_evm_address(&who).ok_or(Error::<T>::AddressNotMapped)?;
-			ensure!(contract_info.maintainer == maintainer, Error::<T>::NoPermission);
+			let maintainer =
+				T::AddressMapping::get_evm_address(&who).ok_or(Error::<T>::AddressNotMapped)?;
+			ensure!(
+				contract_info.maintainer == maintainer,
+				Error::<T>::NoPermission
+			);
 
 			contract_info.maintainer = new_maintainer;
 			Ok(())
@@ -809,7 +899,10 @@ impl<T: Config> Pallet<T> {
 			}) = maybe_account_info.as_mut()
 			{
 				if let Some(maintainer) = maintainer {
-					ensure!(contract_info.maintainer == maintainer, Error::<T>::NoPermission);
+					ensure!(
+						contract_info.maintainer == maintainer,
+						Error::<T>::NoPermission
+					);
 				}
 				ensure!(!contract_info.deployed, Error::<T>::ContractAlreadyDeployed);
 				contract_info.deployed = true;
@@ -820,17 +913,27 @@ impl<T: Config> Pallet<T> {
 		})
 	}
 
-	fn do_set_code(root_or_signed: Either<(), T::AccountId>, contract: EvmAddress, code: Vec<u8>) -> DispatchResult {
+	fn do_set_code(
+		root_or_signed: Either<(), T::AccountId>,
+		contract: EvmAddress,
+		code: Vec<u8>,
+	) -> DispatchResult {
 		Accounts::<T>::mutate(contract, |maybe_account_info| -> DispatchResult {
-			let account_info = maybe_account_info.as_mut().ok_or(Error::<T>::ContractNotFound)?;
+			let account_info = maybe_account_info
+				.as_mut()
+				.ok_or(Error::<T>::ContractNotFound)?;
 			let contract_info = account_info
 				.contract_info
 				.as_ref()
 				.ok_or(Error::<T>::ContractNotFound)?;
 
 			if let Either::Right(signer) = root_or_signed {
-				let maintainer = T::AddressMapping::get_evm_address(&signer).ok_or(Error::<T>::AddressNotMapped)?;
-				ensure!(contract_info.maintainer == maintainer, Error::<T>::NoPermission);
+				let maintainer = T::AddressMapping::get_evm_address(&signer)
+					.ok_or(Error::<T>::AddressNotMapped)?;
+				ensure!(
+					contract_info.maintainer == maintainer,
+					Error::<T>::NoPermission
+				);
 				ensure!(!contract_info.deployed, Error::<T>::ContractAlreadyDeployed);
 			}
 
@@ -865,15 +968,24 @@ impl<T: Config> Pallet<T> {
 		Ok(())
 	}
 
-	fn do_selfdestruct(who: T::AccountId, maintainer: &EvmAddress, contract: EvmAddress) -> DispatchResult {
+	fn do_selfdestruct(
+		who: T::AccountId,
+		maintainer: &EvmAddress,
+		contract: EvmAddress,
+	) -> DispatchResult {
 		Accounts::<T>::mutate_exists(contract, |maybe_account_info| -> DispatchResult {
-			let account_info = maybe_account_info.take().ok_or(Error::<T>::ContractNotFound)?;
+			let account_info = maybe_account_info
+				.take()
+				.ok_or(Error::<T>::ContractNotFound)?;
 			let contract_info = account_info
 				.contract_info
 				.as_ref()
 				.ok_or(Error::<T>::ContractNotFound)?;
 
-			ensure!(contract_info.maintainer == *maintainer, Error::<T>::NoPermission);
+			ensure!(
+				contract_info.maintainer == *maintainer,
+				Error::<T>::NoPermission
+			);
 			ensure!(!contract_info.deployed, Error::<T>::ContractAlreadyDeployed);
 
 			AccountStorages::<T>::remove_prefix(contract);
@@ -949,7 +1061,9 @@ impl<T: Config> EVMTrait<T::AccountId> for Pallet<T> {
 							TransactionOutcome::Rollback(Ok(info))
 						}
 					}
-					ExecutionMode::View | ExecutionMode::EstimateGas => TransactionOutcome::Rollback(Ok(info)),
+					ExecutionMode::View | ExecutionMode::EstimateGas => {
+						TransactionOutcome::Rollback(Ok(info))
+					}
 				},
 				Err(e) => TransactionOutcome::Rollback(Err(e)),
 			}
@@ -977,11 +1091,16 @@ impl<T: Config> EVMStateRentTrait<T::AccountId, BalanceOf<T>> for Pallet<T> {
 	}
 
 	fn query_maintainer(contract: EvmAddress) -> Result<EvmAddress, DispatchError> {
-		Accounts::<T>::get(contract).map_or(Err(Error::<T>::ContractNotFound.into()), |account_info| {
-			account_info
-				.contract_info
-				.map_or(Err(Error::<T>::ContractNotFound.into()), |v| Ok(v.maintainer))
-		})
+		Accounts::<T>::get(contract).map_or(
+			Err(Error::<T>::ContractNotFound.into()),
+			|account_info| {
+				account_info
+					.contract_info
+					.map_or(Err(Error::<T>::ContractNotFound.into()), |v| {
+						Ok(v.maintainer)
+					})
+			},
+		)
 	}
 
 	fn query_developer_deposit() -> BalanceOf<T> {
@@ -992,7 +1111,11 @@ impl<T: Config> EVMStateRentTrait<T::AccountId, BalanceOf<T>> for Pallet<T> {
 		T::DeploymentFee::get()
 	}
 
-	fn transfer_maintainer(from: T::AccountId, contract: EvmAddress, new_maintainer: EvmAddress) -> DispatchResult {
+	fn transfer_maintainer(
+		from: T::AccountId,
+		contract: EvmAddress,
+		new_maintainer: EvmAddress,
+	) -> DispatchResult {
 		Pallet::<T>::do_transfer_maintainer(from, contract, new_maintainer)
 	}
 }

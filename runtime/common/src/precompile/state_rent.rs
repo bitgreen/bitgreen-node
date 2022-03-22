@@ -20,7 +20,9 @@ use primitives::{evm::AddressMapping as AddressMappingT, Balance};
 /// - QueryDeploymentFee.
 /// - TransferMaintainer. Rest `input` bytes: `from`, `contract`,
 ///   `new_maintainer`.
-pub struct StateRentPrecompile<AccountId, AddressMapping, EVM>(PhantomData<(AccountId, AddressMapping, EVM)>);
+pub struct StateRentPrecompile<AccountId, AddressMapping, EVM>(
+	PhantomData<(AccountId, AddressMapping, EVM)>,
+);
 
 enum Action {
 	QueryNewContractExtraBytes,
@@ -48,7 +50,8 @@ impl TryFrom<u8> for Action {
 	}
 }
 
-impl<AccountId, AddressMapping, EVM> Precompile for StateRentPrecompile<AccountId, AddressMapping, EVM>
+impl<AccountId, AddressMapping, EVM> Precompile
+	for StateRentPrecompile<AccountId, AddressMapping, EVM>
 where
 	AccountId: Clone,
 	AddressMapping: AddressMappingT<AccountId>,
@@ -76,8 +79,8 @@ where
 			Action::QueryMaintainer => {
 				let contract = input.evm_address_at(1)?;
 
-				let maintainer =
-					EVM::query_maintainer(contract).map_err(|e| ExitError::Other(Cow::Borrowed(e.into())))?;
+				let maintainer = EVM::query_maintainer(contract)
+					.map_err(|e| ExitError::Other(Cow::Borrowed(e.into())))?;
 
 				let mut address = [0u8; 32];
 				address[12..].copy_from_slice(&maintainer.as_bytes().to_vec());

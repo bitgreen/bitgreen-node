@@ -11,7 +11,6 @@ pub use evm::Config;
 #[cfg(feature = "std")]
 use serde::{Deserialize, Serialize};
 
-
 /// Evm Address.
 pub type EvmAddress = sp_core::H160;
 

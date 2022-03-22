@@ -281,8 +281,14 @@ mod tests {
 
 		assert_eq!(handler.storages.get(&ALICE).cloned().unwrap_or_default(), 0);
 		assert_eq!(handler.reserves.get(&ALICE).cloned().unwrap_or_default(), 0);
-		assert_eq!(handler.storages.get(&CONTRACT).cloned().unwrap_or_default(), 0);
-		assert_eq!(handler.reserves.get(&CONTRACT).cloned().unwrap_or_default(), 0);
+		assert_eq!(
+			handler.storages.get(&CONTRACT).cloned().unwrap_or_default(),
+			0
+		);
+		assert_eq!(
+			handler.reserves.get(&CONTRACT).cloned().unwrap_or_default(),
+			0
+		);
 	}
 
 	#[test]
@@ -307,10 +313,19 @@ mod tests {
 
 		assert_ok!(storage_meter.finish());
 
-		assert_eq!(handler.storages.get(&ALICE).cloned().unwrap_or_default(), 870);
+		assert_eq!(
+			handler.storages.get(&ALICE).cloned().unwrap_or_default(),
+			870
+		);
 		assert_eq!(handler.reserves.get(&ALICE).cloned().unwrap_or_default(), 0);
-		assert_eq!(handler.storages.get(&CONTRACT).cloned().unwrap_or_default(), 0);
-		assert_eq!(handler.reserves.get(&CONTRACT).cloned().unwrap_or_default(), 130);
+		assert_eq!(
+			handler.storages.get(&CONTRACT).cloned().unwrap_or_default(),
+			0
+		);
+		assert_eq!(
+			handler.reserves.get(&CONTRACT).cloned().unwrap_or_default(),
+			130
+		);
 	}
 
 	#[test]
@@ -330,10 +345,19 @@ mod tests {
 
 		assert_ok!(storage_meter.finish());
 
-		assert_eq!(handler.storages.get(&ALICE).cloned().unwrap_or_default(), 1050);
+		assert_eq!(
+			handler.storages.get(&ALICE).cloned().unwrap_or_default(),
+			1050
+		);
 		assert_eq!(handler.reserves.get(&ALICE).cloned().unwrap_or_default(), 0);
-		assert_eq!(handler.storages.get(&CONTRACT).cloned().unwrap_or_default(), 0);
-		assert_eq!(handler.reserves.get(&CONTRACT).cloned().unwrap_or_default(), 950);
+		assert_eq!(
+			handler.storages.get(&CONTRACT).cloned().unwrap_or_default(),
+			0
+		);
+		assert_eq!(
+			handler.reserves.get(&CONTRACT).cloned().unwrap_or_default(),
+			950
+		);
 	}
 
 	#[test]
@@ -419,10 +443,30 @@ mod tests {
 
 		assert_ok!(storage_meter.finish());
 
-		assert_eq!(handler.storages.get(&ALICE).cloned().unwrap_or_default(), 800);
+		assert_eq!(
+			handler.storages.get(&ALICE).cloned().unwrap_or_default(),
+			800
+		);
 		assert_eq!(handler.reserves.get(&ALICE).cloned().unwrap_or_default(), 0);
-		assert_eq!(handler.reserves.get(&CONTRACT).cloned().unwrap_or_default(), 100);
-		assert_eq!(handler.reserves.get(&CONTRACT_2).cloned().unwrap_or_default(), 80);
-		assert_eq!(handler.reserves.get(&CONTRACT_3).cloned().unwrap_or_default(), 20);
+		assert_eq!(
+			handler.reserves.get(&CONTRACT).cloned().unwrap_or_default(),
+			100
+		);
+		assert_eq!(
+			handler
+				.reserves
+				.get(&CONTRACT_2)
+				.cloned()
+				.unwrap_or_default(),
+			80
+		);
+		assert_eq!(
+			handler
+				.reserves
+				.get(&CONTRACT_3)
+				.cloned()
+				.unwrap_or_default(),
+			20
+		);
 	}
 }

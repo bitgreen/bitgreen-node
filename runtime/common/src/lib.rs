@@ -12,22 +12,15 @@ use frame_support::{
 use frame_system::limits;
 use primitives::{PRECOMPILE_ADDRESS_START, PREDEPLOY_ADDRESS_START};
 use sp_core::H160;
-use sp_runtime::{
-	traits::{Convert},
-	Perbill,
-	FixedU128
-};
+use sp_runtime::{traits::Convert, FixedU128, Perbill};
 
 use static_assertions::const_assert;
 
-pub use module_support::{PrecompileCallerFilter};
+pub use module_support::PrecompileCallerFilter;
 
 pub mod precompile;
 pub use precompile::{
-	AllPrecompiles,
-	MultiCurrencyPrecompile,
-	ScheduleCallPrecompile,
-	StateRentPrecompile,
+	AllPrecompiles, MultiCurrencyPrecompile, ScheduleCallPrecompile, StateRentPrecompile,
 };
 
 pub type Price = FixedU128;
@@ -110,7 +103,6 @@ parameter_types! {
 		.saturating_sub(BlockExecutionWeight::get());
 }
 
-
 #[cfg(test)]
 mod tests {
 	use super::*;
@@ -150,9 +142,15 @@ mod tests {
 		assert!(!is_core_precompile(H160::from_low_u64_be(
 			PRECOMPILE_ADDRESS_START - 1
 		)));
-		assert!(is_core_precompile(H160::from_low_u64_be(PRECOMPILE_ADDRESS_START)));
-		assert!(is_core_precompile(H160::from_low_u64_be(PREDEPLOY_ADDRESS_START - 1)));
-		assert!(!is_core_precompile(H160::from_low_u64_be(PREDEPLOY_ADDRESS_START)));
+		assert!(is_core_precompile(H160::from_low_u64_be(
+			PRECOMPILE_ADDRESS_START
+		)));
+		assert!(is_core_precompile(H160::from_low_u64_be(
+			PREDEPLOY_ADDRESS_START - 1
+		)));
+		assert!(!is_core_precompile(H160::from_low_u64_be(
+			PREDEPLOY_ADDRESS_START
+		)));
 		assert!(!is_core_precompile([1u8; 20].into()));
 	}
 }

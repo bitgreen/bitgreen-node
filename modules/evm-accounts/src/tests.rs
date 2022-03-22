@@ -98,7 +98,10 @@ fn evm_get_account_id() {
 			EvmAccountsModule::eth_sign(&alice(), &ALICE.encode(), &[][..])
 		));
 
-		assert_eq!(EvmAddressMapping::<Runtime>::get_account_id(&evm_account), ALICE);
+		assert_eq!(
+			EvmAddressMapping::<Runtime>::get_account_id(&evm_account),
+			ALICE
+		);
 		assert_eq!(
 			EvmAddressMapping::<Runtime>::get_evm_address(&ALICE).unwrap(),
 			evm_account
@@ -108,14 +111,18 @@ fn evm_get_account_id() {
 			&evm_account_to_default,
 			&evm_account
 		));
-		assert!(EvmAddressMapping::<Runtime>::is_linked(&ALICE, &evm_account));
+		assert!(EvmAddressMapping::<Runtime>::is_linked(
+			&ALICE,
+			&evm_account
+		));
 	});
 }
 
 #[test]
 fn account_to_evm() {
 	ExtBuilder::default().build().execute_with(|| {
-		let default_evm_account = EvmAddress::from_str("f0bd9ffde7f9f4394d8cc1d86bf24d87e5d5a9a9").unwrap();
+		let default_evm_account =
+			EvmAddress::from_str("f0bd9ffde7f9f4394d8cc1d86bf24d87e5d5a9a9").unwrap();
 		assert_eq!(EvmAddressMapping::<Runtime>::get_evm_address(&ALICE), None);
 
 		let alice_evm_account = EvmAccountsModule::eth_address(&alice());
@@ -126,7 +133,10 @@ fn account_to_evm() {
 			EvmAccountsModule::eth_sign(&alice(), &ALICE.encode(), &[][..])
 		));
 
-		assert_eq!(EvmAddressMapping::<Runtime>::get_account_id(&alice_evm_account), ALICE);
+		assert_eq!(
+			EvmAddressMapping::<Runtime>::get_account_id(&alice_evm_account),
+			ALICE
+		);
 		assert_eq!(
 			EvmAddressMapping::<Runtime>::get_evm_address(&ALICE).unwrap(),
 			alice_evm_account
@@ -137,15 +147,22 @@ fn account_to_evm() {
 			alice_evm_account
 		);
 
-		assert!(EvmAddressMapping::<Runtime>::is_linked(&ALICE, &alice_evm_account));
-		assert!(EvmAddressMapping::<Runtime>::is_linked(&ALICE, &default_evm_account));
+		assert!(EvmAddressMapping::<Runtime>::is_linked(
+			&ALICE,
+			&alice_evm_account
+		));
+		assert!(EvmAddressMapping::<Runtime>::is_linked(
+			&ALICE,
+			&default_evm_account
+		));
 	});
 }
 
 #[test]
 fn account_to_evm_with_create_default() {
 	ExtBuilder::default().build().execute_with(|| {
-		let default_evm_account = EvmAddress::from_str("f0bd9ffde7f9f4394d8cc1d86bf24d87e5d5a9a9").unwrap();
+		let default_evm_account =
+			EvmAddress::from_str("f0bd9ffde7f9f4394d8cc1d86bf24d87e5d5a9a9").unwrap();
 		assert_eq!(
 			EvmAddressMapping::<Runtime>::get_or_create_evm_address(&ALICE),
 			default_evm_account
@@ -160,7 +177,10 @@ fn account_to_evm_with_create_default() {
 			ALICE
 		);
 
-		assert!(EvmAddressMapping::<Runtime>::is_linked(&ALICE, &default_evm_account));
+		assert!(EvmAddressMapping::<Runtime>::is_linked(
+			&ALICE,
+			&default_evm_account
+		));
 
 		let alice_evm_account = EvmAccountsModule::eth_address(&alice());
 

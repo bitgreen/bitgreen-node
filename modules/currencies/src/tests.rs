@@ -5,8 +5,9 @@
 use super::*;
 use frame_support::{assert_noop, assert_ok};
 use mock::{
-	alice, bob, AccountId, AdaptedBasicCurrency, Currencies, Event, ExtBuilder, NativeCurrency, Origin, PalletBalances,
-	Runtime, System, Tokens, ALICE, BOB, ERC20, EVA, EVM, ID_1, NATIVE_CURRENCY_ID, X_TOKEN_ID,
+	alice, bob, AccountId, AdaptedBasicCurrency, Currencies, Event, ExtBuilder, NativeCurrency,
+	Origin, PalletBalances, Runtime, System, Tokens, ALICE, BOB, ERC20, EVA, EVM, ID_1,
+	NATIVE_CURRENCY_ID, X_TOKEN_ID,
 };
 use sp_core::H160;
 use sp_runtime::traits::BadOrigin;
@@ -98,7 +99,12 @@ fn multi_currency_should_work() {
 		.build()
 		.execute_with(|| {
 			<EVM as EVMTrait<AccountId>>::set_origin(alice());
-			assert_ok!(Currencies::transfer(Some(ALICE).into(), BOB, X_TOKEN_ID, 50));
+			assert_ok!(Currencies::transfer(
+				Some(ALICE).into(),
+				BOB,
+				X_TOKEN_ID,
+				50
+			));
 			assert_eq!(Currencies::free_balance(X_TOKEN_ID, &ALICE), 50);
 			assert_eq!(Currencies::free_balance(X_TOKEN_ID, &BOB), 150);
 		});
@@ -110,9 +116,11 @@ fn multi_currency_extended_should_work() {
 		.one_hundred_for_alice_n_bob()
 		.build()
 		.execute_with(|| {
-			assert_ok!(<Currencies as MultiCurrencyExtended<AccountId>>::update_balance(
-				X_TOKEN_ID, &ALICE, 50
-			));
+			assert_ok!(
+				<Currencies as MultiCurrencyExtended<AccountId>>::update_balance(
+					X_TOKEN_ID, &ALICE, 50
+				)
+			);
 			assert_eq!(Currencies::free_balance(X_TOKEN_ID, &ALICE), 150);
 		});
 }
@@ -123,7 +131,11 @@ fn native_currency_should_work() {
 		.one_hundred_for_alice_n_bob()
 		.build()
 		.execute_with(|| {
-			assert_ok!(Currencies::transfer_native_currency(Some(ALICE).into(), BOB, 50));
+			assert_ok!(Currencies::transfer_native_currency(
+				Some(ALICE).into(),
+				BOB,
+				50
+			));
 			assert_eq!(NativeCurrency::free_balance(&ALICE), 50);
 			assert_eq!(NativeCurrency::free_balance(&BOB), 150);
 
@@ -146,11 +158,13 @@ fn native_currency_extended_should_work() {
 			assert_ok!(NativeCurrency::update_balance(&ALICE, 10));
 			assert_eq!(NativeCurrency::free_balance(&ALICE), 110);
 
-			assert_ok!(<Currencies as MultiCurrencyExtended<AccountId>>::update_balance(
-				NATIVE_CURRENCY_ID,
-				&ALICE,
-				10
-			));
+			assert_ok!(
+				<Currencies as MultiCurrencyExtended<AccountId>>::update_balance(
+					NATIVE_CURRENCY_ID,
+					&ALICE,
+					10
+				)
+			);
 			assert_eq!(NativeCurrency::free_balance(&ALICE), 120);
 		});
 }
@@ -234,7 +248,12 @@ fn update_balance_call_should_work() {
 			));
 			assert_eq!(NativeCurrency::free_balance(&ALICE), 90);
 			assert_eq!(Currencies::free_balance(X_TOKEN_ID, &ALICE), 100);
-			assert_ok!(Currencies::update_balance(Origin::root(), ALICE, X_TOKEN_ID, 10));
+			assert_ok!(Currencies::update_balance(
+				Origin::root(),
+				ALICE,
+				X_TOKEN_ID,
+				10
+			));
 			assert_eq!(Currencies::free_balance(X_TOKEN_ID, &ALICE), 110);
 		});
 }
@@ -255,12 +274,20 @@ fn call_event_should_work() {
 		.one_hundred_for_alice_n_bob()
 		.build()
 		.execute_with(|| {
-			assert_ok!(Currencies::transfer(Some(ALICE).into(), BOB, X_TOKEN_ID, 50));
+			assert_ok!(Currencies::transfer(
+				Some(ALICE).into(),
+				BOB,
+				X_TOKEN_ID,
+				50
+			));
 			assert_eq!(Currencies::free_balance(X_TOKEN_ID, &ALICE), 50);
 			assert_eq!(Currencies::free_balance(X_TOKEN_ID, &BOB), 150);
 
-			let transferred_event = Event::currencies(crate::Event::Transferred(X_TOKEN_ID, ALICE, BOB, 50));
-			assert!(System::events().iter().any(|record| record.event == transferred_event));
+			let transferred_event =
+				Event::currencies(crate::Event::Transferred(X_TOKEN_ID, ALICE, BOB, 50));
+			assert!(System::events()
+				.iter()
+				.any(|record| record.event == transferred_event));
 
 			assert_ok!(<Currencies as MultiCurrency<AccountId>>::transfer(
 				X_TOKEN_ID, &ALICE, &BOB, 10
@@ -268,24 +295,33 @@ fn call_event_should_work() {
 			assert_eq!(Currencies::free_balance(X_TOKEN_ID, &ALICE), 40);
 			assert_eq!(Currencies::free_balance(X_TOKEN_ID, &BOB), 160);
 
-			let transferred_event = Event::currencies(crate::Event::Transferred(X_TOKEN_ID, ALICE, BOB, 10));
-			assert!(System::events().iter().any(|record| record.event == transferred_event));
+			let transferred_event =
+				Event::currencies(crate::Event::Transferred(X_TOKEN_ID, ALICE, BOB, 10));
+			assert!(System::events()
+				.iter()
+				.any(|record| record.event == transferred_event));
 
 			assert_ok!(<Currencies as MultiCurrency<AccountId>>::deposit(
 				X_TOKEN_ID, &ALICE, 100
 			));
 			assert_eq!(Currencies::free_balance(X_TOKEN_ID, &ALICE), 140);
 
-			let transferred_event = Event::currencies(crate::Event::Deposited(X_TOKEN_ID, ALICE, 100));
-			assert!(System::events().iter().any(|record| record.event == transferred_event));
+			let transferred_event =
+				Event::currencies(crate::Event::Deposited(X_TOKEN_ID, ALICE, 100));
+			assert!(System::events()
+				.iter()
+				.any(|record| record.event == transferred_event));
 
 			assert_ok!(<Currencies as MultiCurrency<AccountId>>::withdraw(
 				X_TOKEN_ID, &ALICE, 20
 			));
 			assert_eq!(Currencies::free_balance(X_TOKEN_ID, &ALICE), 120);
 
-			let transferred_event = Event::currencies(crate::Event::Withdrawn(X_TOKEN_ID, ALICE, 20));
-			assert!(System::events().iter().any(|record| record.event == transferred_event));
+			let transferred_event =
+				Event::currencies(crate::Event::Withdrawn(X_TOKEN_ID, ALICE, 20));
+			assert!(System::events()
+				.iter()
+				.any(|record| record.event == transferred_event));
 		});
 }
 
@@ -319,9 +355,15 @@ fn erc20_total_balance_should_work() {
 			Currencies::total_balance(CurrencyId::ERC20(H160::default()), &alice()),
 			0
 		);
-		assert_eq!(Currencies::total_balance(CurrencyId::ERC20(H160::default()), &bob()), 0);
+		assert_eq!(
+			Currencies::total_balance(CurrencyId::ERC20(H160::default()), &bob()),
+			0
+		);
 
-		assert_eq!(Currencies::total_balance(ERC20, &alice()), u128::max_value());
+		assert_eq!(
+			Currencies::total_balance(ERC20, &alice()),
+			u128::max_value()
+		);
 		assert_eq!(Currencies::total_balance(ERC20, &bob()), 0);
 	});
 }
@@ -338,7 +380,12 @@ fn erc20_ensure_withdraw_should_work() {
 				Currencies::ensure_can_withdraw(ERC20, &bob(), 100),
 				Err(Error::<Runtime>::BalanceTooLow.into()),
 			);
-			assert_ok!(Currencies::transfer(Origin::signed(alice()), bob(), ERC20, 100));
+			assert_ok!(Currencies::transfer(
+				Origin::signed(alice()),
+				bob(),
+				ERC20,
+				100
+			));
 			assert_ok!(Currencies::ensure_can_withdraw(ERC20, &bob(), 100));
 			assert_eq!(
 				Currencies::ensure_can_withdraw(ERC20, &bob(), 101),
@@ -358,21 +405,43 @@ fn erc20_transfer_should_work() {
 		.execute_with(|| {
 			<EVM as EVMTrait<AccountId>>::set_origin(alice());
 			<EVM as EVMTrait<AccountId>>::set_origin(bob());
-			assert_ok!(Currencies::transfer(Origin::signed(alice()), bob(), ERC20, 100));
+			assert_ok!(Currencies::transfer(
+				Origin::signed(alice()),
+				bob(),
+				ERC20,
+				100
+			));
 
 			assert_eq!(Currencies::free_balance(ERC20, &bob()), 100);
 			assert_eq!(Currencies::total_balance(ERC20, &bob()), 100);
 
-			assert_eq!(Currencies::free_balance(ERC20, &alice()), u128::max_value() - 100);
-			assert_eq!(Currencies::total_balance(ERC20, &alice()), u128::max_value() - 100);
+			assert_eq!(
+				Currencies::free_balance(ERC20, &alice()),
+				u128::max_value() - 100
+			);
+			assert_eq!(
+				Currencies::total_balance(ERC20, &alice()),
+				u128::max_value() - 100
+			);
 
-			assert_ok!(Currencies::transfer(Origin::signed(bob()), alice(), ERC20, 10));
+			assert_ok!(Currencies::transfer(
+				Origin::signed(bob()),
+				alice(),
+				ERC20,
+				10
+			));
 
 			assert_eq!(Currencies::free_balance(ERC20, &bob()), 90);
 			assert_eq!(Currencies::total_balance(ERC20, &bob()), 90);
 
-			assert_eq!(Currencies::free_balance(ERC20, &alice()), u128::max_value() - 90);
-			assert_eq!(Currencies::total_balance(ERC20, &alice()), u128::max_value() - 90);
+			assert_eq!(
+				Currencies::free_balance(ERC20, &alice()),
+				u128::max_value() - 90
+			);
+			assert_eq!(
+				Currencies::total_balance(ERC20, &alice()),
+				u128::max_value() - 90
+			);
 		});
 }
 
@@ -388,9 +457,13 @@ fn erc20_transfer_should_fail() {
 			<EVM as EVMTrait<AccountId>>::set_origin(alice());
 			<EVM as EVMTrait<AccountId>>::set_origin(bob());
 			// empty address
-			assert!(
-				Currencies::transfer(Origin::signed(alice()), bob(), CurrencyId::ERC20(H160::default()), 100).is_err()
-			);
+			assert!(Currencies::transfer(
+				Origin::signed(alice()),
+				bob(),
+				CurrencyId::ERC20(H160::default()),
+				100
+			)
+			.is_err());
 
 			// bob can't transfer. bob balance 0
 			assert!(Currencies::transfer(Origin::signed(bob()), alice(), ERC20, 1).is_err());
@@ -428,7 +501,10 @@ fn erc20_reserve_should_work() {
 			assert_ok!(Currencies::reserve(ERC20, &alice(), 100));
 
 			assert_eq!(Currencies::reserved_balance(ERC20, &alice()), 100);
-			assert_eq!(Currencies::free_balance(ERC20, &alice()), u128::max_value() - 100);
+			assert_eq!(
+				Currencies::free_balance(ERC20, &alice()),
+				u128::max_value() - 100
+			);
 		});
 }
 
@@ -443,10 +519,16 @@ fn erc20_unreserve_should_work() {
 			assert_eq!(Currencies::unreserve(ERC20, &alice(), 0), 0);
 			assert_eq!(Currencies::unreserve(ERC20, &alice(), 50), 50);
 			assert_ok!(Currencies::reserve(ERC20, &alice(), 30));
-			assert_eq!(Currencies::free_balance(ERC20, &alice()), u128::max_value() - 30);
+			assert_eq!(
+				Currencies::free_balance(ERC20, &alice()),
+				u128::max_value() - 30
+			);
 			assert_eq!(Currencies::reserved_balance(ERC20, &alice()), 30);
 			assert_eq!(Currencies::unreserve(ERC20, &alice(), 15), 0);
-			assert_eq!(Currencies::free_balance(ERC20, &alice()), u128::max_value() - 15);
+			assert_eq!(
+				Currencies::free_balance(ERC20, &alice()),
+				u128::max_value() - 15
+			);
 			assert_eq!(Currencies::reserved_balance(ERC20, &alice()), 15);
 			assert_eq!(Currencies::unreserve(ERC20, &alice(), 30), 15);
 			assert_eq!(Currencies::free_balance(ERC20, &alice()), u128::max_value());
@@ -493,7 +575,12 @@ fn erc20_repatriate_reserved_should_work() {
 			let bob_balance = 100;
 			let alice_balance = u128::max_value() - bob_balance;
 			<EVM as EVMTrait<AccountId>>::set_origin(alice());
-			assert_ok!(Currencies::transfer(Origin::signed(alice()), bob(), ERC20, bob_balance));
+			assert_ok!(Currencies::transfer(
+				Origin::signed(alice()),
+				bob(),
+				ERC20,
+				bob_balance
+			));
 
 			assert_eq!(Currencies::free_balance(ERC20, &alice()), alice_balance);
 			assert_eq!(Currencies::reserved_balance(ERC20, &alice()), 0);
@@ -521,7 +608,13 @@ fn erc20_repatriate_reserved_should_work() {
 			assert_eq!(Currencies::reserved_balance(ERC20, &bob()), 50);
 
 			assert_eq!(
-				Currencies::repatriate_reserved(ERC20, &bob(), &alice(), 30, BalanceStatus::Reserved),
+				Currencies::repatriate_reserved(
+					ERC20,
+					&bob(),
+					&alice(),
+					30,
+					BalanceStatus::Reserved
+				),
 				Ok(0)
 			);
 			assert_eq!(Currencies::free_balance(ERC20, &alice()), alice_balance);
@@ -533,7 +626,10 @@ fn erc20_repatriate_reserved_should_work() {
 				Currencies::repatriate_reserved(ERC20, &bob(), &alice(), 30, BalanceStatus::Free),
 				Ok(10)
 			);
-			assert_eq!(Currencies::free_balance(ERC20, &alice()), alice_balance + 20);
+			assert_eq!(
+				Currencies::free_balance(ERC20, &alice()),
+				alice_balance + 20
+			);
 			assert_eq!(Currencies::reserved_balance(ERC20, &alice()), 30);
 			assert_eq!(Currencies::free_balance(ERC20, &bob()), 50);
 			assert_eq!(Currencies::reserved_balance(ERC20, &bob()), 0);

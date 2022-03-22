@@ -9,12 +9,12 @@ use frame_support::{
 	RuntimeDebug,
 };
 use frame_system::{EnsureRoot, EnsureSignedBy};
-use orml_traits::{parameter_type_with_key};
+use orml_traits::parameter_type_with_key;
 pub use primitives::{
-	evm::AddressMapping, mocks::MockAddressMapping,
-	Amount, BlockNumber, CurrencyId, Header, Nonce, TokenSymbol,
+	evm::AddressMapping, mocks::MockAddressMapping, Amount, BlockNumber, CurrencyId, Header, Nonce,
+	TokenSymbol,
 };
-use sp_core::{crypto::AccountId32, bytes::from_hex, Bytes, H160, H256};
+use sp_core::{bytes::from_hex, crypto::AccountId32, Bytes, H160, H256};
 use sp_runtime::{
 	traits::{BlakeTwo256, Convert, IdentityLookup},
 	Perbill,
@@ -51,7 +51,6 @@ impl frame_system::Config for Test {
 	type SystemWeightInfo = ();
 	type SS58Prefix = ();
 }
-
 
 impl pallet_timestamp::Config for Test {
 	type Moment = u64;
@@ -154,7 +153,9 @@ impl InstanceFilter<Call> for ProxyType {
 	fn filter(&self, c: &Call) -> bool {
 		match self {
 			ProxyType::Any => true,
-			ProxyType::JustTransfer => matches!(c, Call::Balances(pallet_balances::Call::transfer(..))),
+			ProxyType::JustTransfer => {
+				matches!(c, Call::Balances(pallet_balances::Call::transfer(..)))
+			}
 			ProxyType::JustUtility => matches!(c, Call::Utility(..)),
 		}
 	}
@@ -200,9 +201,11 @@ impl pallet_scheduler::Config for Test {
 	type WeightInfo = ();
 }
 
-pub type AdaptedBasicCurrency = module_currencies::BasicCurrencyAdapter<Test, Balances, Amount, BlockNumber>;
+pub type AdaptedBasicCurrency =
+	module_currencies::BasicCurrencyAdapter<Test, Balances, Amount, BlockNumber>;
 
-pub type MultiCurrencyPrecompile = crate::MultiCurrencyPrecompile<AccountId, MockAddressMapping, Currencies>;
+pub type MultiCurrencyPrecompile =
+	crate::MultiCurrencyPrecompile<AccountId, MockAddressMapping, Currencies>;
 
 pub type StateRentPrecompile = crate::StateRentPrecompile<AccountId, MockAddressMapping, ModuleEVM>;
 pub type ScheduleCallPrecompile = crate::ScheduleCallPrecompile<
@@ -323,7 +326,9 @@ frame_support::construct_runtime!(
 // This function basically just builds a genesis storage key/value store
 // according to our desired mockup.
 pub fn new_test_ext() -> sp_io::TestExternalities {
-	let mut storage = frame_system::GenesisConfig::default().build_storage::<Test>().unwrap();
+	let mut storage = frame_system::GenesisConfig::default()
+		.build_storage::<Test>()
+		.unwrap();
 
 	let mut accounts = BTreeMap::new();
 	let mut evm_genesis_accounts = evm_genesis();
@@ -351,11 +356,9 @@ pub fn new_test_ext() -> sp_io::TestExternalities {
 	pallet_balances::GenesisConfig::<Test>::default()
 		.assimilate_storage(&mut storage)
 		.unwrap();
-	module_evm::GenesisConfig::<Test> {
-		accounts,
-	}
-	.assimilate_storage(&mut storage)
-	.unwrap();
+	module_evm::GenesisConfig::<Test> { accounts }
+		.assimilate_storage(&mut storage)
+		.unwrap();
 
 	let mut ext = sp_io::TestExternalities::new(storage);
 	ext.execute_with(|| {
@@ -368,7 +371,12 @@ pub fn new_test_ext() -> sp_io::TestExternalities {
 			BBB,
 			1_000_000_000_000
 		));
-		assert_ok!(Currencies::update_balance(Origin::root(), ALICE, USDG, 1_000_000_000));
+		assert_ok!(Currencies::update_balance(
+			Origin::root(),
+			ALICE,
+			USDG,
+			1_000_000_000
+		));
 
 		assert_ok!(Currencies::update_balance(
 			Origin::root(),

@@ -27,6 +27,8 @@ sp-runtime = { default-features = false, version = '3.0.0' }
 sp-std = { default-features = false, version = '3.0.0' }
 bs58 = { default-features = false, version = '0.4.0',features=['alloc']}
 pallet-assets = { version = "3.0.0", default-features = false, path = "../assets" }
+orml-traits = { path = "../../orml/traits", default-features = false }
+module-currencies = { path = "../../modules/currencies", default-features = false }
 
 [dev-dependencies]
 serde = { version = "1.0.119" }

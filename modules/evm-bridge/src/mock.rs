@@ -167,7 +167,11 @@ impl ExtBuilder {
 			.unwrap();
 
 		pallet_balances::GenesisConfig::<Runtime> {
-			balances: self.endowed_accounts.clone().into_iter().collect::<Vec<_>>(),
+			balances: self
+				.endowed_accounts
+				.clone()
+				.into_iter()
+				.collect::<Vec<_>>(),
 		}
 		.assimilate_storage(&mut t)
 		.unwrap();
@@ -175,12 +179,16 @@ impl ExtBuilder {
 		let mut accounts = BTreeMap::new();
 		let mut storage = BTreeMap::new();
 		storage.insert(
-			H256::from_str("0000000000000000000000000000000000000000000000000000000000000002").unwrap(),
-			H256::from_str("00000000000000000000000000000000ffffffffffffffffffffffffffffffff").unwrap(),
+			H256::from_str("0000000000000000000000000000000000000000000000000000000000000002")
+				.unwrap(),
+			H256::from_str("00000000000000000000000000000000ffffffffffffffffffffffffffffffff")
+				.unwrap(),
 		);
 		storage.insert(
-			H256::from_str("e6f18b3f6d2cdeb50fb82c61f7a7a249abf7b534575880ddcfde84bba07ce81d").unwrap(),
-			H256::from_str("00000000000000000000000000000000ffffffffffffffffffffffffffffffff").unwrap(),
+			H256::from_str("e6f18b3f6d2cdeb50fb82c61f7a7a249abf7b534575880ddcfde84bba07ce81d")
+				.unwrap(),
+			H256::from_str("00000000000000000000000000000000ffffffffffffffffffffffffffffffff")
+				.unwrap(),
 		);
 		accounts.insert(
 			erc20_address(),
@@ -191,11 +199,9 @@ impl ExtBuilder {
 				code: from_hex(include!("./erc20_demo_contract")).unwrap(),
 			},
 		);
-		module_evm::GenesisConfig::<Runtime> {
-			accounts,
-		}
-		.assimilate_storage(&mut t)
-		.unwrap();
+		module_evm::GenesisConfig::<Runtime> { accounts }
+			.assimilate_storage(&mut t)
+			.unwrap();
 
 		let mut ext = sp_io::TestExternalities::new(t);
 		ext.execute_with(|| System::set_block_number(1));

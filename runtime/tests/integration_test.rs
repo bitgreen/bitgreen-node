@@ -5,21 +5,13 @@ use frame_support::{
 	assert_noop, assert_ok,
 	traits::{GenesisBuild, OnFinalize, OnInitialize},
 };
-use BBB_runtime::{
-	get_all_module_accounts,
-	AccountId, AuthoritysOriginId,
-	Balance, Balances, Call,
-	CurrencyId,
-	Event, EvmAccounts, GetNativeCurrencyId,
-	NativeTokenExistentialDeposit, Origin,
-	Perbill, Runtime, System,
-	TokenSymbol, Evm,
-};
-use module_support::{Price};
+use module_support::Price;
 use sp_io::hashing::keccak_256;
-use sp_runtime::{
-	traits::{BadOrigin},
-	DispatchError, FixedPointNumber, MultiAddress,
+use sp_runtime::{traits::BadOrigin, DispatchError, FixedPointNumber, MultiAddress};
+use BBB_runtime::{
+	get_all_module_accounts, AccountId, AuthoritysOriginId, Balance, Balances, Call, CurrencyId,
+	Event, Evm, EvmAccounts, GetNativeCurrencyId, NativeTokenExistentialDeposit, Origin, Perbill,
+	Runtime, System, TokenSymbol,
 };
 
 use primitives::currency::*;
@@ -156,26 +148,25 @@ fn deploy_contract(account: AccountId) -> Result<H160, DispatchError> {
 	Evm::create(Origin::signed(account), contract, 0, 1000000000, 1000000000)
 		.map_or_else(|e| Err(e.error), |_| Ok(()))?;
 
-	if let Event::module_evm(module_evm::Event::Created(address)) = System::events().iter().last().unwrap().event {
+	if let Event::module_evm(module_evm::Event::Created(address)) =
+		System::events().iter().last().unwrap().event
+	{
 		Ok(address)
 	} else {
 		Err("deploy_contract failed".into())
 	}
 }
 
-
 #[test]
 fn test_authority_module() {
 	const _AUTHORITY_ORIGIN_ID: u8 = 10u8;
 
 	ExtBuilder::default()
-		.balances(vec![
-			(
-				AccountId::from(ALICE),
-				CurrencyId::Token(TokenSymbol::USDG),
-				amount(1000),
-			),
-		])
+		.balances(vec![(
+			AccountId::from(ALICE),
+			CurrencyId::Token(TokenSymbol::USDG),
+			amount(1000),
+		)])
 		.build()
 		.execute_with(|| {
 			let ensure_root_call = Call::System(frame_system::Call::fill_block(Perbill::one()));
@@ -219,7 +210,7 @@ fn test_authority_module() {
 			// 	true,
 			// 	Box::new(dswf_call.clone())
 			// ));
-            //
+			//
 			// assert_ok!(AuthorityModule::schedule_dispatch(
 			// 	Origin::root(),
 			// 	DispatchTime::At(2),
@@ -227,7 +218,7 @@ fn test_authority_module() {
 			// 	true,
 			// 	Box::new(call.clone())
 			// ));
-            //
+			//
 			// let event = Event::orml_authority(orml_authority::Event::Scheduled(
 			// 	OriginCaller::orml_authority(DelayedOrigin {
 			// 		delay: 1,
@@ -236,7 +227,7 @@ fn test_authority_module() {
 			// 	1,
 			// ));
 			// assert_eq!(last_event(), event);
-            //
+			//
 			// run_to_block(2);
 			// assert_eq!(
 			// 	Currencies::free_balance(
@@ -249,7 +240,7 @@ fn test_authority_module() {
 			// 	Currencies::free_balance(CurrencyId::Token(TokenSymbol::USDG), &AccountId::from(BOB)),
 			// 	amount(500)
 			// );
-            //
+			//
 			// // delay < SevenDays
 			// let event = Event::pallet_scheduler(pallet_scheduler::RawEvent::Dispatched(
 			// 	(2, 1),
@@ -257,7 +248,7 @@ fn test_authority_module() {
 			// 	Err(DispatchError::BadOrigin),
 			// ));
 			// assert_eq!(last_event(), event);
-            //
+			//
 			// // delay = SevenDays
 			// assert_ok!(AuthorityModule::schedule_dispatch(
 			// 	Origin::root(),
@@ -266,7 +257,7 @@ fn test_authority_module() {
 			// 	true,
 			// 	Box::new(call.clone())
 			// ));
-            //
+			//
 			// run_to_block(SevenDays::get() + 2);
 			// let event = Event::pallet_scheduler(pallet_scheduler::RawEvent::Dispatched(
 			// 	(151202, 0),
@@ -274,7 +265,7 @@ fn test_authority_module() {
 			// 	Ok(()),
 			// ));
 			// assert_eq!(last_event(), event);
-            //
+			//
 			// // with_delayed_origin = false
 			// assert_ok!(AuthorityModule::schedule_dispatch(
 			// 	Origin::root(),
@@ -288,7 +279,7 @@ fn test_authority_module() {
 			// 	3,
 			// ));
 			// assert_eq!(last_event(), event);
-            //
+			//
 			// run_to_block(SevenDays::get() + 3);
 			// let event = Event::pallet_scheduler(pallet_scheduler::RawEvent::Dispatched(
 			// 	(151203, 0),
@@ -296,7 +287,7 @@ fn test_authority_module() {
 			// 	Ok(()),
 			// ));
 			// assert_eq!(last_event(), event);
-            //
+			//
 			// assert_ok!(AuthorityModule::schedule_dispatch(
 			// 	Origin::root(),
 			// 	DispatchTime::At(SevenDays::get() + 4),
@@ -304,7 +295,7 @@ fn test_authority_module() {
 			// 	false,
 			// 	Box::new(call.clone())
 			// ));
-            //
+			//
 			// // fast_track_scheduled_dispatch
 			// assert_ok!(AuthorityModule::fast_track_scheduled_dispatch(
 			// 	Origin::root(),
@@ -312,7 +303,7 @@ fn test_authority_module() {
 			// 	4,
 			// 	DispatchTime::At(SevenDays::get() + 5),
 			// ));
-            //
+			//
 			// // delay_scheduled_dispatch
 			// assert_ok!(AuthorityModule::delay_scheduled_dispatch(
 			// 	Origin::root(),
@@ -320,7 +311,7 @@ fn test_authority_module() {
 			// 	4,
 			// 	4,
 			// ));
-            //
+			//
 			// // cancel_scheduled_dispatch
 			// assert_ok!(AuthorityModule::schedule_dispatch(
 			// 	Origin::root(),
@@ -337,7 +328,7 @@ fn test_authority_module() {
 			// 	5,
 			// ));
 			// assert_eq!(last_event(), event);
-            //
+			//
 			// let schedule_origin = {
 			// 	let origin: <Runtime as orml_authority::Config>::Origin = From::from(Origin::root());
 			// 	let origin: <Runtime as orml_authority::Config>::Origin = From::from(DelayedOrigin::<
@@ -349,7 +340,7 @@ fn test_authority_module() {
 			// 	});
 			// 	origin
 			// };
-            //
+			//
 			// let pallets_origin = schedule_origin.caller().clone();
 			// assert_ok!(AuthorityModule::cancel_scheduled_dispatch(
 			// 	Origin::root(),
@@ -364,7 +355,7 @@ fn test_authority_module() {
 			// 	5,
 			// ));
 			// assert_eq!(last_event(), event);
-            //
+			//
 			// assert_ok!(AuthorityModule::schedule_dispatch(
 			// 	Origin::root(),
 			// 	DispatchTime::At(SevenDays::get() + 5),
@@ -377,7 +368,7 @@ fn test_authority_module() {
 			// 	6,
 			// ));
 			// assert_eq!(last_event(), event);
-            //
+			//
 			// assert_ok!(AuthorityModule::cancel_scheduled_dispatch(
 			// 	Origin::root(),
 			// 	frame_system::RawOrigin::Root.into(),
@@ -391,7 +382,6 @@ fn test_authority_module() {
 		});
 }
 
-
 #[test]
 fn test_evm_accounts_module() {
 	ExtBuilder::default()
@@ -403,7 +393,10 @@ fn test_evm_accounts_module() {
 		.build()
 		.execute_with(|| {
 			assert_eq!(Balances::free_balance(AccountId::from(ALICE)), 0);
-			assert_eq!(Balances::free_balance(bob_account_id()), 1000000000000000000000);
+			assert_eq!(
+				Balances::free_balance(bob_account_id()),
+				1000000000000000000000
+			);
 			assert_ok!(EvmAccounts::claim_account(
 				Origin::signed(AccountId::from(ALICE)),
 				EvmAccounts::eth_address(&alice()),
@@ -440,13 +433,27 @@ fn test_evm_accounts_module() {
 fn test_evm_module() {
 	ExtBuilder::default()
 		.balances(vec![
-			(alice_account_id(), CurrencyId::Token(TokenSymbol::BBB), amount(1 * MILLI_BBB)),
-			(bob_account_id(), CurrencyId::Token(TokenSymbol::BBB), amount(1 * MILLI_BBB)),
+			(
+				alice_account_id(),
+				CurrencyId::Token(TokenSymbol::BBB),
+				amount(1 * MILLI_BBB),
+			),
+			(
+				bob_account_id(),
+				CurrencyId::Token(TokenSymbol::BBB),
+				amount(1 * MILLI_BBB),
+			),
 		])
 		.build()
 		.execute_with(|| {
-			assert_eq!(Balances::free_balance(alice_account_id()), amount(1 * MILLI_BBB));
-			assert_eq!(Balances::free_balance(bob_account_id()), amount(1 * MILLI_BBB));
+			assert_eq!(
+				Balances::free_balance(alice_account_id()),
+				amount(1 * MILLI_BBB)
+			);
+			assert_eq!(
+				Balances::free_balance(bob_account_id()),
+				amount(1 * MILLI_BBB)
+			);
 
 			let _alice_address = EvmAccounts::eth_address(&alice());
 			let bob_address = EvmAccounts::eth_address(&bob());
@@ -460,12 +467,21 @@ fn test_evm_module() {
 				contract,
 				bob_address
 			));
-			let event = Event::module_evm(module_evm::Event::TransferredMaintainer(contract, bob_address));
+			let event = Event::module_evm(module_evm::Event::TransferredMaintainer(
+				contract,
+				bob_address,
+			));
 			assert_eq!(last_event(), event);
 
 			// test EvmAccounts Lookup
-			assert_eq!(Balances::free_balance(alice_account_id()), 999999999999989633000000000000000);
-			assert_eq!(Balances::free_balance(bob_account_id()), amount(1 * MILLI_BBB));
+			assert_eq!(
+				Balances::free_balance(alice_account_id()),
+				999999999999989633000000000000000
+			);
+			assert_eq!(
+				Balances::free_balance(bob_account_id()),
+				amount(1 * MILLI_BBB)
+			);
 			let to = EvmAccounts::eth_address(&alice());
 			assert_ok!(Currencies::transfer(
 				Origin::signed(bob_account_id()),
@@ -473,8 +489,14 @@ fn test_evm_module() {
 				CurrencyId::Token(TokenSymbol::BBB),
 				amount(10 * MICRO_BBB)
 			));
-			assert_eq!(Balances::free_balance(alice_account_id()), 1009999999999989633000000000000000);
-			assert_eq!(Balances::free_balance(bob_account_id()), amount(1 * MILLI_BBB) - amount(10 * MICRO_BBB));
+			assert_eq!(
+				Balances::free_balance(alice_account_id()),
+				1009999999999989633000000000000000
+			);
+			assert_eq!(
+				Balances::free_balance(bob_account_id()),
+				amount(1 * MILLI_BBB) - amount(10 * MICRO_BBB)
+			);
 		});
 }
 
@@ -483,20 +505,38 @@ fn test_evm_module() {
 fn test_evm_module() {
 	ExtBuilder::default()
 		.balances(vec![
-			(alice_account_id(), CurrencyId::Token(TokenSymbol::BBB), amount(1 * MILLI_BBB)),
-			(bob_account_id(), CurrencyId::Token(TokenSymbol::BBB), amount(1 * MILLI_BBB)),
+			(
+				alice_account_id(),
+				CurrencyId::Token(TokenSymbol::BBB),
+				amount(1 * MILLI_BBB),
+			),
+			(
+				bob_account_id(),
+				CurrencyId::Token(TokenSymbol::BBB),
+				amount(1 * MILLI_BBB),
+			),
 		])
 		.build()
 		.execute_with(|| {
-			assert_eq!(Balances::free_balance(alice_account_id()), amount(1 * MILLI_BBB));
-			assert_eq!(Balances::free_balance(bob_account_id()), amount(1 * MILLI_BBB));
+			assert_eq!(
+				Balances::free_balance(alice_account_id()),
+				amount(1 * MILLI_BBB)
+			);
+			assert_eq!(
+				Balances::free_balance(bob_account_id()),
+				amount(1 * MILLI_BBB)
+			);
 
 			use std::fs::{self, File};
 			use std::io::Read;
 
 			let paths = fs::read_dir("../../runtime/mandala/tests/solidity_test").unwrap();
 			let file_names = paths
-				.filter_map(|entry| entry.ok().and_then(|e| e.path().to_str().map(|s| String::from(s))))
+				.filter_map(|entry| {
+					entry
+						.ok()
+						.and_then(|e| e.path().to_str().map(|s| String::from(s)))
+				})
 				.collect::<Vec<String>>();
 
 			for file in file_names {

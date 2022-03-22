@@ -1,6 +1,6 @@
-use crate::{Error, mock::*};
-use frame_support::{assert_ok, assert_noop};
+use crate::{mock::*, Error};
 use frame_support::error::BadOrigin;
+use frame_support::{assert_noop, assert_ok};
 
 #[test]
 fn create_change_settings_works() {
@@ -9,28 +9,46 @@ fn create_change_settings_works() {
 	});
 
 	new_test_ext().execute_with(|| {
-		assert_ok!(Bonds::create_change_settings(Origin::root(), b"infodocuments".to_vec(), r#"{"documents":[{"document":"Profit&LossPreviousyear"}]}"#.as_bytes().to_vec()));
+		assert_ok!(Bonds::create_change_settings(
+			Origin::root(),
+			b"infodocuments".to_vec(),
+			r#"{"documents":[{"document":"Profit&LossPreviousyear"}]}"#
+				.as_bytes()
+				.to_vec()
+		));
 	});
 }
 #[test]
-fn insurance_staking_unstaking_works(){
+fn insurance_staking_unstaking_works() {
 	new_test_ext().execute_with(|| {
-		assert_ok!(Bonds::create_change_settings(Origin::root(), b"insuranceminreserve".to_vec(), r#"{"currency":123,"reserve":10}"#.as_bytes().to_vec()));
+		assert_ok!(Bonds::create_change_settings(
+			Origin::root(),
+			b"insuranceminreserve".to_vec(),
+			r#"{"currency":123,"reserve":10}"#.as_bytes().to_vec()
+		));
 		assert_ok!(Bonds::insurance_reserve_stake(Origin::signed(1), 1, 10));
-		assert_noop!(Bonds::insurance_reserve_unstake(Origin::signed(1), 1, 1), Error::<Test>::BelowMinimumReserve);
+		assert_noop!(
+			Bonds::insurance_reserve_unstake(Origin::signed(1), 1, 1),
+			Error::<Test>::BelowMinimumReserve
+		);
 		assert_ok!(Bonds::insurance_reserve_stake(Origin::signed(1), 1, 1));
 		assert_ok!(Bonds::insurance_reserve_unstake(Origin::signed(1), 1, 1));
-		assert_noop!(Bonds::insurance_reserve_unstake(Origin::signed(1), 1, 1), Error::<Test>::BelowMinimumReserve);
-
+		assert_noop!(
+			Bonds::insurance_reserve_unstake(Origin::signed(1), 1, 1),
+			Error::<Test>::BelowMinimumReserve
+		);
 	});
-
 }
 
 #[test]
 fn create_change_settings_does_not_work_for_non_root() {
 	new_test_ext().execute_with(|| {
 		assert_noop!(
-			Bonds::create_change_settings(Origin::signed(1), b"kyc".to_vec(), b"[{'document':'Profit&Loss Previous year'}]".to_vec()),
+			Bonds::create_change_settings(
+				Origin::signed(1),
+				b"kyc".to_vec(),
+				b"[{'document':'Profit&Loss Previous year'}]".to_vec()
+			),
 			BadOrigin
 		);
 	});
@@ -109,12 +127,22 @@ fn create_change_settings_does_not_work_for_invalid_bondapproval_input() {
 fn create_change_settings_does_not_work_for_invalid_underwriterssubmission_input() {
 	new_test_ext().execute_with(|| {
 		assert_noop!(
-			Bonds::create_change_settings(Origin::root(), b"underwriterssubmission".to_vec(), r#"{"manager":"Profit&Loss Previous year"}"#.as_bytes().to_vec()),
+			Bonds::create_change_settings(
+				Origin::root(),
+				b"underwriterssubmission".to_vec(),
+				r#"{"manager":"Profit&Loss Previous year"}"#.as_bytes().to_vec()
+			),
 			Error::<Test>::UnderWritersSubmissionManagerAccountIsWrong
 		);
 
 		assert_noop!(
-			Bonds::create_change_settings(Origin::root(), b"underwriterssubmission".to_vec(), r#"{"manager":"5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY","committee":[]}"#.as_bytes().to_vec()),
+			Bonds::create_change_settings(
+				Origin::root(),
+				b"underwriterssubmission".to_vec(),
+				r#"{"manager":"5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY","committee":[]}"#
+					.as_bytes()
+					.to_vec()
+			),
 			Error::<Test>::UnderwritersSubmissionCommitteeIsWrong
 		);
 	});
@@ -124,12 +152,22 @@ fn create_change_settings_does_not_work_for_invalid_underwriterssubmission_input
 fn create_change_settings_does_not_work_for_invalid_insurerssubmission_input() {
 	new_test_ext().execute_with(|| {
 		assert_noop!(
-			Bonds::create_change_settings(Origin::root(), b"insurerssubmission".to_vec(), r#"{"manager":"Profit&Loss Previous year"}"#.as_bytes().to_vec()),
+			Bonds::create_change_settings(
+				Origin::root(),
+				b"insurerssubmission".to_vec(),
+				r#"{"manager":"Profit&Loss Previous year"}"#.as_bytes().to_vec()
+			),
 			Error::<Test>::InsurerSubmissionManagerAccountIsWrong
 		);
 
 		assert_noop!(
-			Bonds::create_change_settings(Origin::root(), b"insurerssubmission".to_vec(), r#"{"manager":"5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY","committee":[]}"#.as_bytes().to_vec()),
+			Bonds::create_change_settings(
+				Origin::root(),
+				b"insurerssubmission".to_vec(),
+				r#"{"manager":"5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY","committee":[]}"#
+					.as_bytes()
+					.to_vec()
+			),
 			Error::<Test>::InsurerSubmissionCommitteeIsWrong
 		);
 	});
@@ -139,12 +177,22 @@ fn create_change_settings_does_not_work_for_invalid_insurerssubmission_input() {
 fn create_change_settings_does_not_work_for_invalid_creditratingagencies_input() {
 	new_test_ext().execute_with(|| {
 		assert_noop!(
-			Bonds::create_change_settings(Origin::root(), b"creditratingagencies".to_vec(), r#"{"manager":"Profit&Loss Previous year"}"#.as_bytes().to_vec()),
+			Bonds::create_change_settings(
+				Origin::root(),
+				b"creditratingagencies".to_vec(),
+				r#"{"manager":"Profit&Loss Previous year"}"#.as_bytes().to_vec()
+			),
 			Error::<Test>::CreditRatingAgenciesSubmissionManagerAccountIsWrong
 		);
 
 		assert_noop!(
-			Bonds::create_change_settings(Origin::root(), b"creditratingagencies".to_vec(), r#"{"manager":"5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY","committee":[]}"#.as_bytes().to_vec()),
+			Bonds::create_change_settings(
+				Origin::root(),
+				b"creditratingagencies".to_vec(),
+				r#"{"manager":"5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY","committee":[]}"#
+					.as_bytes()
+					.to_vec()
+			),
 			Error::<Test>::CreditRatingAgenciesSubmissionCommitteeIsWrong
 		);
 	});
@@ -154,12 +202,22 @@ fn create_change_settings_does_not_work_for_invalid_creditratingagencies_input()
 fn create_change_settings_does_not_work_for_invalid_lawyerssubmission_input() {
 	new_test_ext().execute_with(|| {
 		assert_noop!(
-			Bonds::create_change_settings(Origin::root(), b"lawyerssubmission".to_vec(), r#"{"manager":"Profit&Loss Previous year"}"#.as_bytes().to_vec()),
+			Bonds::create_change_settings(
+				Origin::root(),
+				b"lawyerssubmission".to_vec(),
+				r#"{"manager":"Profit&Loss Previous year"}"#.as_bytes().to_vec()
+			),
 			Error::<Test>::LawyersSubmissionManagerAccountIsWrong
 		);
 
 		assert_noop!(
-			Bonds::create_change_settings(Origin::root(), b"lawyerssubmission".to_vec(), r#"{"manager":"5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY","committee":[]}"#.as_bytes().to_vec()),
+			Bonds::create_change_settings(
+				Origin::root(),
+				b"lawyerssubmission".to_vec(),
+				r#"{"manager":"5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY","committee":[]}"#
+					.as_bytes()
+					.to_vec()
+			),
 			Error::<Test>::LawyersSubmissionCommitteeIsWrong
 		);
 	});
@@ -169,12 +227,22 @@ fn create_change_settings_does_not_work_for_invalid_lawyerssubmission_input() {
 fn create_change_settings_does_not_work_for_invalid_collateralsverification_input() {
 	new_test_ext().execute_with(|| {
 		assert_noop!(
-			Bonds::create_change_settings(Origin::root(), b"collateralsverification".to_vec(), r#"{"manager":"Profit&Loss Previous year"}"#.as_bytes().to_vec()),
+			Bonds::create_change_settings(
+				Origin::root(),
+				b"collateralsverification".to_vec(),
+				r#"{"manager":"Profit&Loss Previous year"}"#.as_bytes().to_vec()
+			),
 			Error::<Test>::CollateralVerificationManagerAccountIsWrong
 		);
 
 		assert_noop!(
-			Bonds::create_change_settings(Origin::root(), b"collateralsverification".to_vec(), r#"{"manager":"5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY","committee":[]}"#.as_bytes().to_vec()),
+			Bonds::create_change_settings(
+				Origin::root(),
+				b"collateralsverification".to_vec(),
+				r#"{"manager":"5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY","committee":[]}"#
+					.as_bytes()
+					.to_vec()
+			),
 			Error::<Test>::CollateralVerificationCommitteeIsWrong
 		);
 	});
@@ -184,12 +252,22 @@ fn create_change_settings_does_not_work_for_invalid_collateralsverification_inpu
 fn create_change_settings_does_not_work_for_invalid_fundapproval_input() {
 	new_test_ext().execute_with(|| {
 		assert_noop!(
-			Bonds::create_change_settings(Origin::root(), b"fundapproval".to_vec(), r#"{"manager":"Profit&Loss Previous year"}"#.as_bytes().to_vec()),
+			Bonds::create_change_settings(
+				Origin::root(),
+				b"fundapproval".to_vec(),
+				r#"{"manager":"Profit&Loss Previous year"}"#.as_bytes().to_vec()
+			),
 			Error::<Test>::FundApprovalManagerAccountIsWrong
 		);
 
 		assert_noop!(
-			Bonds::create_change_settings(Origin::root(), b"fundapproval".to_vec(), r#"{"manager":"5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY","committee":[]}"#.as_bytes().to_vec()),
+			Bonds::create_change_settings(
+				Origin::root(),
+				b"fundapproval".to_vec(),
+				r#"{"manager":"5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY","committee":[]}"#
+					.as_bytes()
+					.to_vec()
+			),
 			Error::<Test>::FundApprovalCommitteeIsWrong
 		);
 	});
@@ -199,10 +277,13 @@ fn create_change_settings_does_not_work_for_invalid_fundapproval_input() {
 fn create_change_settings_does_not_work_for_invalid_infodocuments_input() {
 	new_test_ext().execute_with(|| {
 		assert_noop!(
-			Bonds::create_change_settings(Origin::root(), b"infodocuments".to_vec(), r#"{"documents":[]}"#.as_bytes().to_vec()),
+			Bonds::create_change_settings(
+				Origin::root(),
+				b"infodocuments".to_vec(),
+				r#"{"documents":[]}"#.as_bytes().to_vec()
+			),
 			Error::<Test>::InfoDocumentsIsWrong
 		);
-
 	});
 }
 
@@ -210,15 +291,22 @@ fn create_change_settings_does_not_work_for_invalid_infodocuments_input() {
 fn create_change_settings_does_not_work_for_invalid_insuranceminreserve_input() {
 	new_test_ext().execute_with(|| {
 		assert_noop!(
-			Bonds::create_change_settings(Origin::root(), b"insuranceminreserve".to_vec(), r#"{"currency":12}"#.as_bytes().to_vec()),
+			Bonds::create_change_settings(
+				Origin::root(),
+				b"insuranceminreserve".to_vec(),
+				r#"{"currency":12}"#.as_bytes().to_vec()
+			),
 			Error::<Test>::InsuranceCurrencyIsWrong
 		);
 
 		assert_noop!(
-			Bonds::create_change_settings(Origin::root(), b"insuranceminreserve".to_vec(), r#"{"currency":123,"reserve":0}"#.as_bytes().to_vec()),
+			Bonds::create_change_settings(
+				Origin::root(),
+				b"insuranceminreserve".to_vec(),
+				r#"{"currency":123,"reserve":0}"#.as_bytes().to_vec()
+			),
 			Error::<Test>::InsuranceMinReserveCannotBeZero
 		);
-
 	});
 }
 
@@ -232,7 +320,6 @@ fn create_change_kyc_does_not_work_for_invalid_input() {
 			Error::<Test>::SignerIsNotAuthorizedForKycApproval
 		);
 	});
-
 }
 
 #[test]
@@ -339,7 +426,12 @@ fn create_collaterals_does_not_work_if_bond_id_not_found() {
 fn confirm_collaterals_does_not_work_if_setting_does_not_exist() {
 	new_test_ext().execute_with(|| {
 		assert_noop!(
-			Bonds::confirm_collaterals(Origin::signed(11), 1, 1, b"collateralsverification".to_vec()),
+			Bonds::confirm_collaterals(
+				Origin::signed(11),
+				1,
+				1,
+				b"collateralsverification".to_vec()
+			),
 			Error::<Test>::SettingsDoesNotExist
 		);
 	});
@@ -348,14 +440,17 @@ fn confirm_collaterals_does_not_work_if_setting_does_not_exist() {
 #[test]
 fn iso_country_create_works() {
 	new_test_ext().execute_with(|| {
-		assert_ok!(Bonds::iso_country_create(Origin::root(), b"IN".to_vec(), b"India".to_vec()));
+		assert_ok!(Bonds::iso_country_create(
+			Origin::root(),
+			b"IN".to_vec(),
+			b"India".to_vec()
+		));
 
 		assert_noop!(
 			Bonds::iso_country_create(Origin::root(), b"IN".to_vec(), b"India".to_vec()),
 			Error::<Test>::CountryCodeAlreadyPresent
 		);
 	});
-
 }
 
 #[test]
@@ -376,10 +471,13 @@ fn iso_country_create_does_not_work_if_invalid_input() {
 #[test]
 fn iso_country_destroy_works() {
 	new_test_ext().execute_with(|| {
-		assert_ok!(Bonds::iso_country_create(Origin::root(), b"IN".to_vec(), b"India".to_vec()));
+		assert_ok!(Bonds::iso_country_create(
+			Origin::root(),
+			b"IN".to_vec(),
+			b"India".to_vec()
+		));
 
 		assert_ok!(Bonds::iso_country_destroy(Origin::root(), b"IN".to_vec()));
-
 	});
 }
 
@@ -453,7 +551,6 @@ fn country_create_works() {
 			Error::<Test>::CurrencyCodeAlreadyPresent
 		);
 	});
-
 }
 
 #[test]

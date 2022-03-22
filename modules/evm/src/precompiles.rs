@@ -5,7 +5,7 @@ use impl_trait_for_tuples::impl_for_tuples;
 use primitive_types::H160;
 use ripemd160::Digest;
 use sp_runtime::SaturatedConversion;
-use sp_std::{cmp::min, vec::Vec, marker::PhantomData};
+use sp_std::{cmp::min, marker::PhantomData, vec::Vec};
 use tiny_keccak::Hasher;
 
 /// Custom precompiles to be used by EVM engine.
@@ -60,7 +60,15 @@ impl Precompiles for Tuple {
 	}
 }
 
-pub struct EvmPrecompiles<ECRecover, Sha256, Ripemd160, Identity, ECRecoverPublicKey, Sha3FIPS256, Sha3FIPS512>(
+pub struct EvmPrecompiles<
+	ECRecover,
+	Sha256,
+	Ripemd160,
+	Identity,
+	ECRecoverPublicKey,
+	Sha3FIPS256,
+	Sha3FIPS512,
+>(
 	PhantomData<(
 		ECRecover,
 		Sha256,
@@ -72,9 +80,17 @@ pub struct EvmPrecompiles<ECRecover, Sha256, Ripemd160, Identity, ECRecoverPubli
 	)>,
 );
 
-impl<ECRecover, Sha256, Ripemd160, Identity, ECRecoverPublicKey, Sha3FIPS256, Sha3FIPS512> Precompiles
-	for EvmPrecompiles<ECRecover, Sha256, Ripemd160, Identity, ECRecoverPublicKey, Sha3FIPS256, Sha3FIPS512>
-where
+impl<ECRecover, Sha256, Ripemd160, Identity, ECRecoverPublicKey, Sha3FIPS256, Sha3FIPS512>
+	Precompiles
+	for EvmPrecompiles<
+		ECRecover,
+		Sha256,
+		Ripemd160,
+		Identity,
+		ECRecoverPublicKey,
+		Sha3FIPS256,
+		Sha3FIPS512,
+	> where
 	ECRecover: Precompile,
 	Sha256: Precompile,
 	Ripemd160: Precompile,
@@ -114,7 +130,12 @@ where
 }
 
 /// Linear gas cost
-fn ensure_linear_cost(target_gas: Option<u64>, len: usize, base: usize, word: usize) -> Result<u64, ExitError> {
+fn ensure_linear_cost(
+	target_gas: Option<u64>,
+	len: usize,
+	base: usize,
+	word: usize,
+) -> Result<u64, ExitError> {
 	let cost: u64 = base
 		.checked_add(
 			word.checked_mul(len.saturating_add(31) / 32)

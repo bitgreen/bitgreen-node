@@ -1,4 +1,4 @@
-use crate::{AccountId, Balance, Event, EvmAccounts, Origin, Runtime, System, DOLLARS, Evm};
+use crate::{AccountId, Balance, Event, Evm, EvmAccounts, Origin, Runtime, System, DOLLARS};
 
 use super::utils::set_bitg_balance;
 use frame_support::dispatch::DispatchError;
@@ -40,7 +40,9 @@ fn deploy_contract(caller: AccountId) -> Result<H160, DispatchError> {
 	Evm::create(Origin::signed(caller), contract, 0, 1000000000, 1000000000)
 		.map_or_else(|e| Err(e.error), |_| Ok(()))?;
 
-	if let Event::module_evm(module_evm::Event::Created(address)) = System::events().iter().last().unwrap().event {
+	if let Event::module_evm(module_evm::Event::Created(address)) =
+		System::events().iter().last().unwrap().event
+	{
 		Ok(address)
 	} else {
 		Err("deploy_contract failed".into())

@@ -1,14 +1,14 @@
 //! Service and ServiceFactory implementation. Specialized wrapper over substrate service.
 
-use std::sync::Arc;
-use std::time::Duration;
-use sc_client_api::{ExecutorProvider, RemoteBackend};
 use bitg_runtime::{self, opaque::Block, RuntimeApi};
-use sc_service::{error::Error as ServiceError, Configuration, TaskManager};
+use sc_client_api::{ExecutorProvider, RemoteBackend};
 use sc_executor::native_executor_instance;
 pub use sc_executor::NativeExecutor;
 use sc_finality_grandpa::SharedVoterState;
 use sc_keystore::LocalKeystore;
+use sc_service::{error::Error as ServiceError, Configuration, TaskManager};
+use std::sync::Arc;
+use std::time::Duration;
 
 use sc_finality_grandpa::FinalityProofProvider;
 
@@ -26,24 +26,36 @@ type FullSelectChain = sc_consensus::LongestChain<FullBackend, Block>;
 
 // TODO: Result structure is very complex. Consider factoring parts into `type` definitions.
 // After this TODO will be resolved, remove the suppresion of `type-complexity` warnings in the Makefile.
-pub fn new_partial(config: &Configuration) -> Result<sc_service::PartialComponents<
-	FullClient,
-	FullBackend,
-	FullSelectChain,
-	sp_consensus::DefaultImportQueue<Block, FullClient>,
-	sc_transaction_pool::FullPool<Block, FullClient>,
-	(
-		sc_consensus_babe::BabeBlockImport<
-			Block,
-			FullClient,
-			sc_finality_grandpa::GrandpaBlockImport<FullBackend, Block, FullClient, FullSelectChain>,
-		>,
-		sc_finality_grandpa::LinkHalf<Block, FullClient, FullSelectChain>,
-		sc_consensus_babe::BabeLink<Block>,
-	)
->, ServiceError> {
+pub fn new_partial(
+	config: &Configuration,
+) -> Result<
+	sc_service::PartialComponents<
+		FullClient,
+		FullBackend,
+		FullSelectChain,
+		sp_consensus::DefaultImportQueue<Block, FullClient>,
+		sc_transaction_pool::FullPool<Block, FullClient>,
+		(
+			sc_consensus_babe::BabeBlockImport<
+				Block,
+				FullClient,
+				sc_finality_grandpa::GrandpaBlockImport<
+					FullBackend,
+					Block,
+					FullClient,
+					FullSelectChain,
+				>,
+			>,
+			sc_finality_grandpa::LinkHalf<Block, FullClient, FullSelectChain>,
+			sc_consensus_babe::BabeLink<Block>,
+		),
+	>,
+	ServiceError,
+> {
 	if config.keystore_remote.is_some() {
-		return Err(ServiceError::Other("Remote Keystores are not supported.".to_string()))
+		return Err(ServiceError::Other(
+			"Remote Keystores are not supported.".to_string(),
+		));
 	}
 	let inherent_data_providers = sp_inherents::InherentDataProviders::new();
 
@@ -62,7 +74,9 @@ pub fn new_partial(config: &Configuration) -> Result<sc_service::PartialComponen
 	);
 
 	let (grandpa_block_import, grandpa_link) = sc_finality_grandpa::block_import(
-		client.clone(), &(client.clone() as Arc<_>), select_chain.clone(),
+		client.clone(),
+		&(client.clone() as Arc<_>),
+		select_chain.clone(),
 	)?;
 
 	let (block_import, babe_link) = sc_consensus_babe::block_import(
@@ -71,18 +85,17 @@ pub fn new_partial(config: &Configuration) -> Result<sc_service::PartialComponen
 		client.clone(),
 	)?;
 
-	let import_queue =
-		sc_consensus_babe::import_queue(
-			babe_link.clone(),
-			block_import.clone(),
-			Some(Box::new(grandpa_block_import)),
-			client.clone(),
-			select_chain.clone(),
-			inherent_data_providers.clone(),
-			&task_manager.spawn_handle(),
-			config.prometheus_registry(),
-			sp_consensus::CanAuthorWithNativeVersion::new(client.executor().clone()),
-		)?;
+	let import_queue = sc_consensus_babe::import_queue(
+		babe_link.clone(),
+		block_import.clone(),
+		Some(Box::new(grandpa_block_import)),
+		client.clone(),
+		select_chain.clone(),
+		inherent_data_providers.clone(),
+		&task_manager.spawn_handle(),
+		config.prometheus_registry(),
+		sp_consensus::CanAuthorWithNativeVersion::new(client.executor().clone()),
+	)?;
 
 	Ok(sc_service::PartialComponents {
 		client,
@@ -122,13 +135,18 @@ pub fn new_full(mut config: Configuration) -> Result<TaskManager, ServiceError> 
 		match remote_keystore(url) {
 			Ok(k) => keystore_container.set_remote_keystore(k),
 			Err(e) => {
-				return Err(ServiceError::Other(
-						format!("Error hooking up remote keystore for {}: {}", url, e)))
+				return Err(ServiceError::Other(format!(
+					"Error hooking up remote keystore for {}: {}",
+					url, e
+				)))
 			}
 		};
 	}
 
-	config.network.extra_sets.push(sc_finality_grandpa::grandpa_peers_set_config());
+	config
+		.network
+		.extra_sets
+		.push(sc_finality_grandpa::grandpa_peers_set_config());
 
 	let (network, network_status_sinks, system_rpc_tx, network_starter) =
 		sc_service::build_network(sc_service::BuildNetworkParams {
@@ -153,11 +171,11 @@ pub fn new_full(mut config: Configuration) -> Result<TaskManager, ServiceError> 
 
 	let role = config.role.clone();
 	let force_authoring = config.force_authoring;
-	let backoff_authoring_blocks = Some(sc_consensus_slots::BackoffAuthoringOnFinalizedHeadLagging::default());
+	let backoff_authoring_blocks =
+		Some(sc_consensus_slots::BackoffAuthoringOnFinalizedHeadLagging::default());
 	let name = config.network.node_name.clone();
 	let enable_grandpa = !config.disable_grandpa;
 	let prometheus_registry = config.prometheus_registry().cloned();
-
 
 	let justification_stream = grandpa_link.justification_stream();
 	let shared_authority_set = grandpa_link.shared_authority_set().clone();
@@ -199,8 +217,8 @@ pub fn new_full(mut config: Configuration) -> Result<TaskManager, ServiceError> 
 		})
 	};
 
-	let (_rpc_handlers, telemetry_connection_notifier) = sc_service::spawn_tasks(
-		sc_service::SpawnTasksParams {
+	let (_rpc_handlers, telemetry_connection_notifier) =
+		sc_service::spawn_tasks(sc_service::SpawnTasksParams {
 			network: network.clone(),
 			client: client.clone(),
 			keystore: keystore_container.sync_keystore(),
@@ -213,9 +231,7 @@ pub fn new_full(mut config: Configuration) -> Result<TaskManager, ServiceError> 
 			network_status_sinks,
 			system_rpc_tx,
 			config,
-		},
-	)?;
-
+		})?;
 
 	if let sc_service::config::Role::Authority { .. } = &role {
 		let proposer = sc_basic_authorship::ProposerFactory::new(
@@ -225,7 +241,8 @@ pub fn new_full(mut config: Configuration) -> Result<TaskManager, ServiceError> 
 			prometheus_registry.as_ref(),
 		);
 
-		let can_author_with = sp_consensus::CanAuthorWithNativeVersion::new(client.executor().clone());
+		let can_author_with =
+			sp_consensus::CanAuthorWithNativeVersion::new(client.executor().clone());
 
 		let babe_config = sc_consensus_babe::BabeParams {
 			keystore: keystore_container.sync_keystore(),
@@ -286,7 +303,7 @@ pub fn new_full(mut config: Configuration) -> Result<TaskManager, ServiceError> 
 		// if it fails we take down the service with it.
 		task_manager.spawn_essential_handle().spawn_blocking(
 			"grandpa-voter",
-			sc_finality_grandpa::run_grandpa_voter(grandpa_config)?
+			sc_finality_grandpa::run_grandpa_voter(grandpa_config)?,
 		);
 	}
 
@@ -299,7 +316,10 @@ pub fn new_light(mut config: Configuration) -> Result<TaskManager, ServiceError>
 	let (client, backend, keystore_container, mut task_manager, on_demand) =
 		sc_service::new_light_parts::<Block, RuntimeApi, Executor>(&config)?;
 
-	config.network.extra_sets.push(sc_finality_grandpa::grandpa_peers_set_config());
+	config
+		.network
+		.extra_sets
+		.push(sc_finality_grandpa::grandpa_peers_set_config());
 
 	let select_chain = sc_consensus::LongestChain::new(backend.clone());
 
@@ -326,18 +346,17 @@ pub fn new_light(mut config: Configuration) -> Result<TaskManager, ServiceError>
 
 	let inherent_data_providers = sp_inherents::InherentDataProviders::new();
 
-	let import_queue =
-		sc_consensus_babe::import_queue(
-			babe_link,
-			block_import,
-			Some(Box::new(justification_import)),
-			client.clone(),
-			select_chain,
-			inherent_data_providers,
-			&task_manager.spawn_handle(),
-			config.prometheus_registry(),
-			sp_consensus::NeverCanAuthor,
-		)?;
+	let import_queue = sc_consensus_babe::import_queue(
+		babe_link,
+		block_import,
+		Some(Box::new(justification_import)),
+		client.clone(),
+		select_chain,
+		inherent_data_providers,
+		&task_manager.spawn_handle(),
+		config.prometheus_registry(),
+		sp_consensus::NeverCanAuthor,
+	)?;
 
 	let (network, network_status_sinks, system_rpc_tx, network_starter) =
 		sc_service::build_network(sc_service::BuildNetworkParams {
@@ -352,7 +371,11 @@ pub fn new_light(mut config: Configuration) -> Result<TaskManager, ServiceError>
 
 	if config.offchain_worker.enabled {
 		sc_service::build_offchain_workers(
-			&config, backend.clone(), task_manager.spawn_handle(), client.clone(), network.clone(),
+			&config,
+			backend.clone(),
+			task_manager.spawn_handle(),
+			client.clone(),
+			network.clone(),
 		);
 	}
 
@@ -369,9 +392,9 @@ pub fn new_light(mut config: Configuration) -> Result<TaskManager, ServiceError>
 		network,
 		network_status_sinks,
 		system_rpc_tx,
-	 })?;
+	})?;
 
-	 network_starter.start_network();
+	network_starter.start_network();
 
-	 Ok(task_manager)
+	Ok(task_manager)
 }

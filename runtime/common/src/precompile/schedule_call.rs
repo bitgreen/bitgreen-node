@@ -83,12 +83,23 @@ impl TryFrom<u8> for Action {
 	}
 }
 
-type PalletBalanceOf<T> =
-	<<T as module_evm::Config>::Currency as Currency<<T as frame_system::Config>::AccountId>>::Balance;
-type NegativeImbalanceOf<T> =
-	<<T as module_evm::Config>::Currency as Currency<<T as frame_system::Config>::AccountId>>::NegativeImbalance;
+type PalletBalanceOf<T> = <<T as module_evm::Config>::Currency as Currency<
+	<T as frame_system::Config>::AccountId,
+>>::Balance;
+type NegativeImbalanceOf<T> = <<T as module_evm::Config>::Currency as Currency<
+	<T as frame_system::Config>::AccountId,
+>>::NegativeImbalance;
 
-impl<AccountId, AddressMapping, Scheduler, ChargeTransactionPayment, Call, Origin, PalletsOrigin, Runtime> Precompile
+impl<
+		AccountId,
+		AddressMapping,
+		Scheduler,
+		ChargeTransactionPayment,
+		Call,
+		Origin,
+		PalletsOrigin,
+		Runtime,
+	> Precompile
 	for ScheduleCallPrecompile<
 		AccountId,
 		AddressMapping,
@@ -102,11 +113,14 @@ impl<AccountId, AddressMapping, Scheduler, ChargeTransactionPayment, Call, Origi
 	AccountId: Debug + Clone,
 	AddressMapping: AddressMappingT<AccountId>,
 	Scheduler: ScheduleNamed<BlockNumber, Call, PalletsOrigin, Address = TaskAddress<BlockNumber>>,
-	ChargeTransactionPayment: TransactionPayment<AccountId, PalletBalanceOf<Runtime>, NegativeImbalanceOf<Runtime>>,
+	ChargeTransactionPayment:
+		TransactionPayment<AccountId, PalletBalanceOf<Runtime>, NegativeImbalanceOf<Runtime>>,
 	Call: Dispatchable<Origin = Origin> + Debug + From<module_evm::Call<Runtime>>,
 	Origin: IsType<<Runtime as frame_system::Config>::Origin>
 		+ OriginTrait<AccountId = AccountId, PalletsOrigin = PalletsOrigin>,
-	PalletsOrigin: Into<<Runtime as frame_system::Config>::Origin> + From<frame_system::RawOrigin<AccountId>> + Clone,
+	PalletsOrigin: Into<<Runtime as frame_system::Config>::Origin>
+		+ From<frame_system::RawOrigin<AccountId>>
+		+ Clone,
 	Runtime: module_evm::Config + frame_system::Config<AccountId = AccountId>,
 	PalletBalanceOf<Runtime>: IsType<Balance>,
 {
@@ -155,10 +169,12 @@ impl<AccountId, AddressMapping, Scheduler, ChargeTransactionPayment, Call, Origi
 					use sp_runtime::traits::Convert;
 					let from_account = AddressMapping::get_account_id(&from);
 					let weight = <Runtime as module_evm::Config>::GasToWeight::convert(gas_limit);
-					_fee = ChargeTransactionPayment::reserve_fee(&from_account, weight).map_err(|e| {
-						let err_msg: &str = e.into();
-						ExitError::Other(err_msg.into())
-					})?;
+					_fee = ChargeTransactionPayment::reserve_fee(&from_account, weight).map_err(
+						|e| {
+							let err_msg: &str = e.into();
+							ExitError::Other(err_msg.into())
+						},
+					)?;
 				}
 
 				let call = module_evm::Call::<Runtime>::scheduled_call(
@@ -222,9 +238,13 @@ impl<AccountId, AddressMapping, Scheduler, ChargeTransactionPayment, Call, Origi
 
 				let task_info = TaskInfo::decode(&mut &task_id[..])
 					.map_err(|_| ExitError::Other("Decode task_id failed".into()))?;
-				ensure!(task_info.sender == from, ExitError::Other("NoPermission".into()));
+				ensure!(
+					task_info.sender == from,
+					ExitError::Other("NoPermission".into())
+				);
 
-				Scheduler::cancel_named(task_id).map_err(|_| ExitError::Other("Cancel schedule failed".into()))?;
+				Scheduler::cancel_named(task_id)
+					.map_err(|_| ExitError::Other("Cancel schedule failed".into()))?;
 
 				#[cfg(not(feature = "with-ethereum-compatibility"))]
 				{
@@ -251,12 +271,17 @@ impl<AccountId, AddressMapping, Scheduler, ChargeTransactionPayment, Call, Origi
 
 				let task_info = TaskInfo::decode(&mut &task_id[..])
 					.map_err(|_| ExitError::Other("Decode task_id failed".into()))?;
-				ensure!(task_info.sender == from, ExitError::Other("NoPermission".into()));
+				ensure!(
+					task_info.sender == from,
+					ExitError::Other("NoPermission".into())
+				);
 
-				Scheduler::reschedule_named(task_id, DispatchTime::After(min_delay)).map_err(|e| {
-					let err_msg: &str = e.into();
-					ExitError::Other(err_msg.into())
-				})?;
+				Scheduler::reschedule_named(task_id, DispatchTime::After(min_delay)).map_err(
+					|e| {
+						let err_msg: &str = e.into();
+						ExitError::Other(err_msg.into())
+					},
+				)?;
 
 				Ok((ExitSucceed::Returned, vec![], 0))
 			}

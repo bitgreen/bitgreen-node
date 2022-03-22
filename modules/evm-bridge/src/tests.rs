@@ -32,7 +32,10 @@ fn should_read_balance_of() {
 
 		assert_eq!(EvmBridgeModule::balance_of(context, bob()), Ok(0));
 
-		assert_eq!(EvmBridgeModule::balance_of(context, alice()), Ok(u128::max_value()));
+		assert_eq!(
+			EvmBridgeModule::balance_of(context, alice()),
+			Ok(u128::max_value())
+		);
 
 		assert_eq!(EvmBridgeModule::balance_of(context, bob()), Ok(0));
 	});

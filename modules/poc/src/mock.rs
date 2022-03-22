@@ -2,8 +2,8 @@
 
 use crate as module_poc;
 use frame_support::{construct_runtime, parameter_types};
+pub use primitives::{currency::*, time::*, BlockNumber};
 use sp_runtime::Perbill;
-pub use primitives::{BlockNumber, currency::*, time::*};
 
 type Balance = u64;
 type TechCouncilInstance = pallet_collective::Instance1;
@@ -35,7 +35,6 @@ impl frame_system::Config for Runtime {
 	type SystemWeightInfo = ();
 	type SS58Prefix = ();
 }
-
 
 parameter_types! {
 	pub const ExistentialDeposit: u64 = 1;
@@ -114,14 +113,16 @@ pub fn new_test_ext() -> sp_io::TestExternalities {
 		.unwrap();
 
 	// inject test balances
-	pallet_balances::GenesisConfig::<Runtime>{
+	pallet_balances::GenesisConfig::<Runtime> {
 		balances: vec![
 			(0, 1_000_000), // alice
 			(1, 1_000_000), // bob
 			(2, 1_000_000), // charlie
 			(3, 1_000_000), // eve
 		],
-	}.assimilate_storage(&mut t).unwrap();
+	}
+	.assimilate_storage(&mut t)
+	.unwrap();
 
 	let mut ext = sp_io::TestExternalities::new(t);
 	ext.execute_with(|| System::set_block_number(1));

@@ -35,19 +35,21 @@
 // --output=./frame/assets/src/weights.rs
 // --template=./.maintain/frame-weight-template.hbs
 
-
 #![allow(unused_parens)]
 #![allow(unused_imports)]
 
-use frame_support::{traits::Get, weights::{Weight, constants::RocksDbWeight}};
+use frame_support::{
+	traits::Get,
+	weights::{constants::RocksDbWeight, Weight},
+};
 use sp_std::marker::PhantomData;
 
 /// Weight functions needed for pallet_assets.
 pub trait WeightInfo {
 	fn create() -> Weight;
 	fn force_create() -> Weight;
-	fn destroy(z: u32, ) -> Weight;
-	fn force_destroy(z: u32, ) -> Weight;
+	fn destroy(z: u32) -> Weight;
+	fn force_destroy(z: u32) -> Weight;
 	fn mint() -> Weight;
 	fn burn() -> Weight;
 	fn transfer() -> Weight;
@@ -59,7 +61,7 @@ pub trait WeightInfo {
 	fn transfer_ownership() -> Weight;
 	fn set_team() -> Weight;
 	fn set_max_zombies() -> Weight;
-	fn set_metadata(n: u32, s: u32, ) -> Weight;
+	fn set_metadata(n: u32, s: u32) -> Weight;
 }
 
 /// Weights for pallet_assets using the Substrate node and recommended hardware.
@@ -75,7 +77,7 @@ impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
 			.saturating_add(T::DbWeight::get().reads(1 as Weight))
 			.saturating_add(T::DbWeight::get().writes(1 as Weight))
 	}
-	fn destroy(z: u32, ) -> Weight {
+	fn destroy(z: u32) -> Weight {
 		(0 as Weight)
 			// Standard Error: 2_000
 			.saturating_add((1_149_000 as Weight).saturating_mul(z as Weight))
@@ -83,7 +85,7 @@ impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
 			.saturating_add(T::DbWeight::get().writes(1 as Weight))
 			.saturating_add(T::DbWeight::get().writes((1 as Weight).saturating_mul(z as Weight)))
 	}
-	fn force_destroy(z: u32, ) -> Weight {
+	fn force_destroy(z: u32) -> Weight {
 		(0 as Weight)
 			// Standard Error: 2_000
 			.saturating_add((1_146_000 as Weight).saturating_mul(z as Weight))
@@ -146,7 +148,7 @@ impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
 			.saturating_add(T::DbWeight::get().reads(1 as Weight))
 			.saturating_add(T::DbWeight::get().writes(1 as Weight))
 	}
-	fn set_metadata(n: u32, s: u32, ) -> Weight {
+	fn set_metadata(n: u32, s: u32) -> Weight {
 		(49_456_000 as Weight)
 			// Standard Error: 0
 			.saturating_add((1_000 as Weight).saturating_mul(n as Weight))
@@ -169,7 +171,7 @@ impl WeightInfo for () {
 			.saturating_add(RocksDbWeight::get().reads(1 as Weight))
 			.saturating_add(RocksDbWeight::get().writes(1 as Weight))
 	}
-	fn destroy(z: u32, ) -> Weight {
+	fn destroy(z: u32) -> Weight {
 		(0 as Weight)
 			// Standard Error: 2_000
 			.saturating_add((1_149_000 as Weight).saturating_mul(z as Weight))
@@ -177,7 +179,7 @@ impl WeightInfo for () {
 			.saturating_add(RocksDbWeight::get().writes(1 as Weight))
 			.saturating_add(RocksDbWeight::get().writes((1 as Weight).saturating_mul(z as Weight)))
 	}
-	fn force_destroy(z: u32, ) -> Weight {
+	fn force_destroy(z: u32) -> Weight {
 		(0 as Weight)
 			// Standard Error: 2_000
 			.saturating_add((1_146_000 as Weight).saturating_mul(z as Weight))
@@ -240,7 +242,7 @@ impl WeightInfo for () {
 			.saturating_add(RocksDbWeight::get().reads(1 as Weight))
 			.saturating_add(RocksDbWeight::get().writes(1 as Weight))
 	}
-	fn set_metadata(n: u32, s: u32, ) -> Weight {
+	fn set_metadata(n: u32, s: u32) -> Weight {
 		(49_456_000 as Weight)
 			// Standard Error: 0
 			.saturating_add((1_000 as Weight).saturating_mul(n as Weight))

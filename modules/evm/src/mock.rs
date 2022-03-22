@@ -98,7 +98,8 @@ impl orml_currencies::Config for Test {
 	type GetNativeCurrencyId = GetNativeCurrencyId;
 	type WeightInfo = ();
 }
-pub type AdaptedBasicCurrency = orml_currencies::BasicCurrencyAdapter<Test, Balances, Amount, BlockNumber>;
+pub type AdaptedBasicCurrency =
+	orml_currencies::BasicCurrencyAdapter<Test, Balances, Amount, BlockNumber>;
 
 pub struct GasToWeight;
 
@@ -185,9 +186,10 @@ pub fn charlie() -> H160 {
 	H160::from_str("1000000000000000000000000000000000000003").unwrap()
 }
 
-
 pub fn new_test_ext() -> sp_io::TestExternalities {
-	let mut t = frame_system::GenesisConfig::default().build_storage::<Test>().unwrap();
+	let mut t = frame_system::GenesisConfig::default()
+		.build_storage::<Test>()
+		.unwrap();
 
 	let mut accounts = BTreeMap::new();
 
@@ -236,11 +238,9 @@ pub fn new_test_ext() -> sp_io::TestExternalities {
 	pallet_balances::GenesisConfig::<Test>::default()
 		.assimilate_storage(&mut t)
 		.unwrap();
-	evm_mod::GenesisConfig::<Test> {
-		accounts,
-	}
-	.assimilate_storage(&mut t)
-	.unwrap();
+	evm_mod::GenesisConfig::<Test> { accounts }
+		.assimilate_storage(&mut t)
+		.unwrap();
 
 	let mut ext = sp_io::TestExternalities::new(t);
 	ext.execute_with(|| System::set_block_number(1));

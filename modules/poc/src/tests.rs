@@ -1,7 +1,7 @@
 #![cfg(test)]
 
 use crate::mock::*;
-use frame_support::{assert_ok, assert_err};
+use frame_support::{assert_err, assert_ok};
 
 #[test]
 fn test_setup() {
@@ -42,14 +42,12 @@ fn commits() {
 		);
 
 		// alice commits 100k and votes for bob
-		assert_ok!(
-			Poc::commit(
-				Origin::signed(alice),
-				(100_000 as u64).into(),
-				crate::LockDuration::OneYear,
-				bob,
-			)
-		);
+		assert_ok!(Poc::commit(
+			Origin::signed(alice),
+			(100_000 as u64).into(),
+			crate::LockDuration::OneYear,
+			bob,
+		));
 		assert!(Poc::commitments(alice).state == crate::LockState::Committed);
 
 		// cannot commit again
@@ -64,12 +62,7 @@ fn commits() {
 		);
 
 		// we can however add more funds
-		assert_ok!(
-			Poc::add_funds(
-				Origin::signed(alice),
-				(1_000 as u64).into(),
-			)
-		);
+		assert_ok!(Poc::add_funds(Origin::signed(alice), (1_000 as u64).into(),));
 		let balance = Poc::commitments(alice).amount;
 		assert!(balance as u64 == 101_000 as u64);
 		assert_eq!(Poc::locked_amount(), 101_000 as u64);
@@ -82,14 +75,12 @@ fn withdrawals() {
 		// alice commits for a month
 		let alice = 0 as u64;
 		let bob = 1 as u64;
-		assert_ok!(
-			Poc::commit(
-				Origin::signed(alice),
-				(100_000 as u64).into(),
-				crate::LockDuration::OneMonth,
-				bob,
-			)
-		);
+		assert_ok!(Poc::commit(
+			Origin::signed(alice),
+			(100_000 as u64).into(),
+			crate::LockDuration::OneMonth,
+			bob,
+		));
 
 		// she cannot withdraw an active commitment
 		assert_err!(
@@ -101,10 +92,7 @@ fn withdrawals() {
 		assert_ok!(Poc::unbond(Origin::signed(alice)));
 
 		// her voting power is now 0
-		assert_eq!(
-			Poc::voting_weight(&Poc::commitments(&alice)),
-			0
-		);
+		assert_eq!(Poc::voting_weight(&Poc::commitments(&alice)), 0);
 
 		// still to early to withdraw
 		assert_err!(
@@ -125,14 +113,12 @@ fn withdrawals() {
 		assert_eq!(Poc::commitments(&alice).amount, 0 as u64);
 
 		// alice can make a new commitment
-		assert_ok!(
-			Poc::commit(
-				Origin::signed(alice),
-				(100_000 as u64).into(),
-				crate::LockDuration::OneMonth,
-				bob,
-			)
-		);
+		assert_ok!(Poc::commit(
+			Origin::signed(alice),
+			(100_000 as u64).into(),
+			crate::LockDuration::OneMonth,
+			bob,
+		));
 		assert_eq!(Poc::commitments(&alice).amount, 100_000 as u64);
 		let balance = Balances::free_balance(&alice);
 		assert_eq!(balance, 900_000 as u64);
@@ -147,34 +133,28 @@ fn voting_rewards() {
 		let charlie = 2 as u64;
 
 		// alice commits for a month
-		assert_ok!(
-			Poc::commit(
-				Origin::signed(alice),
-				(100_000 as u64).into(),
-				crate::LockDuration::OneMonth,
-				bob,
-			)
-		);
+		assert_ok!(Poc::commit(
+			Origin::signed(alice),
+			(100_000 as u64).into(),
+			crate::LockDuration::OneMonth,
+			bob,
+		));
 
 		// bob commits for a year
-		assert_ok!(
-			Poc::commit(
-				Origin::signed(bob),
-				(100_000 as u64).into(),
-				crate::LockDuration::OneYear,
-				bob,
-			)
-		);
+		assert_ok!(Poc::commit(
+			Origin::signed(bob),
+			(100_000 as u64).into(),
+			crate::LockDuration::OneYear,
+			bob,
+		));
 
 		// charlie commits for a 10 years
-		assert_ok!(
-			Poc::commit(
-				Origin::signed(charlie),
-				(100_000 as u64).into(),
-				crate::LockDuration::TenYears,
-				bob,
-			)
-		);
+		assert_ok!(Poc::commit(
+			Origin::signed(charlie),
+			(100_000 as u64).into(),
+			crate::LockDuration::TenYears,
+			bob,
+		));
 
 		// all 3 vote
 		assert_ok!(Poc::vote_candidate(Origin::signed(alice), bob));
@@ -260,44 +240,32 @@ fn elections() {
 		assert_ok!(Poc::start_candidacy(Origin::signed(eve)));
 
 		// alice commits for a month
-		assert_ok!(
-			Poc::commit(
-				Origin::signed(alice),
-				(100_000 as u64).into(),
-				crate::LockDuration::OneMonth,
-				alice,
-			)
-		);
+		assert_ok!(Poc::commit(
+			Origin::signed(alice),
+			(100_000 as u64).into(),
+			crate::LockDuration::OneMonth,
+			alice,
+		));
 		// she gets 1x voting power
-		assert_eq!(
-			Poc::voting_weight(&Poc::commitments(&alice)),
-			100_000,
-		);
+		assert_eq!(Poc::voting_weight(&Poc::commitments(&alice)), 100_000,);
 
 		// bob commits for a year
-		assert_ok!(
-			Poc::commit(
-				Origin::signed(bob),
-				(100_000 as u64).into(),
-				crate::LockDuration::OneYear,
-				bob,
-			)
-		);
+		assert_ok!(Poc::commit(
+			Origin::signed(bob),
+			(100_000 as u64).into(),
+			crate::LockDuration::OneYear,
+			bob,
+		));
 		// he gets 10x voting power
-		assert_eq!(
-			Poc::voting_weight(&Poc::commitments(&bob)),
-			10 * 100_000,
-		);
+		assert_eq!(Poc::voting_weight(&Poc::commitments(&bob)), 10 * 100_000,);
 
 		// charlie commits for 10 years
-		assert_ok!(
-			Poc::commit(
-				Origin::signed(charlie),
-				(100_000 as u64).into(),
-				crate::LockDuration::TenYears,
-				charlie,
-			)
-		);
+		assert_ok!(Poc::commit(
+			Origin::signed(charlie),
+			(100_000 as u64).into(),
+			crate::LockDuration::TenYears,
+			charlie,
+		));
 		// he gets 100x voting power
 		assert_eq!(
 			Poc::voting_weight(&Poc::commitments(&charlie)),
@@ -305,18 +273,13 @@ fn elections() {
 		);
 
 		// eve votes most heavily for non-candidate
-		assert_ok!(
-			Poc::commit(
-				Origin::signed(eve),
-				(200_000 as u64).into(),
-				crate::LockDuration::TenYears,
-				nobody,
-			)
-		);
-		assert_eq!(
-			Poc::voting_weight(&Poc::commitments(&eve)),
-			100 * 200_000,
-		);
+		assert_ok!(Poc::commit(
+			Origin::signed(eve),
+			(200_000 as u64).into(),
+			crate::LockDuration::TenYears,
+			nobody,
+		));
+		assert_eq!(Poc::voting_weight(&Poc::commitments(&eve)), 100 * 200_000,);
 
 		// check current supply for rewards = 4m - 500k committed
 		let total_supply = Balances::total_issuance();
@@ -326,14 +289,8 @@ fn elections() {
 		run_blocks(7 * HOURS);
 
 		// winners (non-candidate not included)
-		assert_eq!(
-			Poc::members(),
-			vec![alice, bob, charlie]
-		);
-		assert_eq!(
-			TechCouncil::members(),
-			vec![alice, bob, charlie]
-		);
+		assert_eq!(Poc::members(), vec![alice, bob, charlie]);
+		assert_eq!(TechCouncil::members(), vec![alice, bob, charlie]);
 
 		// check rewards
 		// In [1]: (7/(24*365)) * (3_500_000 * 0.01)
@@ -355,14 +312,8 @@ fn elections() {
 		run_blocks(7 * HOURS);
 
 		// winners (alice falls out)
-		assert_eq!(
-			Poc::members(),
-			vec![bob, charlie, eve]
-		);
-		assert_eq!(
-			TechCouncil::members(),
-			vec![bob, charlie, eve]
-		);
+		assert_eq!(Poc::members(), vec![bob, charlie, eve]);
+		assert_eq!(TechCouncil::members(), vec![bob, charlie, eve]);
 
 		// rewards
 		assert_eq!(Balances::free_balance(&alice), 650_009 as u64);
@@ -375,7 +326,6 @@ fn elections() {
 		// assert_ok!(Poc::unbond(Origin::signed(bob)));
 	});
 }
-
 
 fn run_blocks(n: u32) {
 	use frame_support::traits::OnInitialize;

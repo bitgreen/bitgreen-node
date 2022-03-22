@@ -10,11 +10,8 @@ use crate::is_core_precompile;
 use frame_support::debug;
 use module_evm::{
 	precompiles::{
-		Precompile, Precompiles, EvmPrecompiles,
-		Identity,
-		Ripemd160, Sha256,
-		Sha3FIPS256, Sha3FIPS512,
-		ECRecover, ECRecoverPublicKey,
+		ECRecover, ECRecoverPublicKey, EvmPrecompiles, Identity, Precompile, Precompiles,
+		Ripemd160, Sha256, Sha3FIPS256, Sha3FIPS512,
 	},
 	Context, ExitError, ExitSucceed,
 };
@@ -70,9 +67,15 @@ impl<
 		target_gas: Option<u64>,
 		context: &Context,
 	) -> Option<core::result::Result<(ExitSucceed, Vec<u8>, u64), ExitError>> {
-		EvmPrecompiles::<ECRecover, Sha256, Ripemd160, Identity, ECRecoverPublicKey, Sha3FIPS256, Sha3FIPS512>::execute(
-			address, input, target_gas, context,
-		)
+		EvmPrecompiles::<
+			ECRecover,
+			Sha256,
+			Ripemd160,
+			Identity,
+			ECRecoverPublicKey,
+			Sha3FIPS256,
+			Sha3FIPS512,
+		>::execute(address, input, target_gas, context)
 		.or_else(|| {
 			if is_core_precompile(address) && !PrecompileCallerFilter::is_allowed(context.caller) {
 				debug::debug!(target: "evm", "Precompile no permission");

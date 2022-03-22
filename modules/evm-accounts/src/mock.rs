@@ -89,7 +89,8 @@ impl orml_currencies::Config for Runtime {
 	type GetNativeCurrencyId = GetNativeCurrencyId;
 	type WeightInfo = ();
 }
-pub type AdaptedBasicCurrency = orml_currencies::BasicCurrencyAdapter<Runtime, Balances, Amount, BlockNumber>;
+pub type AdaptedBasicCurrency =
+	orml_currencies::BasicCurrencyAdapter<Runtime, Balances, Amount, BlockNumber>;
 
 pub struct EvmAccountsOnClaimHandler;
 impl evm_accounts::Handler<AccountId> for EvmAccountsOnClaimHandler {

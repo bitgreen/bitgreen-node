@@ -1,6 +1,5 @@
-use structopt::StructOpt;
 use sc_cli::RunCmd;
-
+use structopt::StructOpt;
 
 #[derive(Debug, StructOpt)]
 pub struct Cli {
@@ -22,7 +21,6 @@ pub enum Subcommand {
 	// 	about = "Decode given block or extrinsic using current native runtime."
 	// )]
 	// Inspect(inspect::cli::InspectCmd),
-
 	/// Verify a signature for a message, provided on STDIN, with a given
 	/// (public or secret) key.
 	Verify(sc_cli::VerifyCmd),

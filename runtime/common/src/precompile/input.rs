@@ -66,7 +66,10 @@ where
 		let start = PER_PARAM_BYTES * n;
 		let end = start + PER_PARAM_BYTES;
 
-		ensure!(end <= self.content.len(), ExitError::Other("invalid input".into()));
+		ensure!(
+			end <= self.content.len(),
+			ExitError::Other("invalid input".into())
+		);
 
 		Ok(&self.content[start..end])
 	}
@@ -246,7 +249,10 @@ mod tests {
 		let mut raw_input = [0u8; 32];
 		raw_input[30] = 1;
 		let input = TestInput::new(&raw_input[..]);
-		assert_ok!(input.currency_id_at(0), CurrencyId::Token(TokenSymbol::USDG));
+		assert_ok!(
+			input.currency_id_at(0),
+			CurrencyId::Token(TokenSymbol::USDG)
+		);
 	}
 
 	#[test]

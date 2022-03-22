@@ -3,8 +3,8 @@ pub mod storage_meter;
 
 use crate::{AddressMapping, BalanceOf, CallInfo, Config, CreateInfo, Error, Pallet, Vicinity};
 use evm::{CreateScheme, ExitError, ExitReason};
-use evm_runtime::Handler as HandlerT;
 use evm_gasometer::{self as gasometer};
+use evm_runtime::Handler as HandlerT;
 use frame_support::{
 	debug,
 	traits::{Currency, ExistenceRequirement, Get},
@@ -12,7 +12,9 @@ use frame_support::{
 use handler::Handler;
 use primitive_types::{H160, H256, U256};
 use sha3::{Digest, Keccak256};
-use sp_runtime::{traits::Zero, DispatchError, DispatchResult, SaturatedConversion, TransactionOutcome};
+use sp_runtime::{
+	traits::Zero, DispatchError, DispatchResult, SaturatedConversion, TransactionOutcome,
+};
 use sp_std::{marker::PhantomData, vec::Vec};
 
 #[derive(Default)]
@@ -77,7 +79,11 @@ impl<T: Config> Runner<T> {
 				}
 
 				let transaction_cost = gasometer::call_transaction_cost(&init);
-				if substate.gasometer.record_transaction(transaction_cost).is_err() {
+				if substate
+					.gasometer
+					.record_transaction(transaction_cost)
+					.is_err()
+				{
 					return TransactionOutcome::Rollback(Err(DispatchError::Other("OutOfGas")));
 				}
 
@@ -179,45 +185,64 @@ impl<T: Config> Runner<T> {
 
 		// if the contract not deployed, the caller must be developer or contract.
 		// if the contract not exists, let evm try to execute it and handle the error.
-		if Handler::<T>::is_undeployed_contract(&target) && !Handler::<T>::has_permission_to_call(&sender) {
+		if Handler::<T>::is_undeployed_contract(&target)
+			&& !Handler::<T>::has_permission_to_call(&sender)
+		{
 			return Err(Error::<T>::NoPermission.into());
 		}
 
 		Handler::<T>::inc_nonce(sender);
 
-		Handler::<T>::run_transaction(&vicinity, gas_limit, storage_limit, target, false, config, |substate| {
-			if let Err(e) = Self::transfer(sender, target, value) {
-				return TransactionOutcome::Rollback(Err(e));
-			}
+		Handler::<T>::run_transaction(
+			&vicinity,
+			gas_limit,
+			storage_limit,
+			target,
+			false,
+			config,
+			|substate| {
+				if let Err(e) = Self::transfer(sender, target, value) {
+					return TransactionOutcome::Rollback(Err(e));
+				}
 
-			let code = substate.code(target);
-			let transaction_cost = gasometer::call_transaction_cost(&code);
-			if substate.gasometer.record_transaction(transaction_cost).is_err() {
-				return TransactionOutcome::Rollback(Err(DispatchError::Other("OutOfGas")));
-			}
+				let code = substate.code(target);
+				let transaction_cost = gasometer::call_transaction_cost(&code);
+				if substate
+					.gasometer
+					.record_transaction(transaction_cost)
+					.is_err()
+				{
+					return TransactionOutcome::Rollback(Err(DispatchError::Other("OutOfGas")));
+				}
 
-			let (reason, out) =
-				substate.execute(sender, target, U256::from(value.saturated_into::<u128>()), code, input);
+				let (reason, out) = substate.execute(
+					sender,
+					target,
+					U256::from(value.saturated_into::<u128>()),
+					code,
+					input,
+				);
 
-			let call_info = CallInfo {
-				exit_reason: reason.clone(),
-				output: out,
-				used_gas: U256::from(substate.used_gas()),
-				used_storage: substate.used_storage(),
-			};
+				let call_info = CallInfo {
+					exit_reason: reason.clone(),
+					output: out,
+					used_gas: U256::from(substate.used_gas()),
+					used_storage: substate.used_storage(),
+				};
 
-			debug::debug!(
-				target: "evm",
-				"call-result: call_info {:?}",
-				call_info
-			);
+				debug::debug!(
+					target: "evm",
+					"call-result: call_info {:?}",
+					call_info
+				);
 
-			if !reason.is_succeed() {
-				return TransactionOutcome::Rollback(Ok(call_info));
-			}
+				if !reason.is_succeed() {
+					return TransactionOutcome::Rollback(Ok(call_info));
+				}
 
-			TransactionOutcome::Commit(Ok(call_info))
-		})?
+				TransactionOutcome::Commit(Ok(call_info))
+			},
+		)?
 	}
 
 	pub fn create(

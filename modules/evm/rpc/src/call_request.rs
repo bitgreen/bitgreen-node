@@ -1,5 +1,5 @@
 use ethereum_types::{H160, U256};
- use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Serialize};
 use sp_core::Bytes;
 use sp_rpc::number::NumberOrHex;
 
@@ -22,7 +22,7 @@ pub struct CallRequest {
 	pub data: Option<Bytes>,
 }
 
- /// EstimateResources response
+/// EstimateResources response
 #[derive(Debug, Eq, PartialEq, Default, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct EstimateResourcesResponse {

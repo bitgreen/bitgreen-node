@@ -7,29 +7,24 @@
 
 use std::sync::Arc;
 
-use sp_api::ProvideRuntimeApi;
-use sp_blockchain::{Error as BlockChainError, HeaderMetadata, HeaderBackend};
-use sp_block_builder::BlockBuilder;
 pub use sc_rpc_api::DenyUnsafe;
+use sp_api::ProvideRuntimeApi;
+use sp_block_builder::BlockBuilder;
+use sp_blockchain::{Error as BlockChainError, HeaderBackend, HeaderMetadata};
 use sp_transaction_pool::TransactionPool;
 
-use bitg_runtime::{
-	AccountId, Balance, Nonce, BlockNumber, Hash,opaque::Block,
-};
+use bitg_runtime::{opaque::Block, AccountId, Balance, BlockNumber, Hash, Nonce};
 
 use pallet_contracts_rpc::{Contracts, ContractsApi};
 
+pub use evm_rpc::{EVMApi, EVMApiServer, EVMRuntimeRPCApi};
 use sc_consensus_babe::{Config, Epoch};
-use sp_keystore::SyncCryptoStorePtr;
 use sc_consensus_epochs::SharedEpochChanges;
 use sc_finality_grandpa::{
-	FinalityProofProvider,
-	GrandpaJustificationStream,
-	SharedAuthoritySet,
-	SharedVoterState
+	FinalityProofProvider, GrandpaJustificationStream, SharedAuthoritySet, SharedVoterState,
 };
-pub use evm_rpc::{EVMApi, EVMApiServer, EVMRuntimeRPCApi};
 pub use sc_rpc::SubscriptionTaskExecutor;
+use sp_keystore::SyncCryptoStorePtr;
 
 /// Extra dependencies for BABE.
 pub struct BabeDeps {
@@ -74,9 +69,10 @@ pub struct FullDeps<C, P, SC, B> {
 /// Instantiate all full RPC extensions.
 pub fn create_full<C, P, SC, B>(
 	deps: FullDeps<C, P, SC, B>,
-) -> jsonrpc_core::IoHandler<sc_rpc::Metadata> where
+) -> jsonrpc_core::IoHandler<sc_rpc::Metadata>
+where
 	C: ProvideRuntimeApi<Block>,
-	C: HeaderBackend<Block> + HeaderMetadata<Block, Error=BlockChainError> + 'static,
+	C: HeaderBackend<Block> + HeaderMetadata<Block, Error = BlockChainError> + 'static,
 	C: Send + Sync + 'static,
 	C::Api: substrate_frame_rpc_system::AccountNonceApi<Block, AccountId, Nonce>,
 	C::Api: pallet_contracts_rpc::ContractsRuntimeApi<Block, AccountId, Balance, BlockNumber>, // Contracts pallet RPC calls
@@ -89,12 +85,11 @@ pub fn create_full<C, P, SC, B>(
 	B: sc_client_api::Backend<Block> + Send + Sync + 'static,
 	B::State: sc_client_api::StateBackend<sp_runtime::traits::HashFor<Block>>,
 {
-	use substrate_frame_rpc_system::{FullSystem, SystemApi};
 	use pallet_transaction_payment_rpc::{TransactionPayment, TransactionPaymentApi};
+	use substrate_frame_rpc_system::{FullSystem, SystemApi};
 
 	use sc_consensus_babe_rpc::BabeRpcHandler;
 	use sc_finality_grandpa_rpc::{GrandpaApi, GrandpaRpcHandler};
-
 
 	let mut io = jsonrpc_core::IoHandler::default();
 	let FullDeps {
@@ -118,32 +113,33 @@ pub fn create_full<C, P, SC, B>(
 		finality_provider,
 	} = grandpa;
 
+	io.extend_with(SystemApi::to_delegate(FullSystem::new(
+		client.clone(),
+		pool,
+		deny_unsafe,
+	)));
 
-	io.extend_with(
-		SystemApi::to_delegate(FullSystem::new(client.clone(), pool, deny_unsafe))
-	);
-
-	io.extend_with(
-		TransactionPaymentApi::to_delegate(TransactionPayment::new(client.clone()))
-	);
+	io.extend_with(TransactionPaymentApi::to_delegate(TransactionPayment::new(
+		client.clone(),
+	)));
 	// contracts pallet extension
-	io.extend_with(
-        ContractsApi::to_delegate(Contracts::new(client.clone()))
-    );
+	io.extend_with(ContractsApi::to_delegate(Contracts::new(client.clone())));
 
 	// Extend this RPC with a custom API by using the following syntax.
 	// `YourRpcStruct` should have a reference to a client, which is needed
 	// to call into the runtime.
 	// `io.extend_with(YourRpcTrait::to_delegate(YourRpcStruct::new(ReferenceToClient, ...)));`
 
-	io.extend_with(sc_consensus_babe_rpc::BabeApi::to_delegate(BabeRpcHandler::new(
-		client.clone(),
-		shared_epoch_changes,
-		keystore,
-		babe_config,
-		select_chain,
-		deny_unsafe,
-	)));
+	io.extend_with(sc_consensus_babe_rpc::BabeApi::to_delegate(
+		BabeRpcHandler::new(
+			client.clone(),
+			shared_epoch_changes,
+			keystore,
+			babe_config,
+			select_chain,
+			deny_unsafe,
+		),
+	));
 	io.extend_with(GrandpaApi::to_delegate(GrandpaRpcHandler::new(
 		shared_authority_set,
 		shared_voter_state,

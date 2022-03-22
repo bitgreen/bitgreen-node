@@ -61,7 +61,7 @@ pub mod time {
 	pub const SECS_PER_BLOCK: Moment = 10;
 	pub const MILLISECS_PER_BLOCK: Moment = SECS_PER_BLOCK * 1000;
 
-	// These time units are defined in number of blocks.  
+	// These time units are defined in number of blocks.
 	pub const MINUTES: BlockNumber = 60 / (SECS_PER_BLOCK as BlockNumber);
 	pub const HOURS: BlockNumber = MINUTES * 60;
 	pub const DAYS: BlockNumber = HOURS * 24;
@@ -75,7 +75,6 @@ pub mod time {
 		(EPOCH_DURATION_IN_BLOCKS as f64 * SLOT_FILL_RATE) as u64
 	};
 }
-
 
 /// An index to a block.
 pub type BlockNumber = u32;
@@ -165,9 +164,10 @@ impl CurrencyId {
 
 	pub fn split_dex_share_currency_id(&self) -> Option<(Self, Self)> {
 		match self {
-			CurrencyId::DEXShare(token_symbol_0, token_symbol_1) => {
-				Some((CurrencyId::Token(*token_symbol_0), CurrencyId::Token(*token_symbol_1)))
-			}
+			CurrencyId::DEXShare(token_symbol_0, token_symbol_1) => Some((
+				CurrencyId::Token(*token_symbol_0),
+				CurrencyId::Token(*token_symbol_1),
+			)),
 			_ => None,
 		}
 	}
@@ -227,7 +227,6 @@ impl From<CurrencyId> for [u8; 32] {
 		bytes
 	}
 }
-
 
 #[derive(Encode, Decode, Eq, PartialEq, Copy, Clone, RuntimeDebug, PartialOrd, Ord)]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]

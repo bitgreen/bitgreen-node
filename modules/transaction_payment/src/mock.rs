@@ -4,14 +4,14 @@
 
 use super::*;
 use crate as transaction_payment;
-use frame_support::{construct_runtime, ord_parameter_types, parameter_types, weights::WeightToFeeCoefficients};
+use frame_support::{
+	construct_runtime, ord_parameter_types, parameter_types, weights::WeightToFeeCoefficients,
+};
 use orml_traits::parameter_type_with_key;
 use primitives::{evm::EvmAddress, mocks::MockAddressMapping, Amount, TokenSymbol};
 use smallvec::smallvec;
 use sp_core::{crypto::AccountId32, H256};
-use sp_runtime::{
-	testing::Header, traits::IdentityLookup, DispatchError, DispatchResult, Perbill,
-};
+use sp_runtime::{testing::Header, traits::IdentityLookup, DispatchError, DispatchResult, Perbill};
 use sp_std::cell::RefCell;
 use support::{EVMBridge, InvokeContext};
 
@@ -99,7 +99,8 @@ impl pallet_balances::Config for Runtime {
 	type WeightInfo = ();
 }
 
-pub type AdaptedBasicCurrency = module_currencies::BasicCurrencyAdapter<Runtime, PalletBalances, Amount, BlockNumber>;
+pub type AdaptedBasicCurrency =
+	module_currencies::BasicCurrencyAdapter<Runtime, PalletBalances, Amount, BlockNumber>;
 
 pub struct MockEVMBridge;
 impl<AccountId, Balance> EVMBridge<AccountId, Balance> for MockEVMBridge

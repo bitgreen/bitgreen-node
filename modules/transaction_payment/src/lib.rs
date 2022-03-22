@@ -12,7 +12,10 @@ use frame_support::debug;
 use frame_support::{
 	dispatch::{DispatchResult, Dispatchable},
 	pallet_prelude::*,
-	traits::{Currency, ExistenceRequirement, Imbalance, OnUnbalanced, ReservableCurrency, WithdrawReasons},
+	traits::{
+		Currency, ExistenceRequirement, Imbalance, OnUnbalanced, ReservableCurrency,
+		WithdrawReasons,
+	},
 	weights::{DispatchInfo, GetDispatchInfo, Pays, PostDispatchInfo, WeightToFeePolynomial},
 };
 use frame_system::pallet_prelude::*;
@@ -22,16 +25,17 @@ use pallet_transaction_payment_rpc_runtime_api::{FeeDetails, InclusionFee};
 use primitives::{Balance, CurrencyId};
 use sp_runtime::{
 	traits::{
-		CheckedSub, Convert, DispatchInfoOf, PostDispatchInfoOf, SaturatedConversion, Saturating, SignedExtension,
-		Zero,
+		CheckedSub, Convert, DispatchInfoOf, PostDispatchInfoOf, SaturatedConversion, Saturating,
+		SignedExtension, Zero,
 	},
 	transaction_validity::{
-		InvalidTransaction, TransactionPriority, TransactionValidity, TransactionValidityError, ValidTransaction,
+		InvalidTransaction, TransactionPriority, TransactionValidity, TransactionValidityError,
+		ValidTransaction,
 	},
 	FixedPointNumber, FixedPointOperand, FixedU128, Perquintill,
 };
 use sp_std::{prelude::*, vec};
-use support::{TransactionPayment};
+use support::TransactionPayment;
 
 mod default_weight;
 mod mock;
@@ -47,9 +51,11 @@ pub trait WeightInfo {
 /// Fee multiplier.
 pub type Multiplier = FixedU128;
 
-type PalletBalanceOf<T> = <<T as Config>::Currency as Currency<<T as frame_system::Config>::AccountId>>::Balance;
-type NegativeImbalanceOf<T> =
-	<<T as Config>::Currency as Currency<<T as frame_system::Config>::AccountId>>::NegativeImbalance;
+type PalletBalanceOf<T> =
+	<<T as Config>::Currency as Currency<<T as frame_system::Config>::AccountId>>::Balance;
+type NegativeImbalanceOf<T> = <<T as Config>::Currency as Currency<
+	<T as frame_system::Config>::AccountId,
+>>::NegativeImbalance;
 
 /// A struct to update the weight multiplier per block. It implements
 /// `Convert<Multiplier, Multiplier>`, meaning that it can convert the
@@ -163,7 +169,9 @@ where
 			.max_total
 			.unwrap_or(weights.max_block);
 		let current_block_weight = <frame_system::Module<T>>::block_weight();
-		let normal_block_weight = *current_block_weight.get(DispatchClass::Normal).min(&normal_max_weight);
+		let normal_block_weight = *current_block_weight
+			.get(DispatchClass::Normal)
+			.min(&normal_max_weight);
 
 		let s = S::get();
 		let v = V::get();
@@ -186,11 +194,15 @@ where
 		let second_term = v_squared_2.saturating_mul(diff_squared);
 
 		if positive {
-			let excess = first_term.saturating_add(second_term).saturating_mul(previous);
+			let excess = first_term
+				.saturating_add(second_term)
+				.saturating_mul(previous);
 			previous.saturating_add(excess).max(min_multiplier)
 		} else {
 			// Defensive-only: first_term > second_term. Safe subtraction.
-			let negative = first_term.saturating_sub(second_term).saturating_mul(previous);
+			let negative = first_term
+				.saturating_sub(second_term)
+				.saturating_mul(previous);
 			previous.saturating_sub(negative).max(min_multiplier)
 		}
 	}
@@ -219,7 +231,11 @@ pub mod module {
 		type Currency: Currency<Self::AccountId> + ReservableCurrency<Self::AccountId> + Send + Sync;
 
 		/// Currency to transfer, reserve/unreserve, lock/unlock assets
-		type MultiCurrency: MultiCurrency<Self::AccountId, CurrencyId = CurrencyId, Balance = Balance>;
+		type MultiCurrency: MultiCurrency<
+			Self::AccountId,
+			CurrencyId = CurrencyId,
+			Balance = Balance,
+		>;
 
 		/// Handler for the unbalanced reduction when taking transaction fees.
 		/// This is either one or two separate imbalances, the first is the
@@ -249,11 +265,13 @@ pub mod module {
 
 	#[pallet::storage]
 	#[pallet::getter(fn next_fee_multiplier)]
-	pub type NextFeeMultiplier<T: Config> = StorageValue<_, Multiplier, ValueQuery, DefaultFeeMultiplier>;
+	pub type NextFeeMultiplier<T: Config> =
+		StorageValue<_, Multiplier, ValueQuery, DefaultFeeMultiplier>;
 
 	#[pallet::storage]
 	#[pallet::getter(fn default_fee_currency_id)]
-	pub type DefaultFeeCurrencyId<T: Config> = StorageMap<_, Twox64Concat, T::AccountId, CurrencyId, OptionQuery>;
+	pub type DefaultFeeCurrencyId<T: Config> =
+		StorageMap<_, Twox64Concat, T::AccountId, CurrencyId, OptionQuery>;
 
 	#[pallet::pallet]
 	pub struct Pallet<T>(PhantomData<T>);
@@ -279,7 +297,10 @@ pub mod module {
 			use sp_std::convert::TryInto;
 			assert!(
 				<Multiplier as sp_runtime::traits::Bounded>::max_value()
-					>= Multiplier::checked_from_integer(T::BlockWeights::get().max_block.try_into().unwrap()).unwrap(),
+					>= Multiplier::checked_from_integer(
+						T::BlockWeights::get().max_block.try_into().unwrap()
+					)
+					.unwrap(),
 			);
 
 			// This is the minimum value of the multiplier. Make sure that if we collapse to
@@ -288,10 +309,13 @@ pub mod module {
 			// weight value which is 1% more than the target.
 			let min_value = T::FeeMultiplierUpdate::min();
 			let mut target = T::FeeMultiplierUpdate::target()
-				* T::BlockWeights::get().get(DispatchClass::Normal).max_total.expect(
-					"Setting `max_total` for `Normal` dispatch class is not compatible with \
+				* T::BlockWeights::get()
+					.get(DispatchClass::Normal)
+					.max_total
+					.expect(
+						"Setting `max_total` for `Normal` dispatch class is not compatible with \
 					`transaction-payment` module.",
-				);
+					);
 
 			// add 1 percent;
 			let addition = target / 100;
@@ -464,7 +488,8 @@ where
 		tip: PalletBalanceOf<T>,
 	) -> PalletBalanceOf<T>
 	where
-		<T as frame_system::Config>::Call: Dispatchable<Info = DispatchInfo, PostInfo = PostDispatchInfo>,
+		<T as frame_system::Config>::Call:
+			Dispatchable<Info = DispatchInfo, PostInfo = PostDispatchInfo>,
 	{
 		Self::compute_actual_fee_details(len, info, post_info, tip).final_fee()
 	}
@@ -513,12 +538,20 @@ where
 		T::WeightToFee::calc(&capped_weight)
 	}
 
-	pub fn ensure_can_charge_fee(who: &T::AccountId, fee: PalletBalanceOf<T>, reason: WithdrawReasons) {
+	pub fn ensure_can_charge_fee(
+		who: &T::AccountId,
+		fee: PalletBalanceOf<T>,
+		reason: WithdrawReasons,
+	) {
 		let native_currency_id = T::NativeCurrencyId::get();
 		let other_currency_ids = T::AllNonNativeCurrencyIds::get();
 		let mut charge_fee_order: Vec<CurrencyId> =
 			if let Some(default_fee_currency_id) = DefaultFeeCurrencyId::<T>::get(who) {
-				vec![vec![default_fee_currency_id, native_currency_id], other_currency_ids].concat()
+				vec![
+					vec![default_fee_currency_id, native_currency_id],
+					other_currency_ids,
+				]
+				.concat()
 			} else {
 				vec![vec![native_currency_id], other_currency_ids].concat()
 			};
@@ -530,12 +563,17 @@ where
 		for currency_id in charge_fee_order {
 			if currency_id == native_currency_id {
 				// check native balance if is enough
-				let native_is_enough =
-					<T as Config>::Currency::free_balance(who)
-						.checked_sub(&fee)
-						.map_or(false, |new_free_balance| {
-							<T as Config>::Currency::ensure_can_withdraw(who, fee, reason, new_free_balance).is_ok()
-						});
+				let native_is_enough = <T as Config>::Currency::free_balance(who)
+					.checked_sub(&fee)
+					.map_or(false, |new_free_balance| {
+						<T as Config>::Currency::ensure_can_withdraw(
+							who,
+							fee,
+							reason,
+							new_free_balance,
+						)
+						.is_ok()
+					});
 				if native_is_enough {
 					// native balance is enough, break iteration
 					break;
@@ -547,7 +585,7 @@ where
 				// } else {
 				// 	vec![currency_id, stable_currency_id, native_currency_id]
 				// };
-                //
+				//
 				// if T::DEX::swap_with_exact_target(
 				// 	who,
 				// 	&trading_path,
@@ -599,7 +637,8 @@ impl<T: Config + Send + Sync> sp_std::fmt::Debug for ChargeTransactionPayment<T>
 
 impl<T: Config + Send + Sync> ChargeTransactionPayment<T>
 where
-	<T as frame_system::Config>::Call: Dispatchable<Info = DispatchInfo, PostInfo = PostDispatchInfo>,
+	<T as frame_system::Config>::Call:
+		Dispatchable<Info = DispatchInfo, PostInfo = PostDispatchInfo>,
 	PalletBalanceOf<T>: Send + Sync + FixedPointOperand,
 {
 	/// utility constructor. Used only in client/factory code.
@@ -665,7 +704,8 @@ where
 impl<T: Config + Send + Sync> SignedExtension for ChargeTransactionPayment<T>
 where
 	PalletBalanceOf<T>: Send + Sync + From<u64> + FixedPointOperand,
-	<T as frame_system::Config>::Call: Dispatchable<Info = DispatchInfo, PostInfo = PostDispatchInfo>,
+	<T as frame_system::Config>::Call:
+		Dispatchable<Info = DispatchInfo, PostInfo = PostDispatchInfo>,
 {
 	const IDENTIFIER: &'static str = "ChargeTransactionPayment";
 	type AccountId = T::AccountId;
@@ -718,7 +758,8 @@ where
 		if let Some(payed) = imbalance {
 			let actual_fee = Module::<T>::compute_actual_fee(len as u32, info, post_info, tip);
 			let refund = fee.saturating_sub(actual_fee);
-			let actual_payment = match <T as Config>::Currency::deposit_into_existing(&who, refund) {
+			let actual_payment = match <T as Config>::Currency::deposit_into_existing(&who, refund)
+			{
 				Ok(refund_imbalance) => {
 					// The refund cannot be larger than the up front payed max weight.
 					// `PostDispatchInfo::calc_unspent` guards against such a case.
@@ -742,12 +783,16 @@ where
 	}
 }
 
-impl<T: Config + Send + Sync> TransactionPayment<T::AccountId, PalletBalanceOf<T>, NegativeImbalanceOf<T>>
+impl<T: Config + Send + Sync>
+	TransactionPayment<T::AccountId, PalletBalanceOf<T>, NegativeImbalanceOf<T>>
 	for ChargeTransactionPayment<T>
 where
 	PalletBalanceOf<T>: Send + Sync + FixedPointOperand,
 {
-	fn reserve_fee(who: &T::AccountId, weight: Weight) -> Result<PalletBalanceOf<T>, DispatchError> {
+	fn reserve_fee(
+		who: &T::AccountId,
+		weight: Weight,
+	) -> Result<PalletBalanceOf<T>, DispatchError> {
 		let fee = Module::<T>::weight_to_fee(weight);
 		Module::<T>::ensure_can_charge_fee(who, fee, WithdrawReasons::TRANSACTION_PAYMENT);
 		<T as Config>::Currency::reserve(&who, fee)?;
@@ -797,7 +842,9 @@ where
 		let imbalances = actual_payment.split(Zero::zero());
 
 		// distribute fee
-		<T as Config>::OnTransactionPayment::on_unbalanceds(Some(imbalances.0).into_iter().chain(Some(imbalances.1)));
+		<T as Config>::OnTransactionPayment::on_unbalanceds(
+			Some(imbalances.0).into_iter().chain(Some(imbalances.1)),
+		);
 
 		Ok(())
 	}

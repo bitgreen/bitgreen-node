@@ -3,8 +3,7 @@ use super::*;
 use crate::precompile::{
 	mock::{
 		alice, bob, get_task_id, new_test_ext, run_to_block, Balances, Event as TestEvent,
-		ScheduleCallPrecompile, System, Test,
-		BBB_ERC20_ADDRESS,
+		ScheduleCallPrecompile, System, Test, BBB_ERC20_ADDRESS,
 	},
 	schedule_call::TaskInfo,
 };
@@ -25,12 +24,8 @@ impl Precompile for DummyPrecompile {
 	}
 }
 
-pub type WithSystemContractFilter = AllPrecompiles<
-	crate::SystemContractsFilter,
-	DummyPrecompile,
-	DummyPrecompile,
-	DummyPrecompile,
->;
+pub type WithSystemContractFilter =
+	AllPrecompiles<crate::SystemContractsFilter, DummyPrecompile, DummyPrecompile, DummyPrecompile>;
 
 #[test]
 fn precompile_filter_works_on_core_precompiles() {
@@ -62,9 +57,13 @@ fn precompile_filter_does_not_work_on_system_contracts() {
 		caller: non_system.into(),
 		apparent_value: 0.into(),
 	};
-	assert!(
-		WithSystemContractFilter::execute(non_system.into(), &[0u8; 1], None, &non_system_caller_context).is_none()
-	);
+	assert!(WithSystemContractFilter::execute(
+		non_system.into(),
+		&[0u8; 1],
+		None,
+		&non_system_caller_context
+	)
+	.is_none());
 }
 
 #[test]
@@ -79,11 +78,14 @@ fn precompile_filter_does_not_work_on_non_system_contracts() {
 		caller: another_non_system.into(),
 		apparent_value: 0.into(),
 	};
-	assert!(
-		WithSystemContractFilter::execute(non_system.into(), &[0u8; 1], None, &non_system_caller_context).is_none()
-	);
+	assert!(WithSystemContractFilter::execute(
+		non_system.into(),
+		&[0u8; 1],
+		None,
+		&non_system_caller_context
+	)
+	.is_none());
 }
-
 
 #[test]
 fn schedule_call_precompile_should_work() {
@@ -127,7 +129,8 @@ fn schedule_call_precompile_should_work() {
 		U256::from(&transfer_to_bob[32..64]).to_big_endian(&mut input[10 * 32..11 * 32]);
 		input[11 * 32..11 * 32 + 4].copy_from_slice(&transfer_to_bob[64..68]);
 
-		let (reason, output, used_gas) = ScheduleCallPrecompile::execute(&input, None, &context).unwrap();
+		let (reason, output, used_gas) =
+			ScheduleCallPrecompile::execute(&input, None, &context).unwrap();
 		assert_eq!(reason, ExitSucceed::Returned);
 		assert_eq!(used_gas, 0);
 		let event = TestEvent::pallet_scheduler(pallet_scheduler::RawEvent::Scheduled(3, 0));
@@ -147,13 +150,15 @@ fn schedule_call_precompile_should_work() {
 		// task_id
 		cancel_input[4 * 32..4 * 32 + task_id.len()].copy_from_slice(&task_id[..]);
 
-		let (reason, _output, used_gas) = ScheduleCallPrecompile::execute(&cancel_input, None, &context).unwrap();
+		let (reason, _output, used_gas) =
+			ScheduleCallPrecompile::execute(&cancel_input, None, &context).unwrap();
 		assert_eq!(reason, ExitSucceed::Returned);
 		assert_eq!(used_gas, 0);
 		let event = TestEvent::pallet_scheduler(pallet_scheduler::RawEvent::Canceled(3, 0));
 		assert!(System::events().iter().any(|record| record.event == event));
 
-		let (reason, output, used_gas) = ScheduleCallPrecompile::execute(&input, None, &context).unwrap();
+		let (reason, output, used_gas) =
+			ScheduleCallPrecompile::execute(&input, None, &context).unwrap();
 		assert_eq!(reason, ExitSucceed::Returned);
 		assert_eq!(used_gas, 0);
 
@@ -175,7 +180,8 @@ fn schedule_call_precompile_should_work() {
 		// task_id
 		reschedule_input[5 * 32..5 * 32 + task_id.len()].copy_from_slice(&task_id[..]);
 
-		let (reason, _output, used_gas) = ScheduleCallPrecompile::execute(&reschedule_input, None, &context).unwrap();
+		let (reason, _output, used_gas) =
+			ScheduleCallPrecompile::execute(&reschedule_input, None, &context).unwrap();
 		assert_eq!(reason, ExitSucceed::Returned);
 		assert_eq!(used_gas, 0);
 		let event = TestEvent::pallet_scheduler(pallet_scheduler::RawEvent::Scheduled(5, 0));
@@ -244,7 +250,8 @@ fn schedule_call_precompile_should_handle_invalid_input() {
 		// input_data = 0x12
 		input[9 * 32] = hex!("12")[0];
 
-		let (reason, output, used_gas) = ScheduleCallPrecompile::execute(&input, None, &context).unwrap();
+		let (reason, output, used_gas) =
+			ScheduleCallPrecompile::execute(&input, None, &context).unwrap();
 		assert_eq!(reason, ExitSucceed::Returned);
 		assert_eq!(used_gas, 0);
 
@@ -288,7 +295,6 @@ fn schedule_call_precompile_should_handle_invalid_input() {
 		assert_eq!(Balances::free_balance(to_account), 1000000000000);
 	});
 }
-
 
 #[test]
 fn task_id_max_and_min() {

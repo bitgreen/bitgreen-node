@@ -18,18 +18,18 @@
 //! Assets pallet benchmarking.
 
 use super::*;
-use sp_runtime::traits::Bounded;
-use frame_system::RawOrigin as SystemOrigin;
-use frame_benchmarking::{benchmarks, account, whitelisted_caller};
+use frame_benchmarking::{account, benchmarks, whitelisted_caller};
 use frame_support::traits::Get;
+use frame_system::RawOrigin as SystemOrigin;
+use sp_runtime::traits::Bounded;
 
 use crate::Module as Assets;
 
 const SEED: u32 = 0;
 
-fn create_default_asset<T: Config>(max_zombies: u32)
-	-> (T::AccountId, <T::Lookup as StaticLookup>::Source)
-{
+fn create_default_asset<T: Config>(
+	max_zombies: u32,
+) -> (T::AccountId, <T::Lookup as StaticLookup>::Source) {
 	let caller: T::AccountId = whitelisted_caller();
 	let caller_lookup = T::Lookup::unlookup(caller.clone());
 	let root = SystemOrigin::Root.into();
@@ -39,20 +39,23 @@ fn create_default_asset<T: Config>(max_zombies: u32)
 		caller_lookup.clone(),
 		max_zombies,
 		1u32.into(),
-	).is_ok());
+	)
+	.is_ok());
 	(caller, caller_lookup)
 }
 
-fn create_default_minted_asset<T: Config>(max_zombies: u32, amount: T::Balance)
-	-> (T::AccountId, <T::Lookup as StaticLookup>::Source)
-{
-	let (caller, caller_lookup)  = create_default_asset::<T>(max_zombies);
+fn create_default_minted_asset<T: Config>(
+	max_zombies: u32,
+	amount: T::Balance,
+) -> (T::AccountId, <T::Lookup as StaticLookup>::Source) {
+	let (caller, caller_lookup) = create_default_asset::<T>(max_zombies);
 	assert!(Assets::<T>::mint(
 		SystemOrigin::Signed(caller.clone()).into(),
 		Default::default(),
 		caller_lookup.clone(),
 		amount,
-	).is_ok());
+	)
+	.is_ok());
 	(caller, caller_lookup)
 }
 
@@ -61,7 +64,13 @@ fn add_zombies<T: Config>(minter: T::AccountId, n: u32) {
 	for i in 0..n {
 		let target = account("zombie", i, SEED);
 		let target_lookup = T::Lookup::unlookup(target);
-		assert!(Assets::<T>::mint(origin.clone().into(), Default::default(), target_lookup, 100u32.into()).is_ok());
+		assert!(Assets::<T>::mint(
+			origin.clone().into(),
+			Default::default(),
+			target_lookup,
+			100u32.into()
+		)
+		.is_ok());
 	}
 }
 
