@@ -6,9 +6,9 @@ import { NODE_ADDRESS, get_bitgreen_bridge_contract, privateKey, send_transfer, 
 import Web3 from 'web3';
 
 const total_lockdown = async (api, keypair, web3, BitgreenBridge, token) => {
-    const gasPrice = await web3.eth.getGasPrice();
     const txid = await pallet_bridge_set_lockdown(api, keypair, token);
     console.log(txid);
+    const gasPrice = await web3.eth.getGasPrice();
     const receipt = await send_setLockdown(web3, gasPrice, BitgreenBridge);
     console.log(receipt);
 }
@@ -220,13 +220,14 @@ const handle_evm_transfer_events = async (api, keypair, web3, BitgreenBridge, re
         console.log(txid);
         const recipient = returnValues['1'];
         console.log(recipient);
-        const amount = returnValues['2'];
+        let amount = returnValues['2'];
+        amount = web3.utils.toBN(amount);
         console.log(amount);
         const erc20 = returnValues['3'];
         console.log(erc20);
-        const wdf = returnValues['4'];
+        const wdf = web3.utils.toBN(returnValues['4']);
         console.log(wdf);
-        const total = wdf + amount;
+        const total = wdf.add(amount);
 
         const transaction_id = api.createType('(u64,u16)', txid);
         const [block_number, index] = transaction_id;

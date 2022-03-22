@@ -290,13 +290,77 @@ export const pallet_bridge_burn = async (api, keyspair, token, recipient, transa
 };
 
 export const pallet_bridge_set_lockdown = async (api, keyspair, token) => {
-    const txhash = await api.tx.bridge.set_lockdown(token)
+    const txhash = await api.tx.bridge.setLockdown(token)
         .signAndSend(keyspair, { nonce: -1 });
     return txhash;
 };
 
 export const pallet_bridge_set_unlockdown = async (api, keyspair) => {
-    return await api.tx.bridge.set_unlockdown().signAndSend(keyspair, { nonce: -1 });
+    const chan = new Channel(0 /* default */);
+    const unsub = await api.tx.sudo
+        .sudo(api.tx.bridge.setUnlockdown())
+        .signAndSend(keyspair, ({ status, events, dispatchError }) => {
+            console.log(`Current status is ${status}`);
+            try {
+                // status would still be set, but in the case of error we can shortcut
+                // to just check it (so an error would indicate InBlock or Finalized)
+                if (dispatchError) {
+                    if (dispatchError.isModule) {
+                        // for module errors, we have the section indexed, lookup
+                        const decoded = api.registry.findMetaError(dispatchError.asModule);
+                        const { name, section } = decoded;
+                        console.log(`${section}.${name}`);
+                    }
+                    else {
+                        // Other, CannotLookup, BadOrigin, no extra info
+                        console.log(`other: ${dispatchError.toString()}`);
+                    }
+                    unsub();
+                    chan.push("error");
+                }
+                if (status.isInBlock) {
+                    console.log(`Transaction included at blockHash ${status.asInBlock}`);
+                }
+                else if (status.isFinalized) {
+                    console.log(`Transaction finalized at blockHash ${status.asFinalized}`);
+                    events
+                        // We know this tx should result in `Sudid` event.
+                        .filter(({ event }) =>
+                            api.events.sudo.Sudid.is(event)
+                        )
+                        // We know that `Sudid` returns just a `Result`
+                        .forEach(({ event: { data: [result] } }) => {
+                            // Now we look to see if the extrinsic was actually successful or not...
+                            if (result.isError) {
+                                let error = result.asError;
+                                if (error.isModule) {
+                                    // for module errors, we have the section indexed, lookup
+                                    const decoded = api.registry.findMetaError(error.asModule);
+                                    const { docs, name, section } = decoded;
+
+                                    console.log(`${section}.${name}: ${docs.join(' ')}`);
+                                } else {
+                                    // Other, CannotLookup, BadOrigin, no extra info
+                                    console.log(error.toString());
+                                }
+                                unsub();
+                                chan.push("error");
+                            } else {
+
+                            }
+                        });
+
+                    unsub();
+                    chan.push(`Event report end.`);
+                }
+            }
+            catch {
+                console.log("[Error] Too many transactions in short time");
+            }
+        });
+    await chan.get().then(value => console.log(value), error => console.error(error));
+    chan.close();
+    // return await api.tx.bridge.setUnlockdown().signAndSend(keyspair, { nonce: -1 });
 };
 
 export const subscription_pallet_bridge = async (api) => {
