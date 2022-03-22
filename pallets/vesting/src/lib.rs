@@ -18,20 +18,20 @@
 
 extern crate alloc;
 use alloc::string::ToString;
-use codec::Decode;
-use codec::Encode;
+use codec::{Decode, Encode};
 use core::str;
 use frame_support::{
 	decl_error, decl_event, decl_module, decl_storage, dispatch::DispatchResult, ensure,
 	pallet_prelude::DispatchResultWithPostInfo, traits::Get,
 };
-use frame_system::ensure_signed;
-use frame_system::RawOrigin;
+use frame_system::{ensure_root, ensure_signed, RawOrigin};
 use orml_traits::{BasicCurrency, MultiCurrency};
 use primitives::Balance;
-use sp_runtime::traits::{StaticLookup, Zero};
-use sp_std::prelude::*;
-use sp_std::vec;
+use sp_runtime::{
+	traits::{StaticLookup, Zero},
+	Permill,
+};
+use sp_std::{prelude::*, vec};
 
 type BalanceOf<T> = <<T as module_currencies::Config>::MultiCurrency as MultiCurrency<
 	<T as frame_system::Config>::AccountId,
@@ -71,8 +71,7 @@ decl_error! {
 		VestingAccountAlreadyExists,
 		VestingUidAlreadyExists,
 		ExpiryBlockAlreadyExists,
-		InitialDepositAlreadyExists,
-		CurrentDepositAlreadyExists,
+		LockedDepositAlreadyExists,
 		StakedDepositAlreadyExists,
 		/// Invalid UID
 		InvalidUID,
@@ -80,8 +79,6 @@ decl_error! {
 		InvalidIntialDeposit,
 		/// Invalid Expiry Time
 		InvalidExpiryBlock,
-		/// Invalid Current Deposit
-		InvalidCurrentDeposit,
 		/// Invalid Staking
 		InvalidStaking,
 		/// VestingAccount Does Not Exist
@@ -90,12 +87,24 @@ decl_error! {
 		InvalidDeposit,
 		/// Invalid Epoch Time
 		VestingExpired,
-		/// InvalidRecipent
-		InvalidRecipent,
+		/// InvalidRecipient
+		InvalidRecipient,
 		VestingUidDoesNotExist,
 		ExpiryBlockDoesNotExist,
-		InitialDepositDoesNotExist,
-		CurrentDepositDoesNotExist,
+		LockedDepositDoesNotExist,
+		StakedDepositDoesNotExist,
+		InvalidVestingBalance,
+		RecipientAccountDoesNotExist,
+		VestingCreatorAlreadyExists,
+		VestingCreatorDoesNotExist,
+		VestingUidForRecipientAlreadyExists,
+		VestingUidForRecipientDoesNotExist,
+		VestingRateAlreadyExists,
+		InitialBlockAlreadyExists,
+        VestingTickDoesNotExist,
+        VestingRateDoesNotExist,
+        InitialBlockDoesNotExist,
+        VestingTickAlreadyExists,
 	}
 }
 
@@ -103,12 +112,16 @@ decl_error! {
 decl_storage! {
 	trait Store for Module<T: Config> as VestingModule {
 		VestingUid get(fn vesting_uid): map hasher(blake2_128_concat) u32 => ();
+		VestingUidForRecipient get(fn vesting_uid_for_recipient): map hasher(blake2_128_concat) T::AccountId => u32;
 		RecipientAccount get(fn recipient_account): map hasher(blake2_128_concat) u32 => T::AccountId;
-		VestingAccount get(fn vesting_account): double_map hasher(blake2_128_concat) T::AccountId, hasher(blake2_128_concat) u32 => T::AccountId;
+		VestingAccount get(fn vesting_account): map hasher(blake2_128_concat) u32 => T::AccountId;
+		VestingCreator get(fn vesting_creator): map hasher(blake2_128_concat) u32 => T::AccountId;
 		ExpiryBlock get(fn ExpiryBlock): map hasher(blake2_128_concat) u32 => T::BlockNumber;
-		InitialDeposit get(fn existing_deposit): map hasher(blake2_128_concat) u32 => BalanceOf<T>;
-		CurrentDeposit get(fn current_deposit): map hasher(blake2_128_concat) u32 => BalanceOf<T>;
+		LockedDeposit get(fn existing_deposit): map hasher(blake2_128_concat) u32 => BalanceOf<T>;
 		StakedDeposit get(fn staked_deposit): map hasher(blake2_128_concat) u32 => BalanceOf<T>;
+		InitialBlock get(fn initial_block): map hasher(blake2_128_concat) u32 => T::BlockNumber;
+		VestingRate get(fn vesting_rate): map hasher(blake2_128_concat) u32 => Permill;
+		VestingTick get(fn vesting_tick): map hasher(blake2_128_concat) u32 => T::BlockNumber;
 	}
 }
 
@@ -127,34 +140,46 @@ decl_module! {
 			expiry_block: T::BlockNumber,
 			vesting_account: T::AccountId,
 			recipient_account: T::AccountId,
-			initial_deposit: BalanceOf<T>,
-			current_deposit: BalanceOf<T>,
+			locked_deposit: BalanceOf<T>,
 			staked_deposit: BalanceOf<T>,
+			vesting_rate: Permill,
+			vesting_tick: T::BlockNumber,
 		) -> DispatchResult {
 
+			let _ = ensure_root(origin.clone())?;
 			let vesting_creator = ensure_signed(origin)?;
 
 			ensure!(vesting_uid > 0, Error::<T>::InvalidUID);
 			ensure!(expiry_block > T::BlockNumber::zero(), Error::<T>::InvalidExpiryBlock);
 
-			ensure!(T::NativeCurrency::free_balance(&vesting_creator) >= initial_deposit, Error::<T>::InsufficientFundsToCreateVestingAccount);
+			ensure!(T::NativeCurrency::free_balance(&vesting_creator) >= locked_deposit, Error::<T>::InsufficientFundsToCreateVestingAccount);
 			ensure!(!VestingUid::contains_key(&vesting_uid), Error::<T>::VestingUidAlreadyExists);
+			ensure!(!VestingUidForRecipient::<T>::contains_key(&recipient_account), Error::<T>::VestingUidForRecipientAlreadyExists);
 			ensure!(!ExpiryBlock::<T>::contains_key(&vesting_uid), Error::<T>::ExpiryBlockAlreadyExists);
 			ensure!(!RecipientAccount::<T>::contains_key(&vesting_uid), Error::<T>::RecipientAccountAlreadyExists);
-			ensure!(!VestingAccount::<T>::contains_key(&vesting_creator, &vesting_uid), Error::<T>::VestingAccountAlreadyExists);
-			ensure!(!InitialDeposit::<T>::contains_key(&vesting_uid), Error::<T>::InitialDepositAlreadyExists);
-			ensure!(!CurrentDeposit::<T>::contains_key(&vesting_uid), Error::<T>::CurrentDepositAlreadyExists);
+			ensure!(!VestingAccount::<T>::contains_key(&vesting_uid), Error::<T>::VestingAccountAlreadyExists);
+			ensure!(!VestingCreator::<T>::contains_key(&vesting_uid), Error::<T>::VestingCreatorAlreadyExists);
+			ensure!(!LockedDeposit::<T>::contains_key(&vesting_uid), Error::<T>::LockedDepositAlreadyExists);
 			ensure!(!StakedDeposit::<T>::contains_key(&vesting_uid), Error::<T>::StakedDepositAlreadyExists);
+			ensure!(!InitialBlock::<T>::contains_key(&vesting_uid), Error::<T>::InitialBlockAlreadyExists);
+			ensure!(!VestingRate::contains_key(&vesting_uid), Error::<T>::VestingRateAlreadyExists);
+			ensure!(!VestingTick::<T>::contains_key(&vesting_uid), Error::<T>::VestingTickAlreadyExists);
 
 			VestingUid::insert(&vesting_uid, ());
+			VestingUidForRecipient::<T>::insert(&recipient_account, vesting_uid);
 			ExpiryBlock::<T>::insert(&vesting_uid, expiry_block);
-			VestingAccount::<T>::insert(&vesting_creator.clone(), &vesting_uid, vesting_account.clone());
+			VestingAccount::<T>::insert(&vesting_uid, vesting_account.clone());
+			VestingCreator::<T>::insert(&vesting_uid, vesting_creator.clone());
 			RecipientAccount::<T>::insert(&vesting_uid, recipient_account);
-			InitialDeposit::<T>::insert(&vesting_uid, initial_deposit);
-			CurrentDeposit::<T>::insert(&vesting_uid, current_deposit);
+			LockedDeposit::<T>::insert(&vesting_uid, locked_deposit);
 			StakedDeposit::<T>::insert(&vesting_uid, staked_deposit);
 
-			T::NativeCurrency::transfer(&vesting_creator, &vesting_account, initial_deposit)?;
+			let current_block: T::BlockNumber = frame_system::Module::<T>::block_number();
+			InitialBlock::<T>::insert(&vesting_uid, current_block);
+			VestingRate::insert(&vesting_uid, vesting_rate);
+			VestingTick::<T>::insert(&vesting_uid, vesting_tick);
+
+			T::NativeCurrency::transfer(&vesting_creator, &vesting_account, locked_deposit)?;
 
 			Self::deposit_event(RawEvent::VestingAccountCreated(vesting_creator));
 
@@ -163,62 +188,123 @@ decl_module! {
 
 		// function to remove a vesting account
 		#[weight = 10_000]
-		pub fn destroy_vesting_account(origin, vesting_uid: u32) -> DispatchResult {
+		pub fn destroy_vesting_account(
+			origin,
+			vesting_uid: u32
+		) -> DispatchResult {
 
-			let vesting_creator = ensure_signed(origin)?;
+			let _ = ensure_root(origin)?;
 
 			ensure!(VestingUid::contains_key(&vesting_uid), Error::<T>::VestingUidDoesNotExist);
 			ensure!(ExpiryBlock::<T>::contains_key(&vesting_uid), Error::<T>::ExpiryBlockDoesNotExist);
-			ensure!(VestingAccount::<T>::contains_key(&vesting_creator, &vesting_uid), Error::<T>::VestingAccountDoesNotExist);
-			ensure!(InitialDeposit::<T>::contains_key(&vesting_uid), Error::<T>::InitialDepositDoesNotExist);
-			ensure!(CurrentDeposit::<T>::contains_key(&vesting_uid), Error::<T>::CurrentDepositDoesNotExist);
+			ensure!(RecipientAccount::<T>::contains_key(&vesting_uid), Error::<T>::RecipientAccountDoesNotExist);
+			ensure!(VestingAccount::<T>::contains_key(&vesting_uid), Error::<T>::VestingAccountDoesNotExist);
+			ensure!(VestingCreator::<T>::contains_key(&vesting_uid), Error::<T>::VestingCreatorDoesNotExist);
+			ensure!(LockedDeposit::<T>::contains_key(&vesting_uid), Error::<T>::LockedDepositDoesNotExist);
+			ensure!(StakedDeposit::<T>::contains_key(&vesting_uid), Error::<T>::StakedDepositDoesNotExist);
+			ensure!(InitialBlock::<T>::contains_key(&vesting_uid), Error::<T>::InitialBlockDoesNotExist);
+			ensure!(VestingRate::contains_key(&vesting_uid), Error::<T>::VestingRateDoesNotExist);
+			ensure!(VestingTick::<T>::contains_key(&vesting_uid), Error::<T>::VestingTickDoesNotExist);
 
 			let expiry_block = ExpiryBlock::<T>::get(&vesting_uid);
 			let current_block: T::BlockNumber = frame_system::Module::<T>::block_number();
 			ensure!(expiry_block > current_block, Error::<T>::VestingExpired);
 
-			let initial_deposit = InitialDeposit::<T>::get(&vesting_uid);
-			let current_deposit = CurrentDeposit::<T>::get(&vesting_uid);
-			ensure!(initial_deposit == current_deposit, Error::<T>::InvalidDeposit);
+			let locked_deposit = LockedDeposit::<T>::get(&vesting_uid);
 
-			VestingAccount::<T>::remove(vesting_creator.clone(), &vesting_uid);
+			let recipient_account = RecipientAccount::<T>::get(&vesting_uid);
+			let vesting_account = VestingAccount::<T>::get(&vesting_uid);
+			let vesting_creator = VestingCreator::<T>::get(&vesting_uid);
+			let initial_block = InitialBlock::<T>::get(&vesting_uid);
+			let vesting_rate = VestingRate::get(&vesting_uid);
+			let vesting_tick = VestingTick::<T>::get(&vesting_uid);
 
-			T::NativeCurrency::transfer(&vesting_account, &vesting_creator, initial_deposit)?;
+			ensure!(T::NativeCurrency::free_balance(&vesting_account) == locked_deposit, Error::<T>::InvalidVestingBalance);
+
+			VestingUid::remove(&vesting_uid);
+			VestingUidForRecipient::<T>::remove(&recipient_account);
+			ExpiryBlock::<T>::remove(&vesting_uid);
+			VestingAccount::<T>::remove(&vesting_uid);
+			VestingCreator::<T>::remove(&vesting_uid);
+			RecipientAccount::<T>::remove(&vesting_uid);
+			LockedDeposit::<T>::remove(&vesting_uid);
+			StakedDeposit::<T>::remove(&vesting_uid);
+			InitialBlock::<T>::remove(&vesting_uid);
+			VestingRate::remove(&vesting_uid);
+			VestingTick::<T>::remove(&vesting_uid);
+
+			let unlocked = Self::calculate_unlocked(
+                initial_block, 
+                current_block, 
+                vesting_rate, 
+                vesting_tick, 
+                locked_deposit
+                );
+
+			T::NativeCurrency::transfer(&vesting_account, &vesting_creator, locked_deposit - unlocked)?;
+			T::NativeCurrency::transfer(&vesting_account, &recipient_account, unlocked)?;
 
 			Self::deposit_event(RawEvent::VestingAccountDestroyed(vesting_creator));
 
 			Ok(())
 		}
 
-		 #[weight = 10_000]
-		pub fn withdraw_vesting_account(origin, vesting_creator: T::AccountId, vesting_uid: u32) -> DispatchResultWithPostInfo {
-			let recipient = ensure_signed(origin)?;
+		#[weight = 10_000]
+		pub fn withdraw_vesting_account(
+			origin,
+		) -> DispatchResultWithPostInfo {
 
-			ensure!(VestingAccount::<T>::contains_key(&vesting_creator, &vesting_uid), Error::<T>::VestingAccountAlreadyExists);
-			// decode data
-//			let content: Vec<u8> = VestingAccount::<T>::get(vesting_creator.clone(), &uid);
-//			let initial_deposit = Self::json_get_value(content.clone(),"initial_deposit".as_bytes().to_vec());
-//			let initial_deposit = str::parse::<Balance>(sp_std::str::from_utf8(&initial_deposit).unwrap()).unwrap();
-//			let current_deposit = Self::json_get_value(content.clone(),"current_deposit".as_bytes().to_vec());
-//			let current_deposit = str::parse::<Balance>(sp_std::str::from_utf8(&current_deposit).unwrap()).unwrap();
-//			let expire_time = Self::json_get_value(content.clone(),"expire_time".as_bytes().to_vec());
-//			let expire_time = str::parse::<T::BlockNumber>(sp_std::str::from_utf8(&expire_time).unwrap()).ok().unwrap();
-//
-//			let recipient_account = Self::json_get_value(content.clone(),"recipient_account".as_bytes().to_vec());
-//			let recipient_account = T::AccountId::decode(&mut &recipient_account[1..33]).unwrap_or_default();
-//			let staking = Self::json_get_value(content.clone(),"staking".as_bytes().to_vec());
-//			let staking = str::parse::<Balance>(sp_std::str::from_utf8(&staking).unwrap()).unwrap();
-//
-//			ensure!(recipient == recipient_account, Error::<T>::InvalidRecipent);
-//			let current_block: T::BlockNumber = frame_system::Module::<T>::block_number();
-//			ensure!(initial_deposit == current_deposit , Error::<T>::InvalidDeposit);
-//			ensure!(expire_time > current_block, Error::<T>::VestingExpired);
+			let who = ensure_signed(origin)?;
 
-//			pallet_assets::Module::<T>::transfer(RawOrigin::Signed(vesting_creator.clone()).into(), T::NativeTokenId::get(), T::Lookup::unlookup(recipient.clone()), staking)?;
-			// Generate event
+			ensure!(VestingUidForRecipient::<T>::contains_key(&who), Error::<T>::VestingUidForRecipientDoesNotExist);
+
+			let vesting_uid = VestingUidForRecipient::<T>::get(&who);
+
+			ensure!(VestingUid::contains_key(&vesting_uid), Error::<T>::VestingUidDoesNotExist);
+			ensure!(ExpiryBlock::<T>::contains_key(&vesting_uid), Error::<T>::ExpiryBlockDoesNotExist);
+			ensure!(VestingAccount::<T>::contains_key(&vesting_uid), Error::<T>::VestingAccountDoesNotExist);
+			ensure!(VestingCreator::<T>::contains_key(&vesting_uid), Error::<T>::VestingCreatorDoesNotExist);
+			ensure!(RecipientAccount::<T>::contains_key(&vesting_uid), Error::<T>::RecipientAccountDoesNotExist);
+			ensure!(LockedDeposit::<T>::contains_key(&vesting_uid), Error::<T>::LockedDepositDoesNotExist);
+			ensure!(StakedDeposit::<T>::contains_key(&vesting_uid), Error::<T>::StakedDepositDoesNotExist);
+			ensure!(InitialBlock::<T>::contains_key(&vesting_uid), Error::<T>::InitialBlockDoesNotExist);
+			ensure!(VestingRate::contains_key(&vesting_uid), Error::<T>::VestingRateDoesNotExist);
+			ensure!(VestingTick::<T>::contains_key(&vesting_uid), Error::<T>::VestingTickDoesNotExist);
+
+			let recipient = RecipientAccount::<T>::get(&vesting_uid);
+			ensure!(who == recipient, Error::<T>::InvalidRecipient);
+
+			let current_block: T::BlockNumber = frame_system::Module::<T>::block_number();
+			let expiry_block = ExpiryBlock::<T>::get(&vesting_uid);
+			ensure!(expiry_block > current_block, Error::<T>::VestingExpired);
+
+			let locked_deposit = LockedDeposit::<T>::get(&vesting_uid);
+
+			let vesting_account = VestingAccount::<T>::get(&vesting_uid);
+			let vesting_creator = VestingCreator::<T>::get(&vesting_uid);
+			let initial_block = InitialBlock::<T>::get(&vesting_uid);
+			let vesting_rate = VestingRate::get(&vesting_uid);
+			let vesting_tick = VestingTick::<T>::get(&vesting_uid);
+
+			ensure!(T::NativeCurrency::free_balance(&vesting_account) == locked_deposit, Error::<T>::InvalidVestingBalance);
+
+            // todo: handle staking rewards, which may have been added since initial block
+
+			let unlocked = Self::calculate_unlocked(
+                initial_block, 
+                current_block, 
+                vesting_rate, 
+                vesting_tick, 
+                locked_deposit
+                );
+
+			LockedDeposit::<T>::insert(&vesting_uid, locked_deposit - unlocked);
+
+			T::NativeCurrency::transfer(&vesting_account, &recipient, unlocked)?;
+
 			Self::deposit_event(RawEvent::WithdrewVestingAccount(vesting_creator));
-			// Return a successful DispatchResult
-			   Ok(().into())
+
+			Ok(().into())
 		}
 	}
 }
@@ -305,5 +391,25 @@ impl<T: Config> Module<T> {
 		}
 		v.push(b'}');
 		v
+	}
+
+	fn calculate_unlocked(
+		initial_block: T::BlockNumber,
+		current_block: T::BlockNumber,
+		vesting_rate: Permill,
+		vesting_tick: T::BlockNumber,
+		locked_deposit: BalanceOf<T>,
+	) -> BalanceOf<T> {
+		// todo: prove this is right
+		// vesting rate is the fraction of locked to be unlocked per x blocks
+		// x is vesting tick
+		// a partially completed tick does not unlock anything
+		let mut a = current_block - initial_block;
+		let mut unlocked = BalanceOf::<T>::zero();
+		while a >= vesting_tick {
+			unlocked += vesting_rate * locked_deposit;
+			a -= vesting_tick;
+		}
+		unlocked
 	}
 }
