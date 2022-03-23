@@ -59,6 +59,7 @@ decl_event!(
 		VestingAccountDestroyed(AccountId),
 		/// WithdrewVestingAccount
 		WithdrewVestingAccount(AccountId),
+		UnbondedValue(AccountId),
 	}
 );
 
@@ -72,7 +73,6 @@ decl_error! {
 		VestingUidAlreadyExists,
 		ExpiryBlockAlreadyExists,
 		LockedDepositAlreadyExists,
-		StakedDepositAlreadyExists,
 		/// Invalid UID
 		InvalidUID,
 		/// Invalid Intial Deposit
@@ -92,7 +92,6 @@ decl_error! {
 		VestingUidDoesNotExist,
 		ExpiryBlockDoesNotExist,
 		LockedDepositDoesNotExist,
-		StakedDepositDoesNotExist,
 		InvalidVestingBalance,
 		RecipientAccountDoesNotExist,
 		VestingCreatorAlreadyExists,
@@ -101,10 +100,12 @@ decl_error! {
 		VestingUidForRecipientDoesNotExist,
 		VestingRateAlreadyExists,
 		InitialBlockAlreadyExists,
-        VestingTickDoesNotExist,
-        VestingRateDoesNotExist,
-        InitialBlockDoesNotExist,
-        VestingTickAlreadyExists,
+		VestingTickDoesNotExist,
+		VestingRateDoesNotExist,
+		InitialBlockDoesNotExist,
+		VestingTickAlreadyExists,
+        NoBondedController,
+        ValueExceedsBondedValue,
 	}
 }
 
@@ -118,10 +119,12 @@ decl_storage! {
 		VestingCreator get(fn vesting_creator): map hasher(blake2_128_concat) u32 => T::AccountId;
 		ExpiryBlock get(fn ExpiryBlock): map hasher(blake2_128_concat) u32 => T::BlockNumber;
 		LockedDeposit get(fn existing_deposit): map hasher(blake2_128_concat) u32 => BalanceOf<T>;
-		StakedDeposit get(fn staked_deposit): map hasher(blake2_128_concat) u32 => BalanceOf<T>;
 		InitialBlock get(fn initial_block): map hasher(blake2_128_concat) u32 => T::BlockNumber;
 		VestingRate get(fn vesting_rate): map hasher(blake2_128_concat) u32 => Permill;
 		VestingTick get(fn vesting_tick): map hasher(blake2_128_concat) u32 => T::BlockNumber;
+		BondedController get(fn bonded_controller): map hasher(blake2_128_concat) u32 => T::AccountId;
+		BondedValue get(fn bonded_value): map hasher(blake2_128_concat) u32 => BalanceOf<T>;
+		BondedDestroyed get(fn bonded_destroyed): map hasher(blake2_128_concat) u32 => T::AccountId;
 	}
 }
 
@@ -141,7 +144,6 @@ decl_module! {
 			vesting_account: T::AccountId,
 			recipient_account: T::AccountId,
 			locked_deposit: BalanceOf<T>,
-			staked_deposit: BalanceOf<T>,
 			vesting_rate: Permill,
 			vesting_tick: T::BlockNumber,
 		) -> DispatchResult {
@@ -160,7 +162,6 @@ decl_module! {
 			ensure!(!VestingAccount::<T>::contains_key(&vesting_uid), Error::<T>::VestingAccountAlreadyExists);
 			ensure!(!VestingCreator::<T>::contains_key(&vesting_uid), Error::<T>::VestingCreatorAlreadyExists);
 			ensure!(!LockedDeposit::<T>::contains_key(&vesting_uid), Error::<T>::LockedDepositAlreadyExists);
-			ensure!(!StakedDeposit::<T>::contains_key(&vesting_uid), Error::<T>::StakedDepositAlreadyExists);
 			ensure!(!InitialBlock::<T>::contains_key(&vesting_uid), Error::<T>::InitialBlockAlreadyExists);
 			ensure!(!VestingRate::contains_key(&vesting_uid), Error::<T>::VestingRateAlreadyExists);
 			ensure!(!VestingTick::<T>::contains_key(&vesting_uid), Error::<T>::VestingTickAlreadyExists);
@@ -172,7 +173,6 @@ decl_module! {
 			VestingCreator::<T>::insert(&vesting_uid, vesting_creator.clone());
 			RecipientAccount::<T>::insert(&vesting_uid, recipient_account);
 			LockedDeposit::<T>::insert(&vesting_uid, locked_deposit);
-			StakedDeposit::<T>::insert(&vesting_uid, staked_deposit);
 
 			let current_block: T::BlockNumber = frame_system::Module::<T>::block_number();
 			InitialBlock::<T>::insert(&vesting_uid, current_block);
@@ -201,7 +201,6 @@ decl_module! {
 			ensure!(VestingAccount::<T>::contains_key(&vesting_uid), Error::<T>::VestingAccountDoesNotExist);
 			ensure!(VestingCreator::<T>::contains_key(&vesting_uid), Error::<T>::VestingCreatorDoesNotExist);
 			ensure!(LockedDeposit::<T>::contains_key(&vesting_uid), Error::<T>::LockedDepositDoesNotExist);
-			ensure!(StakedDeposit::<T>::contains_key(&vesting_uid), Error::<T>::StakedDepositDoesNotExist);
 			ensure!(InitialBlock::<T>::contains_key(&vesting_uid), Error::<T>::InitialBlockDoesNotExist);
 			ensure!(VestingRate::contains_key(&vesting_uid), Error::<T>::VestingRateDoesNotExist);
 			ensure!(VestingTick::<T>::contains_key(&vesting_uid), Error::<T>::VestingTickDoesNotExist);
@@ -219,7 +218,19 @@ decl_module! {
 			let vesting_rate = VestingRate::get(&vesting_uid);
 			let vesting_tick = VestingTick::<T>::get(&vesting_uid);
 
-			ensure!(T::NativeCurrency::free_balance(&vesting_account) == locked_deposit, Error::<T>::InvalidVestingBalance);
+			let mut vesting_balance = T::NativeCurrency::free_balance(&vesting_account);
+			ensure!(vesting_balance >= locked_deposit, Error::<T>::InvalidVestingBalance);
+
+			let unlocked = Self::calculate_unlocked(
+				initial_block,
+				current_block,
+				vesting_rate,
+				vesting_tick,
+				locked_deposit
+				);
+
+			T::NativeCurrency::transfer(&vesting_account, &vesting_creator, vesting_balance - unlocked)?;
+			T::NativeCurrency::transfer(&vesting_account, &recipient_account, unlocked)?;
 
 			VestingUid::remove(&vesting_uid);
 			VestingUidForRecipient::<T>::remove(&recipient_account);
@@ -228,25 +239,38 @@ decl_module! {
 			VestingCreator::<T>::remove(&vesting_uid);
 			RecipientAccount::<T>::remove(&vesting_uid);
 			LockedDeposit::<T>::remove(&vesting_uid);
-			StakedDeposit::<T>::remove(&vesting_uid);
 			InitialBlock::<T>::remove(&vesting_uid);
 			VestingRate::remove(&vesting_uid);
 			VestingTick::<T>::remove(&vesting_uid);
 
-			let unlocked = Self::calculate_unlocked(
-                initial_block, 
-                current_block, 
-                vesting_rate, 
-                vesting_tick, 
-                locked_deposit
-                );
-
-			T::NativeCurrency::transfer(&vesting_account, &vesting_creator, locked_deposit - unlocked)?;
-			T::NativeCurrency::transfer(&vesting_account, &recipient_account, unlocked)?;
-
 			Self::deposit_event(RawEvent::VestingAccountDestroyed(vesting_creator));
 
 			Ok(())
+		}
+
+		#[weight = 10_000]
+		pub fn unbond_vesting_account(
+			origin,
+			vesting_uid: u32,
+			value: BalanceOf<T>,
+		) -> DispatchResult {
+
+			let who = ensure_signed(origin)?;
+
+			ensure!(who == BondedController::<T>::get(&vesting_uid), Error::<T>::NoBondedController);
+
+			let bonded_value = BondedValue::<T>::get(&vesting_uid);
+			ensure!(value <= bonded_value, Error::<T>::ValueExceedsBondedValue);
+
+			// todo: unbonded funds are not available for transfer until an unlock period elapses
+			// and `withdraw_unbonded` is called. we need to consider this eg when destroying a
+			// vesting account.
+
+//            unbond(vesting_account, value)?;
+
+			Self::deposit_event(RawEvent::UnbondedValue(who));
+
+			Ok(().into())
 		}
 
 		#[weight = 10_000]
@@ -266,7 +290,6 @@ decl_module! {
 			ensure!(VestingCreator::<T>::contains_key(&vesting_uid), Error::<T>::VestingCreatorDoesNotExist);
 			ensure!(RecipientAccount::<T>::contains_key(&vesting_uid), Error::<T>::RecipientAccountDoesNotExist);
 			ensure!(LockedDeposit::<T>::contains_key(&vesting_uid), Error::<T>::LockedDepositDoesNotExist);
-			ensure!(StakedDeposit::<T>::contains_key(&vesting_uid), Error::<T>::StakedDepositDoesNotExist);
 			ensure!(InitialBlock::<T>::contains_key(&vesting_uid), Error::<T>::InitialBlockDoesNotExist);
 			ensure!(VestingRate::contains_key(&vesting_uid), Error::<T>::VestingRateDoesNotExist);
 			ensure!(VestingTick::<T>::contains_key(&vesting_uid), Error::<T>::VestingTickDoesNotExist);
@@ -286,23 +309,46 @@ decl_module! {
 			let vesting_rate = VestingRate::get(&vesting_uid);
 			let vesting_tick = VestingTick::<T>::get(&vesting_uid);
 
-			ensure!(T::NativeCurrency::free_balance(&vesting_account) == locked_deposit, Error::<T>::InvalidVestingBalance);
+			let vesting_balance = T::NativeCurrency::free_balance(&vesting_account);
+			ensure!(vesting_balance >= locked_deposit, Error::<T>::InvalidVestingBalance);
 
-            // todo: handle staking rewards, which may have been added since initial block
+			let staking_reward = vesting_balance - locked_deposit;
+
+			// todo: handle staking rewards, which may have been added since initial block
 
 			let unlocked = Self::calculate_unlocked(
-                initial_block, 
-                current_block, 
-                vesting_rate, 
-                vesting_tick, 
-                locked_deposit
-                );
+				initial_block,
+				current_block,
+				vesting_rate,
+				vesting_tick,
+				locked_deposit
+				);
 
-			LockedDeposit::<T>::insert(&vesting_uid, locked_deposit - unlocked);
+			// staking rewards are added to locked deposit here so vesting rate will apply to them
+			// from this block onward.
+			LockedDeposit::<T>::insert(&vesting_uid, locked_deposit - unlocked + staking_reward);
+			InitialBlock::<T>::insert(&vesting_uid, current_block);
 
 			T::NativeCurrency::transfer(&vesting_account, &recipient, unlocked)?;
 
 			Self::deposit_event(RawEvent::WithdrewVestingAccount(vesting_creator));
+
+			Ok(().into())
+		}
+
+		#[weight = 10_000]
+		pub fn bond_vesting_account(
+			origin,
+			vesting_uid: u32,
+//			controller: <T::Lookup as StaticLookup>::Source,
+//			value: BalanceOf<T>,
+//			payee: RewardDestination<T::AccountId>
+		) -> DispatchResult {
+
+			let _ = ensure_root(origin.clone())?;
+			let who = ensure_signed(origin)?;
+
+			unimplemented!();
 
 			Ok(().into())
 		}
