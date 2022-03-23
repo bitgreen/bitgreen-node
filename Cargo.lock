@@ -5008,6 +5008,7 @@ dependencies = [
  "orml-traits",
  "pallet-assets",
  "pallet-balances",
+ "pallet-staking",
  "parity-scale-codec",
  "serde",
  "sp-arithmetic",

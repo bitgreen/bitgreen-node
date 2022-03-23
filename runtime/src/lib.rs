@@ -905,6 +905,7 @@ parameter_types! {
 impl pallet_vesting::Config for Runtime {
 	type Event = Event;
 	type NativeTokenId = ();
+	type StakingLockPortion = ();
 }
 
 // TODO: Implementation of `From` is preferred since it gives you `Into<_>` for free where the reverse isn't true.
