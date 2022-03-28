@@ -45,6 +45,43 @@ const getVcuAuthorizedAccounts = (request, response) => {
         })
 }
 
+// save assets generating vcu to DB
+const storeVcuAssetsGenerating = (request, response) => {
+    let { block_number, hash, agv_account, agv_id, content, signer, date } = request
+    date = new Date(parseInt(date)).toISOString()
+
+    pool.query('INSERT INTO vcu_assets_generating ("block_number", "hash", "agv_account", "agv_id", "content", "signer", "date") VALUES ($1, $2, $3, $4, $5, $6, $7)',
+        [block_number, hash, agv_account, agv_id, content, signer, date], (error, results) => {
+            if (error) {
+                throw error
+            }
+            // response.status(201).send(`User added with ID: ${result.insertId}`)
+        })
+}
+
+// get assets generating vcu by date range and/or by account
+const getVcuAssetsGenerating = (request, response) => {
+    let account = request.query.account;
+    let date_start = '1990-01-01';
+    let date_end = '2100-12-31';
+    if (typeof request.query.date_start !== 'undefined') {
+        date_start = request.query.date_start;
+    }
+    if (typeof request.query.date_end !== 'undefined') {
+        date_end = request.query.date_end;
+    }
+
+    pool.query('SELECT * FROM vcu_assets_generating WHERE agv_account = $1 AND date >= $2 AND date <= $3 ORDER BY date,id DESC',
+        [account, date_start, date_end], (error, results) => {
+            if (error) {
+                throw error
+            }
+            response.json({
+                accounts: results.rows
+            })
+        })
+}
+
 // *** "Bonds" Pallet Section ***
 // This section contains functions relating the "Bonds" Pallet
 
@@ -425,4 +462,6 @@ module.exports = {
 
     storeVcuAuthorizedAccount,
     getVcuAuthorizedAccounts,
+    storeVcuAssetsGenerating,
+    getVcuAssetsGenerating,
 }

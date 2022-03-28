@@ -121,6 +121,22 @@ async function processBlock(api, block_number, analyze_only = false) {
                                         date: current_time
                                     });
                                 }
+
+                                if (sudo_method === 'AssetsGeneratingVCUCreated') {
+                                    ex.args.map((arg, d) => {
+                                        sudo_data = arg.toHuman();
+                                    });
+
+                                    db.storeVcuAssetsGenerating({
+                                        block_number: block_number,
+                                        hash: txHash,
+                                        agv_account: sudo_data.args['agv_account_id'],
+                                        agv_id: sudo_data.args['agv_id'],
+                                        content: sudo_data.args['content'],
+                                        signer: signedByAddress,
+                                        date: current_time
+                                    });
+                                }
                             }
                         }
                     } else {
