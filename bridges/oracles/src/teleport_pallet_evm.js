@@ -4,7 +4,7 @@ import '@polkadot/api-augment';
 import { setup_substrate, pallet_bridge_request } from './pallet_bridge.js';
 import { NODE_ADDRESS, get_bitgreen_bridge_contract, get_erc20, send_transfer, privateKey } from './evm_bridge.js';
 import Web3 from 'web3';
-const destination_address = '0x7bF59951e72d85EEF00E54212122174B06BE1768';
+const destination_address = '0xB1f5e50686d94f21b0D4488e629C46E8Ccb84160';
 let api;
 const main = async () => {
     // let provider = null;

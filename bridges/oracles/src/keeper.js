@@ -113,9 +113,9 @@ const handle_events = async (api, keypair, web3, BitgreenBridge, value) => {
                         const recipient = await destination(api, block_number, index);
                         console.log('recipient: \t ', recipient);
                         if (recipient) {
-                            // const balance = amount.toBigInt();
-                            const balance = amount;
-                            console.log('balance: \t ', balance);
+                            const balance = amount.toBigInt();
+                            // const balance = amount;
+                            console.log('evm transfer balance: \t ', balance);
                             const erc20 = await get_erc20(asset_id);
                             console.log('erc20: \t ', erc20);
                             const receipt = await send_transfer(web3, gasPrice, BitgreenBridge, privateKey, txid, recipient, balance, erc20);

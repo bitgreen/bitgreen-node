@@ -5,6 +5,10 @@ import { setup_substrate, pallet_bridge_mint } from './pallet_bridge.js';
 import { NODE_ADDRESS, get_bitgreen_bridge_contract, privateKey, deposit_method} from './evm_bridge.js';
 import Web3 from 'web3';
 let api;
+
+export const AMOUNT = process.env.AMOUNT || 10;
+export const NONCE = process.env.NONCE || 0;
+
 const main = async () => {
     // let provider = null;
     try {
@@ -25,9 +29,9 @@ const main = async () => {
         const bitg_token_bytes = api.createType('Bytes', 'WETH');
         const gasPrice = await web3.eth.getGasPrice();
 
-        const amount = 10;
+        const amount = AMOUNT;
 
-        const receipt = await deposit_method(web3, gasPrice, BitgreenBridge, privateKey, amount, recipient.toHex());
+        const receipt = await deposit_method(web3, gasPrice, BitgreenBridge, privateKey, amount, recipient.toHex(), NONCE);
         console.log('transactionHash: \t ', receipt.transactionHash);
         // const transaction_id_bytes = api.createType('Bytes', receipt.transactionHash);
         // const balance = api.createType('Balance', amount);
