@@ -2613,7 +2613,7 @@ decl_module! {
             Ok(())
         }
         /*
-        ///Create new order book entry for sale or purhcase
+        ///Create new order book entry for sale or purchase
         #[weight = 1000]
         pub fn order_book_create(origin, _uid: u32,_info: Vec<u8>) -> dispatch::DispatchResult {
             // check the transaction is signed
