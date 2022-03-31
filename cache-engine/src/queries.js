@@ -59,6 +59,48 @@ const storeVcuAssetsGenerating = (request, response) => {
         })
 }
 
+// save assets generating schedule vcu to DB
+const storeVcuAssetsGeneratingSchedule = (request, response) => {
+    let { block_number, hash, agv_account, agv_id, period_days, amount_vcu, token_id, signer, date } = request
+    date = new Date(parseInt(date)).toISOString()
+
+    pool.query('INSERT INTO vcu_assets_generating_schedule ("block_number", "hash", "agv_account", "agv_id", "period_days", "amount_vcu", "token_id", "signer", "date") VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)',
+        [block_number, hash, agv_account, agv_id, period_days, amount_vcu, token_id, signer, date], (error, results) => {
+            if (error) {
+                throw error
+            }
+            // response.status(201).send(`User added with ID: ${result.insertId}`)
+        })
+}
+
+// save oracle account minting vcu to DB
+const storeVcuOracleAccountMinting = (request, response) => {
+    let { block_number, hash, agv_account, agv_id, oracle_account, token_id, signer, date } = request
+    date = new Date(parseInt(date)).toISOString()
+
+    pool.query('INSERT INTO vcu_oracle_account_minting ("block_number", "hash", "agv_account", "agv_id", "oracle_account", "token_id", "signer", "date") VALUES ($1, $2, $3, $4, $5, $6, $7, $8)',
+        [block_number, hash, agv_account, agv_id, oracle_account, token_id, signer, date], (error, results) => {
+            if (error) {
+                throw error
+            }
+            // response.status(201).send(`User added with ID: ${result.insertId}`)
+        })
+}
+
+// save proxy settings vcu to DB
+const storeVcuProxySettings = (request, response) => {
+    let { block_number, hash, accounts, signer, date } = request
+    date = new Date(parseInt(date)).toISOString()
+
+    pool.query('INSERT INTO vcu_proxy_settings ("block_number", "hash", "accounts", "signer", "date") VALUES ($1, $2, $3, $4, $5)',
+        [block_number, hash, accounts, signer, date], (error, results) => {
+            if (error) {
+                throw error
+            }
+            // response.status(201).send(`User added with ID: ${result.insertId}`)
+        })
+}
+
 // get assets generating vcu by date range and/or by account
 const getVcuAssetsGenerating = (request, response) => {
     let account = request.query.account;
@@ -464,4 +506,7 @@ module.exports = {
     getVcuAuthorizedAccounts,
     storeVcuAssetsGenerating,
     getVcuAssetsGenerating,
+    storeVcuAssetsGeneratingSchedule,
+    storeVcuOracleAccountMinting,
+    storeVcuProxySettings
 }

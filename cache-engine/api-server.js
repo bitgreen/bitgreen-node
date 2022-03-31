@@ -48,6 +48,7 @@ const mainLoop = async () => {
     app.get('/impact_actions/approval_requests/auditors/votes', db.getImpactActionsApprovalRequestsAuditorsVotes)
 
     app.get('/vcu/authorized_accounts', db.getVcuAuthorizedAccounts)
+    app.get('/vcu/assets_generating', db.getVcuAssetsGenerating)
 
     /* serve api */
     let server = app.listen(port, function () {
