@@ -1,6 +1,7 @@
 const db = require("./queries");
 const {WsProvider, ApiPromise} = require("@polkadot/api");
 const types = require("../assets/types.json");
+const rpc = require("../assets/rpc.json");
 
 require('dotenv').config()
 
@@ -11,7 +12,8 @@ async function initApi() {
     // Create the API and wait until ready
     const api = await ApiPromise.create({
         provider: provider,
-        types: types
+        types: types,
+        rpc: rpc
     });
     await api.isReady;
 
@@ -37,39 +39,52 @@ async function processBlock(api, block_number, analyze_only = false) {
         const section = ex.method.section.toString()
         const isSigned = ex.isSigned
         const txHash = ex.hash.toHex()
-        let recipient, amount
+        let recipient, amount, extrinsic_success = false
 
         let signedByAddress = null
-        if(isSigned) {
+        if (isSigned) {
             signedByAddress = ex.signer.toString()
         }
 
-        if(section === 'timestamp' && method === 'set') {
-            ex.args.map(( arg, d ) => {
+        if (section === 'timestamp' && method === 'set') {
+            ex.args.map((arg, d) => {
                 current_time = arg.toString();
             });
         }
 
+        // console.log(`${section}:${method}`);
+
         // (await api.rpc.eth.getTransactionReceipt(txHash)).toJSON()
 
+        // Check if extrinsic was a success first
         block_events
-            .filter(({ phase }) =>
+            .filter(({phase}) =>
                 phase.isApplyExtrinsic &&
                 phase.asApplyExtrinsic.eq(index)
             )
-            .map(({ event }) => {
-                if(api.events.system.ExtrinsicSuccess.is(event)) {
-                    console.log('Transaction Hash: ' + txHash);
+            .map(({event}) => {
+                extrinsic_success = !!api.events.system.ExtrinsicSuccess.is(event);
+            });
 
-                    if(!analyze_only) {
-                        if(section === 'balances' && (method === 'transferKeepAlive' || method === 'transfer')) {
+        // Start processing extrinsic and it's data
+        block_events
+            .filter(({phase}) =>
+                phase.isApplyExtrinsic &&
+                phase.asApplyExtrinsic.eq(index)
+            )
+            .map(({event}) => {
+                if (extrinsic_success) {
+                    // console.log('Transaction Hash: ' + txHash);
+
+                    if (!analyze_only) {
+                        if (section === 'balances' && (method === 'transferKeepAlive' || method === 'transfer')) {
                             // console.log(api.eth.rpc.inspect())
                             // console.log(await api.rpc.eth.getTransactionReceipt('0x3b3c01dad5e131c63b549944bbb0fe93f6e3b2a783d01ee18f2ffbe2a5075ed2'));
 
-                            ex.args.map(( arg, d ) => {
-                                if(d === 0) {
+                            ex.args.map((arg, d) => {
+                                if (d === 0) {
                                     recipient = arg.toHuman()['Id'];
-                                } else if(d === 1) {
+                                } else if (d === 1) {
                                     amount = arg.toString();
                                 }
                             });
@@ -81,14 +96,105 @@ async function processBlock(api, block_number, analyze_only = false) {
                                 recipient: recipient,
                                 amount: amount,
                                 gas_fees: 0,
-                                date: current_time,
+                                date: current_time
                             })
                         }
 
-                        console.log(section);
+                        if (section === 'sudo' && method === 'sudo') {
+                            // console.log(event.toHuman());
+                            let sudo_section = event.section;
+                            let sudo_method = event.method;
+                            let sudo_data = event.data;
+                            let sudo_data_json;
 
-                        if(section === 'sudo' && method === 'sudo') {
-                            console.log('sudo');
+                            if (sudo_section === 'vcu') {
+                                if (sudo_method === 'AuthorizedAccountAdded') {
+                                    ex.args.map((arg, d) => {
+                                        sudo_data = arg.toHuman();
+                                    });
+
+                                    db.storeVcuAuthorizedAccount({
+                                        block_number: block_number,
+                                        hash: txHash,
+                                        account: sudo_data.args['account_id'],
+                                        description: sudo_data.args['description'],
+                                        signer: signedByAddress,
+                                        date: current_time
+                                    });
+                                }
+
+                                // content:
+                                // {"description":"Description", "proofOwnership":"ipfslink", "numberOfShares":"1000"}
+                                if (sudo_method === 'AssetsGeneratingVCUCreated') {
+                                    ex.args.map((arg, d) => {
+                                        sudo_data = arg.toHuman();
+                                    });
+
+                                    db.storeVcuAssetsGenerating({
+                                        block_number: block_number,
+                                        hash: txHash,
+                                        agv_account: sudo_data.args['agv_account_id'],
+                                        agv_id: sudo_data.args['agv_id'],
+                                        content: sudo_data.args['content'],
+                                        signer: signedByAddress,
+                                        date: current_time
+                                    });
+                                }
+
+                                if (sudo_method === 'AssetsGeneratingVCUScheduleAdded') {
+                                    ex.args.map((arg, d) => {
+                                        sudo_data = arg.toHuman();
+                                        sudo_data_json = arg.toJSON();
+                                    });
+
+                                    db.storeVcuAssetsGeneratingSchedule({
+                                        block_number: block_number,
+                                        hash: txHash,
+                                        agv_account: sudo_data_json.args['agv_account_id'],
+                                        agv_id: sudo_data_json.args['agv_id'],
+                                        period_days: sudo_data_json.args['period_days'],
+                                        amount_vcu: sudo_data.args['amount_vcu'],
+                                        token_id: sudo_data_json.args['token_id'],
+                                        signer: signedByAddress,
+                                        date: current_time
+                                    });
+                                }
+
+                                if (sudo_method === 'OraclesAccountMintingVCUAdded') {
+                                    ex.args.map((arg, d) => {
+                                        sudo_data = arg.toHuman();
+                                        sudo_data_json = arg.toJSON();
+                                    });
+
+                                    db.storeVcuOracleAccountMinting({
+                                        block_number: block_number,
+                                        hash: txHash,
+                                        agv_account: sudo_data_json.args['agv_account_id'],
+                                        agv_id: sudo_data_json.args['agv_id'],
+                                        oracle_account: sudo_data_json.args['oracle_account_id'],
+                                        token_id: sudo_data_json.args['token_id'],
+                                        signer: signedByAddress,
+                                        date: current_time
+                                    });
+                                }
+
+                                // createBundleAgv Example
+                                // {"description":"test","agvs":[{"accountid","5FHneW46xGXgs5mUiveU4sbTyGBzmstUspZC92UhjJM694ty","id":1}],assetId:100005}
+
+                                if (sudo_method === 'SettingsCreated') {
+                                    ex.args.map((arg, d) => {
+                                        sudo_data = arg.toHuman();
+                                    });
+
+                                    db.storeVcuProxySettings({
+                                        block_number: block_number,
+                                        hash: txHash,
+                                        accounts: sudo_data.args['accounts'],
+                                        signer: signedByAddress,
+                                        date: current_time
+                                    });
+                                }
+                            }
                         }
                     } else {
                         // console.log(`${section}:${method}`);

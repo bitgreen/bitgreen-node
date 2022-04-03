@@ -6,9 +6,9 @@ import { NODE_ADDRESS, get_bitgreen_bridge_contract, privateKey, send_transfer, 
 import Web3 from 'web3';
 
 const total_lockdown = async (api, keypair, web3, BitgreenBridge, token) => {
-    const gasPrice = await web3.eth.getGasPrice();
     const txid = await pallet_bridge_set_lockdown(api, keypair, token);
     console.log(txid);
+    const gasPrice = await web3.eth.getGasPrice();
     const receipt = await send_setLockdown(web3, gasPrice, BitgreenBridge);
     console.log(receipt);
 }
@@ -54,14 +54,17 @@ const handle_events = async (api, keypair, web3, BitgreenBridge, value) => {
                                 console.log(`FATAL : \t amount ${amount} <> value ${value}`);
                                 await total_lockdown(api, keypair, web3, BitgreenBridge, token);
                                 console.log('end');
-                                process.exit();
+                                // process.exit();
                             }
                             // else {
                             // console.log('all right');
                             // await total_lockdown(api, keypair, web3, BitgreenBridge, token);                            
                             // }
                         } else {
-                            console.log('WARNING: recipient not equal to destination');
+                            console.log('FATAL: recipient not equal to destination');
+                            await total_lockdown(api, keypair, web3, BitgreenBridge, token);
+                            console.log('end');
+                            // process.exit();
                         }
 
                     }
@@ -151,7 +154,6 @@ const watchdog_subscription_pallet_bridge = async (api, keypair, web3, BitgreenB
                                 console.log(`${section}.${method}:: ExtrinsicFailed:: ${errorInfo}`);
                                 value['success'] = false;
                             } else {
-                                // TODO finish event handling refactoring to deal with substrate block, index, tx hash
                                 // console.log(`${section}.${method}:: `);
                                 // console.log(event);
 
@@ -218,13 +220,14 @@ const handle_evm_transfer_events = async (api, keypair, web3, BitgreenBridge, re
         console.log(txid);
         const recipient = returnValues['1'];
         console.log(recipient);
-        const amount = returnValues['2'];
+        let amount = returnValues['2'];
+        amount = web3.utils.toBN(amount);
         console.log(amount);
         const erc20 = returnValues['3'];
         console.log(erc20);
-        const wdf = returnValues['4'];
+        const wdf = web3.utils.toBN(returnValues['4']);
         console.log(wdf);
-        const total = wdf + amount;
+        const total = wdf.add(amount);
 
         const transaction_id = api.createType('(u64,u16)', txid);
         const [block_number, index] = transaction_id;
@@ -273,7 +276,7 @@ const handle_evm_transfer_events = async (api, keypair, web3, BitgreenBridge, re
                     // console.log(event);
 
                     event.data.forEach((data, index) => {
-                        console.log(`\tindex[${index}]:\t\t${types[index].type}: ${data.toString()}`);
+                        // console.log(`\tindex[${index}]:\t\t${types[index].type}: ${data.toString()}`);
                         if (types[index].type === 'DispatchResult') {
                             const result = api.createType('DispatchResult', data);
                             if (result.isErr) {
@@ -299,24 +302,35 @@ const handle_evm_transfer_events = async (api, keypair, web3, BitgreenBridge, re
                 }
             });
 
-        const token = value[1];
-        const destination = value[2];
-        const balance = value[3];
-
-        if (destination.eq(recipient)) {
-            if (!balance.eq(total)) {
-                console.log(`FATAL : \t total ${total} <> balance ${balance}`);
+        if (value['success']) {
+            const token = value[1];
+            const destination = value[2];
+            const balance = value[3];
+    
+            if (destination.eq(recipient)) {
+                if (!balance.eq(total)) {
+                    console.log(`FATAL : \t total ${total} <> balance ${balance}`);
+                    await total_lockdown(api, keypair, web3, BitgreenBridge, token);
+                    console.log('end');
+                    // process.exit();
+                }
+                // else {
+                //     console.log('all right');
+                //     // await total_lockdown(api, keypair, web3, BitgreenBridge, token);                            
+                // }
+            } else {
+                console.log('FATAL: recipient not equal to destination');
                 await total_lockdown(api, keypair, web3, BitgreenBridge, token);
                 console.log('end');
-                process.exit();
-            }
-            else {
-                console.log('all right');
-                // await total_lockdown(api, keypair, web3, BitgreenBridge, token);                            
-            }
+                // process.exit();    
+            }    
         } else {
-            console.log('WARNING: recipient not equal to destination');
+            console.log(`FATAL : \t block_number,  ${block_number} index ${index} failed`);
+            await total_lockdown(api, keypair, web3, BitgreenBridge, token);
+            console.log('end');
+            // process.exit();
         }
+
     }
     catch (err) {
         console.error('Error', err);

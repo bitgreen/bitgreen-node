@@ -973,6 +973,7 @@ decl_module! {
 			ensure!(!description.is_empty() && description.len()<=64 , Error::<T>::InvalidDescription);
 			// check for asset id
 			let asset_id = Self::json_get_value(info.clone(),"assetid".as_bytes().to_vec());
+			ensure!(asset_id.len()>0, Error::<T>::AssetDoesNotExist);
 			let asset_id = str::parse::<u32>(sp_std::str::from_utf8(&asset_id).unwrap()).unwrap();
 			// check whether asset exists or not
 			ensure!(Asset::<T>::contains_key(asset_id), Error::<T>::AssetDoesNotExist);

@@ -1,0 +1,50 @@
+{
+  "evm": {
+    "call": {
+      "description": "call",
+      "params": [
+        {
+          "name": "_",
+          "type": "CallRequest"
+        },
+        {
+          "name": "at",
+          "type": "Option"
+        }
+      ],
+      "type": "Bytes"
+    },
+    "estimateGas": {
+      "description": "estimateGas",
+      "params": [
+        {
+          "name": "_",
+          "type": "CallRequest"
+        },
+        {
+          "name": "at",
+          "type": "Option"
+        }
+      ],
+      "type": "U256"
+    },
+    "estimateResources": {
+      "description": "estimateResources",
+      "params": [
+        {
+          "name": "from",
+          "type": "H160"
+        },
+        {
+          "name": "unsigned_extrinsic",
+          "type": "Bytes"
+        },
+        {
+          "name": "at",
+          "type": "Option"
+        }
+      ],
+      "type": "EstimateResourcesResponse"
+    }
+  }
+}
