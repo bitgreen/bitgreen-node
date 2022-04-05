@@ -118,3 +118,120 @@ This function sets lockdown to false. It's accessible by Sudo only.
 ```rust
 set_unlockdown()
 ```
+
+## Implementation details
+
+### File structure
+
+* evm_bridge.js :
+
+Integration with evm compatible blockchain using web3 js official client
+
+* pallet_bridge.js :
+
+Integration with pallet bridge from BITG substrate based node using the official polkadot js Client
+
+* teleport_evm_pallet.js :
+
+Used for manual testing the implementation by making a request to transfer asset from evm blockchain to pallet BITG
+
+* teleport_pallet_evm.js :
+
+Used for manual testing the implementation by making a request to transfer asset from pallet in BITG to evm blockchain
+
+* setup_test.js :
+
+Used to setup configuration on evm and pallet for running further tests
+
+* keeper.js :
+
+Agent taking part on the bridge process listening to requests and both sides of the bridge and voting for request to cross the bridge or not
+
+* watchdog.js :
+
+Agent taking part on the bridge by doing surveilance of balances on both sides
+
+### Environment variables
+
+* EVM
+
+NODE_ADDRESS - Websocket provider address, example: 'ws://127.0.0.1:8546'
+PRIVATE_KEY - Hexadecimal encoded private key used to retrieve keypair used for signing transaction on EVM blockchain, example '0x41c52877d19621b7510636aaa8a6b8c889f3080a161bc4fc86d3b827afb71141'
+ROUTER_ADDRESS - Hexadecimal address of deployed BitgreenBridge.sol smart contract on EVM based blockchain, examle '0xa7d64D9B075443010154528D43e1dBd9Cde46786'
+
+* BITG node's pallet bridge
+
+PALLET_MNEMONIC - Substrate based MNEMONIC used to retrieve keypair used for signing transaction on BITG blockchain
+BITG_ADDRESS - Websocket provider address, example: 'ws://127.0.0.1:9944'
+
+### Keepers Sequence
+
+* EVM blockchain to BITG node
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant D as Dave
+    participant E as Eve
+    participant K1 as Keeper1
+    participant K2 as Keeper2
+    participant K3 as Keeper3
+    participant BC as BitgreenBridge
+    participant BP as BridgePallet
+    D->>BC : deposit{amount, AccountID{eve.address}}}
+    note right of D: amount set as transfer, not param.
+    BC -) K1 : BridgeDepositRequest{bytes32 destination, uint amount, address sender}
+    BC -) K2 : BridgeDepositRequest{bytes32 destination, uint amount, address sender}
+    BC -) K3 : BridgeDepositRequest{bytes32 destination, uint amount, address sender}
+    K1->>BP : mint{token, recipient, transaction_id, amount}
+    K2->>BP : mint{token, recipient, transaction_id, amount}
+    K3->>BP : mint{token, recipient, transaction_id, amount}
+    BP -) E : mint(asset_id, amount)
+```
+
+* BITG node to EVM blockchain
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant D as Dave
+    participant E as Eve
+    participant K1 as Keeper1
+    participant K2 as Keeper2
+    participant K3 as Keeper3
+    participant BC as BitgreenBridge
+    participant BP as BridgePallet
+    E->>BP : request{token, AccountID{Dave}, amount}
+    BP -) K1 : Request{AccountID{Dave}, Bytes{txid} Balance{amount}, AccountID{Eve}}
+    note left of BP: txid SCALE encoded tuple of (u64 block_number, u32 index).    
+    BP -) K2 : Request{AccountID{Dave}, Bytes{txid} Balance{amount}, AccountID{Eve}}
+    BP -) K3 : Request{AccountID{Dave}, Bytes{txid} Balance{amount}, AccountID{Eve}}
+    K1->>BP : burn{token, AccountID{Dave}, Bytes{txid}, Balance{amount}}
+    K2->>BP : burn{token, AccountID{Dave}, Bytes{txid}, Balance{amount}}
+    K3->>BP : burn{token, AccountID{Dave}, Bytes{txid}, Balance{amount}}
+    BP -) D : burn(asset_id, amount)
+```
+
+### WatchDog Sequence
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant D as Dave
+    participant E as Eve
+    participant WD1 as WatchDog1
+    participant BB as BitgreenBridge
+    participant BP as BridgePallet
+    BP -) WD1 : Minted{AccountID{Dave}, Bytes{txid} Balance{amount}, u32{assetid}, AccountID{Eve}}
+    note left of BP: txid SCALE encoded tuple of (u64 block_number, u32 index).  
+    alt NotValid
+        WD1-->>BP : setLockdown(Bytes{token})
+        WD1-->>BC : setLockdown()
+    end  
+    BB -) WD1 : BridgeTransfer{txid, recipient, amount, erc20, wdf}
+    note left of BB: txid SCALE encoded tuple of (u64 block_number, u32 index).  
+    alt NotValid
+        WD1-->>BP : setLockdown(Bytes{token})
+        WD1-->>BC : setLockdown()
+    end 
+```
