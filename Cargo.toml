@@ -7,7 +7,6 @@ split-debuginfo = "unpacked"
 [workspace]
 members = [
     'node',
-    'modules/*',
     'pallets/*',
     'runtime',
     'primitives'

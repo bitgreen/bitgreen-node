@@ -433,7 +433,7 @@ parameter_types! {
 	pub const ASSETDEPOSITBASE: Balance = 1 * DOLLARS;
 	pub const ASSETDEPOSITPERZOMBIE: Balance = 1 * DOLLARS;
 	pub const STRINGLIMIT: u32 = 8192;	// max metadata size in bytes
-	pub const METADATADEPOSITBASE: Balance= 1 * DOLLARS; 
+	pub const METADATADEPOSITBASE: Balance= 1 * DOLLARS;
 	pub const METADATADEPOSITPERBYTE: Balance = 1 * CENTS;
 }
 impl pallet_assets::Config for Runtime {
@@ -928,65 +928,65 @@ construct_runtime!(
 		UncheckedExtrinsic = UncheckedExtrinsic
 	{
 		// Core
-		System: frame_system::{Module, Call, Config, Storage, Event<T>} = 0,
-		RandomnessCollectiveFlip: pallet_randomness_collective_flip::{Module, Call, Storage} = 1,
-		Timestamp: pallet_timestamp::{Module, Call, Storage, Inherent} = 2,
-		Sudo: pallet_sudo::{Module, Call, Config<T>, Storage, Event<T>} = 3,
-		Scheduler: pallet_scheduler::{Module, Call, Storage, Event<T>} = 4,
+		System: frame_system::{Pallet, Call, Config, Storage, Event<T>} = 0,
+		RandomnessCollectiveFlip: pallet_randomness_collective_flip::{Pallet, Call, Storage} = 1,
+		Timestamp: pallet_timestamp::{Pallet, Call, Storage, Inherent} = 2,
+		Sudo: pallet_sudo::{Pallet, Call, Config<T>, Storage, Event<T>} = 3,
+		Scheduler: pallet_scheduler::{Pallet, Call, Storage, Event<T>} = 4,
 
 		// Account lookup
-		Indices: pallet_indices::{Module, Call, Storage, Config<T>, Event<T>} = 5,
+		Indices: pallet_indices::{Pallet, Call, Storage, Config<T>, Event<T>} = 5,
 
 		// Tokens & Fees
-		Balances: pallet_balances::{Module, Call, Storage, Config<T>, Event<T>} = 6,
-		Currencies: module_currencies::{Module, Call, Event<T>} = 7,
-		Tokens: orml_tokens::{Module, Storage, Event<T>, Config<T>} = 8,
-		TransactionPayment: module_transaction_payment::{Module, Call, Storage} = 9,
+		Balances: pallet_balances::{Pallet, Call, Storage, Config<T>, Event<T>} = 6,
+		Currencies: module_currencies::{Pallet, Call, Event<T>} = 7,
+		Tokens: orml_tokens::{Pallet, Storage, Event<T>, Config<T>} = 8,
+		TransactionPayment: module_transaction_payment::{Pallet, Call, Storage} = 9,
 
 		// Authorization
-		Authority: orml_authority::{Module, Call, Event<T>, Origin<T>} = 10,
+		Authority: orml_authority::{Pallet, Call, Event<T>, Origin<T>} = 10,
 
 		// EVM Smart contracts
-		EvmAccounts: module_evm_accounts::{Module, Call, Storage, Event<T>} = 20,
-		Evm: module_evm::{Module, Config<T>, Call, Storage, Event<T>} = 21,
-		EVMBridge: module_evm_bridge::{Module} = 22,
+		EvmAccounts: module_evm_accounts::{Pallet, Call, Storage, Event<T>} = 20,
+		Evm: module_evm::{Pallet, Config<T>, Call, Storage, Event<T>} = 21,
+		EVMBridge: module_evm_bridge::{Pallet} = 22,
 
 		// Consensus
-		Authorship: pallet_authorship::{Module, Call, Storage, Inherent} = 30,
-		Babe: pallet_babe::{Module, Call, Storage, Config, Inherent, ValidateUnsigned} = 31,
-		Grandpa: pallet_grandpa::{Module, Call, Storage, Config, Event, ValidateUnsigned} = 32,
-		Staking: pallet_staking::{Module, Call, Config<T>, Storage, Event<T>} = 33,
-		Session: pallet_session::{Module, Call, Storage, Event, Config<T>} = 34,
-		Historical: pallet_session_historical::{Module} = 35,
-		Offences: pallet_offences::{Module, Call, Storage, Event} = 36,
-		ImOnline: pallet_im_online::{Module, Call, Storage, Event<T>, ValidateUnsigned, Config<T>} = 37,
-		AuthorityDiscovery: pallet_authority_discovery::{Module, Call, Config} = 38,
+		Authorship: pallet_authorship::{Pallet, Call, Storage, Inherent} = 30,
+		Babe: pallet_babe::{Pallet, Call, Storage, Config, Inherent, ValidateUnsigned} = 31,
+		Grandpa: pallet_grandpa::{Pallet, Call, Storage, Config, Event, ValidateUnsigned} = 32,
+		Staking: pallet_staking::{Pallet, Call, Config<T>, Storage, Event<T>} = 33,
+		Session: pallet_session::{Pallet, Call, Storage, Event, Config<T>} = 34,
+		Historical: pallet_session_historical::{Pallet} = 35,
+		Offences: pallet_offences::{Pallet, Call, Storage, Event} = 36,
+		ImOnline: pallet_im_online::{Pallet, Call, Storage, Event<T>, ValidateUnsigned, Config<T>} = 37,
+		AuthorityDiscovery: pallet_authority_discovery::{Pallet, Call, Config} = 38,
 
 		// Identity
-		Identity: pallet_identity::{Module, Call, Storage, Event<T>} = 40,
+		Identity: pallet_identity::{Pallet, Call, Storage, Event<T>} = 40,
 
 		// POC
-		TechCouncil: pallet_collective::<Instance1>::{Module, Call, Storage, Origin<T>, Event<T>, Config<T>} = 50,
-		Poc: module_poc::{Module, Call, Storage, Event<T>} = 51,
+		TechCouncil: pallet_collective::<Instance1>::{Pallet, Call, Storage, Origin<T>, Event<T>, Config<T>} = 50,
+		Poc: module_poc::{Pallet, Call, Storage, Event<T>} = 51,
 
 		// Claim Pallet
-		Claim: pallet_claim::{Module, Call, Storage, Event<T>} = 60,
+		Claim: pallet_claim::{Pallet, Call, Storage, Event<T>} = 60,
 		// Nft Pallet
-		Nft: orml_nft::{Module, Call, Storage, Config<T>}= 65,
+		Nft: orml_nft::{Pallet, Call, Storage, Config<T>}= 65,
 		// !INK Smart Contracts
-		Contracts: pallet_contracts::{Module, Call, Config<T>, Storage, Event<T>} = 70,
+		Contracts: pallet_contracts::{Pallet, Call, Config<T>, Storage, Event<T>} = 70,
 		//Assets - ERC20 Tokens
-		Assets: pallet_assets::{Module, Call, Storage, Event<T>} = 71,
+		Assets: pallet_assets::{Pallet, Call, Storage, Event<T>} = 71,
 		//Impact Actions
-		ImpactActions: pallet_impact_actions::{Module, Call, Storage, Event<T>} = 72,
+		ImpactActions: pallet_impact_actions::{Pallet, Call, Storage, Event<T>} = 72,
 		// Bonds
-		Bonds: pallet_bonds::{Module, Call, Storage, Event<T>} = 73,
+		Bonds: pallet_bonds::{Pallet, Call, Storage, Event<T>} = 73,
 		// VCUs
-		VCU: pallet_vcu::{Module, Call, Storage, Event<T>} = 74,
+		VCU: pallet_vcu::{Pallet, Call, Storage, Event<T>} = 74,
 		// Bridge
-		Bridge: pallet_bridge::{Module, Call, Storage, Event<T>, Config} = 75,
+		Bridge: pallet_bridge::{Pallet, Call, Storage, Event<T>, Config} = 75,
 		// Vesting
-		Vesting: pallet_vesting::{Module, Call, Storage, Event<T>} = 76,
+		Vesting: pallet_vesting::{Pallet, Call, Storage, Event<T>} = 76,
 
 	}
 );
@@ -1259,7 +1259,7 @@ impl_runtime_apis! {
 			TransactionPayment::query_fee_details(uxt, len)
 		}
 	}
-	
+
 	// !Ink Smart Contacts RPC interface
 	impl pallet_contracts_rpc_runtime_api::ContractsApi<Block, AccountId, Balance, BlockNumber>
     for Runtime
@@ -1288,7 +1288,7 @@ impl_runtime_apis! {
         }
     }
 	// end !Ink Contracts
-	
+
 
 
 	impl module_evm_rpc_runtime_api::EVMRuntimeRPCApi<Block, Balance> for Runtime {
