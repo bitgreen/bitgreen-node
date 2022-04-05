@@ -22,6 +22,20 @@ const storeVcuAuthorizedAccount = (request, response) => {
         })
 }
 
+// destroy authorized vcu account to DB
+const destroyVcuAuthorizedAccount = (request, response) => {
+    let { block_number, hash, account, signer, date } = request
+    date = new Date(parseInt(date)).toISOString()
+
+    pool.query('INSERT INTO vcu_authorized_accounts_destroyed ("block_number", "hash", "account", "signer", "date") VALUES ($1, $2, $3, $4, $5)',
+        [block_number, hash, account, signer, date], (error, results) => {
+            if (error) {
+                throw error
+            }
+            // response.status(201).send(`User added with ID: ${result.insertId}`)
+        })
+}
+
 // get authorized accounts by date range and/or by account
 const getVcuAuthorizedAccounts = (request, response) => {
     let account = request.query.account;
@@ -59,6 +73,20 @@ const storeVcuAssetsGenerating = (request, response) => {
         })
 }
 
+// destroy assets generating vcu to DB
+const destroyVcuAssetsGenerating = (request, response) => {
+    let { block_number, hash, agv_account, agv_id, signer, date } = request
+    date = new Date(parseInt(date)).toISOString()
+
+    pool.query('INSERT INTO vcu_assets_generating_destroyed ("block_number", "hash", "agv_account", "agv_id", "signer", "date") VALUES ($1, $2, $3, $4, $5, $6)',
+        [block_number, hash, agv_account, agv_id, signer, date], (error, results) => {
+            if (error) {
+                throw error
+            }
+            // response.status(201).send(`User added with ID: ${result.insertId}`)
+        })
+}
+
 // save assets generating schedule vcu to DB
 const storeVcuAssetsGeneratingSchedule = (request, response) => {
     let { block_number, hash, agv_account, agv_id, period_days, amount_vcu, token_id, signer, date } = request
@@ -73,6 +101,20 @@ const storeVcuAssetsGeneratingSchedule = (request, response) => {
         })
 }
 
+// destroy assets generating schedule vcu to DB
+const destroyVcuAssetsGeneratingSchedule = (request, response) => {
+    let { block_number, hash, agv_account, agv_id, signer, date } = request
+    date = new Date(parseInt(date)).toISOString()
+
+    pool.query('INSERT INTO vcu_assets_generating_schedule_destroyed ("block_number", "hash", "agv_account", "agv_id", "signer", "date") VALUES ($1, $2, $3, $4, $5, $6)',
+        [block_number, hash, agv_account, agv_id, signer, date], (error, results) => {
+            if (error) {
+                throw error
+            }
+            // response.status(201).send(`User added with ID: ${result.insertId}`)
+        })
+}
+
 // save oracle account minting vcu to DB
 const storeVcuOracleAccountMinting = (request, response) => {
     let { block_number, hash, agv_account, agv_id, oracle_account, token_id, signer, date } = request
@@ -80,6 +122,20 @@ const storeVcuOracleAccountMinting = (request, response) => {
 
     pool.query('INSERT INTO vcu_oracle_account_minting ("block_number", "hash", "agv_account", "agv_id", "oracle_account", "token_id", "signer", "date") VALUES ($1, $2, $3, $4, $5, $6, $7, $8)',
         [block_number, hash, agv_account, agv_id, oracle_account, token_id, signer, date], (error, results) => {
+            if (error) {
+                throw error
+            }
+            // response.status(201).send(`User added with ID: ${result.insertId}`)
+        })
+}
+
+// destroy oracle account minting vcu to DB
+const destroyVcuOracleAccountMinting = (request, response) => {
+    let { block_number, hash, agv_account, agv_id, signer, date } = request
+    date = new Date(parseInt(date)).toISOString()
+
+    pool.query('INSERT INTO vcu_oracle_account_minting_destroyed ("block_number", "hash", "agv_account", "agv_id", "signer", "date") VALUES ($1, $2, $3, $4, $5, $6)',
+        [block_number, hash, agv_account, agv_id, signer, date], (error, results) => {
             if (error) {
                 throw error
             }
@@ -503,10 +559,14 @@ module.exports = {
     getImpactActionsProxies,
 
     storeVcuAuthorizedAccount,
+    destroyVcuAuthorizedAccount,
     getVcuAuthorizedAccounts,
     storeVcuAssetsGenerating,
+    destroyVcuAssetsGenerating,
     getVcuAssetsGenerating,
     storeVcuAssetsGeneratingSchedule,
+    destroyVcuAssetsGeneratingSchedule,
     storeVcuOracleAccountMinting,
+    destroyVcuOracleAccountMinting,
     storeVcuProxySettings
 }

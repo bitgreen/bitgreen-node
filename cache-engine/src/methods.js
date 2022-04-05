@@ -123,19 +123,50 @@ async function processBlock(api, block_number, analyze_only = false) {
                                     });
                                 }
 
+                                if (sudo_method === 'AuthorizedAccountsAGVDestroyed') {
+                                    ex.args.map((arg, d) => {
+                                        sudo_data = arg.toHuman();
+                                    });
+
+                                    db.destroyVcuAuthorizedAccount({
+                                        block_number: block_number,
+                                        hash: txHash,
+                                        account: sudo_data.args['account_id'],
+                                        signer: signedByAddress,
+                                        date: current_time
+                                    });
+                                }
+
                                 // content:
                                 // {"description":"Description", "proofOwnership":"ipfslink", "numberOfShares":"1000"}
                                 if (sudo_method === 'AssetsGeneratingVCUCreated') {
                                     ex.args.map((arg, d) => {
                                         sudo_data = arg.toHuman();
+                                        sudo_data_json = arg.toJSON();
                                     });
 
                                     db.storeVcuAssetsGenerating({
                                         block_number: block_number,
                                         hash: txHash,
-                                        agv_account: sudo_data.args['agv_account_id'],
-                                        agv_id: sudo_data.args['agv_id'],
+                                        agv_account: sudo_data_json.args['agv_account_id'],
+                                        agv_id: sudo_data_json.args['agv_id'],
                                         content: sudo_data.args['content'],
+                                        signer: signedByAddress,
+                                        date: current_time
+                                    });
+                                }
+
+                                if (sudo_method === 'AssetGeneratingVCUDestroyed') {
+                                    ex.args.map((arg, d) => {
+                                        sudo_data = arg.toHuman();
+                                        sudo_data_json = arg.toJSON();
+                                    });
+
+                                    db.destroyVcuAssetsGenerating({
+                                        block_number: block_number,
+                                        hash: txHash,
+                                        agv_account: sudo_data_json.args['agv_account_id'],
+                                        agv_id: sudo_data_json.args['agv_id'],
                                         signer: signedByAddress,
                                         date: current_time
                                     });
@@ -160,6 +191,22 @@ async function processBlock(api, block_number, analyze_only = false) {
                                     });
                                 }
 
+                                if (sudo_method === 'AssetsGeneratingVCUScheduleDestroyed') {
+                                    ex.args.map((arg, d) => {
+                                        sudo_data = arg.toHuman();
+                                        sudo_data_json = arg.toJSON();
+                                    });
+
+                                    db.destroyVcuAssetsGeneratingSchedule({
+                                        block_number: block_number,
+                                        hash: txHash,
+                                        agv_account: sudo_data_json.args['agv_account_id'],
+                                        agv_id: sudo_data_json.args['agv_id'],
+                                        signer: signedByAddress,
+                                        date: current_time
+                                    });
+                                }
+
                                 if (sudo_method === 'OraclesAccountMintingVCUAdded') {
                                     ex.args.map((arg, d) => {
                                         sudo_data = arg.toHuman();
@@ -173,6 +220,22 @@ async function processBlock(api, block_number, analyze_only = false) {
                                         agv_id: sudo_data_json.args['agv_id'],
                                         oracle_account: sudo_data_json.args['oracle_account_id'],
                                         token_id: sudo_data_json.args['token_id'],
+                                        signer: signedByAddress,
+                                        date: current_time
+                                    });
+                                }
+
+                                if (sudo_method === 'OraclesAccountMintingVCUDestroyed') {
+                                    ex.args.map((arg, d) => {
+                                        sudo_data = arg.toHuman();
+                                        sudo_data_json = arg.toJSON();
+                                    });
+
+                                    db.destroyVcuOracleAccountMinting({
+                                        block_number: block_number,
+                                        hash: txHash,
+                                        agv_account: sudo_data_json.args['agv_account_id'],
+                                        agv_id: sudo_data_json.args['agv_id'],
                                         signer: signedByAddress,
                                         date: current_time
                                     });
