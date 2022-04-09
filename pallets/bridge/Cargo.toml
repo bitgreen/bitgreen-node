@@ -24,8 +24,8 @@ frame-system = { git = "https://github.com/paritytech/substrate.git", branch = "
 primitives = { package = 'bitg-primitives', path = '../../primitives', default-features = false }
 serde = { version = '1', features = ['derive'], optional = true }
 sp-runtime ={ git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.18", default-features = false }
-sp-std ={ git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.18", default-features = false }
-pallet-assets = { version = "3.0.0", default-features = false, path = "../assets" }
+sp-std = { git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.18", default-features = false }
+pallet-assets = { git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.18", default-features = false }
 bs58 = { default-features = false, version = '0.4.0',features=['alloc']}
 
 [dev-dependencies]
