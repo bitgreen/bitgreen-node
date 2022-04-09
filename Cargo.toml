@@ -8,7 +8,10 @@ split-debuginfo = "unpacked"
 members = [
     'node',
     'runtime',
+    'pallets/assets',
     'pallets/bridge',
+    'pallets/impact-actions',
+    'pallets/vesting',
     'primitives'
 ]
 exclude = ['rpc']

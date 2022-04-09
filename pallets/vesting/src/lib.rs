@@ -172,7 +172,7 @@ decl_module! {
 			let expire_time = str::parse::<T::BlockNumber>(sp_std::str::from_utf8(&expire_time).unwrap()).ok().unwrap();
 
 			let recipient_account= Self::json_get_value(content.clone(),"recipient_account".as_bytes().to_vec());
-			let recipient_account = T::AccountId::decode(&mut &recipient_account[1..33]).unwrap_or_default();
+			let recipient_account = T::AccountId::decode(&mut &recipient_account[1..33]).map_err(|_| Error::<T>::InvalidRecipent)?;
 			let staking = Self::json_get_value(content.clone(),"staking".as_bytes().to_vec());
 			let staking = str::parse::<Balance>(sp_std::str::from_utf8(&staking).unwrap()).unwrap();
 
