@@ -4,7 +4,7 @@ use frame_support::{assert_err, assert_ok};
 
 #[test]
 fn currency_id_to_bytes_works() {
-	assert_eq!(Into::<[u8; 32]>::into(CurrencyId::Token(TokenSymbol::BITG)), [0u8; 32]);
+	assert_eq!(Into::<[u8; 32]>::into(CurrencyId::Token(TokenSymbol::BBB)), [0u8; 32]);
 
 	let mut bytes = [0u8; 32];
 	bytes[29..].copy_from_slice(&[0, 1, 0][..]);
