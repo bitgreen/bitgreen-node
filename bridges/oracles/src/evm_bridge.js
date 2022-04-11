@@ -1,3 +1,5 @@
+/// Module for evm compatible client integration based on web3js
+
 import Web3 from 'web3';
 import { readFileSync } from 'fs';
 import { dirname, join, normalize, format } from 'path';
@@ -69,6 +71,8 @@ async function send(web3, gasPrice, contract, method, params) {
     }
     return receipt;
 }
+
+/// send transaction with call to method setKeepers from contract BitgreenBridge.sol
 export async function send_setKeepers(web3, gasPrice, contract, keepers) {
     const account = web3.eth.accounts.privateKeyToAccount(privateKey).address;
     const transaction = contract.methods.setKeepers(keepers);
@@ -85,6 +89,8 @@ export async function send_setKeepers(web3, gasPrice, contract, keepers) {
     }
     return receipt;
 }
+
+/// send transaction with call to method setLockdown from contract BitgreenBridge.sol
 export async function send_setLockdown(web3, gasPrice, contract) {
     const account = web3.eth.accounts.privateKeyToAccount(privateKey).address;
     const transaction = contract.methods.setLockdown();
@@ -101,6 +107,8 @@ export async function send_setLockdown(web3, gasPrice, contract) {
     }
     return receipt;
 }
+
+/// send transaction with call to method setMinimumWithDrawalFees from contract BitgreenBridge.sol
 export async function send_setMinimumWithDrawalFees(web3, gasPrice, contract, value) {
     const account = web3.eth.accounts.privateKeyToAccount(privateKey).address;
     const transaction = contract.methods.setMinimumWithDrawalFees(value);
@@ -117,6 +125,8 @@ export async function send_setMinimumWithDrawalFees(web3, gasPrice, contract, va
     }
     return receipt;
 }
+
+/// send transaction with call to method setThreshold from contract BitgreenBridge.sol
 export async function send_setThreshold(web3, gasPrice, contract, value) {
     const account = web3.eth.accounts.privateKeyToAccount(privateKey).address;
     const transaction = contract.methods.setThreshold(value);
@@ -133,6 +143,8 @@ export async function send_setThreshold(web3, gasPrice, contract, value) {
     }
     return receipt;
 }
+
+/// send transaction with call to method setWatchcats from contract BitgreenBridge.sol
 export async function send_setWatchcats(web3, gasPrice, contract, value) {
     const account = web3.eth.accounts.privateKeyToAccount(privateKey).address;
     const transaction = contract.methods.setWatchcats(value);
@@ -149,6 +161,8 @@ export async function send_setWatchcats(web3, gasPrice, contract, value) {
     }
     return receipt;
 }
+
+/// send transaction with call to method setWatchdogs from contract BitgreenBridge.sol
 export async function send_setWatchdogs(web3, gasPrice, contract, value) {
     const account = web3.eth.accounts.privateKeyToAccount(privateKey).address;
     const transaction = contract.methods.setWatchdogs(value);
@@ -165,6 +179,8 @@ export async function send_setWatchdogs(web3, gasPrice, contract, value) {
     }
     return receipt;
 }
+
+/// send transaction with call to method setWithDrawalFews from contract BitgreenBridge.sol
 export async function send_setWithDrawalFews(web3, gasPrice, contract, value) {
     const account = web3.eth.accounts.privateKeyToAccount(privateKey).address;
     const transaction = contract.methods.setWithDrawalFews(value);
@@ -181,6 +197,9 @@ export async function send_setWithDrawalFews(web3, gasPrice, contract, value) {
     }
     return receipt;
 }
+
+/// send transaction with call to method deposit from contract BitgreenBridge.sol
+/// this call will trigger keepers looking for cross bridge transactions
 export const deposit_method = async (web3, gasPrice, contract, pk, amount, destination, nonce) => {
     const account = web3.eth.accounts.privateKeyToAccount(pk).address;
     const transaction = contract.methods.deposit(destination);
@@ -207,6 +226,7 @@ export const deposit_method = async (web3, gasPrice, contract, pk, amount, desti
     return receipt;
 };
 
+/// transfer amount to contract address
 export const deposit = async (web3, gasPrice, pk, amount, destination) => {
     const options = {
         to: ROUTER_ADDRESS,
@@ -223,6 +243,8 @@ export const deposit = async (web3, gasPrice, pk, amount, destination) => {
     return receipt;
 };
 
+/// send transaction with call to method transfer from contract BitgreenBridge.sol
+/// this call from keepers will reach consensus threshold abount transfer from pallet bridge
 export async function send_transfer(web3, gasPrice, contract, pk, txid, recipient, amount, erc20) {
     const account = web3.eth.accounts.privateKeyToAccount(pk).address;
     const transaction = contract.methods.transfer(txid, recipient, amount, erc20);
@@ -241,6 +263,8 @@ export async function send_transfer(web3, gasPrice, contract, pk, txid, recipien
     }
     return receipt;
 }
+
+/// send transaction with call to method transferOwnership from contract BitgreenBridge.sol
 export async function send_transferOwnership(web3, gasPrice, contract, pk, value) {
     const account = web3.eth.accounts.privateKeyToAccount(pk).address;
     const transaction = contract.methods.transferOwnership(value);
@@ -257,6 +281,8 @@ export async function send_transferOwnership(web3, gasPrice, contract, pk, value
     }
     return receipt;
 }
+
+/// send transaction with call to method unsetLockdown from contract BitgreenBridge.sol
 export async function send_unsetLockdown(web3, gasPrice, contract) {
     const account = web3.eth.accounts.privateKeyToAccount(privateKey).address;
     const transaction = contract.methods.unsetLockdown();
@@ -273,6 +299,8 @@ export async function send_unsetLockdown(web3, gasPrice, contract) {
     }
     return receipt;
 }
+
+// resolve relative path to json types definition file
 export const get_bitgreen_bridge_contract = async (web3) => {
     const relative_path = join('..', '..');
     const root_path = normalize(join(__dirname, relative_path));
