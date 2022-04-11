@@ -23,7 +23,7 @@ use codec::Decode;
 use frame_system::{ensure_root, ensure_signed};
 use frame_support::dispatch::DispatchResult;
 use frame_support::pallet_prelude::DispatchResultWithPostInfo;
-use frame_support::traits::{Vec, UnixTime};
+use frame_support::traits::UnixTime;
 use sp_std::vec;
 use alloc::string::ToString;
 use sp_runtime::traits::StaticLookup;
@@ -265,7 +265,7 @@ decl_module! {
 		/// The dispatch origin for this call must be `Signed` by the Root.
 		#[weight = 10_000 + T::DbWeight::get().writes(1)]
 		pub fn destroy_proxy_settings(origin) -> DispatchResult {
-			// check for SUDO 
+			// check for SUDO
 			ensure_root(origin)?;
 			// search for the key of the proxy settings
 			let key = "admin".as_bytes().to_vec();
@@ -287,9 +287,9 @@ decl_module! {
 		/// The dispatch origin for this call must be `Signed` by the Root.
 		#[weight = 10_000 + T::DbWeight::get().writes(1)]
 		pub fn add_authorized_account(origin, account_id: T::AccountId, description: Vec<u8>) -> DispatchResult {
-			// check for SUDO 
+			// check for SUDO
 			ensure_root(origin)?;
-			// description is mandatory 
+			// description is mandatory
 			ensure!(!description.is_empty(), Error::<T>::InvalidDescription);
 			//minimu lenght of 4 chars
 			ensure!(description.len()>4, Error::<T>::InvalidDescription);
@@ -308,7 +308,7 @@ decl_module! {
 		/// The dispatch origin for this call must be `Signed` by the Root.
 		#[weight = 10_000 + T::DbWeight::get().writes(1)]
 		pub fn destroy_authorized_account(origin, account_id: T::AccountId) -> DispatchResult {
-			// check for SUDO 
+			// check for SUDO
 			ensure_root(origin)?;
 			// check whether authorized account exists or not
 			ensure!(AuthorizedAccountsAGV::<T>::contains_key(&account_id), Error::<T>::AuthorizedAccountsAGVNotFound);
@@ -432,10 +432,10 @@ decl_module! {
 			let agv_id_vec: Vec<&str> = sp_std::str::from_utf8(&agv_account).unwrap().split('-').collect();
 			ensure!(agv_id_vec.len() == 2, Error::<T>::InvalidAGVId);
 			let (str_account_id, agv_id): (&str, u32) = (agv_id_vec[0], str::parse::<u32>(agv_id_vec[1]).unwrap());
-			let account_id = T::AccountId::decode(&mut &str_account_id.as_bytes().to_vec()[1..33]).unwrap_or_default();
+			let account_id = T::AccountId::decode(&mut &str_account_id.as_bytes().to_vec()[1..33]).map_err(|_| Error::<T>::InvalidJson)?;
 			// check whether asset generating VCU (AGV) exists or not
 			ensure!(AssetsGeneratingVCU::<T>::contains_key(&account_id, &agv_id), Error::<T>::AssetGeneratingVCUNotFound);
-			
+
 			// read info about the AGV
 			let content: Vec<u8> = AssetsGeneratingVCU::<T>::get(&account_id, &agv_id);
 			let total_shares = Self::json_get_value(content,"numberOfShares".as_bytes().to_vec());
@@ -461,7 +461,7 @@ decl_module! {
 				*share = total_sha;
 				Ok(())
 			})?;
-			
+
 			// Generate event
 			Self::deposit_event(RawEvent::AssetsGeneratingVCUSharesMinted(account_id, agv_id));
 			// Return a successful DispatchResult
@@ -491,7 +491,7 @@ decl_module! {
 			let agv_id_vec: Vec<&str> = sp_std::str::from_utf8(&agv_account).unwrap().split('-').collect();
 			ensure!(agv_id_vec.len() == 2, Error::<T>::InvalidAGVId);
 			let (str_account_id, agv_id): (&str, u32) = (agv_id_vec[0], str::parse::<u32>(agv_id_vec[1]).unwrap());
-			let account_id = T::AccountId::decode(&mut &str_account_id.as_bytes().to_vec()[1..33]).unwrap_or_default();
+			let account_id = T::AccountId::decode(&mut &str_account_id.as_bytes().to_vec()[1..33]).map_err(|_| Error::<T>::InvalidJson)?;
 			// check whether asset generated VCU exists or not
 			ensure!(AssetsGeneratingVCU::<T>::contains_key(&account_id, &agv_id), Error::<T>::AssetGeneratingVCUNotFound);
 			// check for previously minted shares for the recipient
@@ -600,7 +600,7 @@ decl_module! {
 		/// The dispatch origin for this call must be `Signed` either by the Root or authorized account.
 		#[weight = 10_000 + T::DbWeight::get().writes(1)]
 		pub fn create_asset_generating_vcu_schedule(origin, agv_account_id: T::AccountId, agv_id: u32, period_days: u64, amount_vcu: Balance, token_id: u32) -> DispatchResult {
-			// check for Sudo or other admnistrator account	
+			// check for Sudo or other admnistrator account
 			match ensure_root(origin.clone()) {
 				Ok(()) => Ok(()),
 				Err(e) => {
@@ -642,7 +642,7 @@ decl_module! {
 		/// The dispatch origin for this call must be `Signed` either by the Root or authorized account.
 		#[weight = 10_000 + T::DbWeight::get().writes(1)]
 		pub fn destroy_asset_generating_vcu_schedule(origin, agv_account_id: T::AccountId, agv_id: u32) -> DispatchResult {
-			// check for Sudo or other admnistrator account	
+			// check for Sudo or other admnistrator account
 			match ensure_root(origin.clone()) {
 				Ok(()) => Ok(()),
 				Err(e) => {
@@ -683,7 +683,7 @@ decl_module! {
 		/// the first minting can be done anytime, the  following minting not before the scheduled time
 		#[weight = 10_000 + T::DbWeight::get().writes(1)]
 		pub fn mint_scheduled_vcu(origin, agv_account: Vec<u8>) -> DispatchResultWithPostInfo {
-			// check for Sudo or other admnistrator account	
+			// check for Sudo or other admnistrator account
 			match ensure_root(origin.clone()) {
 				Ok(()) => Ok(()),
 				Err(e) => {
@@ -700,7 +700,7 @@ decl_module! {
 			let agv_id_vec: Vec<&str> = sp_std::str::from_utf8(&agv_account).unwrap().split('-').collect();
 			ensure!(agv_id_vec.len() >= 1, Error::<T>::InvalidAGVId);
 			let (str_account_id, agv_id): (&str, u32) = (agv_id_vec[0], str::parse::<u32>(agv_id_vec[1]).unwrap());
-			let agv_account_id = T::AccountId::decode(&mut &str_account_id.as_bytes().to_vec()[1..33]).unwrap_or_default();
+			let agv_account_id = T::AccountId::decode(&mut &str_account_id.as_bytes().to_vec()[1..33]).map_err(|_| Error::<T>::InvalidJson)?;
 			// check for AGV
 			ensure!(AssetsGeneratingVCUSchedule::<T>::contains_key(&agv_account_id, &agv_id), Error::<T>::AssetGeneratedVCUScheduleNotFound);
 			let content: Vec<u8> = AssetsGeneratingVCUSchedule::<T>::get(agv_account_id.clone(), &agv_id);
@@ -714,14 +714,14 @@ decl_module! {
 			let now:u64 = T::UnixTime::now().as_secs();
 			// check for the last minting done
 			if AssetsGeneratingVCUGenerated::<T>::contains_key(&agv_account_id, &agv_id) {
-				timestamp = AssetsGeneratingVCUGenerated::<T>::get(&agv_account_id, &agv_id);	
+				timestamp = AssetsGeneratingVCUGenerated::<T>::get(&agv_account_id, &agv_id);
 			}
 			let elapse:u64=period_days*24*60;
 			ensure!(now+elapse<=timestamp,Error::<T>::AssetGeneratedScheduleNotYetArrived);
 			// create token if it does not exists
 			ensure!(token_id>=10000,Error::<T>::ReservedTokenId);
 			if !Asset::<T>::contains_key(token_id) {
-				pallet_assets::Module::<T>::force_create(RawOrigin::Root.into(), token_id, T::Lookup::unlookup(agv_account_id.clone()), One::one(), One::one())?;
+				pallet_assets::Module::<T>::force_create(RawOrigin::Root.into(), token_id, T::Lookup::unlookup(agv_account_id.clone()), Default::default(), One::one())?;
 			}
 			// check for existing shares
 			ensure!(AssetsGeneratingVCUSharesMintedTotal::<T>::contains_key(agv_account_id.clone(),agv_id.clone()),Error::<T>::NoAVGSharesNotFound);
@@ -757,9 +757,9 @@ decl_module! {
 			// mint the assets
 			// store the last minting time in AssetsGeneratingVCUGenerated
 			if AssetsGeneratingVCUGenerated::<T>::contains_key(&agv_account_id, &agv_id){
-				AssetsGeneratingVCUGenerated::<T>::take(&agv_account_id, &agv_id);		
+				AssetsGeneratingVCUGenerated::<T>::take(&agv_account_id, &agv_id);
 			}
-			AssetsGeneratingVCUGenerated::<T>::insert(&agv_account_id, &agv_id,now);		
+			AssetsGeneratingVCUGenerated::<T>::insert(&agv_account_id, &agv_id,now);
 			// generate event
 			Self::deposit_event(RawEvent::AssetsGeneratingVCUGenerated(agv_account_id, agv_id));
 			// return
@@ -885,7 +885,7 @@ decl_module! {
 			let agv_id_vec: Vec<&str> = sp_std::str::from_utf8(&agv_account).unwrap().split('-').collect();
 			ensure!(agv_id_vec.len() >= 1, Error::<T>::InvalidAGVId);
 			let (str_account_id, agv_id): (&str, u32) = (agv_id_vec[0], str::parse::<u32>(agv_id_vec[1]).unwrap());
-			let agv_account_id = T::AccountId::decode(&mut &str_account_id.as_bytes().to_vec()[1..33]).unwrap_or_default();
+			let agv_account_id = T::AccountId::decode(&mut &str_account_id.as_bytes().to_vec()[1..33]).map_err(|_| Error::<T>::InvalidJson)?;
 			// check for Oracle presence on chain
 			ensure!(OraclesAccountMintingVCU::<T>::contains_key(&agv_account_id, &agv_id), Error::<T>::OraclesAccountMintingVCUNotFound);
 			// check for matching signer with Oracle Account
@@ -897,7 +897,7 @@ decl_module! {
 			let token_id=OraclesTokenMintingVCU::<T>::get(&agv_account_id, &agv_id);
 			// create token if it does not exist yet
 			if !Asset::<T>::contains_key(token_id) {
-				pallet_assets::Module::<T>::force_create(RawOrigin::Root.into(), token_id, T::Lookup::unlookup(oracle_account.clone()), One::one(), One::one())?;
+				pallet_assets::Module::<T>::force_create(RawOrigin::Root.into(), token_id, T::Lookup::unlookup(oracle_account.clone()), false, One::one())?;
 			}
 			// check for existing shares
 			ensure!(AssetsGeneratingVCUSharesMintedTotal::<T>::contains_key(agv_account_id.clone(),agv_id.clone()),Error::<T>::NoAVGSharesNotFound);
@@ -985,7 +985,7 @@ decl_module! {
 					let account_id= Self::json_get_value(w.clone(),"accountid".as_bytes().to_vec());
 					let id= Self::json_get_value(w.clone(),"id".as_bytes().to_vec());
 
-					let account_id = T::AccountId::decode(&mut &account_id[1..33]).unwrap_or_default();
+					let account_id = T::AccountId::decode(&mut &account_id[1..33]).map_err(|_| Error::<T>::InvalidJson)?;
 					let id = str::parse::<u32>(sp_std::str::from_utf8(&id).unwrap()).unwrap();
 					// check whether asset generated VCU exists or not
 					ensure!(AssetsGeneratingVCU::<T>::contains_key(&account_id, &id), Error::<T>::AssetGeneratingVCUNotFound);
