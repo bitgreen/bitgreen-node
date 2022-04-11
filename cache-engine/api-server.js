@@ -48,7 +48,14 @@ const mainLoop = async () => {
     app.get('/impact_actions/approval_requests/auditors/votes', db.getImpactActionsApprovalRequestsAuditorsVotes)
 
     app.get('/vcu/authorized_accounts', db.getVcuAuthorizedAccounts)
+    app.get('/vcu/authorized_accounts/destroyed', db.getDestroyedVcuAuthorizedAccounts)
     app.get('/vcu/assets_generating', db.getVcuAssetsGenerating)
+    app.get('/vcu/assets_generating/destroyed', db.getDestroyedVcuAssetsGenerating)
+    app.get('/vcu/assets_generating_schedule', db.getVcuAssetsGeneratingSchedule)
+    app.get('/vcu/assets_generating_schedule/destroyed', db.getDestroyedVcuAssetsGeneratingSchedule)
+    app.get('/vcu/oracle_account_minting', db.getVcuOracleAccountMinting)
+    app.get('/vcu/oracle_account_minting/destroyed', db.getDestroyedVcuOracleAccountMinting)
+    app.get('/vcu/proxy_settings', db.getVcuProxySettings)
 
     /* serve api */
     let server = app.listen(port, function () {
