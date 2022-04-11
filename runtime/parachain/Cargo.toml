@@ -5,7 +5,7 @@ description = 'BitGreen Node - Substrate framework'
 edition = '2018'
 homepage = 'https://bitg.org'
 license = 'Unlicense'
-name = 'bitg-runtime'
+name = 'bitg-parachain-runtime'
 repository = 'https://github.com/bitgreen/bitg-node'
 version = '0.1.0'
 

@@ -43,3 +43,4 @@ std = [
 	"orml-traits/std",
 	"primitives/std",
 ]
+with-ethereum-compatibility = []
