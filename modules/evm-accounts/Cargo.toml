@@ -19,6 +19,7 @@ sp-std = { git = "https://github.com/paritytech/substrate", default-features = f
 orml-traits = { git = "https://github.com/open-web3-stack/open-runtime-module-library", default-features = false }
 
 primitives = { package = "bitg-primitives", path = "../../primitives", default-features = false }
+scale-info = { version = "2.0.1", default-features = false, features = ["derive"] }
 module-support = { path = "../support", default-features = false }
 
 [dev-dependencies]
@@ -31,6 +32,7 @@ default = ["std"]
 std = [
 	"serde",
 	"codec/std",
+	"scale-info/std",
 	"libsecp256k1/std",
 	"sp-core/std",
 	"sp-runtime/std",

@@ -266,7 +266,7 @@ impl<T: Config> MultiCurrency<T::AccountId> for Pallet<T> {
 		match currency_id {
 			CurrencyId::ERC20(contract) => {
 				let sender = T::AddressMapping::get_evm_address(&from).ok_or(Error::<T>::EvmAccountNotFound)?;
-				let origin = T::EVMBridge::get_origin().unwrap_or_default();
+				let origin = T::EVMBridge::get_origin().ok_or(Error::<T>::EvmAccountNotFound)?;
 				let origin_address = T::AddressMapping::get_or_create_evm_address(&origin);
 				let address = T::AddressMapping::get_or_create_evm_address(&to);
 				T::EVMBridge::transfer(
@@ -740,6 +740,7 @@ where
 		+ TryInto<PalletBalanceOf<AccountId, Currency>>
 		+ TryFrom<PalletBalanceOf<AccountId, Currency>>
 		+ SimpleArithmetic
+		+ MaxEncodedLen
 		+ Codec
 		+ Copy
 		+ MaybeSerializeDeserialize
@@ -830,7 +831,7 @@ impl<T: Config> TransferAll<T::AccountId> for Pallet<T> {
 	fn transfer_all(source: &T::AccountId, dest: &T::AccountId) -> DispatchResult {
 		with_transaction_result(|| {
 			// transfer non-native free to dest
-			T::MultiCurrency::merge_account(source, dest)?;
+			T::MultiCurrency::transfer_all(source, dest)?;
 
 			// unreserve all reserved currency
 			T::NativeCurrency::unreserve(source, T::NativeCurrency::reserved_balance(source));

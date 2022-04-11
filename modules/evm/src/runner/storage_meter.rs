@@ -29,11 +29,11 @@ impl<'handler> StorageMeter<'handler> {
 		contract: H160,
 		limit: u32,
 	) -> Result<Self, DispatchError> {
-		debug::trace!(
-			target: "evm",
-			"StorageMeter: create: contract {:?} limit {:?}",
-			contract, limit
-		);
+		// debug::trace!(
+		// 	target: "evm",
+		// 	"StorageMeter: create: contract {:?} limit {:?}",
+		// 	contract, limit
+		// );
 		handler.reserve_storage(limit)?;
 		Ok(Self {
 			contract,
@@ -75,11 +75,11 @@ impl<'handler> StorageMeter<'handler> {
 	}
 
 	pub fn charge(&mut self, storage: u32) -> DispatchResult {
-		debug::trace!(
-			target: "evm",
-			"StorageMeter: charge: storage {:?}",
-			storage
-		);
+		// debug::trace!(
+		// 	target: "evm",
+		// 	"StorageMeter: charge: storage {:?}",
+		// 	storage
+		// );
 		self.handle(|this| {
 			this.total_used = this.total_used.saturating_add(storage);
 			this.self_used = this.self_used.saturating_add(storage);
@@ -88,11 +88,11 @@ impl<'handler> StorageMeter<'handler> {
 	}
 
 	pub fn uncharge(&mut self, storage: u32) -> DispatchResult {
-		debug::trace!(
-			target: "evm",
-			"StorageMeter: uncharge: storage {:?}",
-			storage
-		);
+		// debug::trace!(
+		// 	target: "evm",
+		// 	"StorageMeter: uncharge: storage {:?}",
+		// 	storage
+		// );
 		self.handle(|this| {
 			this.total_used = this.total_used.saturating_sub(storage);
 			this.self_used = this.self_used.saturating_sub(storage);
@@ -101,11 +101,11 @@ impl<'handler> StorageMeter<'handler> {
 	}
 
 	pub fn refund(&mut self, storage: u32) -> DispatchResult {
-		debug::trace!(
-			target: "evm",
-			"StorageMeter: refund: storage {:?}",
-			storage
-		);
+		// debug::trace!(
+		// 	target: "evm",
+		// 	"StorageMeter: refund: storage {:?}",
+		// 	storage
+		// );
 		self.handle(|this| {
 			this.total_refunded = this.total_refunded.saturating_add(storage);
 			this.self_refunded = this.self_refunded.saturating_add(storage);
@@ -114,11 +114,11 @@ impl<'handler> StorageMeter<'handler> {
 	}
 
 	pub fn finish(mut self) -> DispatchResult {
-		debug::trace!(
-			target: "evm",
-			"StorageMeter: finish: used {:?} refunded {:?}",
-			self.total_used, self.total_refunded
-		);
+		// debug::trace!(
+		// 	target: "evm",
+		// 	"StorageMeter: finish: used {:?} refunded {:?}",
+		// 	self.total_used, self.total_refunded
+		// );
 		self.handle(|this| {
 			if let Err(x) = (|| {
 				if this.limit < this.total_used.saturating_sub(this.total_refunded) {

@@ -12,9 +12,10 @@ use frame_support::debug;
 use frame_support::{
 	dispatch::{DispatchResult, Dispatchable},
 	pallet_prelude::*,
-	traits::{Currency, ExistenceRequirement, Imbalance, OnUnbalanced, ReservableCurrency, WithdrawReasons},
+	traits::{Currency, ExistenceRequirement, Imbalance, OnUnbalanced, ReservableCurrency, SameOrOther, WithdrawReasons},
 	weights::{DispatchInfo, GetDispatchInfo, Pays, PostDispatchInfo, WeightToFeePolynomial},
 };
+use sp_runtime::Percent;
 use frame_system::pallet_prelude::*;
 use orml_traits::MultiCurrency;
 use pallet_transaction_payment_rpc_runtime_api::RuntimeDispatchInfo;
@@ -583,7 +584,8 @@ where
 
 /// Require the transactor pay for themselves and maybe include a tip to
 /// gain additional priority in the queue.
-#[derive(Encode, Decode, Clone, Eq, PartialEq)]
+#[derive(Encode, Decode, Clone, Eq, PartialEq, TypeInfo)]
+#[scale_info(skip_type_params(T))]
 pub struct ChargeTransactionPayment<T: Config + Send + Sync>(#[codec(compact)] PalletBalanceOf<T>);
 
 impl<T: Config + Send + Sync> sp_std::fmt::Debug for ChargeTransactionPayment<T> {
@@ -623,7 +625,7 @@ where
 			WithdrawReasons::TRANSACTION_PAYMENT | WithdrawReasons::TIP
 		};
 
-		debug::debug!(target: "fee", "who: {:?}, fee: {:?}", who, fee);
+		//debug::debug!(target: "fee", "who: {:?}, fee: {:?}", who, fee);
 		Module::<T>::ensure_can_charge_fee(who, fee, reason);
 
 		// withdraw native currency as fee
@@ -708,38 +710,54 @@ where
 	}
 
 	fn post_dispatch(
-		pre: Self::Pre,
-		info: &DispatchInfoOf<Self::Call>,
-		post_info: &PostDispatchInfoOf<Self::Call>,
-		len: usize,
-		_result: &DispatchResult,
-	) -> Result<(), TransactionValidityError> {
-		let (tip, who, imbalance, fee) = pre;
-		if let Some(payed) = imbalance {
-			let actual_fee = Module::<T>::compute_actual_fee(len as u32, info, post_info, tip);
-			let refund = fee.saturating_sub(actual_fee);
-			let actual_payment = match <T as Config>::Currency::deposit_into_existing(&who, refund) {
-				Ok(refund_imbalance) => {
-					// The refund cannot be larger than the up front payed max weight.
-					// `PostDispatchInfo::calc_unspent` guards against such a case.
-					match payed.offset(refund_imbalance) {
-						Ok(actual_payment) => actual_payment,
-						Err(_) => return Err(InvalidTransaction::Payment.into()),
-					}
-				}
-				// We do not recreate the account using the refund. The up front payment
-				// is gone in that case.
-				Err(_) => payed,
-			};
-			let imbalances = actual_payment.split(tip);
+			pre: Option<Self::Pre>,
+			info: &DispatchInfoOf<Self::Call>,
+			post_info: &PostDispatchInfoOf<Self::Call>,
+			len: usize,
+			_result: &DispatchResult,
+		) -> Result<(), TransactionValidityError> {
+			if let Some((tip, who, Some(payed), fee, surplus)) = pre {
+				let actual_fee = Pallet::<T>::compute_actual_fee(len as u32, info, post_info, tip);
+				let refund_fee = fee.saturating_sub(actual_fee);
+				let mut refund = refund_fee;
+				let mut actual_tip = tip;
 
-			// distribute fee
-			<T as Config>::OnTransactionPayment::on_unbalanceds(
-				Some(imbalances.0).into_iter().chain(Some(imbalances.1)),
-			);
+				if !tip.is_zero() && !info.weight.is_zero() {
+					// tip_pre_weight * unspent_weight
+					let refund_tip = tip
+						.checked_div(info.weight.saturated_into::<PalletBalanceOf<T>>())
+						.expect("checked is non-zero; qed")
+						.saturating_mul(post_info.calc_unspent(info).saturated_into::<PalletBalanceOf<T>>());
+					refund = refund_fee.saturating_add(refund_tip);
+					actual_tip = tip.saturating_sub(refund_tip);
+				}
+				// the refund surplus also need to return back to user
+				if let Some(surplus) = surplus {
+					let percent = Percent::from_rational(surplus, fee.saturating_sub(surplus));
+					let actual_surplus = percent.mul_ceil(actual_fee);
+					refund = refund.saturating_sub(actual_surplus);
+				}
+				let actual_payment = match <T as Config>::Currency::deposit_into_existing(&who, refund) {
+					Ok(refund_imbalance) => {
+						// The refund cannot be larger than the up front payed max weight.
+						// `PostDispatchInfo::calc_unspent` guards against such a case.
+						match payed.offset(refund_imbalance) {
+							SameOrOther::Same(actual_payment) => actual_payment,
+							SameOrOther::None => Default::default(),
+							_ => return Err(InvalidTransaction::Payment.into()),
+						}
+					}
+					// We do not recreate the account using the refund. The up front payment
+					// is gone in that case.
+					Err(_) => payed,
+				};
+				let (tip, fee) = actual_payment.split(actual_tip);
+
+				// distribute fee
+				<T as Config>::OnTransactionPayment::on_unbalanceds(Some(fee).into_iter().chain(Some(tip)));
+			}
+			Ok(())
 		}
-		Ok(())
-	}
 }
 
 impl<T: Config + Send + Sync> TransactionPayment<T::AccountId, PalletBalanceOf<T>, NegativeImbalanceOf<T>>

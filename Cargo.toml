@@ -9,7 +9,6 @@ members = [
     'node',
     'parachain',
     'runtime/*',
-    'modules/*',
     'pallets/assets',
     'pallets/bridge',
     'pallets/impact-actions',

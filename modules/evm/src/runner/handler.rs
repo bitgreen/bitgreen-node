@@ -4,7 +4,7 @@ use crate::{
 	precompiles::Precompiles,
 	runner::storage_meter::{StorageMeter, StorageMeterHandler},
 	AccountInfo, AccountStorages, Accounts, AddressMapping, Codes, Config, ContractInfo, Error, Event, Log,
-	MergeAccount, Pallet, Vicinity,
+	TransferAll, Pallet, Vicinity,
 };
 use evm::{Capture, Context, CreateScheme, ExitError, ExitReason, Opcode, Runtime, Stack, Transfer};
 use evm_gasometer::{self as gasometer, Gasometer};
@@ -424,7 +424,7 @@ impl<'vicinity, 'config, 'meter, T: Config> HandlerT for Handler<'vicinity, 'con
 			.refund(size.saturating_add(T::NewContractExtraBytes::get()))
 			.map_err(|_| ExitError::Other("RefundStorageError".into()))?;
 
-		T::MergeAccount::merge_account(&source, &dest).map_err(|_| ExitError::Other("MergeAccountError".into()))
+		T::TransferAll::transfer_all(&source, &dest).map_err(|_| ExitError::Other("MergeAccountError".into()))
 	}
 
 	fn create(
@@ -435,11 +435,11 @@ impl<'vicinity, 'config, 'meter, T: Config> HandlerT for Handler<'vicinity, 'con
 		init_code: Vec<u8>,
 		target_gas: Option<u64>,
 	) -> Capture<(ExitReason, Option<H160>, Vec<u8>), Self::CreateInterrupt> {
-		debug::debug!(
-			target: "evm",
-			"handler: create: caller {:?}",
-			caller,
-		);
+		// debug::debug!(
+		// 	target: "evm",
+		// 	"handler: create: caller {:?}",
+		// 	caller,
+		// );
 
 		create_try!(|e: ExitError| (e.into(), None, Vec::new()));
 
@@ -527,15 +527,15 @@ impl<'vicinity, 'config, 'meter, T: Config> HandlerT for Handler<'vicinity, 'con
 		is_static: bool,
 		context: Context,
 	) -> Capture<(ExitReason, Vec<u8>), Self::CallInterrupt> {
-		debug::debug!(
-			target: "evm",
-			"handler: call: source {:?} code_address {:?} input: {:?} target_gas {:?} gas_left {:?}",
-			context.caller,
-			code_address,
-			input,
-			target_gas,
-			self.gas_left()
-		);
+		// debug::debug!(
+		// 	target: "evm",
+		// 	"handler: call: source {:?} code_address {:?} input: {:?} target_gas {:?} gas_left {:?}",
+		// 	context.caller,
+		// 	code_address,
+		// 	input,
+		// 	target_gas,
+		// 	self.gas_left()
+		// );
 
 		create_try!(|e: ExitError| (e.into(), Vec::new()));
 
@@ -572,11 +572,11 @@ impl<'vicinity, 'config, 'meter, T: Config> HandlerT for Handler<'vicinity, 'con
 				try_or_rollback!(gasometer.record_cost(target_gas));
 
 				if let Some(ret) = T::Precompiles::execute(code_address, &input, Some(target_gas), &context) {
-					debug::debug!(
-						target: "evm",
-						"handler: call-result: precompile result {:?}",
-						ret
-					);
+					// debug::debug!(
+					// 	target: "evm",
+					// 	"handler: call-result: precompile result {:?}",
+					// 	ret
+					// );
 
 					return match ret {
 						Ok((s, out, cost)) => {
@@ -600,11 +600,11 @@ impl<'vicinity, 'config, 'meter, T: Config> HandlerT for Handler<'vicinity, 'con
 					input,
 				);
 
-				debug::debug!(
-					target: "evm",
-					"handler: call-result: reason {:?} out {:?} gas_left {:?}",
-					reason, out, substate.gas_left()
-				);
+				// debug::debug!(
+				// 	target: "evm",
+				// 	"handler: call-result: reason {:?} out {:?} gas_left {:?}",
+				// 	reason, out, substate.gas_left()
+				// );
 
 				match reason {
 					ExitReason::Succeed(s) => {
@@ -653,11 +653,11 @@ impl<T: Config> StorageMeterHandler for StorageMeterHandlerImpl<T> {
 			return Ok(());
 		}
 
-		debug::debug!(
-			target: "evm",
-			"reserve_storage: from {:?} limit {:?}",
-			self.origin, limit,
-		);
+		// debug::debug!(
+		// 	target: "evm",
+		// 	"reserve_storage: from {:?} limit {:?}",
+		// 	self.origin, limit,
+		// );
 
 		let user = T::AddressMapping::get_account_id(&self.origin);
 
@@ -673,11 +673,11 @@ impl<T: Config> StorageMeterHandler for StorageMeterHandlerImpl<T> {
 			return Ok(());
 		}
 
-		debug::debug!(
-			target: "evm",
-			"unreserve_storage: from {:?} used {:?} refunded {:?} unused {:?}",
-			self.origin, used, refunded, unused
-		);
+		// debug::debug!(
+		// 	target: "evm",
+		// 	"unreserve_storage: from {:?} used {:?} refunded {:?} unused {:?}",
+		// 	self.origin, used, refunded, unused
+		// );
 
 		let user = T::AddressMapping::get_account_id(&self.origin);
 		let amount = T::StorageDepositPerByte::get().saturating_mul(unused.into());
@@ -695,11 +695,11 @@ impl<T: Config> StorageMeterHandler for StorageMeterHandlerImpl<T> {
 			return Ok(());
 		}
 
-		debug::debug!(
-			target: "evm",
-			"charge_storage: from {:?} contract {:?} used {:?} refunded {:?}",
-			&self.origin, contract, used, refunded
-		);
+		// debug::debug!(
+		// 	target: "evm",
+		// 	"charge_storage: from {:?} contract {:?} used {:?} refunded {:?}",
+		// 	&self.origin, contract, used, refunded
+		// );
 
 		let user = T::AddressMapping::get_account_id(&self.origin);
 		let contract_acc = T::AddressMapping::get_account_id(contract);
