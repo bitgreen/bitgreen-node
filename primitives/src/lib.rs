@@ -7,13 +7,14 @@ pub mod mocks;
 
 use crate::evm::EvmAddress;
 
-use codec::{Decode, Encode};
+use codec::{Decode, Encode, MaxEncodedLen};
 use sp_runtime::{
 	generic,
 	traits::{BlakeTwo256, IdentifyAccount, Verify},
 	MultiSignature, RuntimeDebug,
 };
 use sp_std::convert::{Into, TryFrom, TryInto};
+use scale_info::TypeInfo;
 
 #[cfg(feature = "std")]
 use serde::{Deserialize, Serialize};
@@ -61,7 +62,7 @@ pub mod time {
 	pub const SECS_PER_BLOCK: Moment = 10;
 	pub const MILLISECS_PER_BLOCK: Moment = SECS_PER_BLOCK * 1000;
 
-	// These time units are defined in number of blocks.  
+	// These time units are defined in number of blocks.
 	pub const MINUTES: BlockNumber = 60 / (SECS_PER_BLOCK as BlockNumber);
 	pub const HOURS: BlockNumber = MINUTES * 60;
 	pub const DAYS: BlockNumber = HOURS * 24;
@@ -127,7 +128,7 @@ pub type BlockId = generic::BlockId<Block>;
 /// Opaque, encoded, unchecked extrinsic.
 pub use sp_runtime::OpaqueExtrinsic as UncheckedExtrinsic;
 
-#[derive(Encode, Decode, Eq, PartialEq, Copy, Clone, RuntimeDebug, PartialOrd, Ord)]
+#[derive(Encode, Decode, Eq, PartialEq, Copy, Clone, RuntimeDebug, PartialOrd, Ord, MaxEncodedLen, TypeInfo)]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 pub enum TokenSymbol {
 	BBB = 0,
@@ -146,7 +147,7 @@ impl TryFrom<u8> for TokenSymbol {
 	}
 }
 
-#[derive(Encode, Decode, Eq, PartialEq, Copy, Clone, RuntimeDebug, PartialOrd, Ord)]
+#[derive(Encode, Decode, Eq, PartialEq, Copy, Clone, RuntimeDebug, PartialOrd, Ord, MaxEncodedLen, TypeInfo)]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 pub enum CurrencyId {
 	Token(TokenSymbol),

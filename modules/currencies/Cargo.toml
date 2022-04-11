@@ -1,0 +1,47 @@
+[package]
+name = "module-currencies"
+version = "0.7.3"
+authors = ["Bitgreen Developers"]
+edition = "2018"
+
+[dependencies]
+serde = { version = "1.0.132", optional = true, features = ["derive"] }
+scale-info = { version = "2.0.1", default-features = false, features = ["derive"] }
+codec = { package = "parity-scale-codec", version = "3.0.0", default-features = false, features = ["derive"] }
+sp-core = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.18" }
+sp-runtime = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.18" }
+sp-io = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.18" }
+sp-std = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.18" }
+
+frame-support = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.18" }
+frame-system = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.18" }
+
+
+orml-traits = { git = "https://github.com/open-web3-stack/open-runtime-module-library", default-features = false }
+orml-utilities = { git = "https://github.com/open-web3-stack/open-runtime-module-library", default-features = false }
+primitives = { package = "bitg-primitives", path = "../../primitives", default-features = false }
+support = { package = "module-support", path = "../support", default-features = false }
+
+[dev-dependencies]
+pallet-balances = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.18" }
+pallet-timestamp = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.18" }
+orml-tokens = { git = "https://github.com/open-web3-stack/open-runtime-module-library", default-features = false }
+
+clear_on_drop = { version = "0.2.4", features = ["no_cc"] }	# https://github.com/paritytech/substrate/issues/4179
+
+[features]
+default = ["std"]
+std = [
+	"serde",
+	"codec/std",
+	"sp-core/std",
+	"sp-runtime/std",
+	"sp-std/std",
+	"sp-io/std",
+	"frame-support/std",
+	"frame-system/std",
+	"orml-traits/std",
+	"orml-utilities/std",
+	"primitives/std",
+	"support/std",
+]

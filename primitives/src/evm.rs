@@ -4,6 +4,7 @@ use evm::ExitReason;
 use sp_core::{H160, U256};
 use sp_runtime::RuntimeDebug;
 use sp_std::vec::Vec;
+use scale_info::TypeInfo;
 
 pub use evm::backend::{Basic as Account, Log};
 pub use evm::Config;
