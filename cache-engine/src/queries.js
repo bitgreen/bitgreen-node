@@ -22,6 +22,29 @@ const storeVcuAuthorizedAccount = (request, response) => {
         })
 }
 
+// get authorized accounts by date range and/or by account
+const getVcuAuthorizedAccounts = (request, response) => {
+    let account = request.query.account;
+    let date_start = '1990-01-01';
+    let date_end = '2100-12-31';
+    if (typeof request.query.date_start !== 'undefined') {
+        date_start = request.query.date_start;
+    }
+    if (typeof request.query.date_end !== 'undefined') {
+        date_end = request.query.date_end;
+    }
+
+    pool.query('SELECT * FROM vcu_authorized_accounts WHERE account = $1 AND date >= $2 AND date <= $3 ORDER BY date,id DESC',
+        [account, date_start, date_end], (error, results) => {
+            if (error) {
+                throw error
+            }
+            response.json({
+                accounts: results.rows
+            })
+        })
+}
+
 // destroy authorized vcu account to DB
 const destroyVcuAuthorizedAccount = (request, response) => {
     let { block_number, hash, account, signer, date } = request
@@ -36,8 +59,8 @@ const destroyVcuAuthorizedAccount = (request, response) => {
         })
 }
 
-// get authorized accounts by date range and/or by account
-const getVcuAuthorizedAccounts = (request, response) => {
+// get destroyed authorized accounts by date range and/or by account
+const getDestroyedVcuAuthorizedAccounts = (request, response) => {
     let account = request.query.account;
     let date_start = '1990-01-01';
     let date_end = '2100-12-31';
@@ -48,7 +71,7 @@ const getVcuAuthorizedAccounts = (request, response) => {
         date_end = request.query.date_end;
     }
 
-    pool.query('SELECT * FROM vcu_authorized_accounts WHERE account = $1 AND date >= $2 AND date <= $3 ORDER BY date,id DESC',
+    pool.query('SELECT * FROM vcu_authorized_accounts_destroyed WHERE account = $1 AND date >= $2 AND date <= $3 ORDER BY date,id DESC',
         [account, date_start, date_end], (error, results) => {
             if (error) {
                 throw error
@@ -73,6 +96,29 @@ const storeVcuAssetsGenerating = (request, response) => {
         })
 }
 
+// get assets generating vcu by date range and/or by account
+const getVcuAssetsGenerating = (request, response) => {
+    let account = request.query.account;
+    let date_start = '1990-01-01';
+    let date_end = '2100-12-31';
+    if (typeof request.query.date_start !== 'undefined') {
+        date_start = request.query.date_start;
+    }
+    if (typeof request.query.date_end !== 'undefined') {
+        date_end = request.query.date_end;
+    }
+
+    pool.query('SELECT * FROM vcu_assets_generating WHERE agv_account = $1 AND date >= $2 AND date <= $3 ORDER BY date,id DESC',
+        [account, date_start, date_end], (error, results) => {
+            if (error) {
+                throw error
+            }
+            response.json({
+                accounts: results.rows
+            })
+        })
+}
+
 // destroy assets generating vcu to DB
 const destroyVcuAssetsGenerating = (request, response) => {
     let { block_number, hash, agv_account, agv_id, signer, date } = request
@@ -84,6 +130,29 @@ const destroyVcuAssetsGenerating = (request, response) => {
                 throw error
             }
             // response.status(201).send(`User added with ID: ${result.insertId}`)
+        })
+}
+
+// get destroyed assets generating vcu by date range and/or by account
+const getDestroyedVcuAssetsGenerating = (request, response) => {
+    let account = request.query.account;
+    let date_start = '1990-01-01';
+    let date_end = '2100-12-31';
+    if (typeof request.query.date_start !== 'undefined') {
+        date_start = request.query.date_start;
+    }
+    if (typeof request.query.date_end !== 'undefined') {
+        date_end = request.query.date_end;
+    }
+
+    pool.query('SELECT * FROM vcu_assets_generating_destroyed WHERE agv_account = $1 AND date >= $2 AND date <= $3 ORDER BY date,id DESC',
+        [account, date_start, date_end], (error, results) => {
+            if (error) {
+                throw error
+            }
+            response.json({
+                accounts: results.rows
+            })
         })
 }
 
@@ -101,6 +170,29 @@ const storeVcuAssetsGeneratingSchedule = (request, response) => {
         })
 }
 
+// get assets generating vcu schedule by date range and/or by account
+const getVcuAssetsGeneratingSchedule = (request, response) => {
+    let account = request.query.account;
+    let date_start = '1990-01-01';
+    let date_end = '2100-12-31';
+    if (typeof request.query.date_start !== 'undefined') {
+        date_start = request.query.date_start;
+    }
+    if (typeof request.query.date_end !== 'undefined') {
+        date_end = request.query.date_end;
+    }
+
+    pool.query('SELECT * FROM vcu_assets_generating_schedule WHERE agv_account = $1 AND date >= $2 AND date <= $3 ORDER BY date,id DESC',
+        [account, date_start, date_end], (error, results) => {
+            if (error) {
+                throw error
+            }
+            response.json({
+                accounts: results.rows
+            })
+        })
+}
+
 // destroy assets generating schedule vcu to DB
 const destroyVcuAssetsGeneratingSchedule = (request, response) => {
     let { block_number, hash, agv_account, agv_id, signer, date } = request
@@ -112,6 +204,29 @@ const destroyVcuAssetsGeneratingSchedule = (request, response) => {
                 throw error
             }
             // response.status(201).send(`User added with ID: ${result.insertId}`)
+        })
+}
+
+// get destroyed assets generating vcu schedule by date range and/or by account
+const getDestroyedVcuAssetsGeneratingSchedule = (request, response) => {
+    let account = request.query.account;
+    let date_start = '1990-01-01';
+    let date_end = '2100-12-31';
+    if (typeof request.query.date_start !== 'undefined') {
+        date_start = request.query.date_start;
+    }
+    if (typeof request.query.date_end !== 'undefined') {
+        date_end = request.query.date_end;
+    }
+
+    pool.query('SELECT * FROM vcu_assets_generating_schedule_destroyed WHERE agv_account = $1 AND date >= $2 AND date <= $3 ORDER BY date,id DESC',
+        [account, date_start, date_end], (error, results) => {
+            if (error) {
+                throw error
+            }
+            response.json({
+                accounts: results.rows
+            })
         })
 }
 
@@ -129,6 +244,29 @@ const storeVcuOracleAccountMinting = (request, response) => {
         })
 }
 
+// get oracle account minting vcu from DB
+const getVcuOracleAccountMinting = (request, response) => {
+    let account = request.query.account;
+    let date_start = '1990-01-01';
+    let date_end = '2100-12-31';
+    if (typeof request.query.date_start !== 'undefined') {
+        date_start = request.query.date_start;
+    }
+    if (typeof request.query.date_end !== 'undefined') {
+        date_end = request.query.date_end;
+    }
+
+    pool.query('SELECT * FROM vcu_oracle_account_minting WHERE agv_account = $1 AND date >= $2 AND date <= $3 ORDER BY date,id DESC',
+        [account, date_start, date_end], (error, results) => {
+            if (error) {
+                throw error
+            }
+            response.json({
+                accounts: results.rows
+            })
+        })
+}
+
 // destroy oracle account minting vcu to DB
 const destroyVcuOracleAccountMinting = (request, response) => {
     let { block_number, hash, agv_account, agv_id, signer, date } = request
@@ -142,6 +280,30 @@ const destroyVcuOracleAccountMinting = (request, response) => {
             // response.status(201).send(`User added with ID: ${result.insertId}`)
         })
 }
+
+// get oracle account minting vcu from DB
+const getDestroyedVcuOracleAccountMinting = (request, response) => {
+    let account = request.query.account;
+    let date_start = '1990-01-01';
+    let date_end = '2100-12-31';
+    if (typeof request.query.date_start !== 'undefined') {
+        date_start = request.query.date_start;
+    }
+    if (typeof request.query.date_end !== 'undefined') {
+        date_end = request.query.date_end;
+    }
+
+    pool.query('SELECT * FROM vcu_oracle_account_minting_destroyed WHERE agv_account = $1 AND date >= $2 AND date <= $3 ORDER BY date,id DESC',
+        [account, date_start, date_end], (error, results) => {
+            if (error) {
+                throw error
+            }
+            response.json({
+                accounts: results.rows
+            })
+        })
+}
+
 
 // save proxy settings vcu to DB
 const storeVcuProxySettings = (request, response) => {
@@ -157,9 +319,9 @@ const storeVcuProxySettings = (request, response) => {
         })
 }
 
+
 // get assets generating vcu by date range and/or by account
-const getVcuAssetsGenerating = (request, response) => {
-    let account = request.query.account;
+const getVcuProxySettings = (request, response) => {
     let date_start = '1990-01-01';
     let date_end = '2100-12-31';
     if (typeof request.query.date_start !== 'undefined') {
@@ -169,8 +331,8 @@ const getVcuAssetsGenerating = (request, response) => {
         date_end = request.query.date_end;
     }
 
-    pool.query('SELECT * FROM vcu_assets_generating WHERE agv_account = $1 AND date >= $2 AND date <= $3 ORDER BY date,id DESC',
-        [account, date_start, date_end], (error, results) => {
+    pool.query('SELECT * FROM vcu_proxy_settings WHERE date >= $1 AND date <= $2 ORDER BY date,id DESC',
+        [date_start, date_end], (error, results) => {
             if (error) {
                 throw error
             }
@@ -558,15 +720,28 @@ module.exports = {
     getImpactActionsOracles,
     getImpactActionsProxies,
 
+    /* vcu */
     storeVcuAuthorizedAccount,
-    destroyVcuAuthorizedAccount,
     getVcuAuthorizedAccounts,
+    destroyVcuAuthorizedAccount,
+    getDestroyedVcuAuthorizedAccounts,
+
     storeVcuAssetsGenerating,
-    destroyVcuAssetsGenerating,
     getVcuAssetsGenerating,
+    destroyVcuAssetsGenerating,
+    getDestroyedVcuAssetsGenerating,
+
     storeVcuAssetsGeneratingSchedule,
+    getVcuAssetsGeneratingSchedule,
     destroyVcuAssetsGeneratingSchedule,
+    getDestroyedVcuAssetsGeneratingSchedule,
+
     storeVcuOracleAccountMinting,
+    getVcuOracleAccountMinting,
     destroyVcuOracleAccountMinting,
-    storeVcuProxySettings
+    getDestroyedVcuOracleAccountMinting,
+
+    storeVcuProxySettings,
+    getVcuProxySettings
+    /* end vcu */
 }
