@@ -33,6 +33,7 @@ pub use frame_support::{
 	},
 	StorageValue,
 };
+use frame_system::EnsureRoot;
 pub use pallet_balances::Call as BalancesCall;
 pub use pallet_timestamp::Call as TimestampCall;
 use pallet_transaction_payment::CurrencyAdapter;
@@ -81,6 +82,15 @@ pub mod opaque {
 			pub grandpa: Grandpa,
 		}
 	}
+}
+
+// Contracts price units.
+pub const MILLICENTS: Balance = 1_000_000_000;
+pub const CENTS: Balance = 1_000 * MILLICENTS;
+pub const DOLLARS: Balance = 100 * CENTS;
+
+const fn deposit(items: u32, bytes: u32) -> Balance {
+    items as Balance * 15 * CENTS + (bytes as Balance) * 6 * CENTS
 }
 
 // To learn more about runtime versioning and what each of the following value means:
@@ -246,6 +256,55 @@ impl pallet_balances::Config for Runtime {
 	type WeightInfo = pallet_balances::weights::SubstrateWeight<Runtime>;
 }
 
+// pallet Assets - ERC20
+// Asset pallet
+parameter_types! {
+	pub const ASSETDEPOSIT: Balance = 1 * DOLLARS;
+	pub const ASSETACCOUNTDEPOSIT: Balance = 1 * DOLLARS;
+	pub const STRINGLIMIT: u32 = 8192;	// max metadata size in bytes
+	pub const METADATADEPOSITBASE: Balance= 1 * DOLLARS;
+	pub const METADATADEPOSITPERBYTE: Balance = 1 * CENTS;
+	pub const APPROVALDEPOSIT: Balance = 1 * DOLLARS;
+}
+
+pub struct TestFreezer;
+impl pallet_assets::FrozenBalance<u32, AccountId, u128> for TestFreezer {
+	fn frozen_balance(asset: u32, who: &AccountId) -> Option<u128> {
+		None
+	}
+
+	fn died(asset: u32, who: &AccountId) {}
+}
+
+impl pallet_assets::Config for Runtime {
+	type Event = Event;
+	type Balance = u128;
+	type AssetId = u32;
+	type Currency = Balances;
+	type ForceOrigin = EnsureRoot<AccountId>;
+	type AssetDeposit = ASSETDEPOSIT;
+	type AssetAccountDeposit = ASSETACCOUNTDEPOSIT;
+	type MetadataDepositBase = METADATADEPOSITBASE;
+	type MetadataDepositPerByte = METADATADEPOSITPERBYTE;
+	type ApprovalDeposit = APPROVALDEPOSIT;
+	type StringLimit = STRINGLIMIT;
+	type Freezer = TestFreezer;
+	type WeightInfo = ();
+	type Extra = ();
+}
+
+// Claim pallet, to claim deposits from previous blockchain
+impl pallet_claim::Config for Runtime {
+	type Event = Event;
+	type Currency = Balances;
+}
+
+// Impact Actions management
+impl pallet_impact_actions::Config for Runtime {
+	type Event = Event;
+	type Currency = Balances;
+}
+
 parameter_types! {
 	pub const TransactionByteFee: Balance = 1;
 }
@@ -279,6 +338,15 @@ construct_runtime!(
 		Balances: pallet_balances,
 		TransactionPayment: pallet_transaction_payment,
 		Sudo: pallet_sudo,
+
+		// Claim Pallet
+		Claim: pallet_claim::{Pallet, Call, Storage, Event<T>} = 60,
+
+		//Assets - ERC20 Tokens
+		Assets: pallet_assets::{Pallet, Call, Storage, Event<T>} = 71,
+
+		//Impact Actions
+		ImpactActions: pallet_impact_actions::{Pallet, Call, Storage, Event<T>} = 72,
 	}
 );
 

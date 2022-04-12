@@ -48,8 +48,8 @@ pub trait Config: frame_system::Config + pallet_assets::Config<AssetId = u32, Ba
 	type UnixTime: UnixTime;
 }
 
-decl_storage! {
 
+decl_storage! {
 	trait Store for Module<T: Config> as VCUModule {
 		/// Settings configuration, we define some administrator accounts for the pallet VCU without using the super user account.
 		Settings get(fn get_settings): map hasher(blake2_128_concat) Vec<u8> => Option<Vec<u8>>;
@@ -1030,7 +1030,6 @@ decl_module! {
 }
 
 impl<T: Config> Module<T> {
-
 	// function to validate a json string for no/std. It does not allocate of memory
 	fn json_check_validity(j:Vec<u8>) -> bool{
 		// minimum lenght of 2

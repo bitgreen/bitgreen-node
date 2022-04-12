@@ -196,6 +196,15 @@ pub const UNIT: Balance = 1_000_000_000_000;
 pub const MILLIUNIT: Balance = 1_000_000_000;
 pub const MICROUNIT: Balance = 1_000_000;
 
+// Contracts price units.
+pub const MILLICENTS: Balance = 1_000_000_000;
+pub const CENTS: Balance = 1_000 * MILLICENTS;
+pub const DOLLARS: Balance = 100 * CENTS;
+
+const fn deposit(items: u32, bytes: u32) -> Balance {
+    items as Balance * 15 * CENTS + (bytes as Balance) * 6 * CENTS
+}
+
 /// The existential deposit. Set to 1/10 of the Connected Relay Chain.
 pub const EXISTENTIAL_DEPOSIT: Balance = MILLIUNIT;
 
@@ -341,6 +350,56 @@ impl pallet_balances::Config for Runtime {
 	type ReserveIdentifier = [u8; 8];
 }
 
+// pallet Assets - ERC20
+// Asset pallet
+parameter_types! {
+	pub const ASSETDEPOSIT: Balance = 1 * DOLLARS;
+	pub const ASSETACCOUNTDEPOSIT: Balance = 1 * DOLLARS;
+	pub const STRINGLIMIT: u32 = 8192;	// max metadata size in bytes
+	pub const METADATADEPOSITBASE: Balance= 1 * DOLLARS;
+	pub const METADATADEPOSITPERBYTE: Balance = 1 * CENTS;
+	pub const APPROVALDEPOSIT: Balance = 1 * DOLLARS;
+}
+
+pub struct TestFreezer;
+impl pallet_assets::FrozenBalance<u32, AccountId, u128> for TestFreezer {
+	fn frozen_balance(asset: u32, who: &AccountId) -> Option<u128> {
+		None
+	}
+
+	fn died(asset: u32, who: &AccountId) {}
+}
+
+impl pallet_assets::Config for Runtime {
+	type Event = Event;
+	type Balance = u128;
+	type AssetId = u32;
+	type Currency = Balances;
+	type ForceOrigin = EnsureRoot<AccountId>;
+	type AssetDeposit = ASSETDEPOSIT;
+	type AssetAccountDeposit = ASSETACCOUNTDEPOSIT;
+	type MetadataDepositBase = METADATADEPOSITBASE;
+	type MetadataDepositPerByte = METADATADEPOSITPERBYTE;
+	type ApprovalDeposit = APPROVALDEPOSIT;
+	type StringLimit = STRINGLIMIT;
+	type Freezer = TestFreezer;
+	type WeightInfo = ();
+	type Extra = ();
+}
+
+// Claim pallet, to claim deposits from previous blockchain
+impl pallet_claim::Config for Runtime {
+	type Event = Event;
+	type Currency = Balances;
+}
+
+// Impact Actions management
+impl pallet_impact_actions::Config for Runtime {
+	type Event = Event;
+	type Currency = Balances;
+}
+// end Impact Actions
+
 parameter_types! {
 	/// Relay Chain `TransactionByteFee` / 10
 	pub const TransactionByteFee: Balance = 10 * MICROUNIT;
@@ -477,6 +536,15 @@ construct_runtime!(
 		PolkadotXcm: pallet_xcm::{Pallet, Call, Event<T>, Origin, Config} = 31,
 		CumulusXcm: cumulus_pallet_xcm::{Pallet, Event<T>, Origin} = 32,
 		DmpQueue: cumulus_pallet_dmp_queue::{Pallet, Call, Storage, Event<T>} = 33,
+
+		// Claim Pallet
+		Claim: pallet_claim::{Pallet, Call, Storage, Event<T>} = 60,
+
+		//Assets - ERC20 Tokens
+		Assets: pallet_assets::{Pallet, Call, Storage, Event<T>} = 71,
+
+		//Impact Actions
+		ImpactActions: pallet_impact_actions::{Pallet, Call, Storage, Event<T>} = 72,
 	}
 );
 

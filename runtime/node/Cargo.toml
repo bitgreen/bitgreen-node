@@ -49,6 +49,13 @@ frame-system-benchmarking = { version = "4.0.0-dev", default-features = false, g
 hex-literal = { version = "0.3.4", optional = true }
 
 # Local Dependencies
+pallet-assets ={ default-features = false, version = '4.0.0-dev', path = "../../pallets/assets" }
+pallet-claim ={ default-features = false, version = '0.1.0', path = "../../pallets/claim" }
+pallet-impact-actions ={ default-features = false, version = '0.1.0', path = "../../pallets/impact-actions"}
+#pallet-bonds ={ default-features = false, version = '0.1.0', path = "../../pallets/bonds"}
+#pallet-bridge ={ default-features = false, version = '0.1.0', path = "../../pallets/bridge"}
+#pallet-vesting ={ default-features = false, version = '0.1.0', path = "../../pallets/vesting"}
+#pallet-vcu ={ default-features = false, version = '0.1.0', path = "../pallets/vcu"}
 
 
 [build-dependencies]
@@ -82,6 +89,13 @@ std = [
 	"sp-std/std",
 	"sp-transaction-pool/std",
 	"sp-version/std",
+	"pallet-assets/std",
+	"pallet-claim/std",
+	"pallet-impact-actions/std",
+	#"pallet-bonds/std",
+	#"pallet-bridge/std",
+	#"pallet-vesting/std",
+	#"pallet-vcu/std",
 ]
 runtime-benchmarks = [
 	"frame-benchmarking/runtime-benchmarks",
