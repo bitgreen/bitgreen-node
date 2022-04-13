@@ -6,7 +6,7 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 const node_address = 'ws://127.0.0.1:9944';
-export const SECRETSEED = process.env.PALLET_MNEMONIC || "//Alice";
+export const SECRETSEED = process.env.PALLET_MNEMONIC;
 export const TOKEN = process.env.TOKEN || "BBB";
 const get_custom_types = async () => {
     const relative_path = join('..', '..', '..');

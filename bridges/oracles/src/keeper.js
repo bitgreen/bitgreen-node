@@ -4,7 +4,7 @@ import { Keyring } from '@polkadot/api';
 import '@polkadot/api-augment';
 import { Channel } from 'async-channel';
 import { setup_substrate, SECRETSEED, pallet_bridge_burn, pallet_bridge_mint, destination } from './pallet_bridge.js';
-import { NODE_ADDRESS, get_bitgreen_bridge_contract, privateKey, send_transfer, get_erc20 } from './evm_bridge.js';
+import { NODE_ADDRESS, ROUTER_ADDRESS, get_bitgreen_bridge_contract, privateKey, send_transfer, get_erc20 } from './evm_bridge.js';
 import Web3 from 'web3';
 
 /// QUEUE_MODE enable replication of events
@@ -318,6 +318,22 @@ const handle_evm_deposit_events = async (api, keypair, returnValues, transaction
 /// Keepers should listen for events on both sides of the bridge and take action
 const main = async () => {
     try {
+
+        if (!SECRETSEED) {
+            console.error("PALLET_MNEMONIC should be defined");
+            process.exit(1);
+        }
+
+        if (!privateKey) {
+            console.error("PRIVATE_KEY should be defined");
+            process.exit(2);
+        }
+
+        if (!ROUTER_ADDRESS) {
+            console.error("ROUTER_ADDRESS should be defined");
+            process.exit(3);
+        }        
+
         api = await setup_substrate();
         const web3 = new Web3(NODE_ADDRESS);
         // Wait until we are ready and connected

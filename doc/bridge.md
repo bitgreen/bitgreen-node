@@ -80,6 +80,11 @@ This function also -
 - Store the minting confirmation when reached the threshold
 - Finally, Mint the tokens as assetid in Bitgreen Blockchain accordingly to the request.
 
+@param {Vec<u8>} token - the key once used when calling create_settings, example 'WETH' as Vec<u8>.
+@param {T::AccountId} recipient - the AccountId, example //Eve.
+@param {Vec<u8>} transaction_id - origin transaction_id used to request crossing the bridge, example '0xddd992ded4b372fed77574951facc635a3e62e7a7b105ef882f2675251406bee' as Vec<u8>.
+@param {Balance} amount - requested amount to mint, example '10000' as Balance.
+
 ## Burn Tokens
 
 Burn the tokens as assetid in Bitgreen Blockchain accordingly to the request.
@@ -101,6 +106,10 @@ This function also -
 - Store the burning confirmation when reached the threshold
 - Finally, Burn the tokens as assetid in Bitgreen Blockchain accordingly to the request.
 
+@param {Vec<u8>} token - the key once used when calling create_settings, example 'WETH' as Vec<u8>.
+@param {T::AccountId} recipient - the AccountId, example //Eve.
+@param {Vec<u8>} transaction_id - origin transaction_id used to request crossing the bridge, SCALE encoded tuple of block_number and index, example 'SCALE (100, 2)' as Vec<u8>.
+@param {Balance} amount - requested amount to mint, example '10000' as Balance.
 ## Set Lockdown
 
 This function sets lockdown to true. It's accessible by watchdogs and watch cats only.

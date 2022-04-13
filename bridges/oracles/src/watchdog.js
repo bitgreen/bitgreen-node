@@ -2,15 +2,15 @@ import { Keyring } from '@polkadot/api';
 import '@polkadot/api-augment';
 import { Channel } from 'async-channel';
 import { setup_substrate, SECRETSEED, pallet_bridge_burn, pallet_bridge_mint, destination, pallet_bridge_set_lockdown } from './pallet_bridge.js';
-import { NODE_ADDRESS, get_bitgreen_bridge_contract, privateKey, send_transfer, get_erc20, send_setLockdown } from './evm_bridge.js';
+import { NODE_ADDRESS, ROUTER_ADDRESS, get_bitgreen_bridge_contract, privateKey, send_transfer, get_erc20, send_setLockdown } from './evm_bridge.js';
 import Web3 from 'web3';
 
 const total_lockdown = async (api, keypair, web3, BitgreenBridge, token) => {
     const txid = await pallet_bridge_set_lockdown(api, keypair, token);
-    console.log(txid);
+    // console.log(txid);
     const gasPrice = await web3.eth.getGasPrice();
     const receipt = await send_setLockdown(web3, gasPrice, BitgreenBridge);
-    console.log(receipt);
+    // console.log(receipt);
 }
 
 const handle_events = async (api, keypair, web3, BitgreenBridge, value) => {
@@ -18,17 +18,17 @@ const handle_events = async (api, keypair, web3, BitgreenBridge, value) => {
         case 'Minted': {
             // console.log(value);
             const signer = value[0];
-            console.log(`signer: \t ${signer}`);
+            // console.log(`signer: \t ${signer}`);
             const asset_id = value[1];
-            console.log(`asset_id: \t ${asset_id}`);
+            // console.log(`asset_id: \t ${asset_id}`);
             const recipient = value[2];
-            console.log(`recipient: \t ${recipient}`);
+            // console.log(`recipient: \t ${recipient}`);
             const amount = value[3];
-            console.log(`amount: \t ${amount}`);
+            // console.log(`amount: \t ${amount}`);
             const txid = value[4].toHex();
-            console.log(`txid: \t ${txid}`);
+            // console.log(`txid: \t ${txid}`);
             const token = value[5];
-            console.log(`token: \t ${token}`);
+            // console.log(`token: \t ${token}`);
 
 
             if (asset_id.toNumber() == 1) { // ETH TO WETH
@@ -36,9 +36,9 @@ const handle_events = async (api, keypair, web3, BitgreenBridge, value) => {
                 if (lockdown == false) {
                     const tx = await web3.eth.getTransaction(txid);
                     if (tx) {
-                        console.log(tx);
+                        // console.log(tx);
                         const value = tx['value'];
-                        console.log(value);
+                        // console.log(value);
                         const input = tx['input'];
                         const param_ABI = [{
                             type: "bytes32",
@@ -47,13 +47,13 @@ const handle_events = async (api, keypair, web3, BitgreenBridge, value) => {
                         const destination = await web3.eth.abi.decodeParameters(
                             param_ABI,
                             input.slice(10));
-                        console.log(destination);
+                        // console.log(destination);
 
                         if (recipient.eq(destination[0])) {
                             if (!amount.eq(value)) {
                                 console.log(`FATAL : \t amount ${amount} <> value ${value}`);
                                 await total_lockdown(api, keypair, web3, BitgreenBridge, token);
-                                console.log('end');
+                                // console.log('end');
                                 // process.exit();
                             }
                             // else {
@@ -63,35 +63,11 @@ const handle_events = async (api, keypair, web3, BitgreenBridge, value) => {
                         } else {
                             console.log('FATAL: recipient not equal to destination');
                             await total_lockdown(api, keypair, web3, BitgreenBridge, token);
-                            console.log('end');
+                            // console.log('end');
                             // process.exit();
                         }
 
                     }
-
-                    // const receipt = await web3.eth.getTransactionReceipt(txid);
-                    // if (receipt) {
-                    //     console.log(receipt);
-                    //     receipt.logs[0].topics.shift();
-                    //     const bridge_deposit_request_event = web3.eth.abi.decodeLog([{
-                    //         type: 'bytes32',
-                    //         name: 'destination',
-                    //         indexed: true
-                    //     }, {
-                    //         type: 'uint',
-                    //         name: 'amount',
-                    //         indexed: true
-                    //     }, {
-                    //         type: 'address',
-                    //         name: 'sender',
-                    //         indexed: true
-                    //     }],
-                    //         receipt.logs[0],
-                    //         receipt.logs[0].topics);
-
-                    //     console.log(bridge_deposit_request_event);
-                    // }
-
                 }
             }
         }
@@ -167,11 +143,11 @@ const watchdog_subscription_pallet_bridge = async (api, keypair, web3, BitgreenB
                                                 // for module errors, we have the section indexed, lookup
                                                 const decoded = api.registry.findMetaError(dispatchError.asModule);
                                                 const { name, section } = decoded;
-                                                console.log(`error: \t${section}.${name}`);
+                                                // console.log(`error: \t${section}.${name}`);
                                             }
                                             else {
                                                 // Other, CannotLookup, BadOrigin, no extra info
-                                                console.log(`other: ${dispatchError.toString()}`);
+                                                // console.log(`other: ${dispatchError.toString()}`);
                                             }
                                             value['success'] = false;
                                             return;
@@ -217,22 +193,22 @@ const handle_evm_transfer_events = async (api, keypair, web3, BitgreenBridge, re
     try {
         // const account = web3.eth.accounts.privateKeyToAccount(privateKey).address;
         const txid = returnValues['0'];
-        console.log(txid);
+        // console.log(txid);
         const recipient = returnValues['1'];
-        console.log(recipient);
+        // console.log(recipient);
         let amount = returnValues['2'];
         amount = web3.utils.toBN(amount);
-        console.log(amount);
+        // console.log(amount);
         const erc20 = returnValues['3'];
-        console.log(erc20);
+        // console.log(erc20);
         const wdf = web3.utils.toBN(returnValues['4']);
-        console.log(wdf);
+        // console.log(wdf);
         const total = wdf.add(amount);
 
         const transaction_id = api.createType('(u64,u16)', txid);
         const [block_number, index] = transaction_id;
-        console.log(block_number);
-        console.log(index);
+        // console.log(block_number);
+        // console.log(index);
 
         const blockHash = await api.rpc.chain.getBlockHash(block_number);
         // const signedBlock = await api.rpc.chain.getBlock(blockHash);
@@ -269,7 +245,7 @@ const handle_evm_transfer_events = async (api, keypair, web3, BitgreenBridge, re
                         errorInfo = dispatchError.toString();
                     }
 
-                    console.log(`${section}.${method}:: ExtrinsicFailed:: ${errorInfo}`);
+                    // console.log(`${section}.${method}:: ExtrinsicFailed:: ${errorInfo}`);
                     value['success'] = false;
                 } else {
                     // console.log(`${section}.${method}:: `);
@@ -285,11 +261,11 @@ const handle_evm_transfer_events = async (api, keypair, web3, BitgreenBridge, re
                                     // for module errors, we have the section indexed, lookup
                                     const decoded = api.registry.findMetaError(dispatchError.asModule);
                                     const { name, section } = decoded;
-                                    console.log(`error: \t${section}.${name}`);
+                                    // console.log(`error: \t${section}.${name}`);
                                 }
                                 else {
                                     // Other, CannotLookup, BadOrigin, no extra info
-                                    console.log(`other: ${dispatchError.toString()}`);
+                                    // console.log(`other: ${dispatchError.toString()}`);
                                 }
                                 value['success'] = false;
                                 return;
@@ -311,7 +287,7 @@ const handle_evm_transfer_events = async (api, keypair, web3, BitgreenBridge, re
                 if (!balance.eq(total)) {
                     console.log(`FATAL : \t total ${total} <> balance ${balance}`);
                     await total_lockdown(api, keypair, web3, BitgreenBridge, token);
-                    console.log('end');
+                    // console.log('end');
                     // process.exit();
                 }
                 // else {
@@ -321,13 +297,13 @@ const handle_evm_transfer_events = async (api, keypair, web3, BitgreenBridge, re
             } else {
                 console.log('FATAL: recipient not equal to destination');
                 await total_lockdown(api, keypair, web3, BitgreenBridge, token);
-                console.log('end');
+                // console.log('end');
                 // process.exit();    
             }    
         } else {
             console.log(`FATAL : \t block_number,  ${block_number} index ${index} failed`);
             await total_lockdown(api, keypair, web3, BitgreenBridge, token);
-            console.log('end');
+            // console.log('end');
             // process.exit();
         }
 
@@ -340,6 +316,23 @@ const handle_evm_transfer_events = async (api, keypair, web3, BitgreenBridge, re
 
 const main = async () => {
     try {
+
+        if (!SECRETSEED) {
+            console.error("PALLET_MNEMONIC should be defined");
+            process.exit(1);
+        }
+
+        if (!privateKey) {
+            console.error("PRIVATE_KEY should be defined");
+            process.exit(2);
+        }
+
+        if (!ROUTER_ADDRESS) {
+            console.error("ROUTER_ADDRESS should be defined");
+            process.exit(3);
+        }        
+
+
         const api = await setup_substrate();
         const web3 = new Web3(NODE_ADDRESS);
         // Wait until we are ready and connected
