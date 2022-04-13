@@ -13,6 +13,7 @@ use frame_support::{
 	pallet_prelude::*,
 	traits::{
 		Currency,
+		EnsureOneOf,
 		EnsureOrigin,
 		ExistenceRequirement,
 		Get,
@@ -24,7 +25,7 @@ use frame_support::{
 	weights::{Pays, PostDispatchInfo, Weight},
 	RuntimeDebug,
 };
-use frame_system::{ensure_root, ensure_signed, pallet_prelude::*, EnsureOneOf, EnsureRoot, EnsureSigned};
+use frame_system::{ensure_root, ensure_signed, pallet_prelude::*, EnsureRoot, EnsureSigned};
 use primitive_types::{H256, U256};
 #[cfg(feature = "std")]
 use serde::{Deserialize, Serialize};
@@ -40,7 +41,7 @@ use support::{EVMStateRentTrait, ExecutionMode, InvokeContext, TransactionPaymen
 pub use crate::precompiles::{Precompile, Precompiles};
 pub use crate::runner::Runner;
 pub use evm::{Context, ExitError, ExitFatal, ExitReason, ExitRevert, ExitSucceed};
-pub use orml_traits::account::MergeAccount;
+pub use orml_traits::currency::TransferAll;
 pub use primitives::evm::{Account, AddressMapping, CallInfo, CreateInfo, EvmAddress, Log, Vicinity};
 
 pub mod precompiles;
@@ -120,7 +121,7 @@ pub mod module {
 		type Currency: Currency<Self::AccountId> + ReservableCurrency<Self::AccountId>;
 
 		/// Merge free balance from source to dest.
-		type MergeAccount: MergeAccount<Self::AccountId>;
+		type TransferAll: TransferAll<Self::AccountId>;
 
 		/// Charge extra bytes for creating a contract, would be reserved until
 		/// the contract deleted.
@@ -893,7 +894,7 @@ impl<T: Config> Pallet<T> {
 				&contract_account_id,
 				T::Currency::reserved_balance(&contract_account_id),
 			);
-			T::MergeAccount::merge_account(&contract_account_id, &who)?;
+			T::TransferAll::transfer_all(&contract_account_id, &who)?;
 
 			Ok(())
 		})?;
@@ -1012,7 +1013,8 @@ pub fn code_hash(code: &[u8]) -> H256 {
 	H256::from_slice(Keccak256::digest(code).as_slice())
 }
 
-#[derive(Encode, Decode, Clone, Eq, PartialEq)]
+#[derive(Encode, Decode, Clone, Eq, PartialEq, TypeInfo)]
+#[scale_info(skip_type_params(T))]
 pub struct SetEvmOrigin<T: Config + Send + Sync>(PhantomData<T>);
 
 impl<T: Config + Send + Sync> sp_std::fmt::Debug for SetEvmOrigin<T> {

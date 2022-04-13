@@ -12,10 +12,10 @@ use frame_system::pallet_prelude::*;
 mod mock;
 mod tests;
 
-pub use module::*;
+pub use pallet::*;
 
 #[frame_support::pallet]
-pub mod module {
+pub mod pallet {
 	use super::*;
 
 	#[pallet::config]
@@ -26,6 +26,8 @@ pub mod module {
 			+ From<u32>
 			+ Into<Weight>
 			+ Default
+			+ TypeInfo
+			+ MaxEncodedLen
 			+ MaybeSerializeDeserialize;
 		#[pallet::constant]
 		type SomeConst: Get<Self::Balance>;
@@ -40,7 +42,6 @@ pub mod module {
 
 	#[pallet::event]
 	#[pallet::generate_deposit(fn deposit_event)]
-	#[pallet::metadata(T::Balance = "Balance")]
 	pub enum Event<T: Config> {
 		/// Dummy event, just here so there's a generic type that's used.
 		Dummy(T::Balance),

@@ -165,7 +165,7 @@ decl_error! {
         /// Signer is not Authorized
         SignerIsNotAuthorized,
         /// Not allowed due to lockdown mode
-        NotAllowedSystemLockdown,             
+        NotAllowedSystemLockdown,
   }
 }
 
@@ -384,7 +384,7 @@ decl_module! {
                     break;
                 }
                 let internal_keepervec=bs58::decode(internal_keeper).into_vec().unwrap();
-                let accountid_internal_keepers=T::AccountId::decode(&mut &internal_keepervec[1..33]).unwrap_or_default();
+                let accountid_internal_keepers=T::AccountId::decode(&mut &internal_keepervec[1..33]).map_err(|_| Error::<T>::InvalidJson)?;
                 if accountid_internal_keepers==signer {
                     flag=1;
                 }
@@ -397,7 +397,7 @@ decl_module! {
             ensure!(!TransactionMintTracker::<T>::contains_key(transaction_id.clone(),&signer), Error::<T>::SignerAlreadyConfirmed);
             // store minting tracker
             TransactionMintTracker::<T>::insert(transaction_id.clone(),signer.clone(),asset_id);
-            
+
             // storing the minting request if it's not already present
             let key = &mut token.clone();
             key.push(b'-');
@@ -407,12 +407,12 @@ decl_module! {
             if !MintRequest::contains_key(key.clone()) {
                 MintRequest::insert(key.clone(),amount);
             }else {
-                // when already present 
+                // when already present
                 // checking that the amount to mint is the same of the previous one, if does not, we have an Oracle hacked or not updated
                 let am=MintRequest::get(key.clone());
                 ensure!(am==amount,Error::<T>::AmountMintingIsNotMatching);
             }
- 
+
             // update the counter for the minting requests of the transaction
             let mut key = token.clone();
             key.push(b'-');
@@ -456,7 +456,7 @@ decl_module! {
 			// let asset_id = vecu8_to_u32(asset_idv);
             // generate an event
             Self::deposit_event(RawEvent::Request(signer, token, destination.clone(), amount));
-            Ok(().into())            
+            Ok(().into())
         }
 
         #[weight = 10_000 + T::DbWeight::get().writes(1)]
@@ -481,7 +481,7 @@ decl_module! {
                     break;
                 }
                 let internal_keepervec=bs58::decode(internal_keeper).into_vec().unwrap();
-                let accountid_internal_keepers=T::AccountId::decode(&mut &internal_keepervec[1..33]).unwrap_or_default();
+                let accountid_internal_keepers=T::AccountId::decode(&mut &internal_keepervec[1..33]).map_err(|_| Error::<T>::InvalidJson)?;
                 if accountid_internal_keepers==signer {
                     flag=1;
                 }
@@ -555,7 +555,7 @@ decl_module! {
                     break;
                 }
                 let internal_watch_dogsvec=bs58::decode(internal_watch_dogs).into_vec().unwrap();
-                let accountid_internal_watch_dogs=T::AccountId::decode(&mut &internal_watch_dogsvec[1..33]).unwrap_or_default();
+                let accountid_internal_watch_dogs=T::AccountId::decode(&mut &internal_watch_dogsvec[1..33]).map_err(|_| Error::<T>::InvalidJson)?;
                 if accountid_internal_watch_dogs==signer {
                     flag=1;
                 }
@@ -569,7 +569,7 @@ decl_module! {
                     break;
                 }
                 let internal_watch_catsvec=bs58::decode(internal_watch_cats).into_vec().unwrap();
-                let accountid_internal_watch_cats=T::AccountId::decode(&mut &internal_watch_catsvec[1..33]).unwrap_or_default();
+                let accountid_internal_watch_cats=T::AccountId::decode(&mut &internal_watch_catsvec[1..33]).map_err(|_| Error::<T>::InvalidJson)?;
                 if accountid_internal_watch_cats==signer {
                     flag=1;
                 }
@@ -852,4 +852,3 @@ fn vecu8_to_u32(v: Vec<u8>) -> u32 {
     let vvalue: u32 = u32::from_str(vstr).unwrap_or(0);
     vvalue
 }
-

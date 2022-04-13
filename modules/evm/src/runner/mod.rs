@@ -32,14 +32,14 @@ impl<T: Config> Runner<T> {
 		tag: &'static str,
 		config: &evm::Config,
 	) -> Result<CreateInfo, DispatchError> {
-		debug::debug!(
-			target: "evm",
-			"{:?}: source {:?}, gas_limit: {:?}, storage_limit: {:?}",
-			tag,
-			source,
-			gas_limit,
-			storage_limit,
-		);
+		// debug::debug!(
+		// 	target: "evm",
+		// 	"{:?}: source {:?}, gas_limit: {:?}, storage_limit: {:?}",
+		// 	tag,
+		// 	source,
+		// 	gas_limit,
+		// 	storage_limit,
+		// );
 
 		let vicinity = Vicinity {
 			gas_price: U256::one(),
@@ -97,12 +97,12 @@ impl<T: Config> Runner<T> {
 					used_storage: substate.used_storage(),
 				};
 
-				debug::debug!(
-					target: "evm",
-					"{:?}-result: create_info {:?}",
-					tag,
-					create_info
-				);
+				// debug::debug!(
+				// 	target: "evm",
+				// 	"{:?}-result: create_info {:?}",
+				// 	tag,
+				// 	create_info
+				// );
 
 				if !reason.is_succeed() {
 					create_info.output = out;
@@ -161,16 +161,16 @@ impl<T: Config> Runner<T> {
 		storage_limit: u32,
 		config: &evm::Config,
 	) -> Result<CallInfo, DispatchError> {
-		debug::debug!(
-			target: "evm",
-			"call: sender:{:?}, origin: {:?}, target: {:?}, input: {:?}, gas_limit: {:?}, storage_limit: {:?}",
-			sender,
-			origin,
-			target,
-			input,
-			gas_limit,
-			storage_limit,
-		);
+		// debug::debug!(
+		// 	target: "evm",
+		// 	"call: sender:{:?}, origin: {:?}, target: {:?}, input: {:?}, gas_limit: {:?}, storage_limit: {:?}",
+		// 	sender,
+		// 	origin,
+		// 	target,
+		// 	input,
+		// 	gas_limit,
+		// 	storage_limit,
+		// );
 
 		let vicinity = Vicinity {
 			gas_price: U256::one(),
@@ -206,11 +206,11 @@ impl<T: Config> Runner<T> {
 				used_storage: substate.used_storage(),
 			};
 
-			debug::debug!(
-				target: "evm",
-				"call-result: call_info {:?}",
-				call_info
-			);
+			// debug::debug!(
+			// 	target: "evm",
+			// 	"call-result: call_info {:?}",
+			// 	call_info
+			// );
 
 			if !reason.is_succeed() {
 				return TransactionOutcome::Rollback(Ok(call_info));

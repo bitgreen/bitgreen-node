@@ -14,7 +14,7 @@ use frame_support::{
 };
 use frame_system::pallet_prelude::*;
 use orml_traits::{
-	account::MergeAccount,
+	currency::TransferAll,
 	arithmetic::{Signed, SimpleArithmetic},
 	BalanceStatus, BasicCurrency, BasicCurrencyExtended, BasicLockableCurrency, BasicReservableCurrency,
 	LockIdentifier, MultiCurrency, MultiCurrencyExtended, MultiLockableCurrency, MultiReservableCurrency,
@@ -64,7 +64,7 @@ pub mod module {
 	#[pallet::config]
 	pub trait Config: frame_system::Config {
 		type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
-		type MultiCurrency: MergeAccount<Self::AccountId>
+		type MultiCurrency: TransferAll<Self::AccountId>
 			+ MultiCurrencyExtended<Self::AccountId, CurrencyId = CurrencyId>
 			+ MultiLockableCurrency<Self::AccountId, CurrencyId = CurrencyId>
 			+ MultiReservableCurrency<Self::AccountId, CurrencyId = CurrencyId>;
@@ -266,7 +266,7 @@ impl<T: Config> MultiCurrency<T::AccountId> for Pallet<T> {
 		match currency_id {
 			CurrencyId::ERC20(contract) => {
 				let sender = T::AddressMapping::get_evm_address(&from).ok_or(Error::<T>::EvmAccountNotFound)?;
-				let origin = T::EVMBridge::get_origin().unwrap_or_default();
+				let origin = T::EVMBridge::get_origin().ok_or(Error::<T>::EvmAccountNotFound)?;
 				let origin_address = T::AddressMapping::get_or_create_evm_address(&origin);
 				let address = T::AddressMapping::get_or_create_evm_address(&to);
 				T::EVMBridge::transfer(
@@ -740,6 +740,7 @@ where
 		+ TryInto<PalletBalanceOf<AccountId, Currency>>
 		+ TryFrom<PalletBalanceOf<AccountId, Currency>>
 		+ SimpleArithmetic
+		+ MaxEncodedLen
 		+ Codec
 		+ Copy
 		+ MaybeSerializeDeserialize
@@ -826,11 +827,11 @@ where
 	}
 }
 
-impl<T: Config> MergeAccount<T::AccountId> for Pallet<T> {
-	fn merge_account(source: &T::AccountId, dest: &T::AccountId) -> DispatchResult {
+impl<T: Config> TransferAll<T::AccountId> for Pallet<T> {
+	fn transfer_all(source: &T::AccountId, dest: &T::AccountId) -> DispatchResult {
 		with_transaction_result(|| {
 			// transfer non-native free to dest
-			T::MultiCurrency::merge_account(source, dest)?;
+			T::MultiCurrency::transfer_all(source, dest)?;
 
 			// unreserve all reserved currency
 			T::NativeCurrency::unreserve(source, T::NativeCurrency::reserved_balance(source));

@@ -7,9 +7,13 @@ split-debuginfo = "unpacked"
 [workspace]
 members = [
     'node',
-    'modules/*',
-    'pallets/*',
-    'runtime',
+    'parachain',
+    'runtime/*',
+    'pallets/assets',
+    'pallets/bridge',
+    'pallets/bonds',
+    'pallets/impact-actions',
+    'pallets/vesting',
     'primitives'
 ]
 exclude = ['rpc']

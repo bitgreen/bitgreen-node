@@ -17,7 +17,7 @@ use frame_support::{
 	weights::Weight,
 };
 use frame_system::{ensure_signed, pallet_prelude::*};
-use orml_traits::account::MergeAccount;
+use orml_traits::currency::TransferAll;
 use primitives::{
 	evm::{AddressMapping, EvmAddress},
 	AccountIndex,
@@ -66,7 +66,7 @@ pub mod module {
 		type AddressMapping: AddressMapping<Self::AccountId>;
 
 		/// Merge free balance from source to dest.
-		type MergeAccount: MergeAccount<Self::AccountId>;
+		type TransferAll: TransferAll<Self::AccountId>;
 
 		/// On claim account hook.
 		type OnClaim: Handler<Self::AccountId>;
@@ -143,7 +143,7 @@ pub mod module {
 			let account_id = T::AddressMapping::get_account_id(&eth_address);
 			if frame_system::Module::<T>::account_exists(&account_id) {
 				// merge balance from `evm padded address` to `origin`
-				T::MergeAccount::merge_account(&account_id, &who)?;
+				T::TransferAll::transfer_all(&account_id, &who)?;
 			}
 
 			Accounts::<T>::insert(eth_address, &who);
@@ -211,14 +211,16 @@ impl<T: Config> Pallet<T> {
 		EvmAddress::from_slice(&keccak_256(&Self::eth_public(secret).serialize()[1..65])[12..])
 	}
 
-	pub fn eth_sign(secret: &secp256k1::SecretKey, what: &[u8], extra: &[u8]) -> EcdsaSignature {
-		let msg = keccak_256(&Self::ethereum_signable_message(&to_ascii_hex(what)[..], extra));
-		let (sig, recovery_id) = secp256k1::sign(&secp256k1::Message::parse(&msg), secret);
-		let mut r = [0u8; 65];
-		r[0..64].copy_from_slice(&sig.serialize()[..]);
-		r[64] = recovery_id.serialize();
-		EcdsaSignature::from_slice(&r)
-	}
+	#[cfg(any(feature = "runtime-benchmarks", feature = "std"))]
+		// Constructs a message and signs it.
+		pub fn eth_sign(secret: &libsecp256k1::SecretKey, who: &T::AccountId) -> Eip712Signature {
+			let msg = keccak_256(&Self::eip712_signable_message(who));
+			let (sig, recovery_id) = libsecp256k1::sign(&libsecp256k1::Message::parse(&msg), secret);
+			let mut r = [0u8; 65];
+			r[0..64].copy_from_slice(&sig.serialize()[..]);
+			r[64] = recovery_id.serialize();
+			r
+		}
 }
 
 fn account_to_default_evm_address(account_id: &impl Encode) -> EvmAddress {

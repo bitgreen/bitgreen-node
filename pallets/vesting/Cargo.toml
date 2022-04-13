@@ -11,28 +11,22 @@ version = '0.1.0'
 [package.metadata.docs.rs]
 targets = ['x86_64-unknown-linux-gnu']
 
-# alias "parity-scale-code" to "codec"
-[dependencies.codec]
-default-features = false
-features = ['derive']
-package = 'parity-scale-codec'
-version = '2.0.0'
-
 [dependencies]
-frame-support = { default-features = false, version = '3.0.0' }
-frame-system = { default-features = false, version = '3.0.0' }
+codec = { package = "parity-scale-codec", version = "3.0.0", default-features = false, features = ["derive"] }
+frame-support = { git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.18", default-features = false }
+frame-system = { git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.18", default-features = false }
 primitives = { package = 'bitg-primitives', path = '../../primitives', default-features = false }
-serde = { version = '1', features = ['derive'], optional = true }
-sp-runtime = { default-features = false, version = '3.0.0' }
-sp-std = { default-features = false, version = '3.0.0' }
+scale-info = { version = "2.0.1", default-features = false, features = ["derive"] }
+serde = { version = "1.0.101", optional = true }
+sp-runtime = { git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.18", default-features = false }
+sp-std = { git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.18", default-features = false }
 bs58 = { default-features = false, version = '0.4.0',features=['alloc']}
-pallet-assets = { version = "3.0.0", default-features = false, path = "../assets" }
+pallet-assets = { git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.18", default-features = false }
 
 [dev-dependencies]
-serde = { version = "1.0.119" }
-sp-core = { default-features = false, version = '3.0.0' }
-sp-io = { default-features = false, version = '3.0.0' }
-pallet-balances = "3.0.0"
+sp-core = { git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.18", default-features = false }
+sp-io = { git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.18", default-features = false }
+pallet-balances = { git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.18", default-features = false }
 
 [features]
 default = ['std']

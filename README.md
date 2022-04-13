@@ -8,7 +8,7 @@ This is the BitGreen Node based on Substrate Framework 3.x
 - ERC20 - Fungible Tokens.  
 - NFT - Non Fungible Tokens.  
 - DAO - Decentralized Autonomous Organization.  
-  
+
 ## Hardware Requirements
 - Ram: The Rust compiler uses a lot of ram to build the node, please use machine with at the least 8 GB RAM.  
 - Disk: Disk space grows day by day, 100 GB disk is a good choice for now.  
@@ -27,7 +27,8 @@ cargo run --release -- --dev --tmp
 You can build without launching:
 
 ```sh
-cargo build --release
+cargo build --release -p bitg-node (for standalone node)
+cargo build --release -p bitg-parachain (for parachain)
 ```
 
 
@@ -71,7 +72,7 @@ You can run the node as part of the current Testnet:
 ./target/release/bitg-node --chain assets/chain_spec_testnet_raw.json --port 30333 --name yourpreferredname --rpc-cors all
 ```
 Please consider:
-1) TESTNET can be reset to the genesis anytime; 
+1) TESTNET can be reset to the genesis anytime;
 2) the BITG on TESTNET has no value, they are just for testings.  
 
 ### Testnet Validator
@@ -93,16 +94,16 @@ You can install in your node as from [instructions here](cache-engine/README.md)
 ### Bugs Reporting
 For bug reporting, please open an issue on our Git Repo:  
 [https://github.com/bitgreen/bitg-node/issues](https://github.com/bitgreen/bitg-node/issues)  
-  
+
 
 ### Secure Web Socket
-You might want to host a node on one server and then connect to it from a UI hosted on another. 
-This will not be possible unless you set up a secure proxy for websocket connections. 
+You might want to host a node on one server and then connect to it from a UI hosted on another.
+This will not be possible unless you set up a secure proxy for websocket connections.
 Let's see how we can set up WSS on a remote Bitgreen node.  
-  
-Note: this should only be done for sync nodes used as back-end for some dapps or projects. 
+
+Note: this should only be done for sync nodes used as back-end for some dapps or projects.
 Never open websockets to your validator node - there's no reason to do that and it can only lead to security issues.  
-  
+
 In this guide we'll be using Debian 10.   
 We'll assume you're using a similar OS, and that you have nginx installed (if not, run sudo apt-get install nginx).  
 Start the node, for example:  
@@ -111,15 +112,15 @@ Start the node, for example:
 ```
 The --rpc-cors mode needs to be set to all so that all external connections are allowed.  
 To get WSS (secure websocket), you need an SSL certificate.  
-Get a dedicated domain, redirect a domain name to your IP address, setting up an Nginx server for that domain, and finally following LetsEncrypt instructions for Nginx setup. 
-This will auto-generate an SSL certificate and include it in your Nginx configuration. 
+Get a dedicated domain, redirect a domain name to your IP address, setting up an Nginx server for that domain, and finally following LetsEncrypt instructions for Nginx setup.
+This will auto-generate an SSL certificate and include it in your Nginx configuration.
 Now it's time to tell Nginx to use these certificates. The server block below is all you need, but keep in mind that you need to replace some placeholder values.  
 Notably:  
 SERVER_ADDRESS should be replaced by your domain name if you have it, or your server's IP address if not.  
 CERT_LOCATION should be /etc/letsencrypt/live/YOUR_DOMAIN/fullchain.pem if you used Certbot, or /etc/ssl/certs/nginx-selfsigned.crt if self-signed.  
 CERT_LOCATION_KEY should be /etc/letsencrypt/live/YOUR_DOMAIN/privkey.pem if you used Certbot, or /etc/ssl/private/nginx-selfsigned.key if self-signed.  
 CERT_DHPARAM should be /etc/letsencrypt/ssl-dhparams.pem if you used Certbot, and /etc/ssl/certs/dhparam.pem if self-signed.  
-Note that if you used Certbot, it should have made the path insertions below for you if you followed the official instructions. 
+Note that if you used Certbot, it should have made the path insertions below for you if you followed the official instructions.
 Here an example of configuration of nginx (/etc/nginx/sites-available/default)
 ```
 server {
@@ -146,7 +147,7 @@ server {
         listen 443 ssl;
         ssl_certificate /etc/letsencrypt/live/testnet.bitg.org/fullchain.pem; # managed by Certbot
         ssl_certificate_key /etc/letsencrypt/live/testnet.bitg.org/privkey.pem; # managed by Certbot
-        
+
         ssl_session_cache shared:cache_nginx_SSL:1m;
         ssl_session_timeout 1440m;
 
@@ -168,13 +169,13 @@ Here an example of a [firewall configuration](rpc/firewall.sh) for a Linux/Debia
 
 ## Accounts  
 ### Address Format  
-The address format used  is SS58. SS58 is a modification of Base-58-check from Bitcoin with some minor modifications. 
+The address format used  is SS58. SS58 is a modification of Base-58-check from Bitcoin with some minor modifications.
 Notably, the format contains an address type prefix that identifies an address as belonging to a specific substrate network.  
 We are using the prefix= "5".
 For example a valid address is: 5DFJF7tY4bpbpcKPJcBTQaKuCDEPCpiz8TRjpmLeTtweqmXL  
 
 ### Address Generation  
-A valid account only requires a private key that can sign on one of the supported curves and signature schemes. 
+A valid account only requires a private key that can sign on one of the supported curves and signature schemes.
 Most wallets take many steps from a mnemonic phrase to derive the account key, which affects the ability to use the same mnemonic phrase in multiple wallets.  
 Wallets that use different steps will arrive at a different set of addresses from the same mnemonic.  
 
@@ -245,8 +246,8 @@ BitGreen blockchain has specific support for the [Verified Carbon Units.](doc/vc
 ## Development Tools
 
 You can interact with our testing node:
-``` 
-testnode.bitg.org 
+```
+testnode.bitg.org
 ```
 using the web app hosted here:    
 [https://polkadot.js.org/apps](https://polkadot.js.org/apps)  
@@ -274,19 +275,10 @@ It supports a wide range of capabilities and powers the Polkascan multi-chain bl
 A Rust library to submit extrinsics to BitGreen node via RPC.  
 
 [Kotlin - Substrate-client-Kotlin](https://github.com/NodleCode/substrate-client-kotlin)
-Substrate-client-kotlin is client library to interact with a substrate-based chain like BitGreen. 
+Substrate-client-kotlin is client library to interact with a substrate-based chain like BitGreen.
 It uses the API available from the RPC endpoint only (no sidecar). As of today it provides the following functionality:
-- compatible with substrate 3.0 
+- compatible with substrate 3.0
 - ed25519 wallet creation
 - get account info (balance)
 - sign extrinsic and send (immortal era)
 - estimate fee
-
-
-
-
-
-
-
-
- 

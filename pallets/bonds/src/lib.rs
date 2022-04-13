@@ -26,7 +26,7 @@ pub type Balance = u128;
 //pub trait Config: frame_system::Config + Sized + pallet_assets::Config{
 pub trait Config: frame_system::Config + Sized + pallet_assets::Config<AssetId = u32, Balance = u128>{
 	type Event: From<Event<Self>> + Into<<Self as frame_system::Config>::Event>;
-	type Currency: Currency<Self::AccountId, Balance = Balance>;    
+	type Currency: Currency<Self::AccountId, Balance = Balance>;
 }
 
 
@@ -169,11 +169,11 @@ decl_error! {
         LawyersSubmissionManagerAccountIsWrong,
         /// Committe for lawyers submission is wrong
         LawyersSubmissionCommitteeIsWrong,
-        /// Manager account for collateral verification is wrong    
+        /// Manager account for collateral verification is wrong
         CollateralVerificationManagerAccountIsWrong,
         /// Committe for collateral verification is wrong
         CollateralVerificationCommitteeIsWrong,
-        ///  Account for  fund approval is wrong    
+        ///  Account for  fund approval is wrong
         FundApprovalManagerAccountIsWrong,
         /// Committe for fund approval  is wrong
         FundApprovalCommitteeIsWrong,
@@ -586,7 +586,7 @@ decl_error! {
         /// Current reserve is not enough
         CurrentReserveIsNotEnough,
         /// Insufficient funds available for the payment
-        InsufficientFunds, 
+        InsufficientFunds,
         /// Currency code has not a valid address in the blockchain
         CurrencyCodeHasNotValidAddress,
         ///Default Token id cannot be zero
@@ -621,14 +621,14 @@ decl_module! {
 			// check the request is signed from Super User
 			let _sender = ensure_root(origin)?;
 			//check configuration length
-			ensure!(configuration.len() > 12, Error::<T>::SettingsJsonTooShort); 
-            ensure!(configuration.len() < 8192, Error::<T>::SettingsJsonTooLong); 
+			ensure!(configuration.len() > 12, Error::<T>::SettingsJsonTooShort);
+            ensure!(configuration.len() < 8192, Error::<T>::SettingsJsonTooLong);
             // check json validity
 			let js=configuration.clone();
 			ensure!(json_check_validity(js),Error::<T>::InvalidJson);
             // check for key validity
-            ensure!(key=="kyc".as_bytes().to_vec() 
-                || key=="bondapproval".as_bytes().to_vec() 
+            ensure!(key=="kyc".as_bytes().to_vec()
+                || key=="bondapproval".as_bytes().to_vec()
                 || key=="underwriterssubmission".as_bytes().to_vec()
                 || key=="insurerssubmission".as_bytes().to_vec()
                 || key=="creditratingagencies".as_bytes().to_vec()
@@ -636,7 +636,7 @@ decl_module! {
                 || key=="fundapproval".as_bytes().to_vec()
                 || key=="lawyerssubmission".as_bytes().to_vec()
                 || key=="infodocuments".as_bytes().to_vec()
-                || key=="insuranceminreserve".as_bytes().to_vec() 
+                || key=="insuranceminreserve".as_bytes().to_vec()
                 || key=="stablecoin".as_bytes().to_vec(),
                 Error::<T>::SettingsKeyIsWrong);
             // check validity for kyc settings
@@ -648,7 +648,7 @@ decl_module! {
                 let operators=json_get_complexarray(configuration.clone(),"operators".as_bytes().to_vec());
                 if operators.len()>=2 {
                     let mut x=0;
-                    loop {  
+                    loop {
                         let w=json_get_recordvalue(operators.clone(),x);
                         if w.is_empty() {
                             break;
@@ -666,7 +666,7 @@ decl_module! {
                 let committee=json_get_complexarray(configuration.clone(),"committee".as_bytes().to_vec());
                 let mut x=0;
                 if committee.len()>2 {
-                    loop {  
+                    loop {
                         let w=json_get_recordvalue(committee.clone(),x);
                         if w.is_empty() {
                             break;
@@ -689,7 +689,7 @@ decl_module! {
                 let committee=json_get_complexarray(configuration.clone(),"committee".as_bytes().to_vec());
                 let mut x=0;
                 if committee.len()>2 {
-                    loop {  
+                    loop {
                         let w=json_get_recordvalue(committee.clone(),x);
                         if w.is_empty() {
                             break;
@@ -706,7 +706,7 @@ decl_module! {
                 let committee=json_get_complexarray(configuration.clone(),"committee".as_bytes().to_vec());
                 let mut x=0;
                 if committee.len()>2 {
-                    loop {  
+                    loop {
                         let w=json_get_recordvalue(committee.clone(),x);
                         if w.is_empty() {
                             break;
@@ -728,7 +728,7 @@ decl_module! {
                 let committee=json_get_complexarray(configuration.clone(),"committee".as_bytes().to_vec());
                 let mut x=0;
                 if committee.len()>2 {
-                    loop {  
+                    loop {
                         let w=json_get_recordvalue(committee.clone(),x);
                         if w.is_empty() {
                             break;
@@ -745,7 +745,7 @@ decl_module! {
                 let committee=json_get_complexarray(configuration.clone(),"committee".as_bytes().to_vec());
                 let mut x=0;
                 if committee.len()>2 {
-                    loop {  
+                    loop {
                         let w=json_get_recordvalue(committee.clone(),x);
                         if w.is_empty() {
                             break;
@@ -762,7 +762,7 @@ decl_module! {
                 let committee=json_get_complexarray(configuration.clone(),"committee".as_bytes().to_vec());
                 let mut x=0;
                 if committee.len()>2 {
-                    loop {  
+                    loop {
                         let w=json_get_recordvalue(committee.clone(),x);
                         if w.is_empty() {
                             break;
@@ -779,7 +779,7 @@ decl_module! {
                 let committee=json_get_complexarray(configuration.clone(),"committee".as_bytes().to_vec());
                 let mut x=0;
                 if committee.len()>2 {
-                    loop {  
+                    loop {
                         let w=json_get_recordvalue(committee.clone(),x);
                         if w.is_empty() {
                             break;
@@ -800,7 +800,7 @@ decl_module! {
                 let documents=json_get_complexarray(configuration.clone(),"documents".as_bytes().to_vec());
                 let mut x=0;
                 if documents.len()>2 {
-                    loop {  
+                    loop {
                         let w=json_get_recordvalue(documents.clone(),x);
                         if w.is_empty() {
                             break;
@@ -829,7 +829,7 @@ decl_module! {
 			// Return a successful DispatchResult
 			Ok(())
 		}
-	
+
         // this function has the purpose to the insert or update data for KYC
         #[weight = 1000]
         pub fn create_change_kyc(origin, accountid: T::AccountId, info: Vec<u8>) -> dispatch::DispatchResult {
@@ -843,7 +843,7 @@ decl_module! {
             let manager=json_get_value(json.clone(),"manager".as_bytes().to_vec());
             if !manager.is_empty() {
                 let managervec=bs58::decode(manager).into_vec().unwrap();
-                let accountidmanager=T::AccountId::decode(&mut &managervec[1..33]).unwrap_or_default();
+                let accountidmanager=T::AccountId::decode(&mut &managervec[1..33]).map_err(|_| Error::<T>::InvalidJson)?;
                 if signer==accountidmanager {
                     flag=1;
                     signingtype=1;
@@ -853,7 +853,7 @@ decl_module! {
             let supervisor=json_get_value(json.clone(),"supervisor".as_bytes().to_vec());
             if !supervisor.is_empty() {
                 let supervisorvec=bs58::decode(supervisor).into_vec().unwrap();
-                let accountidsupervisor=T::AccountId::decode(&mut &supervisorvec[1..33]).unwrap_or_default();
+                let accountidsupervisor=T::AccountId::decode(&mut &supervisorvec[1..33]).map_err(|_| Error::<T>::InvalidJson)?;
                 if signer==accountidsupervisor {
                     flag=1;
                     if signingtype==0 {
@@ -870,7 +870,7 @@ decl_module! {
                     break;
                 }
                 let operatorvec=bs58::decode(operator).into_vec().unwrap();
-                let accountidoperator=T::AccountId::decode(&mut &operatorvec[1..33]).unwrap_or_default();
+                let accountidoperator=T::AccountId::decode(&mut &operatorvec[1..33]).map_err(|_| Error::<T>::InvalidJson)?;
                 if accountidoperator==signer {
                     flag=1;
                     if signingtype==0 {
@@ -963,7 +963,7 @@ decl_module! {
             let manager=json_get_value(json.clone(),"manager".as_bytes().to_vec());
             if !manager.is_empty() {
                 let managervec=bs58::decode(manager).into_vec().unwrap();
-                let accountidmanager=T::AccountId::decode(&mut &managervec[1..33]).unwrap_or_default();
+                let accountidmanager=T::AccountId::decode(&mut &managervec[1..33]).map_err(|_| Error::<T>::InvalidJson)?;
                 if signer==accountidmanager {
                     flag=1;
                     signingtype=1;
@@ -973,7 +973,7 @@ decl_module! {
             let supervisor=json_get_value(json.clone(),"supervisor".as_bytes().to_vec());
             if !supervisor.is_empty() {
                 let supervisorvec=bs58::decode(supervisor).into_vec().unwrap();
-                let accountidsupervisor=T::AccountId::decode(&mut &supervisorvec[1..33]).unwrap_or_default();
+                let accountidsupervisor=T::AccountId::decode(&mut &supervisorvec[1..33]).map_err(|_| Error::<T>::InvalidJson)?;
                 if signer==accountidsupervisor {
                     flag=1;
                     if signingtype==0 {
@@ -989,7 +989,7 @@ decl_module! {
                     break;
                 }
                 let operatorvec=bs58::decode(operator).into_vec().unwrap();
-                let accountidoperator=T::AccountId::decode(&mut &operatorvec[1..33]).unwrap_or_default();
+                let accountidoperator=T::AccountId::decode(&mut &operatorvec[1..33]).map_err(|_| Error::<T>::InvalidJson)?;
                 if accountidoperator==signer {
                     flag=1;
                     if signingtype==0 {
@@ -1043,7 +1043,7 @@ decl_module! {
             let manager=json_get_value(json.clone(),"manager".as_bytes().to_vec());
             if !manager.is_empty() {
                 let managervec=bs58::decode(manager).into_vec().unwrap();
-                let accountidmanager=T::AccountId::decode(&mut &managervec[1..33]).unwrap_or_default();
+                let accountidmanager=T::AccountId::decode(&mut &managervec[1..33]).map_err(|_| Error::<T>::InvalidJson)?;
                 if signer==accountidmanager {
                     flag=1;
                 }
@@ -1052,7 +1052,7 @@ decl_module! {
             let supervisor=json_get_value(json.clone(),"supervisor".as_bytes().to_vec());
             if !supervisor.is_empty() {
                 let supervisorvec=bs58::decode(supervisor).into_vec().unwrap();
-                let accountidsupervisor=T::AccountId::decode(&mut &supervisorvec[1..33]).unwrap_or_default();
+                let accountidsupervisor=T::AccountId::decode(&mut &supervisorvec[1..33]).map_err(|_| Error::<T>::InvalidJson)?;
                 if signer==accountidsupervisor {
                     flag=1;
                 }
@@ -1077,7 +1077,7 @@ decl_module! {
             let manager=json_get_value(json.clone(),"manager".as_bytes().to_vec());
             if !manager.is_empty() {
                 let managervec=bs58::decode(manager).into_vec().unwrap();
-                let accountidmanager=T::AccountId::decode(&mut &managervec[1..33]).unwrap_or_default();
+                let accountidmanager=T::AccountId::decode(&mut &managervec[1..33]).map_err(|_| Error::<T>::InvalidJson)?;
                 if signer==accountidmanager {
                     flag=1;
                     signingtype=1;
@@ -1086,7 +1086,7 @@ decl_module! {
             let supervisor=json_get_value(json.clone(),"supervisor".as_bytes().to_vec());
             if !supervisor.is_empty() {
                 let supervisorvec=bs58::decode(supervisor).into_vec().unwrap();
-                let accountidsupervisor=T::AccountId::decode(&mut &supervisorvec[1..33]).unwrap_or_default();
+                let accountidsupervisor=T::AccountId::decode(&mut &supervisorvec[1..33]).map_err(|_| Error::<T>::InvalidJson)?;
                 if signer==accountidsupervisor {
                     flag=1;
                     if signingtype==0 {
@@ -1102,7 +1102,7 @@ decl_module! {
                     break;
                 }
                 let operatorvec=bs58::decode(operator).into_vec().unwrap();
-                let accountidoperator=T::AccountId::decode(&mut &operatorvec[1..33]).unwrap_or_default();
+                let accountidoperator=T::AccountId::decode(&mut &operatorvec[1..33]).map_err(|_| Error::<T>::InvalidJson)?;
                 if accountidoperator==signer {
                     flag=1;
                     if signingtype==0 {
@@ -1214,7 +1214,7 @@ decl_module! {
             // Return a successful DispatchResult
             Ok(())
         }
-        // This function allow the manager/supervisors for fund approval, to approve a new fund 
+        // This function allow the manager/supervisors for fund approval, to approve a new fund
         #[weight = 1000]
         pub fn fund_approve(origin, accountid: T::AccountId) -> dispatch::DispatchResult {
             let signer = ensure_signed(origin)?;
@@ -1229,7 +1229,7 @@ decl_module! {
             let manager=json_get_value(json.clone(),"manager".as_bytes().to_vec());
             if !manager.is_empty() {
                 let managervec=bs58::decode(manager).into_vec().unwrap();
-                let accountidmanager=T::AccountId::decode(&mut &managervec[1..33]).unwrap_or_default();
+                let accountidmanager=T::AccountId::decode(&mut &managervec[1..33]).map_err(|_| Error::<T>::InvalidJson)?;
                 if signer==accountidmanager {
                     flag=1;
                     signingtype=1;
@@ -1238,7 +1238,7 @@ decl_module! {
             let supervisor=json_get_value(json.clone(),"supervisor".as_bytes().to_vec());
             if !supervisor.is_empty() {
                 let supervisorvec=bs58::decode(supervisor).into_vec().unwrap();
-                let accountidsupervisor=T::AccountId::decode(&mut &supervisorvec[1..33]).unwrap_or_default();
+                let accountidsupervisor=T::AccountId::decode(&mut &supervisorvec[1..33]).map_err(|_| Error::<T>::InvalidJson)?;
                 if signer==accountidsupervisor {
                     flag=1;
                     if signingtype==0 {
@@ -1286,7 +1286,7 @@ decl_module! {
         // interestrate: is the interest rate expressed in an integer assumin 2 decimals, for example 200 is equivalent to 2.00 %
         // interest type: X=Fixed Rate / F=Floating Rate /Z= Zero Interest/ I= Inflation Linked
         // for example:
-        //  
+        //
         #[weight = 1000]
         pub fn bond_create_change(origin, id: u32,info: Vec<u8>) -> dispatch::DispatchResult {
             let signer = ensure_signed(origin)?;
@@ -1295,15 +1295,15 @@ decl_module! {
             // check that the signer is the Owner of an authorized Fund
             ensure!(Funds::<T>::contains_key(&signer),Error::<T>::FundNotFoundforSigner);
             ensure!(FundsApproved::<T>::contains_key(&signer),Error::<T>::FundNotYetApproved);
-            // check the signer has been subject has a KYC 
+            // check the signer has been subject has a KYC
             ensure!(Kyc::<T>::contains_key(&signer),Error::<T>::MissingKycForSigner);
             // check the Kyc has been approved
             ensure!(KycApproved::<T>::contains_key(&signer),Error::<T>::KycSignerIsNotApproved);
-            // check owner field 
+            // check owner field
             let owner=json_get_value(info.clone(),"owner".as_bytes().to_vec());
             ensure!(owner.len()==48,Error::<T>::OwnerAccountIsMissing);
             let ownervec=bs58::decode(owner).into_vec().unwrap();
-            let accountidowner=T::AccountId::decode(&mut &ownervec[1..33]).unwrap_or_default();
+            let accountidowner=T::AccountId::decode(&mut &ownervec[1..33]).map_err(|_| Error::<T>::InvalidJson)?;
             // check that the owner matches the signer of the transaction
             ensure!(signer==accountidowner,Error::<T>::SignerIsNotMatchingOwnerAccount);
             // check if the bond exists is not yet under approval and belong to the signer
@@ -1315,7 +1315,7 @@ decl_module! {
                 let cinfo=Bonds::get(&id).unwrap();
                 let cowner=json_get_value(cinfo.clone(),"owner".as_bytes().to_vec());
                 let cownervec=bs58::decode(cowner).into_vec().unwrap();
-                let caccountidowner=T::AccountId::decode(&mut &cownervec[1..33]).unwrap_or_default();
+                let caccountidowner=T::AccountId::decode(&mut &cownervec[1..33]).map_err(|_| Error::<T>::InvalidJson)?;
                 ensure!(caccountidowner==signer,Error::<T>::SignerIsNotMatchingOwnerAccount);
             }
             // check total amount >0
@@ -1346,7 +1346,7 @@ decl_module! {
             let maturityv=vecu8_to_u32(maturity);
             ensure!(maturityv>0,Error::<T>::BondMaturityCannotBeZero);
             // 50 years maximum for any bond type
-            ensure!(maturityv<=600,Error::<T>::BondMaturityTooLong);  
+            ensure!(maturityv<=600,Error::<T>::BondMaturityTooLong);
             // check Instalments
             let instalments=json_get_value(info.clone(),"instalments".as_bytes().to_vec());
             let instalmentsv=vecu8_to_u32(instalments);
@@ -1451,7 +1451,7 @@ decl_module! {
             }
             // remove previous data if any
             if Bonds::contains_key(&id){
-                Bonds::take(&id);    
+                Bonds::take(&id);
             }
             //store bond
             Bonds::insert(id,info.clone());
@@ -1477,7 +1477,7 @@ decl_module! {
             let manager=json_get_value(json.clone(),"manager".as_bytes().to_vec());
             if !manager.is_empty() {
                 let managervec=bs58::decode(manager).into_vec().unwrap();
-                let accountidmanager=T::AccountId::decode(&mut &managervec[1..33]).unwrap_or_default();
+                let accountidmanager=T::AccountId::decode(&mut &managervec[1..33]).map_err(|_| Error::<T>::InvalidJson)?;
                 if signer==accountidmanager {
                     flag=1;
                     signingtype=1;
@@ -1491,7 +1491,7 @@ decl_module! {
                     break;
                 }
                 let committeemvec=bs58::decode(committeem).into_vec().unwrap();
-                let accountidoperator=T::AccountId::decode(&mut &committeemvec[1..33]).unwrap_or_default();
+                let accountidoperator=T::AccountId::decode(&mut &committeemvec[1..33]).map_err(|_| Error::<T>::InvalidJson)?;
                 if accountidoperator==signer {
                     flag=1;
                     if signingtype==0 {
@@ -1564,7 +1564,7 @@ decl_module! {
             let owner=json_get_value(bondv.clone(),"owner".as_bytes().to_vec());
             ensure!(owner.len()==48,Error::<T>::OwnerAccountIsMissing);
             let ownervec=bs58::decode(owner).into_vec().unwrap();
-            let accountidowner=T::AccountId::decode(&mut &ownervec[1..33]).unwrap_or_default();
+            let accountidowner=T::AccountId::decode(&mut &ownervec[1..33]).map_err(|_| Error::<T>::InvalidJson)?;
             // transfer amount of stable coins to the Bond Owner account
             pallet_assets::Module::<T>::transfer(RawOrigin::Signed(signer.clone()).into(), bondid, T::Lookup::unlookup(accountidowner.clone()), amount.into()).unwrap();
             // mint the shares
@@ -1579,10 +1579,10 @@ decl_module! {
             }
             // update the total shares subscribed for the bond.
             if totalshares>0 {
-                BondsTotalShares::take(bondid);        
+                BondsTotalShares::take(bondid);
             }
             totalshares=totalshares+amount;
-            BondsTotalShares::insert(bondid,totalshares);        
+            BondsTotalShares::insert(bondid,totalshares);
 
             // generate event for the subscription
             Self::deposit_event(RawEvent::BondSubscribed(bondid,signer,amount));
@@ -1603,7 +1603,7 @@ decl_module! {
              let manager=json_get_value(json.clone(),"manager".as_bytes().to_vec());
              if !manager.is_empty() {
                  let managervec=bs58::decode(manager).into_vec().unwrap();
-                 let accountidmanager=T::AccountId::decode(&mut &managervec[1..33]).unwrap_or_default();
+                 let accountidmanager=T::AccountId::decode(&mut &managervec[1..33]).map_err(|_| Error::<T>::InvalidJson)?;
                  if signer==accountidmanager {
                      flag=1;
                      signingtype=1;
@@ -1618,7 +1618,7 @@ decl_module! {
                      break;
                  }
                  let operatorvec=bs58::decode(operator).into_vec().unwrap();
-                 let accountidoperator=T::AccountId::decode(&mut &operatorvec[1..33]).unwrap_or_default();
+                 let accountidoperator=T::AccountId::decode(&mut &operatorvec[1..33]).map_err(|_| Error::<T>::InvalidJson)?;
                  if accountidoperator==signer {
                      flag=1;
                      if signingtype==0 {
@@ -1672,7 +1672,7 @@ decl_module! {
             let signer = ensure_signed(origin)?;
             // check that the credit agency exists.
             ensure!(CreditRatingAgencies::<T>::contains_key(&accountid),Error::<T>::CreditRatingAgencyNotFound);
-            // check the signer is one of the manager 
+            // check the signer is one of the manager
             // read configuration on chain
             ensure!(Settings::contains_key("creditratingagencies".as_bytes().to_vec()),Error::<T>::SettingsDoesNotExist);
             let json:Vec<u8>=Settings::get("creditratingagencies".as_bytes().to_vec()).unwrap();
@@ -1681,7 +1681,7 @@ decl_module! {
             let manager=json_get_value(json.clone(),"manager".as_bytes().to_vec());
             if !manager.is_empty() {
                 let managervec=bs58::decode(manager).into_vec().unwrap();
-                let accountidmanager=T::AccountId::decode(&mut &managervec[1..33]).unwrap_or_default();
+                let accountidmanager=T::AccountId::decode(&mut &managervec[1..33]).map_err(|_| Error::<T>::InvalidJson)?;
                 if signer==accountidmanager {
                     flag=1;
                 }
@@ -1748,7 +1748,7 @@ decl_module! {
                 let cinfo=Bonds::get(&bondid).unwrap();
                 let cowner=json_get_value(cinfo.clone(),"owner".as_bytes().to_vec());
                 let cownervec=bs58::decode(cowner).into_vec().unwrap();
-                let caccountidowner=T::AccountId::decode(&mut &cownervec[1..33]).unwrap_or_default();
+                let caccountidowner=T::AccountId::decode(&mut &cownervec[1..33]).map_err(|_| Error::<T>::InvalidJson)?;
                 ensure!(caccountidowner==signer,Error::<T>::SignerIsNotMatchingOwnerAccount);
             }
              //check info length
@@ -1792,7 +1792,7 @@ decl_module! {
                 let cinfo=Bonds::get(&bondid).unwrap();
                 let cowner=json_get_value(cinfo.clone(),"owner".as_bytes().to_vec());
                 let cownervec=bs58::decode(cowner).into_vec().unwrap();
-                let caccountidowner=T::AccountId::decode(&mut &cownervec[1..33]).unwrap_or_default();
+                let caccountidowner=T::AccountId::decode(&mut &cownervec[1..33]).map_err(|_| Error::<T>::InvalidJson)?;
                 ensure!(caccountidowner==signer,Error::<T>::SignerIsNotMatchingOwnerAccount);
             }
              // check for collateral id is already present
@@ -1818,7 +1818,7 @@ decl_module! {
              let manager=json_get_value(json.clone(),"manager".as_bytes().to_vec());
              if !manager.is_empty() {
                  let managervec=bs58::decode(manager).into_vec().unwrap();
-                 let accountidmanager=T::AccountId::decode(&mut &managervec[1..33]).unwrap_or_default();
+                 let accountidmanager=T::AccountId::decode(&mut &managervec[1..33]).map_err(|_| Error::<T>::InvalidJson)?;
                  if signer==accountidmanager {
                      flag=1;
                      signingtype=1;
@@ -1832,7 +1832,7 @@ decl_module! {
                      break;
                  }
                  let operatorvec=bs58::decode(operator).into_vec().unwrap();
-                 let accountidoperator=T::AccountId::decode(&mut &operatorvec[1..33]).unwrap_or_default();
+                 let accountidoperator=T::AccountId::decode(&mut &operatorvec[1..33]).map_err(|_| Error::<T>::InvalidJson)?;
                  if accountidoperator==signer {
                      flag=1;
                      if signingtype==0 {
@@ -1981,7 +1981,7 @@ decl_module! {
             let manager=json_get_value(json.clone(),"manager".as_bytes().to_vec());
             if !manager.is_empty() {
                 let managervec=bs58::decode(manager).into_vec().unwrap();
-                let accountidmanager=T::AccountId::decode(&mut &managervec[1..33]).unwrap_or_default();
+                let accountidmanager=T::AccountId::decode(&mut &managervec[1..33]).map_err(|_| Error::<T>::InvalidJson)?;
                 if signer==accountidmanager {
                     flag=1;
                     signingtype=1;
@@ -1995,7 +1995,7 @@ decl_module! {
                     break;
                 }
                 let operatorvec=bs58::decode(operator).into_vec().unwrap();
-                let accountidoperator=T::AccountId::decode(&mut &operatorvec[1..33]).unwrap_or_default();
+                let accountidoperator=T::AccountId::decode(&mut &operatorvec[1..33]).map_err(|_| Error::<T>::InvalidJson)?;
                 if accountidoperator==signer {
                     flag=1;
                     if signingtype==0 {
@@ -2035,7 +2035,7 @@ decl_module! {
                     x += 1;
                 }
                 ensure!(x>0,Error::<T>::UnderwriterMissingDocuments);
-            } 
+            }
             // store the underwrited data
             Underwriters::<T>::insert(underwriter_account.clone(),info.clone());
 
@@ -2058,7 +2058,7 @@ decl_module! {
             let manager=json_get_value(json.clone(),"manager".as_bytes().to_vec());
             if !manager.is_empty() {
                 let managervec=bs58::decode(manager).into_vec().unwrap();
-                let accountidmanager=T::AccountId::decode(&mut &managervec[1..33]).unwrap_or_default();
+                let accountidmanager=T::AccountId::decode(&mut &managervec[1..33]).map_err(|_| Error::<T>::InvalidJson)?;
                 if signer==accountidmanager {
                     flag=1;
                     signingtype=1;
@@ -2072,7 +2072,7 @@ decl_module! {
                     break;
                 }
                 let operatorvec=bs58::decode(operator).into_vec().unwrap();
-                let accountidoperator=T::AccountId::decode(&mut &operatorvec[1..33]).unwrap_or_default();
+                let accountidoperator=T::AccountId::decode(&mut &operatorvec[1..33]).map_err(|_| Error::<T>::InvalidJson)?;
                 if accountidoperator==signer {
                     flag=1;
                     if signingtype==0 {
@@ -2104,7 +2104,7 @@ decl_module! {
             let manager=json_get_value(json.clone(),"manager".as_bytes().to_vec());
             if !manager.is_empty() {
                 let managervec=bs58::decode(manager).into_vec().unwrap();
-                let accountidmanager=T::AccountId::decode(&mut &managervec[1..33]).unwrap_or_default();
+                let accountidmanager=T::AccountId::decode(&mut &managervec[1..33]).map_err(|_| Error::<T>::InvalidJson)?;
                 if signer==accountidmanager {
                     flag=1;
                     signingtype=1;
@@ -2118,7 +2118,7 @@ decl_module! {
                     break;
                 }
                 let operatorvec=bs58::decode(operator).into_vec().unwrap();
-                let accountidoperator=T::AccountId::decode(&mut &operatorvec[1..33]).unwrap_or_default();
+                let accountidoperator=T::AccountId::decode(&mut &operatorvec[1..33]).map_err(|_| Error::<T>::InvalidJson)?;
                 if accountidoperator==signer {
                     flag=1;
                     if signingtype==0 {
@@ -2158,7 +2158,7 @@ decl_module! {
                     x += 1;
                 }
                 ensure!(x>0,Error::<T>::InsurerMissingDocuments);
-            } 
+            }
             Insurers::<T>::insert(insurer_account.clone(),info.clone());
             // Generate event
             Self::deposit_event(RawEvent::InsurerCreated(insurer_account, info));
@@ -2179,7 +2179,7 @@ decl_module! {
             let manager=json_get_value(json.clone(),"manager".as_bytes().to_vec());
             if !manager.is_empty() {
                 let managervec=bs58::decode(manager).into_vec().unwrap();
-                let accountidmanager=T::AccountId::decode(&mut &managervec[1..33]).unwrap_or_default();
+                let accountidmanager=T::AccountId::decode(&mut &managervec[1..33]).map_err(|_| Error::<T>::InvalidJson)?;
                 if signer==accountidmanager {
                     flag=1;
                     signingtype=1;
@@ -2193,7 +2193,7 @@ decl_module! {
                     break;
                 }
                 let operatorvec=bs58::decode(operator).into_vec().unwrap();
-                let accountidoperator=T::AccountId::decode(&mut &operatorvec[1..33]).unwrap_or_default();
+                let accountidoperator=T::AccountId::decode(&mut &operatorvec[1..33]).map_err(|_| Error::<T>::InvalidJson)?;
                 if accountidoperator==signer {
                     flag=1;
                     if signingtype==0 {
@@ -2276,7 +2276,7 @@ decl_module! {
                     x += 1;
                 }
                 ensure!(x>0,Error::<T>::InsurerMissingDocuments);
-            } 
+            }
             //check insurance Id is not already present
             ensure!(!Insurances::<T>::contains_key(signer.clone(),&uid), Error::<T>::InsuranceIdAlreadyPresent);
             // update insurance Risk Covered
@@ -2312,7 +2312,7 @@ decl_module! {
             let premium = json_get_value(info.clone(),"premium".as_bytes().to_vec());
             let premiumv = vecu8_to_u128(premium);
             pallet_assets::Module::<T>::transfer(RawOrigin::Signed(signer.clone()).into(), tokenid, T::Lookup::unlookup(insurer_account.clone()), premiumv.into()).unwrap();
-            
+
             // Generate event
             Self::deposit_event(RawEvent::InsuranceSigned(insurer_account,uid,signer));
             // Return a successful DispatchResult
@@ -2356,7 +2356,7 @@ decl_module! {
             let manager=json_get_value(json.clone(),"manager".as_bytes().to_vec());
             if !manager.is_empty() {
                 let managervec=bs58::decode(manager).into_vec().unwrap();
-                let accountidmanager=T::AccountId::decode(&mut &managervec[1..33]).unwrap_or_default();
+                let accountidmanager=T::AccountId::decode(&mut &managervec[1..33]).map_err(|_| Error::<T>::InvalidJson)?;
                 if signer==accountidmanager {
                     flag=1;
                     signingtype=1;
@@ -2370,7 +2370,7 @@ decl_module! {
                     break;
                 }
                 let operatorvec=bs58::decode(operator).into_vec().unwrap();
-                let accountidoperator=T::AccountId::decode(&mut &operatorvec[1..33]).unwrap_or_default();
+                let accountidoperator=T::AccountId::decode(&mut &operatorvec[1..33]).map_err(|_| Error::<T>::InvalidJson)?;
                 if accountidoperator==signer {
                     flag=1;
                     if signingtype==0 {
@@ -2411,7 +2411,7 @@ decl_module! {
                     x += 1;
                 }
                 ensure!(x>0,Error::<T>::LawyerMissingDocuments);
-            } 
+            }
             // store the lawyer on chain
             Lawyers::<T>::insert(lawyer_account.clone(),info.clone());
             // Generate event LawyerCreated
@@ -2434,31 +2434,31 @@ decl_module! {
              let manager=json_get_value(json.clone(),"manager".as_bytes().to_vec());
              if !manager.is_empty() {
                  let managervec=bs58::decode(manager).into_vec().unwrap();
-                 let accountidmanager=T::AccountId::decode(&mut &managervec[1..33]).unwrap_or_default();
+                 let accountidmanager=T::AccountId::decode(&mut &managervec[1..33]).map_err(|_| Error::<T>::InvalidJson)?;
                  if signer==accountidmanager {
-                     flag=1;       
-                     signingtype=1;             
+                     flag=1;
+                     signingtype=1;
                  }
              }
              let operators=json_get_complexarray(json,"committee".as_bytes().to_vec());
              let mut x=0;
-             loop {  
+             loop {
                  let operator=json_get_arrayvalue(operators.clone(),x);
                  if operator.is_empty() {
                      break;
                  }
                  let operatorvec=bs58::decode(operator).into_vec().unwrap();
-                 let accountidoperator=T::AccountId::decode(&mut &operatorvec[1..33]).unwrap_or_default();
+                 let accountidoperator=T::AccountId::decode(&mut &operatorvec[1..33]).map_err(|_| Error::<T>::InvalidJson)?;
                  if accountidoperator==signer {
                      flag=1;
                      if signingtype==0 {
-                         signingtype=3;             
+                         signingtype=3;
                      }
                  }
                  x += 1;
              }
              ensure!(flag==1,Error::<T>::SignerIsNotAuthorizedForSubmissionOrRemoval);
- 
+
              // Remove the lawyer
              Lawyers::<T>::take(lawyer_account.clone());
              // Generate event
@@ -2466,9 +2466,9 @@ decl_module! {
              // Return a successful DispatchResult
              Ok(())
          }
-    
+
          /// Create Interbank Rate
-        #[weight = 1000] 
+        #[weight = 1000]
         pub fn interbankrate_create(origin, country_code: Vec<u8>, date: Vec<u8>, rate: u32) -> dispatch::DispatchResult {
             // check the transaction is signed from the super user
             ensure_root(origin)?;
@@ -2476,7 +2476,7 @@ decl_module! {
             ensure!(IsoCountries::contains_key(&country_code), Error::<T>::CountryCodeNotFound);
             // check for the date validity
             ensure!(validate_date(&date), Error::<T>::InvalidDateFormat);
-            // check Interbank rate does not exists 
+            // check Interbank rate does not exists
             ensure!(!InterbankRates::contains_key(&country_code,&date), Error::<T>::InterbankRateAlreadyPresent);
             // Store Interbank info an integer considering 2 decimals
             InterbankRates::insert(country_code.clone(),date.clone(),rate);
@@ -2492,7 +2492,7 @@ decl_module! {
             // check the transaction is signed from the super user
             ensure_root(origin)?;
             // check country
-            ensure!(IsoCountries::contains_key(&country_code), Error::<T>::CountryCodeNotFound);            
+            ensure!(IsoCountries::contains_key(&country_code), Error::<T>::CountryCodeNotFound);
             // Remove Interbank info
             InterbankRates::take(country_code.clone(),date.clone());
             // Generate event
@@ -2501,7 +2501,7 @@ decl_module! {
             Ok(())
         }
         /// Create Inflation Rate
-        #[weight = 1000] 
+        #[weight = 1000]
         pub fn inflationrate_create(origin, country_code: Vec<u8>, date: Vec<u8>, rate: u32) -> dispatch::DispatchResult {
             // check the transaction is signed from the super user
             ensure_root(origin)?;
@@ -2509,7 +2509,7 @@ decl_module! {
             ensure!(IsoCountries::contains_key(&country_code), Error::<T>::CountryCodeNotFound);
             // check for the date validity
             ensure!(validate_date(&date), Error::<T>::InvalidDateFormat);
-            // check inflation code does not exists 
+            // check inflation code does not exists
             ensure!(!InflationRates::contains_key(&country_code,&date), Error::<T>::InflationRateAlreadyPresent);
             // Store inflation rate info
             InflationRates::insert(country_code.clone(),date.clone(),rate);
@@ -2525,7 +2525,7 @@ decl_module! {
             // check the transaction is signed from the super user
             ensure_root(origin)?;
             // check country
-            ensure!(IsoCountries::contains_key(&country_code), Error::<T>::CountryCodeNotFound);            
+            ensure!(IsoCountries::contains_key(&country_code), Error::<T>::CountryCodeNotFound);
             // remove inflation rate info
             InflationRates::take(country_code.clone(),date.clone());
             // Generate event
@@ -2544,7 +2544,7 @@ decl_module! {
             let json:Vec<u8>=Settings::get("insurancereserve".as_bytes().to_vec()).unwrap();
             let account=json_get_value(json.clone(),"account".as_bytes().to_vec());
             let accountvec=bs58::decode(account).into_vec().unwrap();
-            let accountid=T::AccountId::decode(&mut &accountvec[1..33]).unwrap_or_default();
+            let accountid=T::AccountId::decode(&mut &accountvec[1..33]).map_err(|_| Error::<T>::InvalidJson)?;
             // get defaul stable coin
             ensure!(Settings::contains_key("stablecoin".as_bytes().to_vec()),Error::<T>::MissingStableCoinConfiguration);
             let stablecoin=Settings::get("stablecoin".as_bytes().to_vec()).unwrap();
@@ -2568,7 +2568,7 @@ decl_module! {
             Self::deposit_event(RawEvent::InsuranceFundStaken(signer,amount));
             Ok(())
         }
-        
+
         ///Unstake Reserves for insurers
         #[weight = 1000]
         pub fn insurance_reserve_unstake(origin, amount: Balance) -> dispatch::DispatchResult {
@@ -2576,7 +2576,7 @@ decl_module! {
             let signer = ensure_signed(origin)?;
             // check for an available reserve
             ensure!(InsurerReserves::<T>::contains_key(signer.clone()), Error::<T>::ReserveNotFound);
-            // check the signer is an insurer 
+            // check the signer is an insurer
             ensure!(Insurers::<T>::contains_key(signer.clone()),Error::<T>::InsurerAccountNotFound);
             //check the amount is <= the available reserve
             let reserve=Insurers::<T>::get(signer.clone()).unwrap();
@@ -2593,7 +2593,7 @@ decl_module! {
             let json:Vec<u8>=Settings::get("insurancereserve".as_bytes().to_vec()).unwrap();
             let account=json_get_value(json.clone(),"account".as_bytes().to_vec());
             let accountvec=bs58::decode(account).into_vec().unwrap();
-            let accountid=T::AccountId::decode(&mut &accountvec[1..33]).unwrap_or_default();
+            let accountid=T::AccountId::decode(&mut &accountvec[1..33]).map_err(|_| Error::<T>::InvalidJson)?;
             // get defaul stable coin
             ensure!(Settings::contains_key("stablecoin".as_bytes().to_vec()),Error::<T>::MissingStableCoinConfiguration);
             let stablecoin=Settings::get("stablecoin".as_bytes().to_vec()).unwrap();
@@ -2625,7 +2625,7 @@ decl_module! {
     }
 }
 // function to validate a json string for no/std. It does not allocate of memory
-fn json_check_validity(j:Vec<u8>) -> bool{	
+fn json_check_validity(j:Vec<u8>) -> bool{
     // minimum lenght of 2
     if j.len()<2 {
         return false;
@@ -2723,7 +2723,7 @@ fn json_get_recordvalue(ar:Vec<u8>,p:i32) -> Vec<u8> {
         if b==b']' && op && lb!=b'\\' {
             continue;
         }
-        if b==b'{' && op && lb!=b'\\' { 
+        if b==b'{' && op && lb!=b'\\' {
             op=false;
         }
         if b==b'}' && !op && lb!=b'\\' {
@@ -2757,7 +2757,7 @@ fn json_get_arrayvalue(ar:Vec<u8>,p:i32) -> Vec<u8> {
         if b==b'"' && op && lb!=b'\\' {
             continue;
         }
-        if b==b'"' && op && lb!=b'\\' { 
+        if b==b'"' && op && lb!=b'\\' {
             op=false;
         }
         if b==b'"' && !op && lb!=b'\\' {
@@ -2827,7 +2827,7 @@ fn json_get_value(j:Vec<u8>,key:Vec<u8>) -> Vec<u8> {
                 }
                 result.push(*j.get(i).unwrap());
                 lb= *j.get(i).unwrap();
-            }   
+            }
             break;
         }
     }
@@ -2866,7 +2866,7 @@ fn json_get_complexarray(j:Vec<u8>,key:Vec<u8>) -> Vec<u8> {
                 if *j.get(i).unwrap()==b']' && !os {
                     break;
                 }
-            }   
+            }
             break;
         }
     }
@@ -3198,12 +3198,12 @@ fn validate_weburl(weburl:Vec<u8>) -> bool {
     if httpflag {
         startpoint=7;
     }
-    for c in weburl {    
+    for c in weburl {
         if x<startpoint {
             x += 1;
             continue;
         }
-        // check for allowed chars    
+        // check for allowed chars
         if  (32..=95).contains(&c) ||
             (97..=126).contains(&c) {
             valid=true;
@@ -3222,18 +3222,18 @@ fn validate_date(date_vec: &[u8]) -> bool {
 
     let str_date  = str::from_utf8(date_vec).unwrap();
    // check date length is correct YYYY-MM-DD
-   
+
     if str_date.len() != 10 {return false}
     if date_vec.to_owned()[4] != DASH_AS_BYTE ||
         date_vec.to_owned()[7] != DASH_AS_BYTE  {return false}
-    
+
     let year = &str_date[0..=3];
     let month = &str_date[5..=6];
     let day = &str_date[8..=9];
     if !is_year_valid(year) || !is_day_valid(day) || !is_month_valid(month) {
         return false
     }
-    
+
     true
 }
 
@@ -3259,7 +3259,7 @@ fn is_day_valid(day: &str) -> bool {
         return false
     }
     let day_u8: u8 = day_u8_res.unwrap();
-    
+
     if !(1..=31).contains(&day_u8) {
         return false
     }
@@ -3273,7 +3273,7 @@ fn is_month_valid(month: &str) -> bool {
         return false
     }
     let month_u8: u8 = month_u8_res.unwrap();
-    
+
     if !(1..=12).contains(&month_u8) {
         return false
     }

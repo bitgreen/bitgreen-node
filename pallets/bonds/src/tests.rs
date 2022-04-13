@@ -1,6 +1,7 @@
 use crate::{Error, mock::*};
 use frame_support::{assert_ok, assert_noop};
 use frame_support::error::BadOrigin;
+use frame_system::Origin;
 
 #[test]
 fn create_change_settings_works() {
