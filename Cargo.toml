@@ -10,9 +10,10 @@ members = [
     'parachain',
     'runtime/*',
     'pallets/assets',
-    'pallets/bridge',
-    'pallets/bonds',
+    'pallets/claim',
     'pallets/impact-actions',
+    'pallets/bonds',
+    'pallets/bridge',
     'pallets/vesting',
     'primitives'
 ]

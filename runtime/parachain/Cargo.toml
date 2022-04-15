@@ -2,7 +2,7 @@
 [package]
 authors = ['BitGreen <https://bitg.org>']
 description = 'BitGreen Node - Substrate framework'
-edition = '2018'
+edition = '2021'
 homepage = 'https://bitg.org'
 license = 'Unlicense'
 name = 'bitg-parachain-runtime'
@@ -17,14 +17,16 @@ targets = ["x86_64-unknown-linux-gnu"]
 substrate-wasm-builder = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.18" }
 
 [dependencies]
-codec = { package = "parity-scale-codec", version = "3.0.0", default-features = false, features = ["derive"] }
-hex-literal = { version = "0.3.4", optional = true }
-log = { version = "0.4.14", default-features = false }
+smallvec = "1.4.0"
+serde = { version = "1.0.136", optional = true, default-features = false }
+serde_json = { version = "1.0.68", default-features = false, features = ["alloc"] }
+hex = { version = "0.4", default-features = false }
+hex-literal = { version = "0.3.1" }
 scale-info = { version = "2.0.1", default-features = false, features = ["derive"] }
-serde = { version = "1.0.132", optional = true, features = ["derive"] }
-smallvec = "1.6.1"
+libsecp256k1 = { version = "0.7", default-features = false, optional = true }
 
 # Substrate
+codec = { package = "parity-scale-codec", version = "3.0.0", default-features = false, features = ["derive", "max-encoded-len"] }
 frame-benchmarking = { git = "https://github.com/paritytech/substrate", default-features = false, optional = true, branch = "polkadot-v0.9.18" }
 frame-executive = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.18" }
 frame-support = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.18" }
@@ -75,12 +77,13 @@ pallet-collator-selection = { git = "https://github.com/paritytech/cumulus", def
 parachain-info = { git = "https://github.com/paritytech/cumulus", default-features = false,  branch = "polkadot-v0.9.18" }
 
 # Local Dependencies
-pallet-assets ={ default-features = false, version = '4.0.0-dev', path = "../../pallets/assets" }
+primitives = { package = "bitg-primitives", path = "../../primitives", default-features = false }
+pallet-assets ={ default-features = false, path = "../../pallets/assets" }
 pallet-claim ={ default-features = false, version = '0.1.0', path = "../../pallets/claim" }
 pallet-impact-actions ={ default-features = false, version = '0.1.0', path = "../../pallets/impact-actions"}
-#pallet-bonds ={ default-features = false, version = '0.1.0', path = "../../pallets/bonds"}
-#pallet-bridge ={ default-features = false, version = '0.1.0', path = "../../pallets/bridge"}
-#pallet-vesting ={ default-features = false, version = '0.1.0', path = "../../pallets/vesting"}
+pallet-bonds ={ default-features = false, version = '0.1.0', path = "../../pallets/bonds"}
+pallet-bridge ={ default-features = false, version = '0.1.0', path = "../../pallets/bridge"}
+pallet-vesting = { default-features = false, version = '0.1.0', path = "../../pallets/vesting"}
 #pallet-vcu ={ default-features = false, version = '0.1.0', path = "../pallets/vcu"}
 
 [features]
@@ -89,13 +92,15 @@ default = [
 ]
 std = [
 	"codec/std",
-	"log/std",
-	"scale-info/std",
 	"serde",
+	"hex/std",
+	"serde_json/std",
+	"scale-info/std",
 	"cumulus-pallet-aura-ext/std",
 	"cumulus-pallet-dmp-queue/std",
 	"cumulus-pallet-parachain-system/std",
 	"cumulus-pallet-xcm/std",
+	"frame-benchmarking/std",
 	"cumulus-pallet-xcmp-queue/std",
 	"cumulus-primitives-core/std",
 	"cumulus-primitives-timestamp/std",
@@ -132,17 +137,17 @@ std = [
 	"xcm-builder/std",
 	"xcm-executor/std",
 	"xcm/std",
+	"primitives/std",
 	"pallet-assets/std",
 	"pallet-claim/std",
 	"pallet-impact-actions/std",
-	#"pallet-bonds/std",
-	#"pallet-bridge/std",
-	#"pallet-vesting/std",
+	"pallet-bonds/std",
+	"pallet-bridge/std",
+	"pallet-vesting/std",
 	#"pallet-vcu/std",
 ]
 
 runtime-benchmarks = [
-	"hex-literal",
 	"frame-benchmarking/runtime-benchmarks",
 	"frame-support/runtime-benchmarks",
 	"frame-system-benchmarking",

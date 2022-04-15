@@ -70,9 +70,9 @@ decl_module! {
 			// check the request is signed from Super User only
 			let _sender = ensure_root(origin)?;
 			//check address length
-			ensure!(address.len() == 34, Error::<T>::WrongAddressLength); 
+			ensure!(address.len() == 34, Error::<T>::WrongAddressLength);
 			// check the balance is > 0
-			ensure!(deposit > 0, Error::<T>::DepositCannotBeZero); 
+			ensure!(deposit > 0, Error::<T>::DepositCannotBeZero);
 			// check that the address is not already present
 			ensure!(BalanceClaim::contains_key(&address)==false, Error::<T>::DuplicatedAddress);
 			// Update deposit
@@ -84,12 +84,12 @@ decl_module! {
 		/// Claim a deposit from the old blockchain (no gas fees are charged to allow the usage of "proxy" account with minimum balance)
         #[weight = (1000, Pays::No)]
 		pub fn claim_deposit(origin, oldaddress: Vec<u8>,oldpublickey: Vec<u8>,signature: Vec<u8>, recipient:T::AccountId) -> dispatch::DispatchResult {
-			// check the request is signed 
+			// check the request is signed
 			let _sender = ensure_signed(origin)?;
 			//check old address length
-			ensure!(oldaddress.len() == 34, Error::<T>::WrongAddressLength); 
+			ensure!(oldaddress.len() == 34, Error::<T>::WrongAddressLength);
 			//check public key length
-			ensure!(oldpublickey.len() >= 64, Error::<T>::WrongPublicKeyLength); 
+			ensure!(oldpublickey.len() >= 64, Error::<T>::WrongPublicKeyLength);
 			// check that the old address is already present in the chain
 			ensure!(BalanceClaim::contains_key(&oldaddress)==true, Error::<T>::OldAddressNotfound);
 			// check signature from oldchain
@@ -100,7 +100,7 @@ decl_module! {
 				None => 0,
 			};
 			ensure!(deposit>0,Error::<T>::DepositCannotBeZero);
-            
+
 			// mint deposit in the new chain (it creates the account if it's not on chain)
 			let _result = T::Currency::deposit_creating(&recipient, (deposit as u32).into());
 			// Generate event
@@ -114,7 +114,7 @@ decl_module! {
 // the "oldaddress" should the address that has been signed and matching the deposit claim
 // signature should encoded in DER binary format and then encoded in base64
 // public key should be the raw public key of 64 bytes encoded in base64
-fn verify_signature_ecdsa_address(oldaddress:Vec<u8>,signature:Vec<u8>,publickey:Vec<u8>) -> bool {   
+fn verify_signature_ecdsa_address(oldaddress:Vec<u8>,signature:Vec<u8>,publickey:Vec<u8>) -> bool {
     // compute sha256 of the message
     let mut hasher = Sha256::new();
     // write the vector message to sha256 object
@@ -124,7 +124,7 @@ fn verify_signature_ecdsa_address(oldaddress:Vec<u8>,signature:Vec<u8>,publickey
     // convert to a static bytes array of 32 bytes
     let mut hashmessage:[u8;32] = [0; 32];
     let mut x=0;
-    for b in hash { 
+    for b in hash {
         hashmessage[x]=b;
         x=x+1;
         if x>31{
@@ -139,7 +139,7 @@ fn verify_signature_ecdsa_address(oldaddress:Vec<u8>,signature:Vec<u8>,publickey
     let mut publickeybinx: [u8;32]=[0;32];
     let mut publickeybiny: [u8;32]=[0;32];
     let mut x=0;
-    for b in publickeyb { 
+    for b in publickeyb {
         publickeybin[x]=*b;
         if x<32 {
             publickeybinx[x]=*b;
@@ -178,7 +178,7 @@ fn verify_signature_ecdsa_address(oldaddress:Vec<u8>,signature:Vec<u8>,publickey
     hashera.update(&prefixpk); // add 0x04 on top
     hashera.update(publickeybinx);
     // get sha256 result
-    let hasha = hashera.finalize().to_vec();    
+    let hasha = hashera.finalize().to_vec();
     // apply RIPEMD160 to the previous hash
     let mut hasherb = Ripemd160::new();
     hasherb.update(hasha);
@@ -212,5 +212,3 @@ fn verify_signature_ecdsa_address(oldaddress:Vec<u8>,signature:Vec<u8>,publickey
 		return false;
 	}
 }
-
-
