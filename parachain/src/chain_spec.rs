@@ -217,5 +217,11 @@ fn testnet_genesis(
 		polkadot_xcm: bitg_parachain_runtime::PolkadotXcmConfig {
 			safe_xcm_version: Some(SAFE_XCM_VERSION),
 		},
+		bridge: bitg_parachain_runtime::BridgeConfig { lockdown_status: false },
+		tokens: bitg_parachain_runtime::TokensConfig {
+			balances: [].to_vec(),
+		},
+		nft: bitg_parachain_runtime::NftConfig { tokens: vec![] },
+
 	}
 }

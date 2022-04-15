@@ -48,15 +48,22 @@ frame-benchmarking = { git = "https://github.com/paritytech/substrate", default-
 frame-system-benchmarking = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.18", optional = true }
 hex-literal = { version = "0.3.4", optional = true }
 
+# ORML dependencies
+orml-traits = { git = "https://github.com/open-web3-stack/open-runtime-module-library", default-features = false }
+orml-tokens = { git = "https://github.com/open-web3-stack/open-runtime-module-library", default-features = false }
+orml-authority = { git = "https://github.com/open-web3-stack/open-runtime-module-library", default-features = false }
+orml-benchmarking = { git = "https://github.com/open-web3-stack/open-runtime-module-library", default-features = false }
+orml-nft = { git = "https://github.com/open-web3-stack/open-runtime-module-library", default-features = false }
+
 # Local Dependencies
-pallet-assets ={ default-features = false, version = '4.0.0-dev', path = "../../pallets/assets" }
+primitives = { package = "bitg-primitives", path = "../../primitives", default-features = false }
+pallet-assets ={ default-features = false, path = "../../pallets/assets" }
 pallet-claim ={ default-features = false, version = '0.1.0', path = "../../pallets/claim" }
 pallet-impact-actions ={ default-features = false, version = '0.1.0', path = "../../pallets/impact-actions"}
-#pallet-bonds ={ default-features = false, version = '0.1.0', path = "../../pallets/bonds"}
-#pallet-bridge ={ default-features = false, version = '0.1.0', path = "../../pallets/bridge"}
-#pallet-vesting ={ default-features = false, version = '0.1.0', path = "../../pallets/vesting"}
+pallet-bonds ={ default-features = false, version = '0.1.0', path = "../../pallets/bonds"}
+pallet-bridge ={ default-features = false, version = '0.1.0', path = "../../pallets/bridge"}
+pallet-vesting = { default-features = false, version = '0.1.0', path = "../../pallets/vesting"}
 #pallet-vcu ={ default-features = false, version = '0.1.0', path = "../pallets/vcu"}
-
 
 [build-dependencies]
 substrate-wasm-builder = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.18" }
@@ -89,12 +96,20 @@ std = [
 	"sp-std/std",
 	"sp-transaction-pool/std",
 	"sp-version/std",
+
+	"orml-traits/std",
+	"orml-tokens/std",
+	"orml-authority/std",
+	"orml-benchmarking/std",
+	"orml-nft/std",
+
+	"primitives/std",
 	"pallet-assets/std",
 	"pallet-claim/std",
 	"pallet-impact-actions/std",
-	#"pallet-bonds/std",
-	#"pallet-bridge/std",
-	#"pallet-vesting/std",
+	"pallet-bonds/std",
+	"pallet-bridge/std",
+	"pallet-vesting/std",
 	#"pallet-vcu/std",
 ]
 runtime-benchmarks = [
