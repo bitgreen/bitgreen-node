@@ -633,6 +633,7 @@ dependencies = [
  "pallet-timestamp",
  "pallet-transaction-payment",
  "pallet-transaction-payment-rpc-runtime-api",
+ "pallet-vcu",
  "pallet-vesting 0.1.0",
  "parity-scale-codec",
  "scale-info",
@@ -758,6 +759,7 @@ dependencies = [
  "pallet-timestamp",
  "pallet-transaction-payment",
  "pallet-transaction-payment-rpc-runtime-api",
+ "pallet-vcu",
  "pallet-vesting 0.1.0",
  "pallet-xcm",
  "parachain-info",
@@ -6593,6 +6595,25 @@ dependencies = [
  "frame-system",
  "parity-scale-codec",
  "scale-info",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "sp-std",
+]
+
+[[package]]
+name = "pallet-vcu"
+version = "0.1.0"
+dependencies = [
+ "bitg-primitives",
+ "bs58",
+ "frame-support",
+ "frame-system",
+ "pallet-assets",
+ "pallet-balances",
+ "parity-scale-codec",
+ "scale-info",
+ "serde",
  "sp-core",
  "sp-io",
  "sp-runtime",

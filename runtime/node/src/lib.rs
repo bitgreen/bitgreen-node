@@ -317,6 +317,23 @@ impl pallet_vesting::Config for Runtime {
 }
 
 parameter_types! {
+  pub const MinPIDLength: u32 = 1;
+  pub const IpfsHashLength: u32 = 46;
+}
+
+impl pallet_vcu::Config for Runtime {
+	type Event = Event;
+	type MinPIDLength = MinPIDLength;
+	type UnixTime = Timestamp;
+}
+
+// Bonds management
+impl pallet_bonds::Config for Runtime {
+	type Event = Event;
+	type Currency = Balances;
+}
+
+parameter_types! {
 	pub const TransactionByteFee: Balance = 1;
 }
 
@@ -404,13 +421,10 @@ construct_runtime!(
 
 		//Assets - ERC20 Tokens
 		Assets: pallet_assets::{Pallet, Call, Storage, Event<T>} = 71,
-
-		//Impact Actions
 		ImpactActions: pallet_impact_actions::{Pallet, Call, Storage, Event<T>} = 72,
-
-		// Bridge
+		Bonds: pallet_bonds::{Pallet, Call, Storage, Event<T>} = 73,
+		VCU: pallet_vcu::{Pallet, Call, Storage, Event<T>} = 74,
 		Bridge: pallet_bridge::{Pallet, Call, Storage, Event<T>, Config} = 75,
-		// Vesting
 		Vesting: pallet_vesting::{Pallet, Call, Storage, Event<T>} = 76,
 	}
 );

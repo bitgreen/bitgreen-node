@@ -91,7 +91,7 @@ pallet-impact-actions ={ default-features = false, version = '0.1.0', path = "..
 pallet-bonds ={ default-features = false, version = '0.1.0', path = "../../pallets/bonds"}
 pallet-bridge ={ default-features = false, version = '0.1.0', path = "../../pallets/bridge"}
 pallet-vesting = { default-features = false, version = '0.1.0', path = "../../pallets/vesting"}
-#pallet-vcu ={ default-features = false, version = '0.1.0', path = "../pallets/vcu"}
+pallet-vcu ={ default-features = false, version = '0.1.0', path = "../../pallets/vcu"}
 
 [features]
 default = [
@@ -158,7 +158,7 @@ std = [
 	"pallet-bonds/std",
 	"pallet-bridge/std",
 	"pallet-vesting/std",
-	#"pallet-vcu/std",
+	"pallet-vcu/std",
 ]
 
 runtime-benchmarks = [
