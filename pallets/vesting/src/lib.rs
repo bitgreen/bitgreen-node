@@ -16,50 +16,65 @@
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
-extern crate alloc;
+pub use pallet::*;
+
+#[cfg(test)]
+mod mock;
+
+#[cfg(test)]
+mod tests;
+
 use sp_std::prelude::*;
 use core::str;
 use frame_support::{
-	decl_error, decl_event, decl_module, decl_storage,
-	dispatch::DispatchResult, ensure, traits::Get,
-	pallet_prelude::DispatchResultWithPostInfo
+	ensure, traits::Get,
 };
 use primitives::Balance;
 use codec::Encode;
 use codec::Decode;
 use frame_system::ensure_signed;
 use sp_std::vec;
-use alloc::string::ToString;
 use frame_system::RawOrigin;
 use sp_runtime::traits::StaticLookup;
+use codec::alloc::string::ToString;
 
-/// Module configuration
-pub trait Config: frame_system::Config + pallet_assets::Config<AssetId = u32, Balance = u128>  {
-    type Event: From<Event<Self>> + Into<<Self as frame_system::Config>::Event>;
-	type NativeTokenId: Get<u32>;
-}
+#[frame_support::pallet]
+pub mod pallet {
+	use super::*;
+	use frame_support::{dispatch::DispatchResultWithPostInfo, pallet_prelude::*};
+	use frame_system::pallet_prelude::*;
 
-// The runtime storage items
-decl_storage! {
-	trait Store for Module<T: Config> as VestingModule {
-		VestingAccount get(fn vesting_account): double_map hasher(blake2_128_concat) T::AccountId, hasher(blake2_128_concat) u32 => Vec<u8>;
+	#[pallet::config]
+	pub trait Config: frame_system::Config + pallet_assets::Config<AssetId = u32, Balance = u128> {
+		/// Because this pallet emits events, it depends on the runtime's definition of an event.
+		type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
+		type NativeTokenId: Get<u32>;
 	}
-}
-// We generate events to inform the users of succesfully actions.
-decl_event!(
-	pub enum Event<T> where AccountId = <T as frame_system::Config>::AccountId {
+
+	#[pallet::pallet]
+	#[pallet::generate_store(pub(super) trait Store)]
+	#[pallet::without_storage_info]
+	pub struct Pallet<T>(_);
+
+	#[pallet::storage]
+	#[pallet::getter(fn vesting_account)]
+	pub type VestingAccount<T: Config> = StorageDoubleMap<_, Blake2_128Concat, T::AccountId, Blake2_128Concat, u32, Vec<u8>, ValueQuery>;
+
+
+	#[pallet::event]
+	#[pallet::generate_deposit(pub(super) fn deposit_event)]
+	pub enum Event<T: Config> {
 		/// Vesting Account Created
-        VestingAccountCreated(AccountId),
+        VestingAccountCreated(T::AccountId),
 		/// Vesting Account Destroyed
-        VestingAccountDestroyed(AccountId),
+        VestingAccountDestroyed(T::AccountId),
 		/// WithdrewVestingAccount
-		WithdrewVestingAccount(AccountId),
+		WithdrewVestingAccount(T::AccountId),
 	}
-);
 
-// Errors to inform users that something went wrong.
-decl_error! {
-	pub enum Error for Module<T: Config> {
+	// Errors inform users that something went wrong.
+	#[pallet::error]
+	pub enum Error<T> {
 		/// Vesting Account Already Exist
         VestingAccountAlreadyExists,
 		/// Invalid UID
@@ -81,20 +96,17 @@ decl_error! {
 		/// InvalidRecipent
 		InvalidRecipent,
 	}
-}
 
-// Dispatchable functions allows users to interact with the pallet and invoke state changes.
-decl_module! {
-	pub struct Module<T: Config> for enum Call where origin: T::Origin {
-		// Errors must be initialized
-		type Error = Error<T>;
-		// Events must be initialized
-		fn deposit_event() = default;
+	#[pallet::hooks]
+	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {}
 
+
+	#[pallet::call]
+	impl<T: Config> Pallet<T> {
 		// function to create a vesting account
-        #[weight = 10_000]
+        #[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
 		pub fn create_vesting_account(
-			origin,
+			origin: OriginFor<T>,
 			recipient_account:T::AccountId,
 			vesting_account:T::AccountId,
 			uid: u32,
@@ -108,11 +120,11 @@ decl_module! {
 			// check that the same account is not already present
 			ensure!(!VestingAccount::<T>::contains_key(&vesting_creator, &uid), Error::<T>::VestingAccountAlreadyExists);
 			// others validity checks
-			ensure!(uid > 0, Error::<T>::InvalidUID);
-			ensure!(initial_deposit > 0, Error::<T>::InvalidIntialDeposit);
+			ensure!(uid > 0_u32, Error::<T>::InvalidUID);
+			ensure!(initial_deposit > 0_u32.into(), Error::<T>::InvalidIntialDeposit);
 			ensure!(expire_time > 0, Error::<T>::InvalidExpireTime);
-			ensure!(current_deposit > 0, Error::<T>::InvalidCurrentDeposit);
-			ensure!(staking > 0, Error::<T>::InvalidStaking);
+			ensure!(current_deposit > 0_u32.into(), Error::<T>::InvalidCurrentDeposit);
+			ensure!(staking > 0_u32.into(), Error::<T>::InvalidStaking);
 
 			// create json string
     		let json = Self::create_json_string(vec![
@@ -127,13 +139,13 @@ decl_module! {
 			// store the vesting account
 			VestingAccount::<T>::insert(vesting_creator.clone(), &uid, json);
             // Generate event
-            Self::deposit_event(RawEvent::VestingAccountCreated(vesting_creator));
+            Self::deposit_event(Event::VestingAccountCreated(vesting_creator));
             // Return a successful DispatchResult
             Ok(())
 		}
 		// function to remove a vesting account
-        #[weight = 10_000]
-        pub fn destroy_vesting_account(origin, uid: u32) -> DispatchResult {
+        #[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
+        pub fn destroy_vesting_account(origin: OriginFor<T>, uid: u32) -> DispatchResult {
 			// check for Super User access
 			let vesting_creator = ensure_signed(origin)?;
 			// check the account is present in the storage
@@ -146,19 +158,19 @@ decl_module! {
 			let current_deposit = str::parse::<Balance>(sp_std::str::from_utf8(&current_deposit).unwrap()).unwrap();
 			let expire_time = Self::json_get_value(content.clone(),"expire_time".as_bytes().to_vec());
 			let expire_time = str::parse::<T::BlockNumber>(sp_std::str::from_utf8(&expire_time).unwrap()).ok().unwrap();
-			let current_time: T::BlockNumber = frame_system::Module::<T>::block_number();
+			let current_time: T::BlockNumber = frame_system::Pallet::<T>::block_number();
 			ensure!(initial_deposit == current_deposit, Error::<T>::InvalidDeposit);
 			ensure!(expire_time > current_time, Error::<T>::InvalidEpochTime);
 			// delete the vestin account
 			VestingAccount::<T>::remove(vesting_creator.clone(), &uid);
             // Generate event
-            Self::deposit_event(RawEvent::VestingAccountDestroyed(vesting_creator));
+            Self::deposit_event(Event::VestingAccountDestroyed(vesting_creator));
             // Return a successful DispatchResult
             Ok(())
         }
 
-		 #[weight = 10_000]
-        pub fn withdraw_vesting_account(origin, vesting_creator: T::AccountId, uid: u32) -> DispatchResultWithPostInfo {
+		#[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
+        pub fn withdraw_vesting_account(origin: OriginFor<T>, vesting_creator: T::AccountId, uid: u32) -> DispatchResultWithPostInfo {
 			let recipient = ensure_signed(origin)?;
 
 			ensure!(VestingAccount::<T>::contains_key(&vesting_creator, &uid), Error::<T>::VestingAccountDoesNotExist);
@@ -177,20 +189,19 @@ decl_module! {
 			let staking = str::parse::<Balance>(sp_std::str::from_utf8(&staking).unwrap()).unwrap();
 
 			ensure!(recipient == recipient_account, Error::<T>::InvalidRecipent);
-			let current_time: T::BlockNumber = frame_system::Module::<T>::block_number();
+			let current_time: T::BlockNumber = frame_system::Pallet::<T>::block_number();
 			ensure!(initial_deposit == current_deposit , Error::<T>::InvalidDeposit);
 			ensure!(expire_time > current_time, Error::<T>::InvalidEpochTime);
 
-			pallet_assets::Module::<T>::transfer(RawOrigin::Signed(vesting_creator.clone()).into(), T::NativeTokenId::get(), T::Lookup::unlookup(recipient.clone()), staking)?;
+			pallet_assets::Pallet::<T>::transfer(RawOrigin::Signed(vesting_creator.clone()).into(), T::NativeTokenId::get(), T::Lookup::unlookup(recipient.clone()), staking)?;
 			// Generate event
-            Self::deposit_event(RawEvent::WithdrewVestingAccount(vesting_creator));
+            Self::deposit_event(Event::WithdrewVestingAccount(vesting_creator));
             // Return a successful DispatchResult
            	Ok(().into())
         }
 	}
-}
 
-impl<T: Config> Module<T> {
+impl<T: Config> Pallet<T> {
 
 	// function to get value of a field for Substrate runtime (no std library and no variable allocation)
 	fn json_get_value(j:Vec<u8>,key:Vec<u8>) -> Vec<u8> {
@@ -274,4 +285,6 @@ impl<T: Config> Module<T> {
 		v.push(b'}');
 		v
 	}
+}
+
 }

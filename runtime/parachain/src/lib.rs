@@ -13,7 +13,7 @@ use sp_api::impl_runtime_apis;
 use sp_core::{crypto::KeyTypeId, OpaqueMetadata};
 use sp_runtime::{
 	create_runtime_str, generic, impl_opaque_keys,
-	traits::{AccountIdLookup, BlakeTwo256, Block as BlockT, IdentifyAccount, Verify, Zero, BadOrigin},
+	traits::{AccountIdLookup, BlakeTwo256, Block as BlockT, IdentifyAccount, Verify},
 	transaction_validity::{TransactionSource, TransactionValidity},
 	ApplyExtrinsicResult, MultiSignature,
 };
@@ -23,35 +23,28 @@ use sp_std::prelude::*;
 use sp_version::NativeVersion;
 use sp_version::RuntimeVersion;
 
-#[cfg(any(feature = "std", test))]
-pub use pallet_timestamp::Call as TimestampCall;
-pub use pallet_balances::Call as BalancesCall;
-
 use frame_support::{
 	construct_runtime, parameter_types,
-	traits::{EnsureOrigin, Everything, schedule::Priority, Contains},
+	traits::{Everything, Contains},
 	weights::{
 		constants::{BlockExecutionWeight, ExtrinsicBaseWeight, WEIGHT_PER_SECOND},
 		DispatchClass, Weight, WeightToFeeCoefficient, WeightToFeeCoefficients,
 		WeightToFeePolynomial,
 	},
-	PalletId, pallet_prelude::*
+	PalletId,
+	pallet_prelude::ConstU32
 };
 use frame_system::{
 	limits::{BlockLength, BlockWeights},
-	EnsureRoot, ensure_root
+	EnsureRoot,
 };
-
 pub use sp_consensus_aura::sr25519::AuthorityId as AuraId;
-pub use sp_runtime::{MultiAddress, Perbill, Permill};
+pub use sp_runtime::{MultiAddress, Perbill, Permill, traits::Zero};
 use xcm_config::{XcmConfig, XcmOriginToTransactDispatchOrigin};
 use orml_traits::{parameter_type_with_key};
 
 pub use primitives::{
-	evm::EstimateResourcesRequest,
-	AccountId, AccountIndex, Amount, Balance, BlockNumber,
-	CurrencyId, EraIndex, Hash, Moment, Nonce, Signature, TokenSymbol,
-	AuthoritysOriginId,
+	CurrencyId, TokenSymbol, Amount
 };
 
 #[cfg(any(feature = "std", test))]
@@ -64,8 +57,24 @@ use polkadot_runtime_common::{BlockHashCount, RocksDbWeight, SlowAdjustingFeeUpd
 use xcm::latest::prelude::BodyId;
 use xcm_executor::XcmExecutor;
 
+/// Alias to 512-bit hash when used in the context of a transaction signature on the chain.
+pub type Signature = MultiSignature;
+
+/// Some way of identifying an account on the chain. We intentionally make it equivalent
+/// to the public key of our transaction signing scheme.
+pub type AccountId = <<Signature as Verify>::Signer as IdentifyAccount>::AccountId;
+
+/// Balance of an account.
+pub type Balance = u128;
+
 /// Index of a transaction in the chain.
 pub type Index = u32;
+
+/// A hash of some data used by the chain.
+pub type Hash = sp_core::H256;
+
+/// An index to a block.
+pub type BlockNumber = u32;
 
 /// The address format for describing accounts.
 pub type Address = MultiAddress<AccountId, ()>;
@@ -136,58 +145,6 @@ impl WeightToFeePolynomial for WeightToFee {
 	}
 }
 
-// pub struct AuthorityConfigImpl;
-// impl orml_authority::AuthorityConfig<Origin, OriginCaller, BlockNumber> for AuthorityConfigImpl {
-// 	fn check_schedule_dispatch(origin: Origin, _priority: Priority) -> DispatchResult {
-// 		EnsureRoot::<AccountId>::try_origin(origin)
-// 			.map_or_else(|_| Err(BadOrigin.into()), |_| Ok(()))
-// 	}
-//
-// 	fn check_fast_track_schedule(
-// 		origin: Origin,
-// 		_initial_origin: &OriginCaller,
-// 		_new_delay: BlockNumber,
-// 	) -> DispatchResult {
-// 		ensure_root(origin).map_err(|_| BadOrigin.into())
-// 	}
-//
-// 	fn check_delay_schedule(origin: Origin, _initial_origin: &OriginCaller) -> DispatchResult {
-// 		ensure_root(origin).map_err(|_| BadOrigin.into())
-// 	}
-//
-// 	fn check_cancel_schedule(origin: Origin, initial_origin: &OriginCaller) -> DispatchResult {
-// 		ensure_root(origin.clone()).or_else(|_| {
-// 			if origin.caller() == initial_origin {
-// 				Ok(())
-// 			} else {
-// 				Err(BadOrigin.into())
-// 			}
-// 		})
-// 	}
-// }
-//
-// impl orml_authority::AsOriginId<Origin, OriginCaller> for AuthoritysOriginId {
-// 	fn into_origin(self) -> OriginCaller {
-// 		match self {
-// 			AuthoritysOriginId::Root => Origin::root().caller().clone(),
-// 		}
-// 	}
-//
-// 	fn check_dispatch_from(&self, origin: Origin) -> DispatchResult {
-// 		ensure_root(origin.clone()).or_else(|_| {
-// 			match self {
-// 			AuthoritysOriginId::Root => <EnsureDelayed<
-// 				SevenDays,
-// 				EnsureRoot<AccountId>,
-// 				BlockNumber,
-// 				OriginCaller,
-// 			> as EnsureOrigin<Origin>>::ensure_origin(origin)
-// 			.map_or_else(|_| Err(BadOrigin.into()), |_| Ok(())),
-// 		}
-// 		})
-// 	}
-// }
-
 /// Opaque types. These are used by the CLI to instantiate machinery that don't need to know
 /// the specifics of the runtime. They can then be made to be agnostic over specific formats
 /// of data like extrinsics, allowing for them to continue syncing the network through upgrades
@@ -244,15 +201,6 @@ pub const DAYS: BlockNumber = HOURS * 24;
 pub const UNIT: Balance = 1_000_000_000_000;
 pub const MILLIUNIT: Balance = 1_000_000_000;
 pub const MICROUNIT: Balance = 1_000_000;
-
-// Contracts price units.
-pub const MILLICENTS: Balance = 1_000_000_000;
-pub const CENTS: Balance = 1_000 * MILLICENTS;
-pub const DOLLARS: Balance = 100 * CENTS;
-
-const fn deposit(items: u32, bytes: u32) -> Balance {
-    items as Balance * 15 * CENTS + (bytes as Balance) * 6 * CENTS
-}
 
 /// The existential deposit. Set to 1/10 of the Connected Relay Chain.
 pub const EXISTENTIAL_DEPOSIT: Balance = MILLIUNIT;
@@ -399,132 +347,6 @@ impl pallet_balances::Config for Runtime {
 	type ReserveIdentifier = [u8; 8];
 }
 
-// pallet Assets - ERC20
-// Asset pallet
-parameter_types! {
-	pub const ASSETDEPOSIT: Balance = 1 * DOLLARS;
-	pub const ASSETACCOUNTDEPOSIT: Balance = 1 * DOLLARS;
-	pub const STRINGLIMIT: u32 = 8192;	// max metadata size in bytes
-	pub const METADATADEPOSITBASE: Balance= 1 * DOLLARS;
-	pub const METADATADEPOSITPERBYTE: Balance = 1 * CENTS;
-	pub const APPROVALDEPOSIT: Balance = 1 * DOLLARS;
-}
-
-pub struct TestFreezer;
-impl pallet_assets::FrozenBalance<u32, AccountId, u128> for TestFreezer {
-	fn frozen_balance(asset: u32, who: &AccountId) -> Option<u128> {
-		None
-	}
-
-	fn died(asset: u32, who: &AccountId) {}
-}
-
-impl pallet_assets::Config for Runtime {
-	type Event = Event;
-	type Balance = u128;
-	type AssetId = u32;
-	type Currency = Balances;
-	type ForceOrigin = EnsureRoot<AccountId>;
-	type AssetDeposit = ASSETDEPOSIT;
-	type AssetAccountDeposit = ASSETACCOUNTDEPOSIT;
-	type MetadataDepositBase = METADATADEPOSITBASE;
-	type MetadataDepositPerByte = METADATADEPOSITPERBYTE;
-	type ApprovalDeposit = APPROVALDEPOSIT;
-	type StringLimit = STRINGLIMIT;
-	type Freezer = TestFreezer;
-	type WeightInfo = ();
-	type Extra = ();
-}
-
-// Claim pallet, to claim deposits from previous blockchain
-impl pallet_claim::Config for Runtime {
-	type Event = Event;
-	type Currency = Balances;
-}
-
-// Impact Actions management
-impl pallet_impact_actions::Config for Runtime {
-	type Event = Event;
-	type Currency = Balances;
-}
-// end Impact Actions
-
-impl pallet_bridge::Config for Runtime {
-	type Event = Event;
-}
-
-parameter_types! {
-  pub const NativeTokenId: u32 = primitives::BBB_TOKEN;
-}
-
-impl pallet_vesting::Config for Runtime {
-	type Event = Event;
-	type NativeTokenId = NativeTokenId;
-}
-
-parameter_types! {
-  pub const MinPIDLength: u32 = 1;
-  pub const IpfsHashLength: u32 = 46;
-}
-
-impl pallet_vcu::Config for Runtime {
-	type Event = Event;
-	type MinPIDLength = MinPIDLength;
-	type UnixTime = Timestamp;
-}
-
-parameter_type_with_key! {
-	pub ExistentialDeposits: |_currency_id: CurrencyId| -> Balance {
-		Zero::zero()
-	};
-}
-
-pub struct DustRemovalWhitelist;
-impl Contains<AccountId> for DustRemovalWhitelist {
-	fn contains(a: &AccountId) -> bool {
-		false
-	}
-}
-
-impl orml_tokens::Config for Runtime {
-	type Event = Event;
-	type Balance = Balance;
-	type Amount = Amount;
-	type CurrencyId = CurrencyId;
-	type WeightInfo = ();
-	type ExistentialDeposits = ExistentialDeposits;
-	type OnDust = orml_tokens::BurnDust<Runtime>;
-	type MaxLocks = MaxLocks;
-	type DustRemovalWhitelist = DustRemovalWhitelist;
-}
-
-// Bonds management
-impl pallet_bonds::Config for Runtime {
-	type Event = Event;
-	type Currency = Balances;
-}
-
-// impl orml_authority::Config for Runtime {
-// 	type Event = Event;
-// 	type Origin = Origin;
-// 	type PalletsOrigin = OriginCaller;
-// 	type Call = Call;
-// 	type Scheduler = Scheduler;
-// 	type AsOriginId = AuthoritysOriginId;
-// 	type AuthorityConfig = AuthorityConfigImpl;
-// 	type WeightInfo = ();
-// }
-
-// pallet orml-nft
-impl orml_nft::Config for Runtime {
-	type ClassId = u32;
-	type TokenId =u32;
-	type ClassData = Vec<u8>;
-	type TokenData = Vec<u8>;
-	type MaxClassMetadata = ConstU32<1024>;
-	type MaxTokenMetadata = ConstU32<1024>;
-}
-
 parameter_types! {
 	/// Relay Chain `TransactionByteFee` / 10
 	pub const TransactionByteFee: Balance = 10 * MICROUNIT;
@@ -630,6 +452,125 @@ impl pallet_collator_selection::Config for Runtime {
 	type WeightInfo = ();
 }
 
+// orml pallets
+parameter_type_with_key! {
+	pub ExistentialDeposits: |_currency_id: CurrencyId| -> Balance {
+		Zero::zero()
+	};
+}
+
+pub struct DustRemovalWhitelist;
+impl Contains<AccountId> for DustRemovalWhitelist {
+	fn contains(_a: &AccountId) -> bool {
+		false
+	}
+}
+
+impl orml_tokens::Config for Runtime {
+	type Event = Event;
+	type Balance = Balance;
+	type Amount = Amount;
+	type CurrencyId = CurrencyId;
+	type WeightInfo = ();
+	type ExistentialDeposits = ExistentialDeposits;
+	type OnDust = orml_tokens::BurnDust<Runtime>;
+	type MaxLocks = MaxLocks;
+	type DustRemovalWhitelist = DustRemovalWhitelist;
+}
+
+impl orml_nft::Config for Runtime {
+	type ClassId = u32;
+	type TokenId =u32;
+	type ClassData = Vec<u8>;
+	type TokenData = Vec<u8>;
+	type MaxClassMetadata = ConstU32<1024>;
+	type MaxTokenMetadata = ConstU32<1024>;
+}
+
+// Bitgreen pallets
+// Contracts price units.
+pub const MILLICENTS: Balance = 1_000_000_000;
+pub const CENTS: Balance = 1_000 * MILLICENTS;
+pub const DOLLARS: Balance = 100 * CENTS;
+
+const fn deposit(items: u32, bytes: u32) -> Balance {
+    items as Balance * 15 * CENTS + (bytes as Balance) * 6 * CENTS
+}
+// Asset pallet
+parameter_types! {
+	pub const ASSETDEPOSIT: Balance = 1 * DOLLARS;
+	pub const ASSETACCOUNTDEPOSIT: Balance = 1 * DOLLARS;
+	pub const STRINGLIMIT: u32 = 8192;	// max metadata size in bytes
+	pub const METADATADEPOSITBASE: Balance= 1 * DOLLARS;
+	pub const METADATADEPOSITPERBYTE: Balance = 1 * CENTS;
+	pub const APPROVALDEPOSIT: Balance = 1 * DOLLARS;
+}
+
+pub struct TestFreezer;
+impl pallet_assets::FrozenBalance<u32, AccountId, u128> for TestFreezer {
+	fn frozen_balance(_asset: u32, _who: &AccountId) -> Option<u128> {
+		None
+	}
+
+	fn died(_asset: u32, _who: &AccountId) {}
+}
+
+impl pallet_assets::Config for Runtime {
+	type Event = Event;
+	type Balance = u128;
+	type AssetId = u32;
+	type Currency = Balances;
+	type ForceOrigin = EnsureRoot<AccountId>;
+	type AssetDeposit = ASSETDEPOSIT;
+	type AssetAccountDeposit = ASSETACCOUNTDEPOSIT;
+	type MetadataDepositBase = METADATADEPOSITBASE;
+	type MetadataDepositPerByte = METADATADEPOSITPERBYTE;
+	type ApprovalDeposit = APPROVALDEPOSIT;
+	type StringLimit = STRINGLIMIT;
+	type Freezer = TestFreezer;
+	type WeightInfo = ();
+	type Extra = ();
+}
+
+parameter_types! {
+  pub const MinPIDLength: u32 = 1;
+}
+
+impl pallet_vcu::Config for Runtime {
+	type Event = Event;
+	type MinPIDLength = MinPIDLength;
+	type UnixTime = Timestamp;
+}
+
+parameter_types! {
+  pub const NativeTokenId: u32 = primitives::BBB_TOKEN;
+}
+
+impl pallet_vesting::Config for Runtime {
+	type Event = Event;
+	type NativeTokenId = NativeTokenId;
+}
+
+impl pallet_impact_actions::Config for Runtime {
+	type Event = Event;
+	type Currency = Balances;
+}
+
+impl pallet_bonds::Config for Runtime {
+	type Event = Event;
+	type Currency = Balances;
+}
+
+impl pallet_bridge::Config for Runtime {
+	type Event = Event;
+}
+
+// Claim pallet, to claim deposits from previous blockchain
+impl pallet_claim::Config for Runtime {
+	type Event = Event;
+	type Currency = Balances;
+}
+
 // Create the runtime by composing the FRAME pallets that were previously configured.
 construct_runtime!(
 	pub enum Runtime where
@@ -647,8 +588,7 @@ construct_runtime!(
 
 		// Monetary stuff.
 		Balances: pallet_balances::{Pallet, Call, Storage, Config<T>, Event<T>} = 10,
-		Tokens: orml_tokens::{Pallet, Storage, Event<T>, Config<T>} = 11,
-		TransactionPayment: pallet_transaction_payment::{Pallet, Storage} = 12,
+		TransactionPayment: pallet_transaction_payment::{Pallet, Storage} = 11,
 
 		// Collator support. The order of these 4 are important and shall not change.
 		Authorship: pallet_authorship::{Pallet, Call, Storage} = 20,
@@ -663,19 +603,18 @@ construct_runtime!(
 		CumulusXcm: cumulus_pallet_xcm::{Pallet, Event<T>, Origin} = 32,
 		DmpQueue: cumulus_pallet_dmp_queue::{Pallet, Call, Storage, Event<T>} = 33,
 
-		// Claim Pallet
-		Claim: pallet_claim::{Pallet, Call, Storage, Event<T>} = 60,
-		// Authorization
-		//Authority: rity::{Pallet, Call, Event<T>, Origin<T>} = 61,
-		Nft: orml_nft::{Pallet, Call, Storage, Config<T>}= 62,
+		// orml pallets
+		Tokens: orml_tokens::{Pallet, Storage, Event<T>, Config<T>} = 41,
+		Nft: orml_nft::{Pallet, Call, Storage, Config<T>}= 42,
 
-		//Assets - ERC20 Tokens
-		Assets: pallet_assets::{Pallet, Call, Storage, Event<T>} = 71,
-		ImpactActions: pallet_impact_actions::{Pallet, Call, Storage, Event<T>} = 72,
-		Bonds: pallet_bonds::{Pallet, Call, Storage, Event<T>} = 73,
-		VCU: pallet_vcu::{Pallet, Call, Storage, Event<T>} = 74,
-		Bridge: pallet_bridge::{Pallet, Call, Storage, Event<T>, Config} = 75,
-		Vesting: pallet_vesting::{Pallet, Call, Storage, Event<T>} = 76,
+		// Bitgreen pallets
+		Assets: pallet_assets::{Pallet, Call, Storage, Event<T>} = 51,
+		VCU: pallet_vcu::{Pallet, Call, Storage, Event<T>} = 52,
+		Vesting: pallet_vesting::{Pallet, Call, Storage, Event<T>} = 53,
+		ImpactActions: pallet_impact_actions::{Pallet, Call, Storage, Event<T>} = 54,
+		Bonds: pallet_bonds::{Pallet, Call, Storage, Event<T>} = 55,
+		Bridge: pallet_bridge::{Pallet, Call, Storage, Event<T>, Config} = 56,
+		Claim: pallet_claim::{Pallet, Call, Storage, Event<T>} = 57,
 	}
 );
 
