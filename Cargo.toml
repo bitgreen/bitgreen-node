@@ -9,11 +9,7 @@ members = [
     'node',
     'parachain',
     'runtime/*',
-    'pallets/assets',
-    'pallets/bridge',
-    'pallets/bonds',
-    'pallets/impact-actions',
-    'pallets/vesting',
+    'pallets/*',
     'primitives'
 ]
 exclude = ['rpc']

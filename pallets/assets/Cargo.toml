@@ -35,15 +35,10 @@ default = ["std"]
 std = [
 	"codec/std",
 	"scale-info/std",
-	"sp-std/std",
 	"sp-runtime/std",
 	"frame-support/std",
 	"frame-system/std",
 	"frame-benchmarking/std",
-	"pallet-balances/std"
-]
-runtime-benchmarks = [
-	"frame-benchmarking/runtime-benchmarks",
-	"sp-runtime/runtime-benchmarks",
-	"frame-system/runtime-benchmarks",
+	"pallet-balances/std",
+	'sp-std/std',
 ]

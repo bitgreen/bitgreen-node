@@ -14,7 +14,7 @@ use sp_consensus_aura::sr25519::AuthorityId as AuraId;
 use sp_core::{crypto::KeyTypeId, OpaqueMetadata};
 use sp_runtime::{
 	create_runtime_str, generic, impl_opaque_keys,
-	traits::{AccountIdLookup, BlakeTwo256, Block as BlockT, IdentifyAccount, NumberFor, Verify},
+	traits::{AccountIdLookup, BlakeTwo256, Block as BlockT, IdentifyAccount, NumberFor, Zero},
 	transaction_validity::{TransactionSource, TransactionValidity},
 	ApplyExtrinsicResult, MultiSignature,
 };
@@ -23,15 +23,23 @@ use sp_std::prelude::*;
 use sp_version::NativeVersion;
 use sp_version::RuntimeVersion;
 
+use orml_traits::{parameter_type_with_key};
+
 // A few exports that help ease life for downstream crates.
 pub use frame_support::{
 	construct_runtime, parameter_types,
-	traits::{ConstU128, ConstU32, ConstU8, KeyOwnerProofSystem, Randomness, StorageInfo},
+	traits::{ConstU128, ConstU32, ConstU8, KeyOwnerProofSystem, Randomness, StorageInfo, Contains},
 	weights::{
 		constants::{BlockExecutionWeight, ExtrinsicBaseWeight, RocksDbWeight, WEIGHT_PER_SECOND},
 		IdentityFee, Weight,
 	},
 	StorageValue,
+};
+pub use primitives::{
+	evm::EstimateResourcesRequest,
+	AccountId, AccountIndex, Amount, Balance, BlockNumber,
+	CurrencyId, EraIndex, Hash, Moment, Nonce, Signature, TokenSymbol,
+	AuthoritysOriginId,
 };
 use frame_system::EnsureRoot;
 pub use pallet_balances::Call as BalancesCall;
@@ -41,24 +49,8 @@ use pallet_transaction_payment::CurrencyAdapter;
 pub use sp_runtime::BuildStorage;
 pub use sp_runtime::{Perbill, Permill};
 
-/// An index to a block.
-pub type BlockNumber = u32;
-
-/// Alias to 512-bit hash when used in the context of a transaction signature on the chain.
-pub type Signature = MultiSignature;
-
-/// Some way of identifying an account on the chain. We intentionally make it equivalent
-/// to the public key of our transaction signing scheme.
-pub type AccountId = <<Signature as Verify>::Signer as IdentifyAccount>::AccountId;
-
-/// Balance of an account.
-pub type Balance = u128;
-
 /// Index of a transaction in the chain.
 pub type Index = u32;
-
-/// A hash of some data used by the chain.
-pub type Hash = sp_core::H256;
 
 /// Opaque types. These are used by the CLI to instantiate machinery that don't need to know
 /// the specifics of the runtime. They can then be made to be agnostic over specific formats
@@ -242,16 +234,22 @@ impl pallet_timestamp::Config for Runtime {
 	type WeightInfo = ();
 }
 
+parameter_types! {
+	pub const ExistentialDeposit: Balance = 1;
+	pub const MaxLocks: u32 = 50;
+	pub const MaxReserves: u32 = 50;
+}
+
 impl pallet_balances::Config for Runtime {
-	type MaxLocks = ConstU32<50>;
-	type MaxReserves = ();
+	type MaxLocks = MaxLocks;
+	type MaxReserves = MaxReserves;
 	type ReserveIdentifier = [u8; 8];
 	/// The type for recording an account's balance.
 	type Balance = Balance;
 	/// The ubiquitous event type.
 	type Event = Event;
 	type DustRemoval = ();
-	type ExistentialDeposit = ConstU128<500>;
+	type ExistentialDeposit = ExistentialDeposit;
 	type AccountStore = System;
 	type WeightInfo = pallet_balances::weights::SubstrateWeight<Runtime>;
 }
@@ -305,6 +303,36 @@ impl pallet_impact_actions::Config for Runtime {
 	type Currency = Balances;
 }
 
+impl pallet_bridge::Config for Runtime {
+	type Event = Event;
+}
+
+parameter_types! {
+  pub const NativeTokenId: u32 = primitives::BBB_TOKEN;
+}
+
+impl pallet_vesting::Config for Runtime {
+	type Event = Event;
+	type NativeTokenId = ();
+}
+
+parameter_types! {
+  pub const MinPIDLength: u32 = 1;
+  pub const IpfsHashLength: u32 = 46;
+}
+
+impl pallet_vcu::Config for Runtime {
+	type Event = Event;
+	type MinPIDLength = MinPIDLength;
+	type UnixTime = Timestamp;
+}
+
+// Bonds management
+impl pallet_bonds::Config for Runtime {
+	type Event = Event;
+	type Currency = Balances;
+}
+
 parameter_types! {
 	pub const TransactionByteFee: Balance = 1;
 }
@@ -320,6 +348,52 @@ impl pallet_transaction_payment::Config for Runtime {
 impl pallet_sudo::Config for Runtime {
 	type Event = Event;
 	type Call = Call;
+}
+
+pub struct DustRemovalWhitelist;
+impl Contains<AccountId> for DustRemovalWhitelist {
+	fn contains(a: &AccountId) -> bool {
+		false
+	}
+}
+
+parameter_type_with_key! {
+	pub ExistentialDeposits: |_currency_id: CurrencyId| -> Balance {
+		Zero::zero()
+	};
+}
+
+impl orml_tokens::Config for Runtime {
+	type Event = Event;
+	type Balance = Balance;
+	type Amount = Amount;
+	type CurrencyId = CurrencyId;
+	type WeightInfo = ();
+	type ExistentialDeposits = ExistentialDeposits;
+	type OnDust = orml_tokens::BurnDust<Runtime>;
+	type MaxLocks = MaxLocks;
+	type DustRemovalWhitelist = DustRemovalWhitelist;
+}
+
+// impl orml_authority::Config for Runtime {
+// 	type Event = Event;
+// 	type Origin = Origin;
+// 	type PalletsOrigin = OriginCaller;
+// 	type Call = Call;
+// 	type Scheduler = Scheduler;
+// 	type AsOriginId = AuthoritysOriginId;
+// 	type AuthorityConfig = AuthorityConfigImpl;
+// 	type WeightInfo = ();
+// }
+
+// pallet orml-nft
+impl orml_nft::Config for Runtime {
+	type ClassId = u32;
+	type TokenId =u32;
+	type ClassData = Vec<u8>;
+	type TokenData = Vec<u8>;
+	type MaxClassMetadata = ConstU32<1024>;
+	type MaxTokenMetadata = ConstU32<1024>;
 }
 
 
@@ -339,14 +413,19 @@ construct_runtime!(
 		TransactionPayment: pallet_transaction_payment,
 		Sudo: pallet_sudo,
 
+		Tokens: orml_tokens::{Pallet, Storage, Event<T>, Config<T>} = 11,
+
 		// Claim Pallet
 		Claim: pallet_claim::{Pallet, Call, Storage, Event<T>} = 60,
+		Nft: orml_nft::{Pallet, Call, Storage, Config<T>}= 62,
 
 		//Assets - ERC20 Tokens
 		Assets: pallet_assets::{Pallet, Call, Storage, Event<T>} = 71,
-
-		//Impact Actions
 		ImpactActions: pallet_impact_actions::{Pallet, Call, Storage, Event<T>} = 72,
+		Bonds: pallet_bonds::{Pallet, Call, Storage, Event<T>} = 73,
+		VCU: pallet_vcu::{Pallet, Call, Storage, Event<T>} = 74,
+		Bridge: pallet_bridge::{Pallet, Call, Storage, Event<T>, Config} = 75,
+		Vesting: pallet_vesting::{Pallet, Call, Storage, Event<T>} = 76,
 	}
 );
 

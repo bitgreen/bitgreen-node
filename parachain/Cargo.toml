@@ -2,7 +2,7 @@
 authors = ['BitGreen <https://bitg.org>']
 build = 'build.rs'
 description = 'BitGreen Node - Substrate framework'
-edition = '2018'
+edition = '2021'
 homepage = 'https://bitg.org'
 license = 'Unlicense'
 name = 'bitg-parachain'

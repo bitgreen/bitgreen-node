@@ -14,30 +14,29 @@ targets = ['x86_64-unknown-linux-gnu']
 
 [dependencies]
 codec = { package = "parity-scale-codec", version = "3.0.0", default-features = false, features = ["derive"] }
-scale-info = { version = "2.0.1", default-features = false, features = ["derive"] }
 frame-support = { git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.18", default-features = false }
 frame-system = { git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.18", default-features = false }
-primitives = { package = 'bitg-primitives', path = '../../primitives', default-features = false }
-serde = { version = "1.0.132", optional = true, features = ["derive"] }
-sp-runtime = { git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.18", default-features = false }
 sp-std = { git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.18", default-features = false }
-pallet-assets = { path = '../assets'}
+sp-runtime = { git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.18", default-features = false }
+bs58 = { default-features = false, version = '0.4.0',features=['alloc']}
+scale-info = { version = "2.0.1", default-features = false, features = ["derive"] }
+pallet-assets = { path = '../assets', default-features = false }
+primitives = { package = 'bitg-primitives', path = '../../primitives', default-features = false }
 
 [dev-dependencies]
+serde = { version = "1.0.136" }
 sp-core = { git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.18", default-features = false }
 sp-io = { git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.18", default-features = false }
 pallet-balances = { git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.18", default-features = false }
-pallet-timestamp = { git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.18", default-features = false }
 
 [features]
 default = ['std']
 std = [
-    'serde',
     'codec/std',
+    'scale-info/std',
     'frame-support/std',
     'frame-system/std',
-    'primitives/std',
-    'sp-runtime/std',
     'sp-std/std',
-    'pallet-assets/std',
+    'sp-runtime/std',
+    'bs58/std',
 ]

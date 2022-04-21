@@ -152,5 +152,10 @@ fn testnet_genesis(
 			key: Some(root_key),
 		},
 		transaction_payment: Default::default(),
+		bridge: bitg_node_runtime::BridgeConfig { lockdown_status: false },
+		tokens: bitg_node_runtime::TokensConfig {
+			balances: [].to_vec(),
+		},
+		nft: bitg_node_runtime::NftConfig { tokens: vec![] },
 	}
 }
