@@ -2,6 +2,7 @@
 authors = ['BitGreen <https://bitg.org>']
 edition = '2018'
 homepage = 'https://bitg.org'
+# SBP M1 review: you should pick a license for your code.
 license = 'Unlicense'
 name = 'pallet-impact-actions'
 description = "Module to manage the impact actions"

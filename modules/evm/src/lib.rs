@@ -4,6 +4,17 @@
 #![allow(clippy::unused_unit)]
 #![allow(clippy::upper_case_acronyms)]
 
+// SBP M1 review: no documentation.
+// Is this your own custom EVM pallet implementation ?
+// Or is it a fork of the Substrate EVM & Ethereum pallets (also know as "Frontier") ?
+// see http://github.com/paritytech/frontier.
+//
+// If a fork, a better approach would be to fork in a separate repo in your organization,
+// reference / use that custom implementation as a dependency,
+// carefully document the changes compared to the original implementation,
+// and keep it up-to-date with the upstream repository.
+// Also, the original license should be retained and authors mentioned.
+
 use codec::{Decode, Encode};
 use evm::Config as EvmConfig;
 use frame_support::{

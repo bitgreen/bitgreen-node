@@ -109,6 +109,13 @@
 // Ensure we're `no_std` when compiling for Wasm.
 #![cfg_attr(not(feature = "std"), no_std)]
 
+// SBP M1 review: Why copy the original source of the Substrate FRAME pallet-assets
+// in the project ? If you haven't modified it, you can just use it as a dependency
+// in your chain's runtime. If you have made some changes to it, a better approach
+// would be the fork the whole Substrate repository in your organization, and carefully
+// documentation the changes you have made (and ideally submit those changes upstream
+// as a PR if they are generic enough, and useful for the rest of the community).
+
 #[cfg(feature = "runtime-benchmarks")]
 mod benchmarking;
 pub mod weights;
