@@ -108,8 +108,8 @@ decl_module! {
 			current_deposit: Balance,
 			staking: Balance,
 		) -> DispatchResult {
-			// check for Super User accessorigin
-			let vesting_creator = ensure_signed()?;
+			// check for Super User access
+			let vesting_creator = ensure_signed(origin)?;
 			// check that the same account is not already present
 			ensure!(!VestingAccount::<T>::contains_key(&vesting_creator, &uid), Error::<T>::VestingAccountAlreadyExists);
 			// others validity checks
