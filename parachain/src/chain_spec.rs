@@ -252,7 +252,7 @@ fn testnet_genesis(
 				.to_vec(),
 		},
 		balances: bitg_parachain_runtime::BalancesConfig {
-			balances: endowed_accounts.iter().cloned().map(|k| (k, 1 << 60)).collect(),
+			balances: endowed_accounts.iter().cloned().map(|k| (k, 1 << 80)).collect(),
 		},
 		parachain_info: bitg_parachain_runtime::ParachainInfoConfig { parachain_id: id },
 		collator_selection: bitg_parachain_runtime::CollatorSelectionConfig {

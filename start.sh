@@ -1,6 +1,6 @@
 rm -rf /tmp/parachain/alice
 
-./target/release/bitg-parachain build-spec --raw --disable-default-bootnode > rococo-local-parachain-2000-raw.json
+./target/release/bitg-parachain build-spec --chain dev --raw --disable-default-bootnode > rococo-local-parachain-2000-raw.json
 
 ./target/release/bitg-parachain export-genesis-wasm --chain rococo-local-parachain-2000-raw.json > para-2000-wasm
 

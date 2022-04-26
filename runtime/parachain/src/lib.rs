@@ -566,10 +566,10 @@ impl pallet_bridge::Config for Runtime {
 }
 
 // Claim pallet, to claim deposits from previous blockchain
-impl pallet_claim::Config for Runtime {
-	type Event = Event;
-	type Currency = Balances;
-}
+// impl pallet_claim::Config for Runtime {
+// 	type Event = Event;
+// 	type Currency = Balances;
+// }
 
 // Create the runtime by composing the FRAME pallets that were previously configured.
 construct_runtime!(
@@ -614,7 +614,7 @@ construct_runtime!(
 		ImpactActions: pallet_impact_actions::{Pallet, Call, Storage, Event<T>} = 54,
 		Bonds: pallet_bonds::{Pallet, Call, Storage, Event<T>} = 55,
 		Bridge: pallet_bridge::{Pallet, Call, Storage, Event<T>, Config} = 56,
-		Claim: pallet_claim::{Pallet, Call, Storage, Event<T>} = 57,
+		//Claim: pallet_claim::{Pallet, Call, Storage, Event<T>} = 57,
 	}
 );
 
