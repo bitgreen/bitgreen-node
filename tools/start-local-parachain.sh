@@ -1,7 +1,7 @@
 
 PARACHAIN_ID=2000
 
-FILENAME_PREFIX="bitg-parachain-${PARACHAIN_ID}"
+FILENAME_PREFIX="bitg-parachain-local-${PARACHAIN_ID}"
 
 rm -rf /tmp/parachain/alice
 
