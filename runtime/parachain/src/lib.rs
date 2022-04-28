@@ -7,7 +7,7 @@
 include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 
 pub mod xcm_config;
-
+mod weights;
 use smallvec::smallvec;
 use sp_api::impl_runtime_apis;
 use sp_core::{crypto::KeyTypeId, OpaqueMetadata};
@@ -27,13 +27,14 @@ use frame_support::{
 	construct_runtime, parameter_types,
 	traits::{Everything, Contains},
 	weights::{
-		constants::{BlockExecutionWeight, ExtrinsicBaseWeight, WEIGHT_PER_SECOND},
+		constants::{WEIGHT_PER_SECOND},
 		DispatchClass, Weight, WeightToFeeCoefficient, WeightToFeeCoefficients,
-		WeightToFeePolynomial,
+		WeightToFeePolynomial
 	},
 	PalletId,
 	pallet_prelude::ConstU32
 };
+use weights::{BlockExecutionWeight, ExtrinsicBaseWeight, RocksDbWeight};
 use frame_system::{
 	limits::{BlockLength, BlockWeights},
 	EnsureRoot,
@@ -42,6 +43,7 @@ pub use sp_consensus_aura::sr25519::AuthorityId as AuraId;
 pub use sp_runtime::{MultiAddress, Perbill, Permill, traits::Zero};
 use xcm_config::{XcmConfig, XcmOriginToTransactDispatchOrigin};
 use orml_traits::{parameter_type_with_key};
+use sp_std::convert::TryInto;
 
 pub use primitives::{
 	CurrencyId, TokenSymbol, Amount
@@ -51,7 +53,8 @@ pub use primitives::{
 pub use sp_runtime::BuildStorage;
 
 // Polkadot Imports
-use polkadot_runtime_common::{BlockHashCount, RocksDbWeight, SlowAdjustingFeeUpdate};
+use polkadot_runtime_common::{BlockHashCount, SlowAdjustingFeeUpdate};
+use frame_support::weights::ConstantMultiplier;
 
 // XCM Imports
 use xcm::latest::prelude::BodyId;
@@ -355,8 +358,8 @@ parameter_types! {
 
 impl pallet_transaction_payment::Config for Runtime {
 	type OnChargeTransaction = pallet_transaction_payment::CurrencyAdapter<Balances, ()>;
-	type TransactionByteFee = TransactionByteFee;
 	type WeightToFee = WeightToFee;
+	type LengthToFee = ConstantMultiplier<Balance, TransactionByteFee>;
 	type FeeMultiplierUpdate = SlowAdjustingFeeUpdate<Self>;
 	type OperationalFeeMultiplier = OperationalFeeMultiplier;
 }
@@ -475,6 +478,8 @@ impl orml_tokens::Config for Runtime {
 	type ExistentialDeposits = ExistentialDeposits;
 	type OnDust = orml_tokens::BurnDust<Runtime>;
 	type MaxLocks = MaxLocks;
+	type MaxReserves = MaxLocks;
+	type ReserveIdentifier = [u8;8];
 	type DustRemovalWhitelist = DustRemovalWhitelist;
 }
 

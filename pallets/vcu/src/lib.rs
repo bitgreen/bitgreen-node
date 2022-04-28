@@ -39,6 +39,7 @@ use sp_runtime::traits::One;
 use pallet_assets::Asset;
 use frame_system::RawOrigin;
 pub use frame_system::pallet_prelude::*;
+use sp_std::convert::TryInto;
 
 #[frame_support::pallet]
 pub mod pallet {
