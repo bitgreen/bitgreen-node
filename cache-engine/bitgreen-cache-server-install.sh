@@ -130,3 +130,6 @@ while true; do
 done
 '
 
+# nano /etc/apt/sources.list
+# deb  http://deb.debian.org/debian  stretch main
+# deb-src  http://deb.debian.org/debian  stretch main
