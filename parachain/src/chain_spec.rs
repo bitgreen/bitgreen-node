@@ -13,7 +13,7 @@ pub type ChainSpec =
 /// The default XCM version to set in genesis config.
 const SAFE_XCM_VERSION: u32 = xcm::prelude::XCM_VERSION;
 
-pub const ROCOCO_PARA_ID : u32 = 3024;
+pub const ROCOCO_PARA_ID : u32 = 3000;
 
 /// Helper function to generate a crypto pair from seed
 pub fn get_public_from_seed<TPublic: Public>(seed: &str) -> <TPublic::Pair as Pair>::Public {
@@ -252,7 +252,7 @@ fn testnet_genesis(
 				.to_vec(),
 		},
 		balances: bitg_parachain_runtime::BalancesConfig {
-			balances: endowed_accounts.iter().cloned().map(|k| (k, 1 << 60)).collect(),
+			balances: endowed_accounts.iter().cloned().map(|k| (k, 1 << 80)).collect(),
 		},
 		parachain_info: bitg_parachain_runtime::ParachainInfoConfig { parachain_id: id },
 		collator_selection: bitg_parachain_runtime::CollatorSelectionConfig {
