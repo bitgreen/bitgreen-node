@@ -1,5 +1,13 @@
 //! Currencies module.
 
+// SBP M1 review: no documentation.
+// This looks like a fork of ORML Currencies pallet.
+// A better approach would be to fork the ORML repo in a separate repo,
+// reference / use that custom implementation as a dependency,
+// carefully document the changes compared to the original implementation,
+// and keep it up-to-date with the upstream repository.
+// Also, a license should be specified.
+
 #![cfg_attr(not(feature = "std"), no_std)]
 #![allow(clippy::unused_unit)]
 #![allow(clippy::upper_case_acronyms)]

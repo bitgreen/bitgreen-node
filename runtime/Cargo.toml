@@ -4,6 +4,7 @@ authors = ['BitGreen <https://bitg.org>']
 description = 'BitGreen Node - Substrate framework'
 edition = '2018'
 homepage = 'https://bitg.org'
+# SBP M1 review: you should pick a license for your code.
 license = 'Unlicense'
 name = 'bitg-runtime'
 repository = 'https://github.com/bitgreen/bitg-node'

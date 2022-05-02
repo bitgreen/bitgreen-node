@@ -2,6 +2,12 @@
 
 #![recursion_limit="256"]
 
+// SBP M1 review: missing documentation, tests & benchmarks.
+// SBP M1 review: the JSON parsing code that is present in most functions
+// makes the logic very difficult to follow & hard to maintain over the long run.
+// You should refactor to use adequate Rust structs for data modeling, and rely
+// on SCALE encoding for efficient data encoding & storage.
+
 /// Module to manage the Bonds (Debit Market) on BitGreen Blockchain
 
 use frame_support::{decl_module, decl_storage, decl_event, decl_error, dispatch, ensure, traits::Currency,codec::Decode};

@@ -8,6 +8,12 @@ use sp_std::prelude::*;
 use core::str;
 use core::str::FromStr;
 
+// SBP M1 review: missing documentation, tests & benchmarks.
+// SBP M1 review: the JSON parsing code that is present in most functions
+// makes the logic very difficult to follow & hard to maintain over the long run.
+// You should refactor to use adequate Rust structs for data modeling, and rely
+// on SCALE encoding for efficient data encoding & storage.
+
 #[cfg(test)]
 mod mock;
 
@@ -205,6 +211,7 @@ decl_module! {
             // check json validity
 			let js=configuration.clone();
 			ensure!(json_check_validity(js),Error::<T>::InvalidJson);
+
             // check description
 			let jsd=configuration.clone();
 			let description=json_get_value(jsd,"description".as_bytes().to_vec());

@@ -29,6 +29,11 @@ pallet-contracts  = '3.0.0'
 pallet-contracts-rpc  = '3.0.0'
 
 
+# SBP M1 review: you might want to update to a more recent version of Substrate.
+# v3.0.0 was released in Feb 2021 and a lot of improvements were merged since.
+# Most teams track the latest version that is adopted by the Substrate Node Template:
+# https://github.com/substrate-developer-hub/substrate-node-template/tags
+
 # Substrate dependencies
 frame-benchmarking = '3.0.0'
 frame-benchmarking-cli = '3.0.0'

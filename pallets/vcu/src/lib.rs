@@ -14,6 +14,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// SBP M1 review: missing documentation & benchmarks.
+// General remark: you should avoid using JSON as an internal format,
+// and instead leverage the built-in suport for SCALE encoding.
+// Perform JSON string parsing operations will make your runtime perform
+// suboptimally, and bloat the chain's storage.
 
 #![cfg_attr(not(feature = "std"), no_std)]
 extern crate alloc;
@@ -228,6 +233,9 @@ decl_module! {
 		// Events must be initialized if they are used by the pallet.
 		fn deposit_event() = default;
 
+		// SBP M1 review: you could probably use Substrate FRAME's Proxy pallet for a more flexible & optimal call delegation system.
+		// Note: all dispatchable calls should be benchmarked.
+
 		/// Create new proxy setting that allow to define some accounts with administrator rights on the pallet.
 		///
 		/// key=="admin" {"accounts": ["accountid1", "accountid2"] }
@@ -278,6 +286,8 @@ decl_module! {
 			// Return a successful DispatchResult
 			Ok(())
 		}
+
+		// SBP M1 review: you could probably use a custom origin configured via the pallet's Config trait.
 
 		/// Store/update an AuthorizedAccountsAGV
 		/// This function allows to store the Accounts enabled to create Assets generating VCU (AGV).

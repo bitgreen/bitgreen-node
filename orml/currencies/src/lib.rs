@@ -39,6 +39,15 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 #![allow(clippy::unused_unit)]
 
+// SBP M1 review: why copy over the whole source tree of the ORML codebase ?
+// If unmodified, you should just use the libs as crate dependencies.
+//
+// If a fork, a better approach would be to fork in a separate repo in your organization,
+// reference / use that custom implementation as a dependency,
+// carefully document the changes compared to the original implementation,
+// and keep it up-to-date with the upstream repository.
+// Also, the original license should be retained and authors mentioned.
+
 use codec::Codec;
 use frame_support::{
 	pallet_prelude::*,

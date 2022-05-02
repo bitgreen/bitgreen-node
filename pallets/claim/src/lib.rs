@@ -10,6 +10,8 @@ use sha2::{Sha256, Digest};
 use base64::decode;
 use ripemd160::{Ripemd160};
 
+// SBP M1 review: missing documentation, tests & benchmarks.
+
 #[cfg(test)]
 mod mock;
 
