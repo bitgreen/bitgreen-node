@@ -1,1 +1,10 @@
 startdb.sh
+
+logs
+node_modules
+
+*.log
+npm-debug.log*
+
+.env
+.DS_Store
