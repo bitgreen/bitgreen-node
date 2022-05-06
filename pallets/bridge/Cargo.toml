@@ -24,8 +24,8 @@ bs58 = { default-features = false, version = '0.4.0',features=['alloc']}
 
 [dev-dependencies]
 serde = { version = "1.0.136" }
-sp-core = { git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.19", default-features = false }
 sp-io = { git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.19", default-features = false }
+sp-core = { git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.19", default-features = false }
 pallet-balances = { git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.19", default-features = false }
 
 [features]
@@ -35,7 +35,6 @@ std = [
     'scale-info/std',
     'frame-support/std',
     'frame-system/std',
-    'primitives/std',
     'sp-runtime/std',
     'bs58/std',
     'sp-std/std',
