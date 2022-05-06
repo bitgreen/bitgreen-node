@@ -1,4 +1,4 @@
-//! Module to manage the impact actions on BitGreen Blockchain
+//! Pallet to manage the impact actions on BitGreen Blockchain
 #![cfg_attr(not(feature = "std"), no_std)]
 pub use pallet::*;
 
@@ -493,7 +493,7 @@ pub mod pallet {
             // get the impact action configuration
             let impactaction = ImpactActions::<T>::get(&impactactionidvalue).unwrap();
             // check that the block number is inside the frame configured
-            let current_block = <frame_system::Module<T>>::block_number();
+            let current_block = <frame_system::Pallet<T>>::block_number();
             let bs = impactaction.clone();
             let blockstart = json_get_value(bs, "blockstart".as_bytes().to_vec());
             let blockstart_slice = blockstart.as_slice();
