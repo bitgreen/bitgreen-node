@@ -16,6 +16,20 @@
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
+// SBP M1 review: missing documentation, tests & benchmarks.
+// Note: you could also look at the vesting pallet in Substrate FRAME,
+// to see if it matches your specific vesting requirements.
+
+extern crate alloc;
+use sp_std::prelude::*;
+use core::str;
+use frame_support::{
+	decl_error, decl_event, decl_module, decl_storage,
+	dispatch::DispatchResult, ensure, traits::Get,
+	pallet_prelude::DispatchResultWithPostInfo
+};
+use primitives::Balance;
+use codec::Encode;
 pub use pallet::*;
 
 // #[cfg(test)]
@@ -162,6 +176,44 @@ pub mod pallet {
             ]);
             // store the vesting account
             VestingAccount::<T>::insert(vesting_creator.clone(), &uid, json);
+		// SBP M1 review: dispatchable calls should be benchmarked.
+		// function to create a vesting account
+        #[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
+		pub fn create_vesting_account(
+			origin,
+			recipient_account:T::AccountId,
+			vesting_account:T::AccountId,
+			uid: u32,
+			initial_deposit: Balance,
+			expire_time:u32,
+			current_deposit: Balance,
+			staking: Balance,
+		) -> DispatchResult {
+			// check for Super User access
+			let vesting_creator = ensure_signed(origin)?;
+			// check that the same account is not already present
+			ensure!(!VestingAccount::<T>::contains_key(&vesting_creator, &uid), Error::<T>::VestingAccountAlreadyExists);
+			// others validity checks
+			ensure!(uid > 0, Error::<T>::InvalidUID);
+			ensure!(initial_deposit > 0, Error::<T>::InvalidIntialDeposit);
+			ensure!(expire_time > 0, Error::<T>::InvalidExpireTime);
+			ensure!(current_deposit > 0, Error::<T>::InvalidCurrentDeposit);
+			ensure!(staking > 0, Error::<T>::InvalidStaking);
+
+			// SBP M1 review: why use json ? you could create a struct instead.
+
+			// create json string
+    		let json = Self::create_json_string(vec![
+				("recipient_account",&mut recipient_account.encode()),
+				("vesting_account",&mut  vesting_account.encode()),
+				("uid",&mut  uid.to_string().as_bytes().to_vec()),
+				("initial_deposit",&mut  initial_deposit.to_string().as_bytes().to_vec()),
+				("expire_time",&mut  expire_time.to_string().as_bytes().to_vec()),
+				("current_deposit",&mut  current_deposit.to_string().as_bytes().to_vec()),
+				("staking",&mut  staking.to_string().as_bytes().to_vec()),
+			]);
+			// store the vesting account
+			VestingAccount::<T>::insert(vesting_creator.clone(), &uid, json);
             // Generate event
             Self::deposit_event(Event::VestingAccountCreated(vesting_creator));
             // Return a successful DispatchResult
@@ -201,6 +253,30 @@ pub mod pallet {
             ensure!(expire_time > current_time, Error::<T>::InvalidEpochTime);
             // delete the vestin account
             VestingAccount::<T>::remove(vesting_creator.clone(), &uid);
+		}
+		// function to remove a vesting account
+        #[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
+        pub fn destroy_vesting_account(origin, uid: u32) -> DispatchResult {
+			// check for Super User access
+			let vesting_creator = ensure_signed(origin)?;
+			// check the account is present in the storage
+			ensure!(VestingAccount::<T>::contains_key(&vesting_creator, &uid), Error::<T>::VestingAccountDoesNotExist);
+
+			// SBP M1 review: why use json ? you could create a struct instead, data is stored on-chain in a binary-efficient encoding (SCALE).
+
+			// decode data
+			let content: Vec<u8> = VestingAccount::<T>::get(vesting_creator.clone(), &uid);
+	    	let initial_deposit = Self::json_get_value(content.clone(),"initial_deposit".as_bytes().to_vec());
+			let initial_deposit = str::parse::<Balance>(sp_std::str::from_utf8(&initial_deposit).unwrap()).unwrap();
+			let current_deposit = Self::json_get_value(content.clone(),"current_deposit".as_bytes().to_vec());
+			let current_deposit = str::parse::<Balance>(sp_std::str::from_utf8(&current_deposit).unwrap()).unwrap();
+			let expire_time = Self::json_get_value(content.clone(),"expire_time".as_bytes().to_vec());
+			let expire_time = str::parse::<T::BlockNumber>(sp_std::str::from_utf8(&expire_time).unwrap()).ok().unwrap();
+			let current_time: T::BlockNumber = frame_system::Module::<T>::block_number();
+			ensure!(initial_deposit == current_deposit, Error::<T>::InvalidDeposit);
+			ensure!(expire_time > current_time, Error::<T>::InvalidEpochTime);
+			// delete the vestin account
+			VestingAccount::<T>::remove(vesting_creator.clone(), &uid);
             // Generate event
             Self::deposit_event(Event::VestingAccountDestroyed(vesting_creator));
             // Return a successful DispatchResult
@@ -235,6 +311,18 @@ pub mod pallet {
                 str::parse::<T::BlockNumber>(sp_std::str::from_utf8(&expire_time).unwrap())
                     .ok()
                     .unwrap();
+			ensure!(VestingAccount::<T>::contains_key(&vesting_creator, &uid), Error::<T>::VestingAccountDoesNotExist);
+
+			// SBP M1 review: same remark as above regarding the use of json format internally.
+
+			// decode data
+			let content: Vec<u8> = VestingAccount::<T>::get(vesting_creator.clone(), &uid);
+			let initial_deposit = Self::json_get_value(content.clone(),"initial_deposit".as_bytes().to_vec());
+			let initial_deposit = str::parse::<Balance>(sp_std::str::from_utf8(&initial_deposit).unwrap()).unwrap();
+			let current_deposit = Self::json_get_value(content.clone(),"current_deposit".as_bytes().to_vec());
+			let current_deposit = str::parse::<Balance>(sp_std::str::from_utf8(&current_deposit).unwrap()).unwrap();
+			let expire_time = Self::json_get_value(content.clone(),"expire_time".as_bytes().to_vec());
+			let expire_time = str::parse::<T::BlockNumber>(sp_std::str::from_utf8(&expire_time).unwrap()).ok().unwrap();
 
             let recipient_account =
                 Self::json_get_value(content.clone(), "recipient_account".as_bytes().to_vec());
@@ -259,6 +347,15 @@ pub mod pallet {
             )?;
             // Generate event
             Self::deposit_event(Event::WithdrewVestingAccount(vesting_creator));
+			// SBP M1 review: this introduces coupling between your vesting pallet and the assets pallet.
+			// A more decoupled approach would be to inject an implementation of one of the Currency traits via
+			// the pallet's Config trait. As an example: https://github.com/paritytech/substrate/blob/59a21506a26229a52ffcc2d11d878c49ceedb992/frame/assets/src/lib.rs#L204
+			// Also, instead of usings transfers, you could look at using the `LockableCurrency` trait,
+			// and draw inspiration from the FRAME vesting pallet implementation:
+			// see https://github.com/paritytech/substrate/blob/59a21506a26229a52ffcc2d11d878c49ceedb992/frame/vesting/src/lib.rs#L156
+			pallet_assets::Module::<T>::transfer(RawOrigin::Signed(vesting_creator.clone()).into(), T::NativeTokenId::get(), T::Lookup::unlookup(recipient.clone()), staking)?;
+			// Generate event
+            Self::deposit_event(RawEvent::WithdrewVestingAccount(vesting_creator));
             // Return a successful DispatchResult
             Ok(().into())
         }

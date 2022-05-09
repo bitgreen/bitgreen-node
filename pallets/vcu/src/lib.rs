@@ -14,6 +14,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// SBP M1 review: missing documentation & benchmarks.
+// General remark: you should avoid using JSON as an internal format,
+// and instead leverage the built-in suport for SCALE encoding.
+// Perform JSON string parsing operations will make your runtime perform
+// suboptimally, and bloat the chain's storage.
+
 #![cfg_attr(not(feature = "std"), no_std)]
 
 pub use pallet::*;
@@ -312,6 +318,10 @@ pub mod pallet {
     // Dispatchable functions must be annotated with a weight and must return a DispatchResult.
     #[pallet::call]
     impl<T: Config> Pallet<T> {
+        // SBP M1 review: you could probably use Substrate FRAME's Proxy pallet for a more flexible & optimal call delegation system.
+        // Note: all dispatchable calls should be benchmarked.
+
+
         /// Create new proxy setting that allow to define some accounts with administrator rights on the pallet.
         ///
         /// key=="admin" {"accounts": ["accountid1", "accountid2"] }

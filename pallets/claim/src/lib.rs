@@ -2,6 +2,8 @@
 /// Modules to claim move balances into the "substrate" blockchain
 pub use pallet::*;
 
+// SBP M1 review: missing documentation, tests & benchmarks.
+
 #[cfg(test)]
 mod mock;
 

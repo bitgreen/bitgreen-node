@@ -2,6 +2,7 @@
 authors = ['BitGreen <https://bitgreen.org>']
 edition = '2021'
 homepage = 'https://bitgreen.org'
+# SBP M1 review: you should pick a license for your code.
 license = 'Unlicense'
 name = 'pallet-bonds'
 description = "Module to manage the Bonds"

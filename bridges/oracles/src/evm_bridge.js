@@ -300,6 +300,22 @@ export async function send_unsetLockdown(web3, gasPrice, contract) {
     return receipt;
 }
 
+export const get_bitgreen_bridge_abi = () => {
+    const relative_path = join('..', '..');
+    const root_path = normalize(join(__dirname, relative_path));
+    const inner_path = join('ethereum', 'build', 'contracts');
+    const artifacts_path = join(root_path, inner_path);
+    const abi_file = format({
+        root: '/ignored',
+        dir: artifacts_path,
+        base: 'BitgreenBridge.json'
+    });
+    console.log('path \t ', abi_file);
+    const abi_json = JSON.parse(readFileSync(abi_file, 'utf8'));
+    const abi = abi_json.abi;
+    return abi;
+}
+
 // resolve relative path to json types definition file
 export const get_bitgreen_bridge_contract = async (web3) => {
     const relative_path = join('..', '..');
