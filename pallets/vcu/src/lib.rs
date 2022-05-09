@@ -27,13 +27,11 @@ mod tests;
 use codec::alloc::string::ToString;
 use codec::Decode;
 use frame_support::dispatch::DispatchResult;
-use frame_support::pallet_prelude::DispatchResultWithPostInfo;
 use frame_support::traits::UnixTime;
 use frame_support::{ensure, traits::Get};
 pub use frame_system::pallet_prelude::*;
 use frame_system::RawOrigin;
 use frame_system::{ensure_root, ensure_signed};
-use pallet_assets::Asset;
 use primitives::Balance;
 use sp_runtime::traits::One;
 use sp_runtime::traits::StaticLookup;
@@ -872,9 +870,10 @@ pub mod pallet {
                 !AssetsGeneratingVCUSchedule::<T>::contains_key(&agv_account_id, &agv_id),
                 Error::<T>::AssetsGeneratingVCUScheduleAlreadyOnChain
             );
+
             // check the token id is present on chain
             ensure!(
-                Asset::<T>::contains_key(token_id),
+                pallet_assets::Pallet::<T>::maybe_total_supply(token_id).is_some(),
                 Error::<T>::TokenIdNotFound
             );
             // check the token id > 10000 (because under 10000 reserver for the bridge)
@@ -1011,7 +1010,7 @@ pub mod pallet {
             );
             // create token if it does not exists
             ensure!(token_id >= 10000, Error::<T>::ReservedTokenId);
-            if !Asset::<T>::contains_key(token_id) {
+            if let None = pallet_assets::Pallet::<T>::maybe_total_supply(token_id) {
                 pallet_assets::Pallet::<T>::force_create(
                     RawOrigin::Root.into(),
                     token_id,
@@ -1271,7 +1270,7 @@ pub mod pallet {
             // get the token id
             let token_id = OraclesTokenMintingVCU::<T>::get(&agv_account_id, &agv_id);
             // create token if it does not exist yet
-            if !Asset::<T>::contains_key(token_id) {
+            if let None = pallet_assets::Pallet::<T>::maybe_total_supply(token_id) {
                 pallet_assets::Pallet::<T>::force_create(
                     RawOrigin::Root.into(),
                     token_id,
@@ -1385,7 +1384,7 @@ pub mod pallet {
             let asset_id = str::parse::<u32>(sp_std::str::from_utf8(&asset_id).unwrap()).unwrap();
             // check whether asset exists or not
             ensure!(
-                Asset::<T>::contains_key(asset_id),
+                pallet_assets::Pallet::<T>::maybe_total_supply(asset_id).is_some(),
                 Error::<T>::AssetDoesNotExist
             );
             // check the validity of the AGV in the array

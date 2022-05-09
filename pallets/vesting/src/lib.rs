@@ -18,273 +18,334 @@
 
 pub use pallet::*;
 
-#[cfg(test)]
-mod mock;
+// #[cfg(test)]
+// mod mock;
+//
+// #[cfg(test)]
+// mod tests;
 
-#[cfg(test)]
-mod tests;
-
-use sp_std::prelude::*;
-use core::str;
-use frame_support::{
-	ensure, traits::Get,
-};
-use primitives::Balance;
-use codec::Encode;
-use codec::Decode;
-use frame_system::ensure_signed;
-use sp_std::vec;
-use frame_system::RawOrigin;
-use sp_runtime::traits::StaticLookup;
 use codec::alloc::string::ToString;
+use codec::Decode;
+use codec::Encode;
+use core::str;
+use frame_support::{ensure, traits::Get};
+use frame_system::ensure_signed;
+use frame_system::RawOrigin;
+use primitives::Balance;
+use sp_runtime::traits::StaticLookup;
+use sp_std::prelude::*;
+use sp_std::vec;
 
 #[frame_support::pallet]
 pub mod pallet {
-	use super::*;
-	use frame_support::{dispatch::DispatchResultWithPostInfo, pallet_prelude::*};
-	use frame_system::pallet_prelude::*;
+    use super::*;
+    use frame_support::{dispatch::DispatchResultWithPostInfo, pallet_prelude::*};
+    use frame_system::pallet_prelude::*;
 
-	#[pallet::config]
-	pub trait Config: frame_system::Config + pallet_assets::Config<AssetId = u32, Balance = u128> {
-		/// Because this pallet emits events, it depends on the runtime's definition of an event.
-		type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
-		type NativeTokenId: Get<u32>;
-	}
+    #[pallet::config]
+    pub trait Config:
+        frame_system::Config + pallet_assets::Config<AssetId = u32, Balance = u128>
+    {
+        /// Because this pallet emits events, it depends on the runtime's definition of an event.
+        type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
+        type NativeTokenId: Get<u32>;
+    }
 
-	#[pallet::pallet]
-	#[pallet::generate_store(pub(super) trait Store)]
-	#[pallet::without_storage_info]
-	pub struct Pallet<T>(_);
+    #[pallet::pallet]
+    #[pallet::generate_store(pub(super) trait Store)]
+    #[pallet::without_storage_info]
+    pub struct Pallet<T>(_);
 
-	#[pallet::storage]
-	#[pallet::getter(fn vesting_account)]
-	pub type VestingAccount<T: Config> = StorageDoubleMap<_, Blake2_128Concat, T::AccountId, Blake2_128Concat, u32, Vec<u8>, ValueQuery>;
+    #[pallet::storage]
+    #[pallet::getter(fn vesting_account)]
+    pub type VestingAccount<T: Config> = StorageDoubleMap<
+        _,
+        Blake2_128Concat,
+        T::AccountId,
+        Blake2_128Concat,
+        u32,
+        Vec<u8>,
+        ValueQuery,
+    >;
 
-
-	#[pallet::event]
-	#[pallet::generate_deposit(pub(super) fn deposit_event)]
-	pub enum Event<T: Config> {
-		/// Vesting Account Created
+    #[pallet::event]
+    #[pallet::generate_deposit(pub(super) fn deposit_event)]
+    pub enum Event<T: Config> {
+        /// Vesting Account Created
         VestingAccountCreated(T::AccountId),
-		/// Vesting Account Destroyed
+        /// Vesting Account Destroyed
         VestingAccountDestroyed(T::AccountId),
-		/// WithdrewVestingAccount
-		WithdrewVestingAccount(T::AccountId),
-	}
+        /// WithdrewVestingAccount
+        WithdrewVestingAccount(T::AccountId),
+    }
 
-	// Errors inform users that something went wrong.
-	#[pallet::error]
-	pub enum Error<T> {
-		/// Vesting Account Already Exist
+    // Errors inform users that something went wrong.
+    #[pallet::error]
+    pub enum Error<T> {
+        /// Vesting Account Already Exist
         VestingAccountAlreadyExists,
-		/// Invalid UID
-		InvalidUID,
-		/// Invalid Intial Deposit
-		InvalidIntialDeposit,
-		/// Invalid  Expire Time
-		InvalidExpireTime,
-		/// Invalid Current Deposit
-		InvalidCurrentDeposit,
-		/// Invalid Staking
-		InvalidStaking,
-		/// VestingAccount Does Not Exist
-		VestingAccountDoesNotExist,
-		/// Invalid Deposit
-		InvalidDeposit,
-		/// Invalid Epoch Time
-		InvalidEpochTime,
-		/// InvalidRecipent
-		InvalidRecipent,
-	}
+        /// Invalid UID
+        InvalidUID,
+        /// Invalid Intial Deposit
+        InvalidIntialDeposit,
+        /// Invalid  Expire Time
+        InvalidExpireTime,
+        /// Invalid Current Deposit
+        InvalidCurrentDeposit,
+        /// Invalid Staking
+        InvalidStaking,
+        /// VestingAccount Does Not Exist
+        VestingAccountDoesNotExist,
+        /// Invalid Deposit
+        InvalidDeposit,
+        /// Invalid Epoch Time
+        InvalidEpochTime,
+        /// InvalidRecipent
+        InvalidRecipent,
+    }
 
-	#[pallet::hooks]
-	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {}
+    #[pallet::hooks]
+    impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {}
 
-
-	#[pallet::call]
-	impl<T: Config> Pallet<T> {
-		// function to create a vesting account
+    #[pallet::call]
+    impl<T: Config> Pallet<T> {
+        // function to create a vesting account
         #[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
-		pub fn create_vesting_account(
-			origin: OriginFor<T>,
-			recipient_account:T::AccountId,
-			vesting_account:T::AccountId,
-			uid: u32,
-			initial_deposit: Balance,
-			expire_time:u32,
-			current_deposit: Balance,
-			staking: Balance,
-		) -> DispatchResult {
-			// check for Super User access
-			let vesting_creator = ensure_signed(origin)?;
-			// check that the same account is not already present
-			ensure!(!VestingAccount::<T>::contains_key(&vesting_creator, &uid), Error::<T>::VestingAccountAlreadyExists);
-			// others validity checks
-			ensure!(uid > 0_u32, Error::<T>::InvalidUID);
-			ensure!(initial_deposit > 0_u32.into(), Error::<T>::InvalidIntialDeposit);
-			ensure!(expire_time > 0, Error::<T>::InvalidExpireTime);
-			ensure!(current_deposit > 0_u32.into(), Error::<T>::InvalidCurrentDeposit);
-			ensure!(staking > 0_u32.into(), Error::<T>::InvalidStaking);
+        pub fn create_vesting_account(
+            origin: OriginFor<T>,
+            recipient_account: T::AccountId,
+            vesting_account: T::AccountId,
+            uid: u32,
+            initial_deposit: Balance,
+            expire_time: u32,
+            current_deposit: Balance,
+            staking: Balance,
+        ) -> DispatchResult {
+            // check for Super User access
+            let vesting_creator = ensure_signed(origin)?;
+            // check that the same account is not already present
+            ensure!(
+                !VestingAccount::<T>::contains_key(&vesting_creator, &uid),
+                Error::<T>::VestingAccountAlreadyExists
+            );
+            // others validity checks
+            ensure!(uid > 0_u32, Error::<T>::InvalidUID);
+            ensure!(
+                initial_deposit > 0_u32.into(),
+                Error::<T>::InvalidIntialDeposit
+            );
+            ensure!(expire_time > 0, Error::<T>::InvalidExpireTime);
+            ensure!(
+                current_deposit > 0_u32.into(),
+                Error::<T>::InvalidCurrentDeposit
+            );
+            ensure!(staking > 0_u32.into(), Error::<T>::InvalidStaking);
 
-			// create json string
-    		let json = Self::create_json_string(vec![
-				("recipient_account",&mut recipient_account.encode()),
-				("vesting_account",&mut  vesting_account.encode()),
-				("uid",&mut  uid.to_string().as_bytes().to_vec()),
-				("initial_deposit",&mut  initial_deposit.to_string().as_bytes().to_vec()),
-				("expire_time",&mut  expire_time.to_string().as_bytes().to_vec()),
-				("current_deposit",&mut  current_deposit.to_string().as_bytes().to_vec()),
-				("staking",&mut  staking.to_string().as_bytes().to_vec()),
-			]);
-			// store the vesting account
-			VestingAccount::<T>::insert(vesting_creator.clone(), &uid, json);
+            // create json string
+            let json = Self::create_json_string(vec![
+                ("recipient_account", &mut recipient_account.encode()),
+                ("vesting_account", &mut vesting_account.encode()),
+                ("uid", &mut uid.to_string().as_bytes().to_vec()),
+                (
+                    "initial_deposit",
+                    &mut initial_deposit.to_string().as_bytes().to_vec(),
+                ),
+                (
+                    "expire_time",
+                    &mut expire_time.to_string().as_bytes().to_vec(),
+                ),
+                (
+                    "current_deposit",
+                    &mut current_deposit.to_string().as_bytes().to_vec(),
+                ),
+                ("staking", &mut staking.to_string().as_bytes().to_vec()),
+            ]);
+            // store the vesting account
+            VestingAccount::<T>::insert(vesting_creator.clone(), &uid, json);
             // Generate event
             Self::deposit_event(Event::VestingAccountCreated(vesting_creator));
             // Return a successful DispatchResult
             Ok(())
-		}
-		// function to remove a vesting account
+        }
+        // function to remove a vesting account
         #[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
         pub fn destroy_vesting_account(origin: OriginFor<T>, uid: u32) -> DispatchResult {
-			// check for Super User access
-			let vesting_creator = ensure_signed(origin)?;
-			// check the account is present in the storage
-			ensure!(VestingAccount::<T>::contains_key(&vesting_creator, &uid), Error::<T>::VestingAccountDoesNotExist);
-			// decode data
-			let content: Vec<u8> = VestingAccount::<T>::get(vesting_creator.clone(), &uid);
-	    	let initial_deposit = Self::json_get_value(content.clone(),"initial_deposit".as_bytes().to_vec());
-			let initial_deposit = str::parse::<Balance>(sp_std::str::from_utf8(&initial_deposit).unwrap()).unwrap();
-			let current_deposit = Self::json_get_value(content.clone(),"current_deposit".as_bytes().to_vec());
-			let current_deposit = str::parse::<Balance>(sp_std::str::from_utf8(&current_deposit).unwrap()).unwrap();
-			let expire_time = Self::json_get_value(content.clone(),"expire_time".as_bytes().to_vec());
-			let expire_time = str::parse::<T::BlockNumber>(sp_std::str::from_utf8(&expire_time).unwrap()).ok().unwrap();
-			let current_time: T::BlockNumber = frame_system::Pallet::<T>::block_number();
-			ensure!(initial_deposit == current_deposit, Error::<T>::InvalidDeposit);
-			ensure!(expire_time > current_time, Error::<T>::InvalidEpochTime);
-			// delete the vestin account
-			VestingAccount::<T>::remove(vesting_creator.clone(), &uid);
+            // check for Super User access
+            let vesting_creator = ensure_signed(origin)?;
+            // check the account is present in the storage
+            ensure!(
+                VestingAccount::<T>::contains_key(&vesting_creator, &uid),
+                Error::<T>::VestingAccountDoesNotExist
+            );
+            // decode data
+            let content: Vec<u8> = VestingAccount::<T>::get(vesting_creator.clone(), &uid);
+            let initial_deposit =
+                Self::json_get_value(content.clone(), "initial_deposit".as_bytes().to_vec());
+            let initial_deposit =
+                str::parse::<Balance>(sp_std::str::from_utf8(&initial_deposit).unwrap()).unwrap();
+            let current_deposit =
+                Self::json_get_value(content.clone(), "current_deposit".as_bytes().to_vec());
+            let current_deposit =
+                str::parse::<Balance>(sp_std::str::from_utf8(&current_deposit).unwrap()).unwrap();
+            let expire_time =
+                Self::json_get_value(content.clone(), "expire_time".as_bytes().to_vec());
+            let expire_time =
+                str::parse::<T::BlockNumber>(sp_std::str::from_utf8(&expire_time).unwrap())
+                    .ok()
+                    .unwrap();
+            let current_time: T::BlockNumber = frame_system::Pallet::<T>::block_number();
+            ensure!(
+                initial_deposit == current_deposit,
+                Error::<T>::InvalidDeposit
+            );
+            ensure!(expire_time > current_time, Error::<T>::InvalidEpochTime);
+            // delete the vestin account
+            VestingAccount::<T>::remove(vesting_creator.clone(), &uid);
             // Generate event
             Self::deposit_event(Event::VestingAccountDestroyed(vesting_creator));
             // Return a successful DispatchResult
             Ok(())
         }
 
-		#[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
-        pub fn withdraw_vesting_account(origin: OriginFor<T>, vesting_creator: T::AccountId, uid: u32) -> DispatchResultWithPostInfo {
-			let recipient = ensure_signed(origin)?;
+        #[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
+        pub fn withdraw_vesting_account(
+            origin: OriginFor<T>,
+            vesting_creator: T::AccountId,
+            uid: u32,
+        ) -> DispatchResultWithPostInfo {
+            let recipient = ensure_signed(origin)?;
 
-			ensure!(VestingAccount::<T>::contains_key(&vesting_creator, &uid), Error::<T>::VestingAccountDoesNotExist);
-			// decode data
-			let content: Vec<u8> = VestingAccount::<T>::get(vesting_creator.clone(), &uid);
-			let initial_deposit = Self::json_get_value(content.clone(),"initial_deposit".as_bytes().to_vec());
-			let initial_deposit = str::parse::<Balance>(sp_std::str::from_utf8(&initial_deposit).unwrap()).unwrap();
-			let current_deposit = Self::json_get_value(content.clone(),"current_deposit".as_bytes().to_vec());
-			let current_deposit = str::parse::<Balance>(sp_std::str::from_utf8(&current_deposit).unwrap()).unwrap();
-			let expire_time = Self::json_get_value(content.clone(),"expire_time".as_bytes().to_vec());
-			let expire_time = str::parse::<T::BlockNumber>(sp_std::str::from_utf8(&expire_time).unwrap()).ok().unwrap();
+            ensure!(
+                VestingAccount::<T>::contains_key(&vesting_creator, &uid),
+                Error::<T>::VestingAccountDoesNotExist
+            );
+            // decode data
+            let content: Vec<u8> = VestingAccount::<T>::get(vesting_creator.clone(), &uid);
+            let initial_deposit =
+                Self::json_get_value(content.clone(), "initial_deposit".as_bytes().to_vec());
+            let initial_deposit =
+                str::parse::<Balance>(sp_std::str::from_utf8(&initial_deposit).unwrap()).unwrap();
+            let current_deposit =
+                Self::json_get_value(content.clone(), "current_deposit".as_bytes().to_vec());
+            let current_deposit =
+                str::parse::<Balance>(sp_std::str::from_utf8(&current_deposit).unwrap()).unwrap();
+            let expire_time =
+                Self::json_get_value(content.clone(), "expire_time".as_bytes().to_vec());
+            let expire_time =
+                str::parse::<T::BlockNumber>(sp_std::str::from_utf8(&expire_time).unwrap())
+                    .ok()
+                    .unwrap();
 
-			let recipient_account= Self::json_get_value(content.clone(),"recipient_account".as_bytes().to_vec());
-			let recipient_account = T::AccountId::decode(&mut &recipient_account[1..33]).map_err(|_| Error::<T>::InvalidRecipent)?;
-			let staking = Self::json_get_value(content.clone(),"staking".as_bytes().to_vec());
-			let staking = str::parse::<Balance>(sp_std::str::from_utf8(&staking).unwrap()).unwrap();
+            let recipient_account =
+                Self::json_get_value(content.clone(), "recipient_account".as_bytes().to_vec());
+            let recipient_account = T::AccountId::decode(&mut &recipient_account[1..33])
+                .map_err(|_| Error::<T>::InvalidRecipent)?;
+            let staking = Self::json_get_value(content.clone(), "staking".as_bytes().to_vec());
+            let staking = str::parse::<Balance>(sp_std::str::from_utf8(&staking).unwrap()).unwrap();
 
-			ensure!(recipient == recipient_account, Error::<T>::InvalidRecipent);
-			let current_time: T::BlockNumber = frame_system::Pallet::<T>::block_number();
-			ensure!(initial_deposit == current_deposit , Error::<T>::InvalidDeposit);
-			ensure!(expire_time > current_time, Error::<T>::InvalidEpochTime);
+            ensure!(recipient == recipient_account, Error::<T>::InvalidRecipent);
+            let current_time: T::BlockNumber = frame_system::Pallet::<T>::block_number();
+            ensure!(
+                initial_deposit == current_deposit,
+                Error::<T>::InvalidDeposit
+            );
+            ensure!(expire_time > current_time, Error::<T>::InvalidEpochTime);
 
-			pallet_assets::Pallet::<T>::transfer(RawOrigin::Signed(vesting_creator.clone()).into(), T::NativeTokenId::get(), T::Lookup::unlookup(recipient.clone()), staking)?;
-			// Generate event
+            pallet_assets::Pallet::<T>::transfer(
+                RawOrigin::Signed(vesting_creator.clone()).into(),
+                T::NativeTokenId::get(),
+                T::Lookup::unlookup(recipient.clone()),
+                staking,
+            )?;
+            // Generate event
             Self::deposit_event(Event::WithdrewVestingAccount(vesting_creator));
             // Return a successful DispatchResult
-           	Ok(().into())
+            Ok(().into())
         }
-	}
+    }
 
-impl<T: Config> Pallet<T> {
+    impl<T: Config> Pallet<T> {
+        // function to get value of a field for Substrate runtime (no std library and no variable allocation)
+        fn json_get_value(j: Vec<u8>, key: Vec<u8>) -> Vec<u8> {
+            let mut result = Vec::new();
+            let mut k = Vec::new();
+            let keyl = key.len();
+            let jl = j.len();
+            k.push(b'"');
+            for xk in 0..keyl {
+                k.push(*key.get(xk).unwrap());
+            }
+            k.push(b'"');
+            k.push(b':');
+            let kl = k.len();
+            for x in 0..jl {
+                let mut m = 0;
+                if x + kl > jl {
+                    break;
+                }
+                for (xx, i) in (x..x + kl).enumerate() {
+                    if *j.get(i).unwrap() == *k.get(xx).unwrap() {
+                        m += 1;
+                    }
+                }
+                if m == kl {
+                    let mut lb = b' ';
+                    let mut op = true;
+                    let mut os = true;
+                    for i in x + kl..jl - 1 {
+                        if *j.get(i).unwrap() == b'[' && op && os {
+                            os = false;
+                        }
+                        if *j.get(i).unwrap() == b'}' && op && !os {
+                            os = true;
+                        }
+                        if *j.get(i).unwrap() == b':' && op {
+                            continue;
+                        }
+                        if *j.get(i).unwrap() == b'"' && op && lb != b'\\' {
+                            op = false;
+                            continue;
+                        }
+                        if *j.get(i).unwrap() == b'"' && !op && lb != b'\\' {
+                            break;
+                        }
+                        if *j.get(i).unwrap() == b'}' && op {
+                            break;
+                        }
+                        if *j.get(i).unwrap() == b']' && op {
+                            break;
+                        }
+                        if *j.get(i).unwrap() == b',' && op && os {
+                            break;
+                        }
+                        result.push(*j.get(i).unwrap());
+                        lb = *j.get(i).unwrap();
+                    }
+                    break;
+                }
+            }
+            result
+        }
 
-	// function to get value of a field for Substrate runtime (no std library and no variable allocation)
-	fn json_get_value(j:Vec<u8>,key:Vec<u8>) -> Vec<u8> {
-		let mut result=Vec::new();
-		let mut k=Vec::new();
-		let keyl = key.len();
-		let jl = j.len();
-		k.push(b'"');
-		for xk in 0..keyl{
-			k.push(*key.get(xk).unwrap());
-		}
-		k.push(b'"');
-		k.push(b':');
-		let kl = k.len();
-		for x in  0..jl {
-			let mut m=0;
-			if x+kl>jl {
-				break;
-			}
-			for (xx, i) in (x..x+kl).enumerate() {
-				if *j.get(i).unwrap()== *k.get(xx).unwrap() {
-					m += 1;
-				}
-			}
-			if m==kl{
-				let mut lb=b' ';
-				let mut op=true;
-				let mut os=true;
-				for i in x+kl..jl-1 {
-					if *j.get(i).unwrap()==b'[' && op && os{
-						os=false;
-					}
-					if *j.get(i).unwrap()==b'}' && op && !os{
-						os=true;
-					}
-					if *j.get(i).unwrap()==b':' && op{
-						continue;
-					}
-					if *j.get(i).unwrap()==b'"' && op && lb!=b'\\' {
-						op=false;
-						continue
-					}
-					if *j.get(i).unwrap()==b'"' && !op && lb!=b'\\' {
-						break;
-					}
-					if *j.get(i).unwrap()==b'}' && op{
-						break;
-					}
-					if *j.get(i).unwrap()==b']' && op{
-						break;
-					}
-					if *j.get(i).unwrap()==b',' && op && os{
-						break;
-					}
-					result.push(*j.get(i).unwrap());
-					lb= *j.get(i).unwrap();
-				}
-				break;
-			}
-		}
-		result
-	}
+        fn create_json_string(inputs: Vec<(&str, &mut Vec<u8>)>) -> Vec<u8> {
+            let mut v: Vec<u8> = vec![b'{'];
+            let mut flag = false;
 
-	fn create_json_string(inputs: Vec<(&str, &mut Vec<u8>)>) -> Vec<u8> {
-		let mut v:Vec<u8>= vec![b'{'];
-		let mut flag = false;
-
-		for (arg, val) in  inputs{
-			if flag {
-				v.push(b',');
-			}
-			v.push(b'"');
-			for i in arg.as_bytes().to_vec().iter() {
-				v.push(*i);
-			}
-			v.push(b'"');
-			v.push(b':');
-			v.append(val);
-			flag = true;
-		}
-		v.push(b'}');
-		v
-	}
-}
-
+            for (arg, val) in inputs {
+                if flag {
+                    v.push(b',');
+                }
+                v.push(b'"');
+                for i in arg.as_bytes().to_vec().iter() {
+                    v.push(*i);
+                }
+                v.push(b'"');
+                v.push(b':');
+                v.append(val);
+                flag = true;
+            }
+            v.push(b'}');
+            v
+        }
+    }
 }

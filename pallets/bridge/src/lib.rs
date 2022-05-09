@@ -25,11 +25,15 @@ mod tests;
 
 use codec::Encode;
 use frame_support::pallet_prelude::DispatchResultWithPostInfo;
-use frame_support::{codec::Decode, dispatch::DispatchResult, ensure, traits::Get};
+use frame_support::{
+    codec::Decode,
+    dispatch::DispatchResult,
+    ensure,
+    traits::{tokens::fungibles::Mutate, Get},
+};
 use frame_system::ensure_root;
 use frame_system::ensure_signed;
 use frame_system::RawOrigin;
-use pallet_assets::Asset;
 use primitives::Balance;
 use sp_runtime::traits::StaticLookup;
 use sp_std::cmp::Ordering;
@@ -283,7 +287,7 @@ pub mod pallet {
             let asset_id = str::parse::<u32>(sp_std::str::from_utf8(&asset_id).unwrap()).unwrap();
             // check whether asset exists or not
             ensure!(
-                Asset::<T>::contains_key(asset_id),
+                pallet_assets::Pallet::<T>::maybe_total_supply(asset_id).is_some(),
                 Error::<T>::AssetDoesNotExist
             );
             //check internal threshold
@@ -535,11 +539,9 @@ pub mod pallet {
                     // store the minting confirmation
                     MintConfirmation::<T>::insert(key, true);
                     //minting of the asset_id matching the token configured
-                    let asset_owner = Asset::<T>::get(asset_id).unwrap().owner;
-                    pallet_assets::Pallet::<T>::mint(
-                        RawOrigin::Signed(asset_owner).into(),
+                    <pallet_assets::Pallet<T> as Mutate<T::AccountId>>::mint_into(
                         asset_id,
-                        T::Lookup::unlookup(recipient.clone()),
+                        &recipient.clone(),
                         amount,
                     )?;
                     // generate an event
@@ -679,11 +681,9 @@ pub mod pallet {
                     // store the BurnConfirmation
                     BurnConfirmation::<T>::insert(key, true);
                     //burning of the asset_id matching the token configured
-                    let asset_owner = Asset::<T>::get(asset_id).unwrap().owner;
-                    pallet_assets::Pallet::<T>::burn(
-                        RawOrigin::Signed(asset_owner.clone()).into(),
+                    <pallet_assets::Pallet<T> as Mutate<T::AccountId>>::mint_into(
                         asset_id,
-                        T::Lookup::unlookup(recipient.clone()),
+                        &recipient.clone(),
                         amount,
                     )?;
                     // generate an event

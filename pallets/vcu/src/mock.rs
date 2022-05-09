@@ -6,6 +6,7 @@ use sp_runtime::{
     testing::Header,
     traits::{BlakeTwo256, IdentityLookup},
 };
+use sp_std::convert::{TryFrom, TryInto};
 
 type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
 type Block = frame_system::mocking::MockBlock<Test>;
@@ -17,11 +18,11 @@ frame_support::construct_runtime!(
         NodeBlock = Block,
         UncheckedExtrinsic = UncheckedExtrinsic,
     {
-        System: frame_system::{Module, Call, Config, Storage, Event<T>},
-        VCU: pallet_vcu::{Module, Call, Storage, Event<T>},
-        Balances: pallet_balances::{Module, Call, Storage, Config<T>, Event<T>},
-        Assets: pallet_assets::{Module, Call, Storage, Event<T>},
-        Timestamp: pallet_timestamp::{Module, Call, Storage, Inherent},
+        System: frame_system::{Pallet, Call, Config, Storage, Event<T>},
+        VCU: pallet_vcu::{Pallet, Call, Storage, Event<T>},
+        Balances: pallet_balances::{Pallet, Call, Storage, Config<T>, Event<T>},
+        Assets: pallet_assets::{Pallet, Call, Storage, Event<T>},
+        Timestamp: pallet_timestamp::{Pallet, Call, Storage, Inherent},
     }
 );
 
@@ -83,8 +84,6 @@ impl pallet_assets::Config for Test {
     type Balance = u128;
     type AssetId = u32;
     type ForceOrigin = frame_system::EnsureRoot<u64>;
-    type AssetDepositBase = AssetDepositBase;
-    type AssetDepositPerZombie = AssetDepositPerZombie;
     type StringLimit = StringLimit;
     type MetadataDepositBase = MetadataDepositBase;
     type MetadataDepositPerByte = MetadataDepositPerByte;
