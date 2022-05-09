@@ -321,7 +321,6 @@ pub mod pallet {
         // SBP M1 review: you could probably use Substrate FRAME's Proxy pallet for a more flexible & optimal call delegation system.
         // Note: all dispatchable calls should be benchmarked.
 
-
         /// Create new proxy setting that allow to define some accounts with administrator rights on the pallet.
         ///
         /// key=="admin" {"accounts": ["accountid1", "accountid2"] }

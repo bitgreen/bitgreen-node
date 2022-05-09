@@ -255,8 +255,8 @@ pub mod pallet {
                 Error::<T>::DuplicatedImpactAction
             );
             // check json validity
-			let js=configuration.clone();
-			ensure!(json_check_validity(js),Error::<T>::InvalidJson);
+            let js = configuration.clone();
+            ensure!(json_check_validity(js), Error::<T>::InvalidJson);
 
             // check description
             let jsd = configuration.clone();
