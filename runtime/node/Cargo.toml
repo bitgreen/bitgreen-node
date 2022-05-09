@@ -39,6 +39,7 @@ sp-session = { git = "https://github.com/paritytech/substrate", default-features
 sp-std = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.19" }
 sp-transaction-pool = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.19" }
 sp-version = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.19" }
+pallet-assets = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.19" }
 
 # Used for the node template's RPCs
 frame-system-rpc-runtime-api = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.19" }
@@ -58,7 +59,6 @@ orml-nft = { git = "https://github.com/open-web3-stack/open-runtime-module-libra
 
 # Local Dependencies
 primitives = { package = "bitg-primitives", path = "../../primitives", default-features = false }
-pallet-assets ={ default-features = false, path = "../../pallets/assets" }
 pallet-claim ={ default-features = false, version = '0.1.0', path = "../../pallets/claim" }
 pallet-impact-actions ={ default-features = false, version = '0.1.0', path = "../../pallets/impact-actions"}
 pallet-bonds ={ default-features = false, version = '0.1.0', path = "../../pallets/bonds"}
