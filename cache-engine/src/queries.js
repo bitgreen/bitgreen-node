@@ -16,7 +16,7 @@ const storeVcuAuthorizedAccount = (request, response) => {
     pool.query('INSERT INTO vcu_authorized_accounts ("block_number", "hash", "account", "description", "signer", "date") VALUES ($1, $2, $3, $4, $5, $6)',
         [block_number, hash, account, description, signer, date], (error, results) => {
             if (error) {
-                throw error
+                // console.log(error.message)
             }
             // response.status(201).send(`User added with ID: ${result.insertId}`)
         })
@@ -37,7 +37,7 @@ const getVcuAuthorizedAccounts = (request, response) => {
     pool.query('SELECT * FROM vcu_authorized_accounts WHERE account = $1 AND date >= $2 AND date <= $3 ORDER BY date,id DESC',
         [account, date_start, date_end], (error, results) => {
             if (error) {
-                throw error
+                // console.log(error.message)
             }
             response.json({
                 accounts: results.rows
@@ -53,7 +53,7 @@ const destroyVcuAuthorizedAccount = (request, response) => {
     pool.query('INSERT INTO vcu_authorized_accounts_destroyed ("block_number", "hash", "account", "signer", "date") VALUES ($1, $2, $3, $4, $5)',
         [block_number, hash, account, signer, date], (error, results) => {
             if (error) {
-                throw error
+                // console.log(error.message)
             }
             // response.status(201).send(`User added with ID: ${result.insertId}`)
         })
@@ -74,7 +74,7 @@ const getDestroyedVcuAuthorizedAccounts = (request, response) => {
     pool.query('SELECT * FROM vcu_authorized_accounts_destroyed WHERE account = $1 AND date >= $2 AND date <= $3 ORDER BY date,id DESC',
         [account, date_start, date_end], (error, results) => {
             if (error) {
-                throw error
+                // console.log(error.message)
             }
             response.json({
                 accounts: results.rows
@@ -90,7 +90,7 @@ const storeVcuAssetsGenerating = (request, response) => {
     pool.query('INSERT INTO vcu_assets_generating ("block_number", "hash", "agv_account", "agv_id", "content", "signer", "date") VALUES ($1, $2, $3, $4, $5, $6, $7)',
         [block_number, hash, agv_account, agv_id, content, signer, date], (error, results) => {
             if (error) {
-                throw error
+                // console.log(error.message)
             }
             // response.status(201).send(`User added with ID: ${result.insertId}`)
         })
@@ -111,7 +111,7 @@ const getVcuAssetsGenerating = (request, response) => {
     pool.query('SELECT * FROM vcu_assets_generating WHERE agv_account = $1 AND date >= $2 AND date <= $3 ORDER BY date,id DESC',
         [account, date_start, date_end], (error, results) => {
             if (error) {
-                throw error
+                // console.log(error.message)
             }
             response.json({
                 accounts: results.rows
@@ -127,7 +127,7 @@ const destroyVcuAssetsGenerating = (request, response) => {
     pool.query('INSERT INTO vcu_assets_generating_destroyed ("block_number", "hash", "agv_account", "agv_id", "signer", "date") VALUES ($1, $2, $3, $4, $5, $6)',
         [block_number, hash, agv_account, agv_id, signer, date], (error, results) => {
             if (error) {
-                throw error
+                // console.log(error.message)
             }
             // response.status(201).send(`User added with ID: ${result.insertId}`)
         })
@@ -148,7 +148,7 @@ const getDestroyedVcuAssetsGenerating = (request, response) => {
     pool.query('SELECT * FROM vcu_assets_generating_destroyed WHERE agv_account = $1 AND date >= $2 AND date <= $3 ORDER BY date,id DESC',
         [account, date_start, date_end], (error, results) => {
             if (error) {
-                throw error
+                // console.log(error.message)
             }
             response.json({
                 accounts: results.rows
@@ -164,7 +164,7 @@ const storeVcuAssetsGeneratingSchedule = (request, response) => {
     pool.query('INSERT INTO vcu_assets_generating_schedule ("block_number", "hash", "agv_account", "agv_id", "period_days", "amount_vcu", "token_id", "signer", "date") VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)',
         [block_number, hash, agv_account, agv_id, period_days, amount_vcu, token_id, signer, date], (error, results) => {
             if (error) {
-                throw error
+                // console.log(error.message)
             }
             // response.status(201).send(`User added with ID: ${result.insertId}`)
         })
@@ -185,7 +185,7 @@ const getVcuAssetsGeneratingSchedule = (request, response) => {
     pool.query('SELECT * FROM vcu_assets_generating_schedule WHERE agv_account = $1 AND date >= $2 AND date <= $3 ORDER BY date,id DESC',
         [account, date_start, date_end], (error, results) => {
             if (error) {
-                throw error
+                // console.log(error.message)
             }
             response.json({
                 accounts: results.rows
@@ -201,7 +201,7 @@ const destroyVcuAssetsGeneratingSchedule = (request, response) => {
     pool.query('INSERT INTO vcu_assets_generating_schedule_destroyed ("block_number", "hash", "agv_account", "agv_id", "signer", "date") VALUES ($1, $2, $3, $4, $5, $6)',
         [block_number, hash, agv_account, agv_id, signer, date], (error, results) => {
             if (error) {
-                throw error
+                // console.log(error.message)
             }
             // response.status(201).send(`User added with ID: ${result.insertId}`)
         })
@@ -222,7 +222,7 @@ const getDestroyedVcuAssetsGeneratingSchedule = (request, response) => {
     pool.query('SELECT * FROM vcu_assets_generating_schedule_destroyed WHERE agv_account = $1 AND date >= $2 AND date <= $3 ORDER BY date,id DESC',
         [account, date_start, date_end], (error, results) => {
             if (error) {
-                throw error
+                // console.log(error.message)
             }
             response.json({
                 accounts: results.rows
@@ -238,7 +238,7 @@ const storeVcuOracleAccountMinting = (request, response) => {
     pool.query('INSERT INTO vcu_oracle_account_minting ("block_number", "hash", "agv_account", "agv_id", "oracle_account", "token_id", "signer", "date") VALUES ($1, $2, $3, $4, $5, $6, $7, $8)',
         [block_number, hash, agv_account, agv_id, oracle_account, token_id, signer, date], (error, results) => {
             if (error) {
-                throw error
+                // console.log(error.message)
             }
             // response.status(201).send(`User added with ID: ${result.insertId}`)
         })
@@ -259,7 +259,7 @@ const getVcuOracleAccountMinting = (request, response) => {
     pool.query('SELECT * FROM vcu_oracle_account_minting WHERE agv_account = $1 AND date >= $2 AND date <= $3 ORDER BY date,id DESC',
         [account, date_start, date_end], (error, results) => {
             if (error) {
-                throw error
+                // console.log(error.message)
             }
             response.json({
                 accounts: results.rows
@@ -275,7 +275,7 @@ const destroyVcuOracleAccountMinting = (request, response) => {
     pool.query('INSERT INTO vcu_oracle_account_minting_destroyed ("block_number", "hash", "agv_account", "agv_id", "signer", "date") VALUES ($1, $2, $3, $4, $5, $6)',
         [block_number, hash, agv_account, agv_id, signer, date], (error, results) => {
             if (error) {
-                throw error
+                // console.log(error.message)
             }
             // response.status(201).send(`User added with ID: ${result.insertId}`)
         })
@@ -296,7 +296,7 @@ const getDestroyedVcuOracleAccountMinting = (request, response) => {
     pool.query('SELECT * FROM vcu_oracle_account_minting_destroyed WHERE agv_account = $1 AND date >= $2 AND date <= $3 ORDER BY date,id DESC',
         [account, date_start, date_end], (error, results) => {
             if (error) {
-                throw error
+                // console.log(error.message)
             }
             response.json({
                 accounts: results.rows
@@ -313,7 +313,7 @@ const storeVcuProxySettings = (request, response) => {
     pool.query('INSERT INTO vcu_proxy_settings ("block_number", "hash", "accounts", "signer", "date") VALUES ($1, $2, $3, $4, $5)',
         [block_number, hash, accounts, signer, date], (error, results) => {
             if (error) {
-                throw error
+                // console.log(error.message)
             }
             // response.status(201).send(`User added with ID: ${result.insertId}`)
         })
@@ -334,7 +334,7 @@ const getVcuProxySettings = (request, response) => {
     pool.query('SELECT * FROM vcu_proxy_settings WHERE date >= $1 AND date <= $2 ORDER BY date,id DESC',
         [date_start, date_end], (error, results) => {
             if (error) {
-                throw error
+                // console.log(error.message)
             }
             response.json({
                 accounts: results.rows
@@ -354,7 +354,7 @@ const getAssets = (request, response) => {
     pool.query('SELECT * FROM ft_assets ORDER BY date,id DESC',
         [], (error, results) => {
             if (error) {
-                throw error
+                // console.log(error.message)
             }
             response.json({
                 assets: results.rows
@@ -378,7 +378,7 @@ const getAssetsTransactions = (request, response) => {
     pool.query('SELECT * FROM ft_transactions WHERE (sender = $1 OR recipient = $1) AND date >= $2 AND date <= $3 AND asset_id = $4 ORDER BY date,id DESC',
         [account, date_start, date_end, asset_id], (error, results) => {
             if (error) {
-                throw error
+                // console.log(error.message)
             }
             response.json({
                 transactions: results.rows
@@ -393,7 +393,7 @@ const getAssetsTransaction = (request, response) => {
     pool.query('SELECT * FROM ft_transactions WHERE hash = $1',
         [hash], (error, results) => {
             if (error) {
-                throw error
+                // console.log(error.message)
             }
             if(results.rows.length === 0) {
                 return response.json({
@@ -411,7 +411,7 @@ getImpactActions = (request, response) => {
     pool.query('SELECT * FROM impact_actions ORDER BY date,id DESC',
         [], (error, results) => {
             if (error) {
-                throw error
+                // console.log(error.message)
             }
             response.json({
                 impact_actions: results.rows
@@ -424,7 +424,7 @@ getImpactActionsApprovalRequests = (request, response) => {
     pool.query('SELECT * FROM impact_actions_approval_requests ORDER BY date,id DESC',
         [], (error, results) => {
             if (error) {
-                throw error
+                // console.log(error.message)
             }
             response.json({
                 impact_actions_approval_requests: results.rows
@@ -439,7 +439,7 @@ getImpactActionsApprovalRequest = (request, response) => {
     pool.query('SELECT * FROM impact_actions_approval_requests WHERE id = $1',
         [approval_request_id], (error, results) => {
             if (error) {
-                throw error
+                // console.log(error.message)
             }
             if(results.rows.length === 0) {
                 return response.json({
@@ -459,7 +459,7 @@ getImpactActionsApprovalRequestsAuditors = (request, response) => {
     pool.query('SELECT * FROM impact_actions_approval_requests_auditors WHERE approval_request_id = $1 ORDER BY date,id DESC',
         [approval_request_id], (error, results) => {
             if (error) {
-                throw error
+                // console.log(error.message)
             }
             response.json({
                 impact_actions_approval_requests_auditors: results.rows
@@ -474,7 +474,7 @@ getImpactActionsApprovalRequestsAuditorsVotes = (request, response) => {
     pool.query('SELECT * FROM impact_actions_approval_requests_auditors_votes WHERE approval_request_id = $1 ORDER BY date,id DESC',
         [approval_request_id], (error, results) => {
             if (error) {
-                throw error
+                // console.log(error.message)
             }
             response.json({
                 impact_actions_approval_requests_auditors_votes: results.rows
@@ -487,7 +487,7 @@ getImpactActionsAuditors = (request, response) => {
     pool.query('SELECT * FROM impact_actions_auditors ORDER BY date,id DESC',
         [], (error, results) => {
             if (error) {
-                throw error
+                // console.log(error.message)
             }
             response.json({
                 impact_actions_auditors: results.rows
@@ -500,7 +500,7 @@ getImpactActionsCategories = (request, response) => {
     pool.query('SELECT * FROM impact_actions_categories ORDER BY date,id DESC',
         [], (error, results) => {
             if (error) {
-                throw error
+                // console.log(error.message)
             }
             response.json({
                 impact_actions_categories: results.rows
@@ -513,7 +513,7 @@ getImpactActionsOracles = (request, response) => {
     pool.query('SELECT * FROM impact_actions_oracles ORDER BY date,id DESC',
         [], (error, results) => {
             if (error) {
-                throw error
+                // console.log(error.message)
             }
             response.json({
                 impact_actions_oracles: results.rows
@@ -526,7 +526,7 @@ getImpactActionsProxies = (request, response) => {
     pool.query('SELECT * FROM impact_actions_proxies ORDER BY date,id DESC',
         [], (error, results) => {
             if (error) {
-                throw error
+                // console.log(error.message)
             }
             response.json({
                 impact_actions_proxies: results.rows
@@ -617,7 +617,7 @@ const getAnalyzeData = (request, response) => {
         pool.query('SELECT (array_agg(block_number))[1:5] as block_examples, section, method FROM analyze_data GROUP BY section, method ORDER BY section',
             [], (error, results) => {
                 if (error) {
-                    throw error
+                    // console.log(error.message)
                 }
                 response.json({
                     data: results.rows
@@ -627,7 +627,7 @@ const getAnalyzeData = (request, response) => {
         pool.query('SELECT (array_agg(block_number))[1:5] as block_examples, section, method FROM analyze_data WHERE section = $1 GROUP BY section, method ORDER BY section',
             [section], (error, results) => {
                 if (error) {
-                    throw error
+                    // console.log(error.message)
                 }
                 response.json({
                     data: results.rows
@@ -644,7 +644,7 @@ const storeTransaction = (request, response) => {
     pool.query('INSERT INTO transactions ("block_number", "hash", "sender", "recipient", "amount", "gas_fees", "date") VALUES ($1, $2, $3, $4, $5, $6, $7)',
         [block_number, hash, sender, recipient, amount, gas_fees, date], (error, results) => {
             if (error) {
-                throw error
+                // console.log(error.message)
             }
             // response.status(201).send(`User added with ID: ${result.insertId}`)
         })
@@ -665,7 +665,7 @@ const getTransactions = (request, response) => {
     pool.query('SELECT * FROM transactions WHERE (sender = $1 OR recipient = $1) AND date >= $2 AND date <= $3 ORDER BY date,id DESC',
         [account, date_start, date_end], (error, results) => {
             if (error) {
-                throw error
+                // console.log(error.message)
             }
             response.json({
                 transactions: results.rows
@@ -680,7 +680,7 @@ const getTransaction = (request, response) => {
     pool.query('SELECT * FROM transactions WHERE hash = $1',
         [hash], (error, results) => {
             if (error) {
-                throw error
+                // console.log(error.message)
             }
             if(results.rows.length === 0) {
                 return response.json({

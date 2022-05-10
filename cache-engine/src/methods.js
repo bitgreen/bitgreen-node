@@ -78,26 +78,31 @@ async function processBlock(api, block_number, analyze_only = false) {
 
                     if (!analyze_only) {
                         if (section === 'balances' && (method === 'transferKeepAlive' || method === 'transfer')) {
-                            // console.log(api.eth.rpc.inspect())
-                            // console.log(await api.rpc.eth.getTransactionReceipt('0x3b3c01dad5e131c63b549944bbb0fe93f6e3b2a783d01ee18f2ffbe2a5075ed2'));
+                            let event_section = event.section;
+                            let event_method = event.method;
 
-                            ex.args.map((arg, d) => {
-                                if (d === 0) {
-                                    recipient = arg.toHuman()['Id'];
-                                } else if (d === 1) {
-                                    amount = arg.toString();
-                                }
-                            });
+                            if(event_section === 'balances' && event_method === 'Transfer') {
+                                // TODO: check why api.rpc.eth is empty
+                                // console.log(api.rpc.eth.getTransactionReceipt(txHash));
 
-                            db.storeTransaction({
-                                block_number: block_number,
-                                hash: txHash,
-                                sender: signedByAddress,
-                                recipient: recipient,
-                                amount: amount,
-                                gas_fees: 0,
-                                date: current_time
-                            })
+                                ex.args.map((arg, d) => {
+                                    if (d === 0) {
+                                        recipient = arg.toHuman()['Id'];
+                                    } else if (d === 1) {
+                                        amount = arg.toString();
+                                    }
+                                });
+
+                                db.storeTransaction({
+                                    block_number: block_number,
+                                    hash: txHash,
+                                    sender: signedByAddress,
+                                    recipient: recipient,
+                                    amount: amount,
+                                    gas_fees: 0, // TODO: Calculate gas fee
+                                    date: current_time
+                                })
+                            }
                         }
 
                         if (section === 'sudo' && method === 'sudo') {
