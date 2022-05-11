@@ -1,5 +1,8 @@
-use crate::{mock::*, AssetGeneratingVCUContent, AssetGeneratingVCUContentOf, Error};
-use frame_support::{assert_noop, assert_ok};
+use crate::{
+    mock::*, AssetGeneratingVCUContent, AssetGeneratingVCUContentOf,
+    AssetsGeneratingVCUScheduleContent, Error,
+};
+use frame_support::{assert_noop, assert_ok, traits::Currency};
 use frame_system::RawOrigin;
 use sp_runtime::DispatchError::BadOrigin;
 
@@ -249,7 +252,15 @@ fn create_asset_generating_vcu_schedule_should_work_if_signed_by_root_or_authori
             expiry: None,
         };
 
-        let j = r#"{"period_days":1,"amount_vcu":1,"token_id":1}"#;
+        let expected_schedule = AssetsGeneratingVCUScheduleContent {
+            period_days: 1_u64,
+            amount_vcu: 1_u128,
+            token_id: 10000_u32,
+        };
+
+        Balances::make_free_balance_be(&1, 1000);
+        Assets::create(Origin::signed(1), 10000, 1, 1_u32.into()).unwrap();
+
         assert_ok!(VCU::create_asset_generating_vcu(
             RawOrigin::Root.into(),
             1,
@@ -264,64 +275,109 @@ fn create_asset_generating_vcu_schedule_should_work_if_signed_by_root_or_authori
             1,
             1,
             1,
-            1
+            10000
         ));
 
-        let v: Vec<u8> = VCU::asset_generating_vcu_schedule(1, 1);
-        assert_eq!(sp_std::str::from_utf8(&v).unwrap(), j);
+        let stored_schedule: AssetsGeneratingVCUScheduleContent =
+            VCU::asset_generating_vcu_schedule(1, 1).unwrap();
+        assert_eq!(expected_schedule, stored_schedule);
     });
 }
-//
-// #[test]
-// fn create_asset_generating_vcu_schedule_should_not_work_if_not_exists() {
-//     new_test_ext().execute_with(|| {
-//         assert_noop!(
-//             VCU::create_asset_generating_vcu_schedule(RawOrigin::Root.into(), 1, 1, 1, 1, 1),
-//             Error::<Test>::AssetGeneratedVCUNotFound
-//         );
-//     });
-// }
-//
-// #[test]
-// fn create_asset_generating_vcu_schedule_should_not_work_if_amount_is_zero() {
-//     new_test_ext().execute_with(|| {
-// 		let input = r#"{"description":"Description", "proofOwnership":"ipfslink", "numberOfShares":"1000"}"#.as_bytes().to_vec();
-// 		assert_ok!(VCU::create_asset_generating_vcu(RawOrigin::Root.into(), 1, 1, input.clone()));
-// 		assert_noop!(
-// 			VCU::create_asset_generating_vcu_schedule(RawOrigin::Root.into(), 1, 1, 1, 0, 1),
-// 			Error::<Test>::InvalidVCUAmount
-// 		);
-// 	});
-// }
-//
-// #[test]
-// fn destroy_asset_generating_vcu_schedule_should_work_if_signed_by_root_or_authorized_user() {
-//     new_test_ext().execute_with(|| {
-// 		let input = r#"{"description":"Description", "proofOwnership":"ipfslink", "numberOfShares":"1000"}"#.as_bytes().to_vec();
-// 		let j =r#"{"period_days":1,"amount_vcu":1,"token_id":1}"#;
-// 		assert_ok!(VCU::create_asset_generating_vcu(RawOrigin::Root.into(), 1, 1, input.clone()));
-// 		assert_eq!(VCU::asset_generating_vcu(1, 1), input);
-//
-// 		assert_ok!(VCU::create_asset_generating_vcu_schedule(RawOrigin::Root.into(), 1, 1, 1, 1, 1));
-//
-// 		let v: Vec<u8> = VCU::asset_generating_vcu_schedule(1, 1);
-// 		assert_eq!(sp_std::str::from_utf8(&v).unwrap(), j);
-//
-// 		assert_ok!(VCU::destroy_asset_generating_vcu_schedule(RawOrigin::Root.into(), 1, 1));
-// 		assert_eq!(VCU::asset_generating_vcu_schedule(1, 1), b"".to_vec());
-// 	});
-// }
-//
-// #[test]
-// fn destroy_asset_generating_vcu_schedule_should_not_work_if_not_exists() {
-//     new_test_ext().execute_with(|| {
-//         assert_noop!(
-//             VCU::destroy_asset_generating_vcu_schedule(RawOrigin::Root.into(), 1, 1),
-//             Error::<Test>::AssetGeneratedVCUScheduleNotFound
-//         );
-//     });
-// }
-//
+
+#[test]
+fn create_asset_generating_vcu_schedule_should_not_work_if_not_exists() {
+    new_test_ext().execute_with(|| {
+        assert_noop!(
+            VCU::create_asset_generating_vcu_schedule(RawOrigin::Root.into(), 1, 1, 1, 1, 1),
+            Error::<Test>::AssetGeneratingVCUNotFound
+        );
+    });
+}
+
+#[test]
+fn create_asset_generating_vcu_schedule_should_not_work_if_amount_is_zero() {
+    new_test_ext().execute_with(|| {
+        let input: AssetGeneratingVCUContentOf<Test> = AssetGeneratingVCUContent {
+            description: "Description".into(),
+            proof_of_ownership: "proof".into(),
+            number_of_shares: 1000,
+            other_documents: None,
+            expiry: None,
+        };
+
+        assert_ok!(VCU::create_asset_generating_vcu(
+            RawOrigin::Root.into(),
+            1,
+            1,
+            input.clone()
+        ));
+        assert_noop!(
+            VCU::create_asset_generating_vcu_schedule(RawOrigin::Root.into(), 1, 1, 1, 0, 1),
+            Error::<Test>::InvalidVCUAmount
+        );
+    });
+}
+
+#[test]
+fn destroy_asset_generating_vcu_schedule_should_work_if_signed_by_root_or_authorized_user() {
+    new_test_ext().execute_with(|| {
+        let input: AssetGeneratingVCUContentOf<Test> = AssetGeneratingVCUContent {
+            description: "Description".into(),
+            proof_of_ownership: "proof".into(),
+            number_of_shares: 1000,
+            other_documents: None,
+            expiry: None,
+        };
+
+        let expected_schedule = AssetsGeneratingVCUScheduleContent {
+            period_days: 1_u64,
+            amount_vcu: 1_u128,
+            token_id: 10000_u32,
+        };
+
+        Balances::make_free_balance_be(&1, 1000);
+        Assets::create(Origin::signed(1), 10000, 1, 1_u32.into()).unwrap();
+
+        assert_ok!(VCU::create_asset_generating_vcu(
+            RawOrigin::Root.into(),
+            1,
+            1,
+            input.clone()
+        ));
+        assert_eq!(VCU::asset_generating_vcu(1, 1), Some(input));
+
+        assert_ok!(VCU::create_asset_generating_vcu_schedule(
+            RawOrigin::Root.into(),
+            1,
+            1,
+            1,
+            1,
+            10000
+        ));
+
+        let stored_schedule: AssetsGeneratingVCUScheduleContent =
+            VCU::asset_generating_vcu_schedule(1, 1).unwrap();
+        assert_eq!(expected_schedule, stored_schedule);
+
+        assert_ok!(VCU::destroy_asset_generating_vcu_schedule(
+            RawOrigin::Root.into(),
+            1,
+            1
+        ));
+        assert_eq!(VCU::asset_generating_vcu_schedule(1, 1), None);
+    });
+}
+
+#[test]
+fn destroy_asset_generating_vcu_schedule_should_not_work_if_not_exists() {
+    new_test_ext().execute_with(|| {
+        assert_noop!(
+            VCU::destroy_asset_generating_vcu_schedule(RawOrigin::Root.into(), 1, 1),
+            Error::<Test>::AssetGeneratedVCUScheduleNotFound
+        );
+    });
+}
+
 // #[test]
 // fn mint_scheduled_vcu_should_work_if_signed_by_root_or_authorized_user() {
 //     new_test_ext().execute_with(|| {

@@ -19,3 +19,11 @@ pub struct AssetGeneratingVCUContent<Time> {
     pub expiry: Option<Time>,
     pub number_of_shares: u32,
 }
+
+#[derive(Clone, Encode, Decode, Eq, PartialEq, Debug, TypeInfo)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct AssetsGeneratingVCUScheduleContent {
+    pub period_days: u64,
+    pub amount_vcu: u128,
+    pub token_id: u32,
+}
