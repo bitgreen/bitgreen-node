@@ -45,10 +45,16 @@ use sp_std::convert::TryInto;
 use sp_std::vec;
 use sp_std::vec::Vec;
 
+mod types;
+pub use types::*;
+
 #[frame_support::pallet]
 pub mod pallet {
     use super::*;
     use frame_support::{dispatch::DispatchResultWithPostInfo, pallet_prelude::*};
+
+    pub type AssetGeneratingVCUContentOf<T> =
+        AssetGeneratingVCUContent<<T as frame_system::Config>::BlockNumber>;
 
     #[pallet::config]
     pub trait Config:
@@ -81,8 +87,14 @@ pub mod pallet {
     /// AssetsGeneratingVCU (Verified Carbon Credit) should be stored on chain from the authorized accounts.
     #[pallet::storage]
     #[pallet::getter(fn asset_generating_vcu)]
-    pub type AssetsGeneratingVCU<T: Config> =
-        StorageDoubleMap<_, Blake2_128Concat, T::AccountId, Blake2_128Concat, u32, Vec<u8>>;
+    pub type AssetsGeneratingVCU<T: Config> = StorageDoubleMap<
+        _,
+        Blake2_128Concat,
+        T::AccountId,
+        Blake2_128Concat,
+        u32,
+        AssetGeneratingVCUContentOf<T>,
+    >;
 
     /// AssetsGeneratingVCUShares The AGV shares can be minted/burned from the Authorized account up to the maximum number set in the AssetsGeneratingVCU.
     #[pallet::storage]
@@ -230,14 +242,6 @@ pub mod pallet {
         InvalidDescription,
         /// AuthorizedAccountsAGV has not been found on the blockchain
         AuthorizedAccountsAGVNotFound,
-        /// Settings data is too short to be valid
-        AssetGeneratingJsonTooShort,
-        /// Settings data is too long to be valid
-        AssetGeneratingJsonTooLong,
-        /// ProofOwnership Not found
-        ProofOwnershipNotFound,
-        /// ProofOwnership too long
-        ProofOwnershipTooLong,
         /// NumberofShares not found
         NumberofSharesNotFound,
         /// Number of share cannot be zero
@@ -430,7 +434,7 @@ pub mod pallet {
             origin: OriginFor<T>,
             agv_account_id: T::AccountId,
             agv_id: u32,
-            content: Vec<u8>,
+            content: AssetGeneratingVCUContentOf<T>,
         ) -> DispatchResult {
             // check for SUDO user or owner account
             match ensure_root(origin.clone()) {
@@ -443,47 +447,12 @@ pub mod pallet {
                     }
                 }),
             }?;
-            //check content json length
-            ensure!(content.len() > 12, Error::<T>::AssetGeneratingJsonTooShort);
-            ensure!(content.len() < 8192, Error::<T>::AssetGeneratingJsonTooLong);
 
-            // check json validity
-            let js = content.clone();
-            ensure!(Self::json_check_validity(js), Error::<T>::InvalidJson);
-            // checj for description validity
-            let description =
-                Self::json_get_value(content.clone(), "description".as_bytes().to_vec());
             ensure!(
-                !description.is_empty() && description.len() <= 64,
-                Error::<T>::InvalidDescription
-            );
-            // check for proof of ownership
-            let proof_ownership =
-                Self::json_get_value(content.clone(), "proofOwnership".as_bytes().to_vec());
-            ensure!(
-                !proof_ownership.is_empty(),
-                Error::<T>::ProofOwnershipNotFound
-            );
-            ensure!(
-                proof_ownership.len() <= 128,
-                Error::<T>::ProofOwnershipTooLong
-            );
-            // check for number of shares
-            let number_of_shares =
-                Self::json_get_value(content.clone(), "numberOfShares".as_bytes().to_vec());
-            ensure!(
-                !number_of_shares.is_empty(),
-                Error::<T>::NumberofSharesNotFound
-            );
-            ensure!(
-                str::parse::<i32>(sp_std::str::from_utf8(&number_of_shares).unwrap()).unwrap()
-                    <= 10000,
-                Error::<T>::TooManyShares
-            );
-            ensure!(
-                str::parse::<i32>(sp_std::str::from_utf8(&number_of_shares).unwrap()).unwrap() > 0,
+                content.number_of_shares > 0,
                 Error::<T>::NumberofSharesCannotBeZero
             );
+
             // store the asset
             AssetsGeneratingVCU::<T>::try_mutate_exists(agv_account_id, agv_id, |desc| {
                 *desc = Some(content);
@@ -537,7 +506,8 @@ pub mod pallet {
         pub fn mint_shares_asset_generating_vcu(
             origin: OriginFor<T>,
             recipient: T::AccountId,
-            agv_account: Vec<u8>,
+            agv_account: T::AccountId,
+            agv_id: u32,
             number_of_shares: u32,
         ) -> DispatchResult {
             // checking for SUDO or authorized account
@@ -551,46 +521,41 @@ pub mod pallet {
                     }
                 }),
             }?;
-            // split the field agv_account
-            let agv_id_vec: Vec<&str> = sp_std::str::from_utf8(&agv_account)
-                .unwrap()
-                .split('-')
-                .collect();
-            ensure!(agv_id_vec.len() == 2, Error::<T>::InvalidAGVId);
-            let (str_account_id, agv_id): (&str, u32) =
-                (agv_id_vec[0], str::parse::<u32>(agv_id_vec[1]).unwrap());
-            let account_id = T::AccountId::decode(&mut &str_account_id.as_bytes().to_vec()[1..33])
-                .map_err(|_| Error::<T>::InvalidJson)?;
+
             // check whether asset generating VCU (AGV) exists or not
             // read info about the AGV
-            let content: Vec<u8> = AssetsGeneratingVCU::<T>::get(&account_id, &agv_id)
-                .ok_or(Error::<T>::AssetGeneratingVCUNotFound)?;
-            let total_shares = Self::json_get_value(content, "numberOfShares".as_bytes().to_vec());
-            let int_shares =
-                str::parse::<u32>(sp_std::str::from_utf8(&total_shares).unwrap()).unwrap();
+            let content: AssetGeneratingVCUContentOf<T> =
+                AssetsGeneratingVCU::<T>::get(&agv_account, &agv_id)
+                    .ok_or(Error::<T>::AssetGeneratingVCUNotFound)?;
 
             // increase the total shares minted for the recipient/shareholder
             AssetsGeneratingVCUSharesMinted::<T>::try_mutate(
-                &account_id,
+                &agv_account,
                 &agv_id,
                 |share| -> DispatchResult {
                     let total_sh = share
                         .checked_add(number_of_shares)
                         .ok_or(Error::<T>::Overflow)?;
-                    ensure!(total_sh <= int_shares, Error::<T>::TooManyShares);
+                    ensure!(
+                        total_sh <= content.number_of_shares,
+                        Error::<T>::TooManyShares
+                    );
                     *share = total_sh;
                     Ok(())
                 },
             )?;
             // increase the total shares minted per AGV
             AssetsGeneratingVCUSharesMintedTotal::<T>::try_mutate(
-                &account_id,
+                &agv_account,
                 &agv_id,
                 |share| -> DispatchResult {
                     let total_sh = share
                         .checked_add(number_of_shares)
                         .ok_or(Error::<T>::Overflow)?;
-                    ensure!(total_sh <= int_shares, Error::<T>::TooManyShares);
+                    ensure!(
+                        total_sh <= content.number_of_shares,
+                        Error::<T>::TooManyShares
+                    );
                     *share = total_sh;
                     Ok(())
                 },
@@ -609,7 +574,7 @@ pub mod pallet {
             )?;
 
             // Generate event
-            Self::deposit_event(Event::AssetsGeneratingVCUSharesMinted(account_id, agv_id));
+            Self::deposit_event(Event::AssetsGeneratingVCUSharesMinted(agv_account, agv_id));
             // Return a successful DispatchResult
             Ok(())
         }

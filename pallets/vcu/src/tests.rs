@@ -1,4 +1,4 @@
-use crate::{mock::*, Error};
+use crate::{mock::*, AssetGeneratingVCUContent, AssetGeneratingVCUContentOf, Error};
 use frame_support::{assert_noop, assert_ok};
 use frame_system::RawOrigin;
 use sp_runtime::DispatchError::BadOrigin;
@@ -63,190 +63,214 @@ fn destroy_proxy_settings_should_not_work_for_non_existing_key() {
 #[test]
 fn destroy_proxy_settings_should_only_be_called_by_root() {
     new_test_ext().execute_with(|| {
+        assert_noop!(VCU::destroy_proxy_settings(Origin::signed(1)), BadOrigin);
+    });
+}
+
+#[test]
+fn add_new_authorized_accounts_should_work() {
+    new_test_ext().execute_with(|| {
+        assert_ok!(VCU::add_authorized_account(
+            RawOrigin::Root.into(),
+            1,
+            b"Verra".to_vec()
+        ));
+        assert_eq!(VCU::get_authorized_accounts(1), Some(b"Verra".to_vec()));
+    });
+}
+
+#[test]
+fn update_existing_authorized_accounts_should_work() {
+    new_test_ext().execute_with(|| {
+        assert_ok!(VCU::add_authorized_account(
+            RawOrigin::Root.into(),
+            1,
+            b"Verra".to_vec()
+        ));
+        assert_eq!(VCU::get_authorized_accounts(1), Some(b"Verra".to_vec()));
+
+        assert_ok!(VCU::add_authorized_account(
+            RawOrigin::Root.into(),
+            1,
+            b"Verra22".to_vec()
+        ));
+        assert_eq!(VCU::get_authorized_accounts(1), Some(b"Verra22".to_vec()));
+    });
+}
+
+#[test]
+fn add_authorized_accounts_should_not_work_for_invalid_description() {
+    new_test_ext().execute_with(|| {
         assert_noop!(
-            VCU::destroy_proxy_settings(Origin::signed(1)),
+            VCU::add_authorized_account(RawOrigin::Root.into(), 1, b"".to_vec()),
+            Error::<Test>::InvalidDescription
+        );
+    });
+}
+
+#[test]
+fn destroy_authorized_accounts_should_work() {
+    new_test_ext().execute_with(|| {
+        assert_ok!(VCU::add_authorized_account(
+            RawOrigin::Root.into(),
+            1,
+            b"Verra".to_vec()
+        ));
+        assert_eq!(VCU::get_authorized_accounts(1), Some(b"Verra".to_vec()));
+
+        assert_ok!(VCU::destroy_authorized_account(RawOrigin::Root.into(), 1));
+        assert_eq!(VCU::get_authorized_accounts(1), None);
+    });
+}
+
+#[test]
+fn destroy_authorized_accounts_should_not_work_for_non_existing_account() {
+    new_test_ext().execute_with(|| {
+        assert_noop!(
+            VCU::destroy_authorized_account(RawOrigin::Root.into(), 1),
+            Error::<Test>::AuthorizedAccountsAGVNotFound
+        );
+    });
+}
+
+#[test]
+fn create_asset_generating_vcu_should_work_if_signed_by_root_or_authorized_user() {
+    new_test_ext().execute_with(|| {
+        let input: AssetGeneratingVCUContentOf<Test> = AssetGeneratingVCUContent {
+            description: "Description".into(),
+            proof_of_ownership: "proof".into(),
+            number_of_shares: 10000,
+            other_documents: None,
+            expiry: None,
+        };
+
+        assert_ok!(VCU::create_asset_generating_vcu(
+            RawOrigin::Root.into(),
+            1,
+            1,
+            input.clone()
+        ));
+        assert_eq!(VCU::asset_generating_vcu(1, 1), Some(input.clone()));
+
+        assert_ok!(VCU::add_authorized_account(
+            RawOrigin::Root.into(),
+            11,
+            b"Verra".to_vec()
+        ));
+
+        assert_ok!(VCU::create_asset_generating_vcu(
+            Origin::signed(11),
+            1,
+            1,
+            input
+        ));
+    });
+}
+
+#[test]
+fn create_asset_generating_vcu_should_not_work_if_not_valid_input() {
+    new_test_ext().execute_with(|| {
+        let input: AssetGeneratingVCUContentOf<Test> = AssetGeneratingVCUContent {
+            description: "Description".into(),
+            proof_of_ownership: "proof".into(),
+            number_of_shares: 0,
+            other_documents: None,
+            expiry: None,
+        };
+
+        assert_noop!(
+            VCU::create_asset_generating_vcu(RawOrigin::Root.into(), 1, 1, input.clone()),
+            Error::<Test>::NumberofSharesCannotBeZero
+        );
+
+        assert_noop!(
+            VCU::create_asset_generating_vcu(Origin::signed(11), 1, 1, input),
             BadOrigin
         );
     });
 }
 
-// #[test]
-// fn add_new_authorized_accounts_should_work() {
-//     new_test_ext().execute_with(|| {
-//         assert_ok!(VCU::add_authorized_account(
-//             RawOrigin::Root.into(),
-//             1,
-//             b"Verra".to_vec()
-//         ));
-//         assert_eq!(VCU::get_authorized_accounts(1), b"Verra".to_vec());
-//     });
-// }
-//
-// #[test]
-// fn update_existing_authorized_accounts_should_work() {
-//     new_test_ext().execute_with(|| {
-//         assert_ok!(VCU::add_authorized_account(
-//             RawOrigin::Root.into(),
-//             1,
-//             b"Verra".to_vec()
-//         ));
-//         assert_eq!(VCU::get_authorized_accounts(1), b"Verra".to_vec());
-//
-//         assert_ok!(VCU::add_authorized_account(
-//             RawOrigin::Root.into(),
-//             1,
-//             b"Verra22".to_vec()
-//         ));
-//         assert_eq!(VCU::get_authorized_accounts(1), b"Verra22".to_vec());
-//     });
-// }
-//
-// #[test]
-// fn add_authorized_accounts_should_not_work_for_invalid_description() {
-//     new_test_ext().execute_with(|| {
-//         assert_noop!(
-//             VCU::add_authorized_account(RawOrigin::Root.into(), 1, b"".to_vec()),
-//             Error::<Test>::InvalidDescription
-//         );
-//     });
-// }
-//
-// #[test]
-// fn destroy_authorized_accounts_should_work() {
-//     new_test_ext().execute_with(|| {
-//         assert_ok!(VCU::add_authorized_account(
-//             RawOrigin::Root.into(),
-//             1,
-//             b"Verra".to_vec()
-//         ));
-//         assert_eq!(VCU::get_authorized_accounts(1), b"Verra".to_vec());
-//
-//         assert_ok!(VCU::destroy_authorized_account(RawOrigin::Root.into(), 1));
-//         assert_eq!(VCU::get_authorized_accounts(1), b"".to_vec());
-//     });
-// }
-//
-// #[test]
-// fn destroy_authorized_accounts_should_not_work_for_non_existing_account() {
-//     new_test_ext().execute_with(|| {
-//         assert_noop!(
-//             VCU::destroy_authorized_account(RawOrigin::Root.into(), 1),
-//             Error::<Test>::AuthorizedAccountsAGVNotFound
-//         );
-//     });
-// }
-//
-// #[test]
-// fn create_asset_generating_vcu_should_work_if_signed_by_root_or_authorized_user() {
-//     new_test_ext().execute_with(|| {
-//         let input =
-//             r#"{"description":"Description", "proofOwnership":"ipfslink", "numberOfShares":10000}"#
-//                 .as_bytes()
-//                 .to_vec();
-//         assert_ok!(VCU::create_asset_generating_vcu(
-//             RawOrigin::Root.into(),
-//             1,
-//             1,
-//             input.clone()
-//         ));
-//         assert_eq!(VCU::asset_generating_vcu(1, 1), input);
-//
-//         assert_ok!(VCU::add_authorized_account(
-//             RawOrigin::Root.into(),
-//             11,
-//             b"Verra".to_vec()
-//         ));
-//         assert_ok!(VCU::create_asset_generating_vcu(
-//             Origin::signed(11),
-//             1,
-//             1,
-//             input
-//         ));
-//     });
-// }
-//
-// #[test]
-// fn create_asset_generating_vcu_should_not_work_if_not_valid_input() {
-//     new_test_ext().execute_with(|| {
-// 		assert_noop!(
-// 			VCU::create_asset_generating_vcu(RawOrigin::Root.into(), 1, 1, r#"{"description":"", "proofOwnership":"ipfslink", "numberOfShares":10000}"#.as_bytes().to_vec()),
-// 			Error::<Test>::InvalidDescription
-// 		);
-//
-// 		assert_noop!(
-// 			VCU::create_asset_generating_vcu(RawOrigin::Root.into(), 1, 1, r#"{"description":"description", "proofOwnership":"", "numberOfShares":10000}"#.as_bytes().to_vec()),
-// 			Error::<Test>::ProofOwnershipNotFound
-// 		);
-//
-// 		assert_noop!(
-// 			VCU::create_asset_generating_vcu(RawOrigin::Root.into(), 1, 1, r#"{"description":"description", "proofOwnership":"proofOwnership", "numberOfShares":""}"#.as_bytes().to_vec()),
-// 			Error::<Test>::NumberofSharesNotFound
-// 		);
-//
-// 		assert_noop!(
-// 			VCU::create_asset_generating_vcu(RawOrigin::Root.into(), 1, 1, r#"{"description":"description", "proofOwnership":"proofOwnership", "numberOfShares":10001}"#.as_bytes().to_vec()),
-// 			Error::<Test>::TooManyNumberofShares
-// 		);
-// 	});
-// }
-//
-// #[test]
-// fn create_asset_generating_vcu_should_not_work_if_not_signed_by_root_or_authorized_user() {
-//     new_test_ext().execute_with(|| {
-//         assert_noop!(
-//             VCU::create_asset_generating_vcu(Origin::signed(11), 1, 1, b"Verra".to_vec()),
-//             BadOrigin
-//         );
-//     });
-// }
-//
-// #[test]
-// fn destroy_asset_generating_vcu_should_work_if_signed_by_root_or_authorized_user() {
-//     new_test_ext().execute_with(|| {
-// 		let input = r#"{"description":"Description", "proofOwnership":"ipfslink", "numberOfShares":"1000"}"#.as_bytes().to_vec();
-//
-// 		assert_ok!(VCU::create_asset_generating_vcu(RawOrigin::Root.into(), 1, 1, input.clone()));
-// 		assert_eq!(VCU::asset_generating_vcu(1, 1), input);
-//
-// 		assert_ok!(VCU::destroy_asset_generating_vcu(RawOrigin::Root.into(), 1, 1));
-// 		assert_eq!(VCU::asset_generating_vcu(1, 1), b"".to_vec());
-// 	});
-// }
-//
-// #[test]
-// fn destroy_asset_generating_vcu_should_not_work_if_not_signed_by_root_or_authorized_user() {
-//     new_test_ext().execute_with(|| {
-//         assert_noop!(
-//             VCU::destroy_asset_generating_vcu(Origin::signed(11), 1, 1),
-//             BadOrigin
-//         );
-//     });
-// }
-//
-// #[test]
-// fn destroy_asset_generating_vcu_should_not_work_if_not_exists() {
-//     new_test_ext().execute_with(|| {
-//         assert_noop!(
-//             VCU::destroy_asset_generating_vcu(RawOrigin::Root.into(), 1, 1),
-//             Error::<Test>::AssetGeneratedVCUNotFound
-//         );
-//     });
-// }
-//
-// #[test]
-// fn create_asset_generating_vcu_schedule_should_work_if_signed_by_root_or_authorized_user() {
-//     new_test_ext().execute_with(|| {
-// 		let input = r#"{"description":"Description", "proofOwnership":"ipfslink", "numberOfShares":"1000"}"#.as_bytes().to_vec();
-// 		let j =r#"{"period_days":1,"amount_vcu":1,"token_id":1}"#;
-// 		assert_ok!(VCU::create_asset_generating_vcu(RawOrigin::Root.into(), 1, 1, input.clone()));
-// 		assert_eq!(VCU::asset_generating_vcu(1, 1), input);
-//
-// 		assert_ok!(VCU::create_asset_generating_vcu_schedule(RawOrigin::Root.into(), 1, 1, 1, 1, 1));
-//
-// 		let v: Vec<u8> = VCU::asset_generating_vcu_schedule(1, 1);
-// 		assert_eq!(sp_std::str::from_utf8(&v).unwrap(), j);
-// 	});
-// }
+#[test]
+fn destroy_asset_generating_vcu_should_work_if_signed_by_root_or_authorized_user() {
+    new_test_ext().execute_with(|| {
+        let input: AssetGeneratingVCUContentOf<Test> = AssetGeneratingVCUContent {
+            description: "Description".into(),
+            proof_of_ownership: "proof".into(),
+            number_of_shares: 1000,
+            other_documents: None,
+            expiry: None,
+        };
+
+        assert_ok!(VCU::create_asset_generating_vcu(
+            RawOrigin::Root.into(),
+            1,
+            1,
+            input.clone()
+        ));
+        assert_eq!(VCU::asset_generating_vcu(1, 1), Some(input));
+
+        assert_ok!(VCU::destroy_asset_generating_vcu(
+            RawOrigin::Root.into(),
+            1,
+            1
+        ));
+        assert_eq!(VCU::asset_generating_vcu(1, 1), None);
+    });
+}
+
+#[test]
+fn destroy_asset_generating_vcu_should_not_work_if_not_signed_by_root_or_authorized_user() {
+    new_test_ext().execute_with(|| {
+        assert_noop!(
+            VCU::destroy_asset_generating_vcu(Origin::signed(11), 1, 1),
+            BadOrigin
+        );
+    });
+}
+
+#[test]
+fn destroy_asset_generating_vcu_should_not_work_if_not_exists() {
+    new_test_ext().execute_with(|| {
+        assert_noop!(
+            VCU::destroy_asset_generating_vcu(RawOrigin::Root.into(), 1, 1),
+            Error::<Test>::AssetGeneratingVCUNotFound
+        );
+    });
+}
+
+#[test]
+fn create_asset_generating_vcu_schedule_should_work_if_signed_by_root_or_authorized_user() {
+    new_test_ext().execute_with(|| {
+        let input: AssetGeneratingVCUContentOf<Test> = AssetGeneratingVCUContent {
+            description: "Description".into(),
+            proof_of_ownership: "proof".into(),
+            number_of_shares: 1000,
+            other_documents: None,
+            expiry: None,
+        };
+
+        let j = r#"{"period_days":1,"amount_vcu":1,"token_id":1}"#;
+        assert_ok!(VCU::create_asset_generating_vcu(
+            RawOrigin::Root.into(),
+            1,
+            1,
+            input.clone()
+        ));
+        assert_eq!(VCU::asset_generating_vcu(1, 1), Some(input));
+
+        assert_ok!(VCU::create_asset_generating_vcu_schedule(
+            RawOrigin::Root.into(),
+            1,
+            1,
+            1,
+            1,
+            1
+        ));
+
+        let v: Vec<u8> = VCU::asset_generating_vcu_schedule(1, 1);
+        assert_eq!(sp_std::str::from_utf8(&v).unwrap(), j);
+    });
+}
 //
 // #[test]
 // fn create_asset_generating_vcu_schedule_should_not_work_if_not_exists() {
