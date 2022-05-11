@@ -70,7 +70,7 @@ pub mod pallet {
     /// Settings configuration, we define some administrator accounts for the pallet VCU without using the super user account.
     #[pallet::storage]
     #[pallet::getter(fn get_settings)]
-    pub type Settings<T: Config> = StorageMap<_, Blake2_128Concat, Vec<u8>, Vec<u8>>;
+    pub type Settings<T: Config> = StorageValue<_, Vec<T::AccountId>>;
 
     /// AuthorizedAccountsAGV, we define authorized accounts to store/change the Assets Generating VCU (Verified Carbon Credit).
     #[pallet::storage]
@@ -176,9 +176,9 @@ pub mod pallet {
     #[pallet::generate_deposit(pub(super) fn deposit_event)]
     pub enum Event<T: Config> {
         /// New proxy setting has been created.
-        SettingsCreated(Vec<u8>, Vec<u8>),
+        SettingsCreated(Vec<T::AccountId>),
         /// Proxy setting has been destroyed.
-        SettingsDestroyed(Vec<u8>),
+        SettingsDestroyed,
         /// Added authorized account.
         AuthorizedAccountAdded(T::AccountId),
         /// Destroyed authorized account.
@@ -322,57 +322,39 @@ pub mod pallet {
         // Note: all dispatchable calls should be benchmarked.
 
         /// Create new proxy setting that allow to define some accounts with administrator rights on the pallet.
-        ///
-        /// key=="admin" {"accounts": ["accountid1", "accountid2"] }
-        /// `create_proxy_settings` will accept `accounts` as parameter
-        /// and create new proxy setting in system with key `admin`
-        ///
         /// The dispatch origin for this call must be `Signed` by the Root.
         #[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
-        pub fn create_proxy_settings(origin: OriginFor<T>, accounts: Vec<u8>) -> DispatchResult {
+        pub fn create_proxy_settings(
+            origin: OriginFor<T>,
+            accounts: Vec<T::AccountId>,
+        ) -> DispatchResult {
             ensure_root(origin)?;
 
-            //check accounts json length
-            ensure!(accounts.len() > 12, Error::<T>::SettingsJsonTooShort);
-            ensure!(accounts.len() < 8192, Error::<T>::SettingsJsonTooLong);
-
-            // check json validity
-            let js = accounts.clone();
-            ensure!(Self::json_check_validity(js), Error::<T>::InvalidJson);
-
-            let key = "admin".as_bytes().to_vec();
-
             // check whether setting key already exists
-            ensure!(
-                !Settings::<T>::contains_key(&key),
-                Error::<T>::SettingsKeyExists
-            );
+            ensure!(!Settings::<T>::exists(), Error::<T>::SettingsKeyExists);
 
-            Settings::<T>::insert(key.clone(), accounts.clone());
+            Settings::<T>::set(Some(accounts.clone()));
             // Generate event
-            Self::deposit_event(Event::SettingsCreated(key, accounts));
+            Self::deposit_event(Event::SettingsCreated(accounts));
             // Return a successful DispatchResult
             Ok(())
         }
 
-        /// Destroy proxy setting with key:"admin"
+        /// Destroy proxy setting keys
         ///
         /// The dispatch origin for this call must be `Signed` by the Root.
         #[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
         pub fn destroy_proxy_settings(origin: OriginFor<T>) -> DispatchResult {
             // check for SUDO
             ensure_root(origin)?;
-            // search for the key of the proxy settings
-            let key = "admin".as_bytes().to_vec();
+
             // check whether setting key exists
-            ensure!(
-                Settings::<T>::contains_key(&key),
-                Error::<T>::SettingsKeyNotFound
-            );
+            ensure!(Settings::<T>::exists(), Error::<T>::SettingsKeyNotFound);
+
             // remove the proxy settings
-            Settings::<T>::remove(key.clone());
+            Settings::<T>::kill();
             // Generate event
-            Self::deposit_event(Event::SettingsDestroyed(key));
+            Self::deposit_event(Event::SettingsDestroyed);
             // Return a successful DispatchResult
             Ok(())
         }

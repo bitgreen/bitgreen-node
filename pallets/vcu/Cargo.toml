@@ -41,4 +41,5 @@ std = [
     'bs58/std',
     'scale-info/std',
     'pallet-assets/std',
+    'pallet-balances/std',
 ]
