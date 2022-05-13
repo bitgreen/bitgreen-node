@@ -1,60 +1,50 @@
-use structopt::StructOpt;
 use sc_cli::RunCmd;
 
-
-#[derive(Debug, StructOpt)]
+#[derive(Debug, clap::Parser)]
 pub struct Cli {
-	#[structopt(subcommand)]
-	pub subcommand: Option<Subcommand>,
+    #[clap(subcommand)]
+    pub subcommand: Option<Subcommand>,
 
-	#[structopt(flatten)]
-	pub run: RunCmd,
+    #[clap(flatten)]
+    pub run: RunCmd,
 }
 
-#[derive(Debug, StructOpt)]
+#[derive(Debug, clap::Subcommand)]
 pub enum Subcommand {
-	/// Key management cli utilities
-	Key(sc_cli::KeySubcommand),
+    /// Key management cli utilities
+    #[clap(subcommand)]
+    Key(sc_cli::KeySubcommand),
 
-	// /// The custom inspect subcommmand for decoding blocks and extrinsics.
-	// #[structopt(
-	// 	name = "inspect",
-	// 	about = "Decode given block or extrinsic using current native runtime."
-	// )]
-	// Inspect(inspect::cli::InspectCmd),
+    /// Build a chain specification.
+    BuildSpec(sc_cli::BuildSpecCmd),
 
-	/// Verify a signature for a message, provided on STDIN, with a given
-	/// (public or secret) key.
-	Verify(sc_cli::VerifyCmd),
+    /// Validate blocks.
+    CheckBlock(sc_cli::CheckBlockCmd),
 
-	/// Generate a seed that provides a vanity address.
-	Vanity(sc_cli::VanityCmd),
+    /// Export blocks.
+    ExportBlocks(sc_cli::ExportBlocksCmd),
 
-	/// Sign a message, with a given (secret) key.
-	Sign(sc_cli::SignCmd),
+    /// Export the state of a given block into a chain spec.
+    ExportState(sc_cli::ExportStateCmd),
 
-	/// Build a chain specification.
-	BuildSpec(sc_cli::BuildSpecCmd),
+    /// Import blocks.
+    ImportBlocks(sc_cli::ImportBlocksCmd),
 
-	/// Validate blocks.
-	CheckBlock(sc_cli::CheckBlockCmd),
+    /// Remove the whole chain.
+    PurgeChain(sc_cli::PurgeChainCmd),
 
-	/// Export blocks.
-	ExportBlocks(sc_cli::ExportBlocksCmd),
+    /// Revert the chain to a previous state.
+    Revert(sc_cli::RevertCmd),
 
-	/// Export the state of a given block into a chain spec.
-	ExportState(sc_cli::ExportStateCmd),
+    /// Sub-commands concerned with benchmarking.
+    #[clap(subcommand)]
+    Benchmark(frame_benchmarking_cli::BenchmarkCmd),
 
-	/// Import blocks.
-	ImportBlocks(sc_cli::ImportBlocksCmd),
+    /// Try some command against runtime state.
+    #[cfg(feature = "try-runtime")]
+    TryRuntime(try_runtime_cli::TryRuntimeCmd),
 
-	/// Remove the whole chain.
-	PurgeChain(sc_cli::PurgeChainCmd),
-
-	/// Revert the chain to a previous state.
-	Revert(sc_cli::RevertCmd),
-
-	/// The custom benchmark subcommmand benchmarking runtime pallets.
-	#[structopt(name = "benchmark", about = "Benchmark runtime pallets.")]
-	Benchmark(frame_benchmarking_cli::BenchmarkCmd),
+    /// Try some command against runtime state. Note: `try-runtime` feature must be enabled.
+    #[cfg(not(feature = "try-runtime"))]
+    TryRuntime,
 }

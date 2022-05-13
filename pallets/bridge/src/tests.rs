@@ -1,9 +1,9 @@
-use crate::{Error, mock::*};
-use frame_support::{assert_ok, assert_noop};
+use crate::{mock::*, Error};
+use frame_support::{assert_noop, assert_ok};
 
 #[test]
 fn create_settings_should_work() {
-	new_test_ext().execute_with(|| {
+    new_test_ext().execute_with(|| {
 
 		assert_ok!(Assets::force_create(Origin::root(), 1, 1, 1, 1));
 		assert_ok!(Bridge::create_settings(Origin::root(), b"BITG".to_vec(), r#"{
@@ -25,7 +25,7 @@ fn create_settings_should_work() {
 
 #[test]
 fn create_settings_should_not_work_for_invalid_json() {
-	new_test_ext().execute_with(|| {
+    new_test_ext().execute_with(|| {
 		assert_noop!(
 			Bridge::create_settings(Origin::root(), b"BITG".to_vec(), r#"{"description":[ehXCPcNoHGKutQY"]}"#.as_bytes().to_vec()),
 			Error::<Test>::InvalidJson
@@ -433,7 +433,7 @@ fn create_settings_should_not_work_for_invalid_json() {
 
 #[test]
 fn destroy_settings_should_work() {
-	new_test_ext().execute_with(|| {
+    new_test_ext().execute_with(|| {
 		assert_ok!(Assets::force_create(Origin::root(), 1, 1, 1, 1));
 		assert_ok!(Bridge::create_settings(Origin::root(), b"BITG".to_vec(), r#"{
 		"chainid":1,
@@ -455,17 +455,17 @@ fn destroy_settings_should_work() {
 
 #[test]
 fn destroy_settings_should_not_work_for_non_existing_key() {
-	new_test_ext().execute_with(|| {
-		assert_noop!(
-			Bridge::destroy_settings(Origin::root(), b"BITG".to_vec()),
-			Error::<Test>::SettingsKeyNotFound
-		);
-	});
+    new_test_ext().execute_with(|| {
+        assert_noop!(
+            Bridge::destroy_settings(Origin::root(), b"BITG".to_vec()),
+            Error::<Test>::SettingsKeyNotFound
+        );
+    });
 }
 
 #[test]
 fn mint_should_not_work_if_siger_is_not_keeper() {
-	new_test_ext().execute_with(|| {
+    new_test_ext().execute_with(|| {
 		assert_ok!(Assets::force_create(Origin::root(), 1, 1, 1, 1));
 		assert_ok!(Bridge::create_settings(Origin::root(), b"BITG".to_vec(), r#"{
 		"chainid":1,
@@ -490,7 +490,7 @@ fn mint_should_not_work_if_siger_is_not_keeper() {
 
 #[test]
 fn burn_should_not_work_if_siger_is_not_keeper() {
-	new_test_ext().execute_with(|| {
+    new_test_ext().execute_with(|| {
 		assert_ok!(Assets::force_create(Origin::root(), 1, 1, 1, 1));
 		assert_ok!(Bridge::create_settings(Origin::root(), b"BITG".to_vec(), r#"{
 		"chainid":1,
@@ -515,18 +515,18 @@ fn burn_should_not_work_if_siger_is_not_keeper() {
 
 #[test]
 fn set_lockdown_should_not_work_for_non_existing_key() {
-	new_test_ext().execute_with(|| {
-		assert_noop!(
-			Bridge::set_lockdown(Origin::signed(1), b"BITG".to_vec()),
-			Error::<Test>::SettingsKeyNotFound
-		);
-	});
+    new_test_ext().execute_with(|| {
+        assert_noop!(
+            Bridge::set_lockdown(Origin::signed(1), b"BITG".to_vec()),
+            Error::<Test>::SettingsKeyNotFound
+        );
+    });
 }
 
 #[test]
 fn set_unlockdown_should_work() {
-	new_test_ext().execute_with(|| {
-		assert_ok!(Bridge::set_unlockdown(Origin::root()));
-		assert_eq!(Bridge::lockdown(), false);
-	});
+    new_test_ext().execute_with(|| {
+        assert_ok!(Bridge::set_unlockdown(Origin::root()));
+        assert_eq!(Bridge::lockdown(), false);
+    });
 }

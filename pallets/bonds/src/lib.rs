@@ -1,6 +1,8 @@
+//! Pallet to manage the Bonds (Debit Market) on BitGreen Blockchain
 #![cfg_attr(not(feature = "std"), no_std)]
+#![recursion_limit = "256"]
 
-#![recursion_limit="256"]
+pub use pallet::*;
 
 // SBP M1 review: missing documentation, tests & benchmarks.
 // SBP M1 review: the JSON parsing code that is present in most functions
@@ -9,140 +11,232 @@
 // on SCALE encoding for efficient data encoding & storage.
 
 /// Module to manage the Bonds (Debit Market) on BitGreen Blockchain
-
-use frame_support::{decl_module, decl_storage, decl_event, decl_error, dispatch, ensure, traits::Currency,codec::Decode};
-use frame_system::{ensure_root,ensure_signed};
-use sp_std::prelude::*;
-use core::str;
-use core::str::FromStr;
-use sp_runtime::DispatchResult;
-use sp_std::borrow::ToOwned;
-use frame_system::RawOrigin;
-use sp_runtime::traits::StaticLookup;
-
 #[cfg(test)]
 mod mock;
 
 #[cfg(test)]
 mod tests;
 
+use core::str;
+use core::str::FromStr;
+use frame_support::{codec::Decode, dispatch, ensure, traits::Currency};
+use frame_system::RawOrigin;
+use frame_system::{ensure_root, ensure_signed};
+use sp_runtime::traits::StaticLookup;
+use sp_std::borrow::ToOwned;
+use sp_std::prelude::*;
 pub type Balance = u128;
 
-/// Module configuration
-//pub trait Config: frame_system::Config + Sized + pallet_assets::Config{
-pub trait Config: frame_system::Config + Sized + pallet_assets::Config<AssetId = u32, Balance = u128>{
-	type Event: From<Event<Self>> + Into<<Self as frame_system::Config>::Event>;
-	type Currency: Currency<Self::AccountId, Balance = Balance>;    
-}
+#[frame_support::pallet]
+pub mod pallet {
+    use super::*;
+    use frame_support::pallet_prelude::*;
+    use frame_system::pallet_prelude::*;
 
-
-// The runtime storage items
-decl_storage! {
-	trait Store for Module<T: Config> as bonds {
-		// we use a strong crypto hashing with blake2_128
-		// Settings configuration, we store json structure with different keys (see the function for details)
-		Settings get(fn get_settings): map hasher(blake2_128_concat) Vec<u8> => Option<Vec<u8>>;
-        // Know Your client Data
-        Kyc get(fn get_kyc): map hasher(blake2_128_concat) T::AccountId => Option<Vec<u8>>;
-        KycSignatures get(fn get_kycsignatures): double_map hasher(blake2_128_concat) T::AccountId,hasher(blake2_128_concat) T::AccountId => Option<u32>;
-        KycApproved get(fn get_kycapproved): map hasher(blake2_128_concat) T::AccountId => Option<u32>;
-        // Bonds data
-        Bonds get(fn get_bond): map hasher(blake2_128_concat) u32 => Option<Vec<u8>>;
-        // Bonds Approval signatures
-        BondsSignatures get(fn get_bondssignatures): double_map hasher(blake2_128_concat) u32,hasher(blake2_128_concat) T::AccountId => Option<u32>;
-        // Bonds Approved
-        BondsApproved get(fn get_bondapproved): map hasher(blake2_128_concat) u32 => Option<u32>;
-        // Bond Shares (subscription )
-        BondsShares get(fn get_bondsshares): double_map hasher(blake2_128_concat) u32,hasher(blake2_128_concat) T::AccountId => Option<u32>;
-        // Bond Total Subscribed
-        BondsTotalShares get(fn get_bondstotalshares): map hasher(blake2_128_concat) u32 => Option<u32>;
-        // Credit Rating Agencies
-        CreditRatingAgencies get(fn get_creditrating_agency): map hasher(blake2_128_concat) T::AccountId => Option<Vec<u8>>;
-        CreditRatings get(fn get_creditrating): map hasher(blake2_128_concat) u32 => Option<Vec<u8>>;
-        // Collaterals
-        Collaterals get(fn get_collateral): double_map hasher(blake2_128_concat) u32, hasher(blake2_128_concat) u32 => Option<Vec<u8>>;
-        //Approval Signatures
-        CollateralsApproval get(fn get_collateral_approval): double_map hasher(blake2_128_concat) u32, hasher(blake2_128_concat) u32 => Option<Vec<u8>>;
-        // Funds
-        Funds get(fn get_fund): map hasher(blake2_128_concat) T::AccountId => Option<Vec<u8>>;
-        FundsSignatures get(fn get_fund_signatures): double_map hasher(blake2_128_concat) T::AccountId,hasher(blake2_128_concat) T::AccountId => Option<u32>;
-        FundsApproved get(fn get_fund_approved): map hasher(blake2_128_concat) T::AccountId => Option<u32>;
-        // Standard Iso country code and official name
-        IsoCountries get(fn get_iso_country): map hasher(blake2_128_concat) Vec<u8> => Option<Vec<u8>>;
-        // Currencies data
-        Currencies get(fn get_currency): map hasher(blake2_128_concat) Vec<u8> => Option<Vec<u8>>;
-        // Underwriters data
-        Underwriters get(fn get_underwriter): map hasher(blake2_128_concat) T::AccountId => Option<Vec<u8>>;
-        // Insurer data
-        Insurers get(fn get_insurer): map hasher(blake2_128_concat) T::AccountId => Option<Vec<u8>>;
-        // Insurance Data
-        Insurances get(fn get_insurance): double_map hasher(blake2_128_concat) T::AccountId, hasher(blake2_128_concat) u32 => Option<Vec<u8>>;
-        //Frozen funds in an Pool Account according to the percentage of mandatory reserves
-        InsurerReserves get(fn get_insurer_reserves): map hasher(blake2_128_concat) T::AccountId => Balance;
-        // Insurances Signed from Payer
-        InsurancesSigned get(fn get_insurance_signature): double_map hasher(blake2_128_concat) T::AccountId, hasher(blake2_128_concat) u32 => Option<T::AccountId>;
-        // Lawyers data
-        Lawyers get(fn get_lawyer): map hasher(blake2_128_concat) T::AccountId => Option<Vec<u8>>;
-        // InterbankRate data
-        InterbankRates get(fn get_interbank_rate): double_map hasher(blake2_128_concat) Vec<u8>, hasher(blake2_128_concat) Vec<u8> => Option<u32>;
-	     // InterbankRate data
-        InflationRates get(fn get_inflation_rate): double_map hasher(blake2_128_concat) Vec<u8>, hasher(blake2_128_concat) Vec<u8> => Option<u32>;
-        // Total Risks Covered
-        InsurerRisksCovered get(fn get_insurer_risks_covered): map hasher(blake2_128_concat) T::AccountId => Balance;
-        // Order book
-        OrderBook get(fn get_order_book): map hasher(blake2_128_concat) u32 => Option<Vec<u8>>;
+    /// Configure the pallet by specifying the parameters and types on which it depends.
+    #[pallet::config]
+    pub trait Config:
+        frame_system::Config + pallet_assets::Config<AssetId = u32, Balance = u128>
+    {
+        /// Because this pallet emits events, it depends on the runtime's definition of an event.
+        type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
+        type Currency: Currency<Self::AccountId, Balance = Balance>;
     }
-}
 
-// We generate events to inform the users of succesfully actions.
-decl_event!(
-	pub enum Event<T> where AccountId = <T as frame_system::Config>::AccountId {
-	    SettingsCreated(Vec<u8>,Vec<u8>),               // New settings configuration has been created
-        SettingsDestroyed(Vec<u8>),                     // A settings has been removed
-        KycStored(AccountId,Vec<u8>),                   // Kyc data stored on chain
-        KycSignedforApproval(AccountId,AccountId),      // Kyc has been signed for approval
-        KycApproved(AccountId,AccountId),               // Kyc approved with all the required signatures
-        IsoCountryCreated(Vec<u8>,Vec<u8>),             // Iso country created
-        IsoCountryDestroyed(Vec<u8>),                   // Iso country destroyed
-        CurrencyCodeCreated(Vec<u8>,Vec<u8>),           // a currency code has been created
-        CurrencyDestroyed(Vec<u8>),                     // Currency code has been destroyed
-        BondCreated(AccountId,u32,Vec<u8>),                       // New bond has been created
-        BondApproved(u32,AccountId),                    // A bond has been approved
-        BondSignedforApproval(u32,AccountId),           // A bond has been assigned for approval
-        CreditRatingAgencyStored(AccountId,Vec<u8>),    // Credit rating agency has been stored/updated
-        CreditRatingStored(u32,Vec<u8>),                // New credit rating has been created
-        UnderwriterCreated(AccountId, Vec<u8>),         // An underwriter has been created
-        UnderwriterDestroyed(AccountId),                // An underwriter has been destroyed
-        CollateralsStored(u32,u32,Vec<u8>),             // A collaterals has been stored
-        CollateralsDestroyed(u32,u32),                  // A collaterals has been destroyed
-        CollateralsApproved(u32,u32,Vec<u8>),           // A collaterals has been approved
-        FundStored(AccountId,Vec<u8>),                  // Fund data stored on chain
-        FundApproved(AccountId,AccountId),              // Fund approved with all the required signatures
-        FundSignedforApproval(AccountId,AccountId),     // Fund has been signed for approval
-        InsurerCreated(AccountId,Vec<u8>),              // Insurer has been stored/updated
-        InsurerDestroyed(AccountId),                    // Insurer has been destroyed
-        InsuranceCreated(AccountId,u32,Vec<u8>),        // Insurance has been created
-        InsuranceDestroyed(AccountId,u32),              // Insurance has been destroyed
-        InsuranceSigned(AccountId,u32,AccountId),       // Insurance signed
-        LawyerCreated(AccountId, Vec<u8>),              // A Lawyer has been created
-        LawyerDestroyed(AccountId),                     // A Lawyer opinion has been destroyed
-        InterbankRateCreated(Vec<u8>,Vec<u8>),          // An InterbankRate has been created
-        InterbankRateDestroyed(Vec<u8>,Vec<u8>),        // An InterbankRate has been destroyed
-        InflationRateCreated(Vec<u8>,Vec<u8>),          // An Inflation Rate has been created
-        InflationRateDestroyed(Vec<u8>,Vec<u8>),        // An Inflation Rate has been destroyed
-        CreditRatingAgencyDestroyed(AccountId),         // A credit agency ahs been deleted
-        InsuranceFundStaken(AccountId,Balance),         // Some funds have been stake for Insurer reserve
-        InsuranceFundUnstaken(AccountId,Balance),       // Some funds have been unstaken from Insurer reserve
-        BondSubscribed(u32,AccountId,u32),           // Subscription of shares of a bond
-	}
+    #[pallet::pallet]
+    #[pallet::generate_store(pub(super) trait Store)]
+    #[pallet::without_storage_info]
+    pub struct Pallet<T>(_);
 
-);
+    // Settings configuration, we store json structure with different keys (see the function for details)
+    #[pallet::storage]
+    #[pallet::getter(fn get_settings)]
+    pub type Settings<T: Config> = StorageMap<_, Blake2_128Concat, Vec<u8>, Vec<u8>>;
 
-// Errors to inform users that something went wrong.
-decl_error! {
-	pub enum Error for Module<T: Config> {
-		/// Settings key is not valid
-		SettingsKeyNotValid,
+    // Know Your client Data
+    #[pallet::storage]
+    #[pallet::getter(fn get_kyc)]
+    pub type Kyc<T: Config> = StorageMap<_, Blake2_128Concat, T::AccountId, Vec<u8>>;
+
+    #[pallet::storage]
+    #[pallet::getter(fn get_kycsignatures)]
+    pub type KycSignatures<T: Config> =
+        StorageDoubleMap<_, Blake2_128Concat, T::AccountId, Blake2_128Concat, T::AccountId, u32>;
+
+    #[pallet::storage]
+    #[pallet::getter(fn get_kycapproved)]
+    pub type KycApproved<T: Config> = StorageMap<_, Blake2_128Concat, T::AccountId, u32>;
+
+    #[pallet::storage]
+    #[pallet::getter(fn get_bond)]
+    pub type Bonds<T: Config> = StorageMap<_, Blake2_128Concat, u32, Vec<u8>>;
+
+    #[pallet::storage]
+    #[pallet::getter(fn get_bondssignatures)]
+    pub type BondsSignatures<T: Config> =
+        StorageDoubleMap<_, Blake2_128Concat, u32, Blake2_128Concat, T::AccountId, u32>;
+
+    #[pallet::storage]
+    #[pallet::getter(fn get_bondapproved)]
+    pub type BondsApproved<T: Config> = StorageMap<_, Blake2_128Concat, u32, u32>;
+
+    // Bond Shares (subscription )
+    #[pallet::storage]
+    #[pallet::getter(fn get_bondsshares)]
+    pub type BondsShares<T: Config> =
+        StorageDoubleMap<_, Blake2_128Concat, u32, Blake2_128Concat, T::AccountId, u32>;
+
+    // Bond Total Subscribed
+    #[pallet::storage]
+    #[pallet::getter(fn get_bondstotalshares)]
+    pub type BondsTotalShares<T: Config> = StorageMap<_, Blake2_128Concat, u32, u32>;
+
+    // Credit Rating Agencies
+    #[pallet::storage]
+    #[pallet::getter(fn get_creditrating_agency)]
+    pub type CreditRatingAgencies<T: Config> =
+        StorageMap<_, Blake2_128Concat, T::AccountId, Vec<u8>>;
+
+    #[pallet::storage]
+    #[pallet::getter(fn get_creditrating)]
+    pub type CreditRatings<T: Config> = StorageMap<_, Blake2_128Concat, u32, Vec<u8>>;
+
+    // Collaterals
+    #[pallet::storage]
+    #[pallet::getter(fn get_collateral)]
+    pub type Collaterals<T: Config> =
+        StorageDoubleMap<_, Blake2_128Concat, u32, Blake2_128Concat, u32, Vec<u8>>;
+
+    // Collaterals
+    #[pallet::storage]
+    #[pallet::getter(fn get_collateral_approval)]
+    pub type CollateralsApproval<T: Config> =
+        StorageDoubleMap<_, Blake2_128Concat, u32, Blake2_128Concat, u32, Vec<u8>>;
+
+    #[pallet::storage]
+    #[pallet::getter(fn get_fund)]
+    pub type Funds<T: Config> = StorageMap<_, Blake2_128Concat, T::AccountId, Vec<u8>>;
+
+    #[pallet::storage]
+    #[pallet::getter(fn get_fund_signatures)]
+    pub type FundsSignatures<T: Config> =
+        StorageDoubleMap<_, Blake2_128Concat, T::AccountId, Blake2_128Concat, T::AccountId, u32>;
+
+    #[pallet::storage]
+    #[pallet::getter(fn get_fund_approved)]
+    pub type FundsApproved<T: Config> = StorageMap<_, Blake2_128Concat, T::AccountId, u32>;
+
+    // Standard Iso country code and official name
+    #[pallet::storage]
+    #[pallet::getter(fn get_iso_country)]
+    pub type IsoCountries<T: Config> = StorageMap<_, Blake2_128Concat, Vec<u8>, Vec<u8>>;
+
+    // Currencies data
+    #[pallet::storage]
+    #[pallet::getter(fn get_currency)]
+    pub type Currencies<T: Config> = StorageMap<_, Blake2_128Concat, Vec<u8>, Vec<u8>>;
+
+    // Underwriters data
+    #[pallet::storage]
+    #[pallet::getter(fn get_underwriter)]
+    pub type Underwriters<T: Config> = StorageMap<_, Blake2_128Concat, T::AccountId, Vec<u8>>;
+
+    // Insurers data
+    #[pallet::storage]
+    #[pallet::getter(fn get_insurer)]
+    pub type Insurers<T: Config> = StorageMap<_, Blake2_128Concat, T::AccountId, Vec<u8>>;
+
+    // Insurances data
+    #[pallet::storage]
+    #[pallet::getter(fn get_insurance)]
+    pub type Insurances<T: Config> =
+        StorageDoubleMap<_, Blake2_128Concat, T::AccountId, Blake2_128Concat, u32, Vec<u8>>;
+
+    //Frozen funds in an Pool Account according to the percentage of mandatory reserves
+    #[pallet::storage]
+    #[pallet::getter(fn get_insurer_reserves)]
+    pub type InsurerReserves<T: Config> =
+        StorageMap<_, Blake2_128Concat, T::AccountId, Balance, ValueQuery>;
+
+    // Insurances Signed from Payer
+    #[pallet::storage]
+    #[pallet::getter(fn get_insurance_signature)]
+    pub type InsurancesSigned<T: Config> =
+        StorageDoubleMap<_, Blake2_128Concat, T::AccountId, Blake2_128Concat, u32, T::AccountId>;
+
+    // Lawyers data
+    #[pallet::storage]
+    #[pallet::getter(fn get_lawyer)]
+    pub type Lawyers<T: Config> = StorageMap<_, Blake2_128Concat, T::AccountId, Vec<u8>>;
+
+    // InterbankRate data
+    #[pallet::storage]
+    #[pallet::getter(fn get_interbank_rate)]
+    pub type InterbankRates<T: Config> =
+        StorageDoubleMap<_, Blake2_128Concat, Vec<u8>, Blake2_128Concat, Vec<u8>, u32>;
+
+    // InterbankRate data
+    #[pallet::storage]
+    #[pallet::getter(fn get_inflation_rate)]
+    pub type InflationRates<T: Config> =
+        StorageDoubleMap<_, Blake2_128Concat, Vec<u8>, Blake2_128Concat, Vec<u8>, u32>;
+
+    #[pallet::storage]
+    #[pallet::getter(fn get_insurer_risks_covered)]
+    pub type InsurerRisksCovered<T: Config> =
+        StorageMap<_, Blake2_128Concat, T::AccountId, Balance, ValueQuery>;
+
+    #[pallet::storage]
+    #[pallet::getter(fn get_order_book)]
+    pub type OrderBook<T: Config> = StorageMap<_, Blake2_128Concat, u32, Vec<u8>>;
+
+    #[pallet::event]
+    #[pallet::generate_deposit(pub(super) fn deposit_event)]
+    pub enum Event<T: Config> {
+        SettingsCreated(Vec<u8>, Vec<u8>), // New settings configuration has been created
+        SettingsDestroyed(Vec<u8>),        // A settings has been removed
+        KycStored(T::AccountId, Vec<u8>),  // Kyc data stored on chain
+        KycSignedforApproval(T::AccountId, T::AccountId), // Kyc has been signed for approval
+        KycApproved(T::AccountId, T::AccountId), // Kyc approved with all the required signatures
+        IsoCountryCreated(Vec<u8>, Vec<u8>), // Iso country created
+        IsoCountryDestroyed(Vec<u8>),      // Iso country destroyed
+        CurrencyCodeCreated(Vec<u8>, Vec<u8>), // a currency code has been created
+        CurrencyDestroyed(Vec<u8>),        // Currency code has been destroyed
+        BondCreated(T::AccountId, u32, Vec<u8>), // New bond has been created
+        BondApproved(u32, T::AccountId),   // A bond has been approved
+        BondSignedforApproval(u32, T::AccountId), // A bond has been assigned for approval
+        CreditRatingAgencyStored(T::AccountId, Vec<u8>), // Credit rating agency has been stored/updated
+        CreditRatingStored(u32, Vec<u8>),                // New credit rating has been created
+        UnderwriterCreated(T::AccountId, Vec<u8>),       // An underwriter has been created
+        UnderwriterDestroyed(T::AccountId),              // An underwriter has been destroyed
+        CollateralsStored(u32, u32, Vec<u8>),            // A collaterals has been stored
+        CollateralsDestroyed(u32, u32),                  // A collaterals has been destroyed
+        CollateralsApproved(u32, u32, Vec<u8>),          // A collaterals has been approved
+        FundStored(T::AccountId, Vec<u8>),               // Fund data stored on chain
+        FundApproved(T::AccountId, T::AccountId), // Fund approved with all the required signatures
+        FundSignedforApproval(T::AccountId, T::AccountId), // Fund has been signed for approval
+        InsurerCreated(T::AccountId, Vec<u8>),    // Insurer has been stored/updated
+        InsurerDestroyed(T::AccountId),           // Insurer has been destroyed
+        InsuranceCreated(T::AccountId, u32, Vec<u8>), // Insurance has been created
+        InsuranceDestroyed(T::AccountId, u32),    // Insurance has been destroyed
+        InsuranceSigned(T::AccountId, u32, T::AccountId), // Insurance signed
+        LawyerCreated(T::AccountId, Vec<u8>),     // A Lawyer has been created
+        LawyerDestroyed(T::AccountId),            // A Lawyer opinion has been destroyed
+        InterbankRateCreated(Vec<u8>, Vec<u8>),   // An InterbankRate has been created
+        InterbankRateDestroyed(Vec<u8>, Vec<u8>), // An InterbankRate has been destroyed
+        InflationRateCreated(Vec<u8>, Vec<u8>),   // An Inflation Rate has been created
+        InflationRateDestroyed(Vec<u8>, Vec<u8>), // An Inflation Rate has been destroyed
+        CreditRatingAgencyDestroyed(T::AccountId), // A credit agency ahs been deleted
+        InsuranceFundStaken(T::AccountId, Balance), // Some funds have been stake for Insurer reserve
+        InsuranceFundUnstaken(T::AccountId, Balance), // Some funds have been unstaken from Insurer reserve
+        BondSubscribed(u32, T::AccountId, u32),       // Subscription of shares of a bond
+    }
+
+    // Errors inform users that something went wrong.
+    #[pallet::error]
+    pub enum Error<T> {
+        /// Settings key is not valid
+        SettingsKeyNotValid,
         /// Settings Key has not been found on the blockchain
         SettingsKeyNotFound,
         /// Settings data is too short to be valid
@@ -175,11 +269,11 @@ decl_error! {
         LawyersSubmissionManagerAccountIsWrong,
         /// Committe for lawyers submission is wrong
         LawyersSubmissionCommitteeIsWrong,
-        /// Manager account for collateral verification is wrong    
+        /// Manager account for collateral verification is wrong
         CollateralVerificationManagerAccountIsWrong,
         /// Committe for collateral verification is wrong
         CollateralVerificationCommitteeIsWrong,
-        ///  Account for  fund approval is wrong    
+        ///  Account for  fund approval is wrong
         FundApprovalManagerAccountIsWrong,
         /// Committe for fund approval  is wrong
         FundApprovalCommitteeIsWrong,
@@ -538,7 +632,7 @@ decl_error! {
         /// Settings does not exist
         SettingsDoesNotExist,
         /// Got an overflow after adding
-		Overflow,
+        Overflow,
         /// Underflow after substrate
         Underflow,
         /// The signer is not owning any approved Fund
@@ -592,7 +686,7 @@ decl_error! {
         /// Current reserve is not enough
         CurrentReserveIsNotEnough,
         /// Insufficient funds available for the payment
-        InsufficientFunds, 
+        InsufficientFunds,
         /// Currency code has not a valid address in the blockchain
         CurrencyCodeHasNotValidAddress,
         ///Default Token id cannot be zero
@@ -601,18 +695,17 @@ decl_error! {
         TotalShareAvailablesNotEnough,
         // Stable coin has not been configured
         MissingStableCoinConfiguration,
-	}
-}
+    }
 
-// Dispatchable functions allows users to interact with the pallet BOND and invoke state changes.
-decl_module! {
-	pub struct Module<T: Config> for enum Call where origin: T::Origin {
-		// Errors must be initialized
-		type Error = Error<T>;
-		// Events must be initialized
-		fn deposit_event() = default;
+    #[pallet::hooks]
+    impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {}
 
-		/// Create/change a  settings configuration. Reserved to super user
+    // Dispatchable functions allows users to interact with the pallet and invoke state changes.
+    // These functions materialize as "extrinsics", which are often compared to transactions.
+    // Dispatchable functions must be annotated with a weight and must return a DispatchResult.
+    #[pallet::call]
+    impl<T: Config> Pallet<T> {
+        /// Create/change a  settings configuration. Reserved to super user
         /// We have multiple of configuration:
         /// key=="kyc" {"manager":"xxxaccountidxxx","supervisor":"xxxxaccountidxxxx","operators":["xxxxaccountidxxxx","xxxxaccountidxxxx",...]}
         /// for example: {"manager":"5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY","supervisor":"5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY","operators":["5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY"]}
@@ -622,666 +715,812 @@ decl_module! {
         /// for example: {"manager":"5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY","committee":["5FLSigC9HGRKVhB9FiEo4Y3koPsNmBmLJbpXg2mp1hXcS59Y","5HpG9w8EBLe5XCrbczpwq5TSXvedjrBGCwqxK1iQ7qUsSWFc"]}
         /// key=="infodocuments" {"documents:[{"document":"xxxxdescription"},{"document":"xxxxdescription"}]}
         /// for example: [{"document":"Profit&Loss Previous year"},{"document":"Board Members/Director List"}]
-        #[weight = 1000]
-		pub fn create_change_settings(origin, key: Vec<u8>, configuration: Vec<u8>) -> dispatch::DispatchResult {
-			// check the request is signed from Super User
-			let _sender = ensure_root(origin)?;
-			//check configuration length
-			ensure!(configuration.len() > 12, Error::<T>::SettingsJsonTooShort); 
-            ensure!(configuration.len() < 8192, Error::<T>::SettingsJsonTooLong); 
+        #[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
+        pub fn create_change_settings(
+            origin: OriginFor<T>,
+            key: Vec<u8>,
+            configuration: Vec<u8>,
+        ) -> DispatchResult {
+            // check the request is signed from Super User
+            let _sender = ensure_root(origin)?;
+            //check configuration length
+            ensure!(configuration.len() > 12, Error::<T>::SettingsJsonTooShort);
+            ensure!(configuration.len() < 8192, Error::<T>::SettingsJsonTooLong);
             // check json validity
-			let js=configuration.clone();
-			ensure!(json_check_validity(js),Error::<T>::InvalidJson);
+            let js = configuration.clone();
+            ensure!(json_check_validity(js), Error::<T>::InvalidJson);
             // check for key validity
-            ensure!(key=="kyc".as_bytes().to_vec() 
-                || key=="bondapproval".as_bytes().to_vec() 
-                || key=="underwriterssubmission".as_bytes().to_vec()
-                || key=="insurerssubmission".as_bytes().to_vec()
-                || key=="creditratingagencies".as_bytes().to_vec()
-                || key=="collateralsverification".as_bytes().to_vec()
-                || key=="fundapproval".as_bytes().to_vec()
-                || key=="lawyerssubmission".as_bytes().to_vec()
-                || key=="infodocuments".as_bytes().to_vec()
-                || key=="insuranceminreserve".as_bytes().to_vec() 
-                || key=="stablecoin".as_bytes().to_vec(),
-                Error::<T>::SettingsKeyIsWrong);
+            ensure!(
+                key == "kyc".as_bytes().to_vec()
+                    || key == "bondapproval".as_bytes().to_vec()
+                    || key == "underwriterssubmission".as_bytes().to_vec()
+                    || key == "insurerssubmission".as_bytes().to_vec()
+                    || key == "creditratingagencies".as_bytes().to_vec()
+                    || key == "collateralsverification".as_bytes().to_vec()
+                    || key == "fundapproval".as_bytes().to_vec()
+                    || key == "lawyerssubmission".as_bytes().to_vec()
+                    || key == "infodocuments".as_bytes().to_vec()
+                    || key == "insuranceminreserve".as_bytes().to_vec()
+                    || key == "stablecoin".as_bytes().to_vec(),
+                Error::<T>::SettingsKeyIsWrong
+            );
             // check validity for kyc settings
-            if key=="kyc".as_bytes().to_vec() {
-                let manager=json_get_value(configuration.clone(),"manager".as_bytes().to_vec());
-                ensure!(manager.len()==48 || manager.is_empty(), Error::<T>::KycManagerAccountIsWrong);
-                let supervisor=json_get_value(configuration.clone(),"supervisor".as_bytes().to_vec());
-                ensure!(supervisor.len()==48 || supervisor.is_empty(), Error::<T>::KycSupervisorAccountIsWrong);
-                let operators=json_get_complexarray(configuration.clone(),"operators".as_bytes().to_vec());
-                if operators.len()>=2 {
-                    let mut x=0;
-                    loop {  
-                        let w=json_get_recordvalue(operators.clone(),x);
+            if key == "kyc".as_bytes().to_vec() {
+                let manager = json_get_value(configuration.clone(), "manager".as_bytes().to_vec());
+                ensure!(
+                    manager.len() == 48 || manager.is_empty(),
+                    Error::<T>::KycManagerAccountIsWrong
+                );
+                let supervisor =
+                    json_get_value(configuration.clone(), "supervisor".as_bytes().to_vec());
+                ensure!(
+                    supervisor.len() == 48 || supervisor.is_empty(),
+                    Error::<T>::KycSupervisorAccountIsWrong
+                );
+                let operators =
+                    json_get_complexarray(configuration.clone(), "operators".as_bytes().to_vec());
+                if operators.len() >= 2 {
+                    let mut x = 0;
+                    loop {
+                        let w = json_get_recordvalue(operators.clone(), x);
                         if w.is_empty() {
                             break;
                         }
                         x += 1;
                     }
                     // at the least one operator is required for this configuration.
-                    ensure!(x>0,Error::<T>::KycOperatorsNotConfigured);
+                    ensure!(x > 0, Error::<T>::KycOperatorsNotConfigured);
                 }
             }
             // check validity for bond approval settings
-            if key=="bondapproval".as_bytes().to_vec() {
-                let manager=json_get_value(configuration.clone(),"manager".as_bytes().to_vec());
-                ensure!(manager.len()==48 || manager.is_empty(), Error::<T>::BondApprovalManagerAccountIsWrong);
-                let committee=json_get_complexarray(configuration.clone(),"committee".as_bytes().to_vec());
-                let mut x=0;
-                if committee.len()>2 {
-                    loop {  
-                        let w=json_get_recordvalue(committee.clone(),x);
+            if key == "bondapproval".as_bytes().to_vec() {
+                let manager = json_get_value(configuration.clone(), "manager".as_bytes().to_vec());
+                ensure!(
+                    manager.len() == 48 || manager.is_empty(),
+                    Error::<T>::BondApprovalManagerAccountIsWrong
+                );
+                let committee =
+                    json_get_complexarray(configuration.clone(), "committee".as_bytes().to_vec());
+                let mut x = 0;
+                if committee.len() > 2 {
+                    loop {
+                        let w = json_get_recordvalue(committee.clone(), x);
                         if w.is_empty() {
                             break;
                         }
                         x += 1;
                     }
                 }
-                ensure!(x>0,Error::<T>::BondApprovalCommitteeIsWrong);
-                let mandatoryunderwriting=json_get_value(configuration.clone(),"mandatoryunderwriting".as_bytes().to_vec());
-                ensure!(mandatoryunderwriting=="Y".as_bytes().to_vec() || mandatoryunderwriting=="N".as_bytes().to_vec(), Error::<T>::BondApprovalMandatoryUnderwritingIsWrong);
-                let mandatorycreditrating=json_get_value(configuration.clone(),"mandatorycreditrating".as_bytes().to_vec());
-                ensure!(mandatorycreditrating=="Y".as_bytes().to_vec() || mandatorycreditrating=="N".as_bytes().to_vec(), Error::<T>::BondApprovalMandatoryCreditRatingIsWrong);
-                let mandatorylegalopinion=json_get_value(configuration.clone(),"mandatorylegalopinion".as_bytes().to_vec());
-                ensure!(mandatorylegalopinion=="Y".as_bytes().to_vec() || mandatorylegalopinion=="N".as_bytes().to_vec(), Error::<T>::BondApprovalMandatoryLegalOpinionIsWrong);
+                ensure!(x > 0, Error::<T>::BondApprovalCommitteeIsWrong);
+                let mandatoryunderwriting = json_get_value(
+                    configuration.clone(),
+                    "mandatoryunderwriting".as_bytes().to_vec(),
+                );
+                ensure!(
+                    mandatoryunderwriting == "Y".as_bytes().to_vec()
+                        || mandatoryunderwriting == "N".as_bytes().to_vec(),
+                    Error::<T>::BondApprovalMandatoryUnderwritingIsWrong
+                );
+                let mandatorycreditrating = json_get_value(
+                    configuration.clone(),
+                    "mandatorycreditrating".as_bytes().to_vec(),
+                );
+                ensure!(
+                    mandatorycreditrating == "Y".as_bytes().to_vec()
+                        || mandatorycreditrating == "N".as_bytes().to_vec(),
+                    Error::<T>::BondApprovalMandatoryCreditRatingIsWrong
+                );
+                let mandatorylegalopinion = json_get_value(
+                    configuration.clone(),
+                    "mandatorylegalopinion".as_bytes().to_vec(),
+                );
+                ensure!(
+                    mandatorylegalopinion == "Y".as_bytes().to_vec()
+                        || mandatorylegalopinion == "N".as_bytes().to_vec(),
+                    Error::<T>::BondApprovalMandatoryLegalOpinionIsWrong
+                );
             }
             // check validity for Under Writers submission settings
-            if key=="underwriterssubmission".as_bytes().to_vec() {
-                let manager=json_get_value(configuration.clone(),"manager".as_bytes().to_vec());
-                ensure!(manager.len()==48 || manager.is_empty(), Error::<T>::UnderWritersSubmissionManagerAccountIsWrong);
-                let committee=json_get_complexarray(configuration.clone(),"committee".as_bytes().to_vec());
-                let mut x=0;
-                if committee.len()>2 {
-                    loop {  
-                        let w=json_get_recordvalue(committee.clone(),x);
+            if key == "underwriterssubmission".as_bytes().to_vec() {
+                let manager = json_get_value(configuration.clone(), "manager".as_bytes().to_vec());
+                ensure!(
+                    manager.len() == 48 || manager.is_empty(),
+                    Error::<T>::UnderWritersSubmissionManagerAccountIsWrong
+                );
+                let committee =
+                    json_get_complexarray(configuration.clone(), "committee".as_bytes().to_vec());
+                let mut x = 0;
+                if committee.len() > 2 {
+                    loop {
+                        let w = json_get_recordvalue(committee.clone(), x);
                         if w.is_empty() {
                             break;
                         }
                         x += 1;
                     }
                 }
-                ensure!(x>0,Error::<T>::UnderwritersSubmissionCommitteeIsWrong);
+                ensure!(x > 0, Error::<T>::UnderwritersSubmissionCommitteeIsWrong);
             }
             // check validity for insurer submission settings
-            if key=="insurerssubmission".as_bytes().to_vec() {
-                let manager=json_get_value(configuration.clone(),"manager".as_bytes().to_vec());
-                ensure!(manager.len()==48 || manager.is_empty(), Error::<T>::InsurerSubmissionManagerAccountIsWrong);
-                let committee=json_get_complexarray(configuration.clone(),"committee".as_bytes().to_vec());
-                let mut x=0;
-                if committee.len()>2 {
-                    loop {  
-                        let w=json_get_recordvalue(committee.clone(),x);
+            if key == "insurerssubmission".as_bytes().to_vec() {
+                let manager = json_get_value(configuration.clone(), "manager".as_bytes().to_vec());
+                ensure!(
+                    manager.len() == 48 || manager.is_empty(),
+                    Error::<T>::InsurerSubmissionManagerAccountIsWrong
+                );
+                let committee =
+                    json_get_complexarray(configuration.clone(), "committee".as_bytes().to_vec());
+                let mut x = 0;
+                if committee.len() > 2 {
+                    loop {
+                        let w = json_get_recordvalue(committee.clone(), x);
                         if w.is_empty() {
                             break;
                         }
                         x += 1;
                     }
                 }
-                ensure!(x>0,Error::<T>::InsurerSubmissionCommitteeIsWrong);
+                ensure!(x > 0, Error::<T>::InsurerSubmissionCommitteeIsWrong);
             }
             // check validity for insurance reserve account
-            if key=="insurancereserve".as_bytes().to_vec() {
-                let account=json_get_value(configuration.clone(),"account".as_bytes().to_vec());
-                ensure!(account.len()==48 || account.is_empty(), Error::<T>::InsuranceReserveAccountIswrong);
+            if key == "insurancereserve".as_bytes().to_vec() {
+                let account = json_get_value(configuration.clone(), "account".as_bytes().to_vec());
+                ensure!(
+                    account.len() == 48 || account.is_empty(),
+                    Error::<T>::InsuranceReserveAccountIswrong
+                );
             }
             // check validity for the submission settings of credit rating agencies
-            if key=="creditratingagencies".as_bytes().to_vec() {
-                let manager=json_get_value(configuration.clone(),"manager".as_bytes().to_vec());
-                ensure!(manager.len()==48 || manager.is_empty(), Error::<T>::CreditRatingAgenciesSubmissionManagerAccountIsWrong);
-                let committee=json_get_complexarray(configuration.clone(),"committee".as_bytes().to_vec());
-                let mut x=0;
-                if committee.len()>2 {
-                    loop {  
-                        let w=json_get_recordvalue(committee.clone(),x);
+            if key == "creditratingagencies".as_bytes().to_vec() {
+                let manager = json_get_value(configuration.clone(), "manager".as_bytes().to_vec());
+                ensure!(
+                    manager.len() == 48 || manager.is_empty(),
+                    Error::<T>::CreditRatingAgenciesSubmissionManagerAccountIsWrong
+                );
+                let committee =
+                    json_get_complexarray(configuration.clone(), "committee".as_bytes().to_vec());
+                let mut x = 0;
+                if committee.len() > 2 {
+                    loop {
+                        let w = json_get_recordvalue(committee.clone(), x);
                         if w.is_empty() {
                             break;
                         }
                         x += 1;
                     }
                 }
-                ensure!(x>0,Error::<T>::CreditRatingAgenciesSubmissionCommitteeIsWrong);
+                ensure!(
+                    x > 0,
+                    Error::<T>::CreditRatingAgenciesSubmissionCommitteeIsWrong
+                );
             }
             // check validity for lawyers submission settings
-            if key=="lawyerssubmission".as_bytes().to_vec() {
-                let manager=json_get_value(configuration.clone(),"manager".as_bytes().to_vec());
-                ensure!(manager.len()==48 || manager.is_empty(), Error::<T>::LawyersSubmissionManagerAccountIsWrong);
-                let committee=json_get_complexarray(configuration.clone(),"committee".as_bytes().to_vec());
-                let mut x=0;
-                if committee.len()>2 {
-                    loop {  
-                        let w=json_get_recordvalue(committee.clone(),x);
+            if key == "lawyerssubmission".as_bytes().to_vec() {
+                let manager = json_get_value(configuration.clone(), "manager".as_bytes().to_vec());
+                ensure!(
+                    manager.len() == 48 || manager.is_empty(),
+                    Error::<T>::LawyersSubmissionManagerAccountIsWrong
+                );
+                let committee =
+                    json_get_complexarray(configuration.clone(), "committee".as_bytes().to_vec());
+                let mut x = 0;
+                if committee.len() > 2 {
+                    loop {
+                        let w = json_get_recordvalue(committee.clone(), x);
                         if w.is_empty() {
                             break;
                         }
                         x += 1;
                     }
                 }
-                ensure!(x>0,Error::<T>::LawyersSubmissionCommitteeIsWrong);
+                ensure!(x > 0, Error::<T>::LawyersSubmissionCommitteeIsWrong);
             }
             // check validity for collateral verification settings
-            if key=="collateralsverification".as_bytes().to_vec() {
-                let manager=json_get_value(configuration.clone(),"manager".as_bytes().to_vec());
-                ensure!(manager.len()==48 || manager.is_empty(), Error::<T>::CollateralVerificationManagerAccountIsWrong);
-                let committee=json_get_complexarray(configuration.clone(),"committee".as_bytes().to_vec());
-                let mut x=0;
-                if committee.len()>2 {
-                    loop {  
-                        let w=json_get_recordvalue(committee.clone(),x);
+            if key == "collateralsverification".as_bytes().to_vec() {
+                let manager = json_get_value(configuration.clone(), "manager".as_bytes().to_vec());
+                ensure!(
+                    manager.len() == 48 || manager.is_empty(),
+                    Error::<T>::CollateralVerificationManagerAccountIsWrong
+                );
+                let committee =
+                    json_get_complexarray(configuration.clone(), "committee".as_bytes().to_vec());
+                let mut x = 0;
+                if committee.len() > 2 {
+                    loop {
+                        let w = json_get_recordvalue(committee.clone(), x);
                         if w.is_empty() {
                             break;
                         }
                         x += 1;
                     }
                 }
-                ensure!(x>0,Error::<T>::CollateralVerificationCommitteeIsWrong);
+                ensure!(x > 0, Error::<T>::CollateralVerificationCommitteeIsWrong);
             }
             // check validity for enterprise/edge fund approval settings
-            if key=="fundapproval".as_bytes().to_vec() {
-                let manager=json_get_value(configuration.clone(),"manager".as_bytes().to_vec());
-                ensure!(manager.len()==48 || manager.is_empty(), Error::<T>::FundApprovalManagerAccountIsWrong);
-                let committee=json_get_complexarray(configuration.clone(),"committee".as_bytes().to_vec());
-                let mut x=0;
-                if committee.len()>2 {
-                    loop {  
-                        let w=json_get_recordvalue(committee.clone(),x);
+            if key == "fundapproval".as_bytes().to_vec() {
+                let manager = json_get_value(configuration.clone(), "manager".as_bytes().to_vec());
+                ensure!(
+                    manager.len() == 48 || manager.is_empty(),
+                    Error::<T>::FundApprovalManagerAccountIsWrong
+                );
+                let committee =
+                    json_get_complexarray(configuration.clone(), "committee".as_bytes().to_vec());
+                let mut x = 0;
+                if committee.len() > 2 {
+                    loop {
+                        let w = json_get_recordvalue(committee.clone(), x);
                         if w.is_empty() {
                             break;
                         }
                         x += 1;
                     }
                 }
-                ensure!(x>0,Error::<T>::FundApprovalCommitteeIsWrong);
+                ensure!(x > 0, Error::<T>::FundApprovalCommitteeIsWrong);
             }
             // check validity for stable coin settings
-            if key=="stablecoin".as_bytes().to_vec() {
-                let tokenid=json_get_value(configuration.clone(),"tokenid".as_bytes().to_vec());
-                let tokenidv=vecu8_to_u32(tokenid);
-                ensure!(tokenidv>0, Error::<T>::TokenidCannotBeZero);
+            if key == "stablecoin".as_bytes().to_vec() {
+                let tokenid = json_get_value(configuration.clone(), "tokenid".as_bytes().to_vec());
+                let tokenidv = vecu8_to_u32(tokenid);
+                ensure!(tokenidv > 0, Error::<T>::TokenidCannotBeZero);
             }
             // check validity for info documents, with this option you can configure the mandatory documents required when creating a bond.
-            if key=="infodocuments".as_bytes().to_vec() {
-                let documents=json_get_complexarray(configuration.clone(),"documents".as_bytes().to_vec());
-                let mut x=0;
-                if documents.len()>2 {
-                    loop {  
-                        let w=json_get_recordvalue(documents.clone(),x);
+            if key == "infodocuments".as_bytes().to_vec() {
+                let documents =
+                    json_get_complexarray(configuration.clone(), "documents".as_bytes().to_vec());
+                let mut x = 0;
+                if documents.len() > 2 {
+                    loop {
+                        let w = json_get_recordvalue(documents.clone(), x);
                         if w.is_empty() {
                             break;
                         }
                         x += 1;
                     }
                 }
-                ensure!(x>0,Error::<T>::InfoDocumentsIsWrong);
+                ensure!(x > 0, Error::<T>::InfoDocumentsIsWrong);
             }
             // check validity for collateral verification settings
-            if key=="insuranceminreserve".as_bytes().to_vec() {
-                let currency=json_get_value(configuration.clone(),"currency".as_bytes().to_vec());
-                ensure!(currency.len()>=3, Error::<T>::InsuranceCurrencyIsWrong);
-                let reserve=json_get_value(configuration.clone(),"reserve".as_bytes().to_vec());
-                let reservev=vecu8_to_u32(reserve);
-                ensure!(reservev>0,Error::<T>::InsuranceMinReserveCannotBeZero);
+            if key == "insuranceminreserve".as_bytes().to_vec() {
+                let currency =
+                    json_get_value(configuration.clone(), "currency".as_bytes().to_vec());
+                ensure!(currency.len() >= 3, Error::<T>::InsuranceCurrencyIsWrong);
+                let reserve = json_get_value(configuration.clone(), "reserve".as_bytes().to_vec());
+                let reservev = vecu8_to_u32(reserve);
+                ensure!(reservev > 0, Error::<T>::InsuranceMinReserveCannotBeZero);
             }
             //store settings on chain
-            if Settings::contains_key(&key) {
+            if Settings::<T>::contains_key(&key) {
                 // Replace Settings Data
-                Settings::take(key.clone());
+                Settings::<T>::take(key.clone());
             }
-            Settings::insert(key.clone(),configuration.clone());
+            Settings::<T>::insert(key.clone(), configuration.clone());
             // Generate event
-			Self::deposit_event(RawEvent::SettingsCreated(key,configuration));
-			// Return a successful DispatchResult
-			Ok(())
-		}
-	
+            Self::deposit_event(Event::SettingsCreated(key, configuration));
+            // Return a successful DispatchResult
+            Ok(())
+        }
+
         // this function has the purpose to the insert or update data for KYC
-        #[weight = 1000]
-        pub fn create_change_kyc(origin, accountid: T::AccountId, info: Vec<u8>) -> dispatch::DispatchResult {
+        #[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
+        pub fn create_change_kyc(
+            origin: OriginFor<T>,
+            accountid: T::AccountId,
+            info: Vec<u8>,
+        ) -> DispatchResult {
             let signer = ensure_signed(origin)?;
             // check the signer is one of the operators for kyc
-            ensure!(Settings::contains_key("kyc".as_bytes().to_vec()),Error::<T>::KycSettingsNotConfigured);
-            let json:Vec<u8>=Settings::get("kyc".as_bytes().to_vec()).unwrap();
-            let mut flag=0;
-            let mut signingtype=0;
+            ensure!(
+                Settings::<T>::contains_key("kyc".as_bytes().to_vec()),
+                Error::<T>::KycSettingsNotConfigured
+            );
+            let json: Vec<u8> = Settings::<T>::get("kyc".as_bytes().to_vec()).unwrap();
+            let mut flag = 0;
+            let mut signingtype = 0;
             // check the signer is  the manager for kyc
-            let manager=json_get_value(json.clone(),"manager".as_bytes().to_vec());
+            let manager = json_get_value(json.clone(), "manager".as_bytes().to_vec());
             if !manager.is_empty() {
-                let managervec=bs58::decode(manager).into_vec().unwrap();
-                let accountidmanager=T::AccountId::decode(&mut &managervec[1..33]).unwrap_or_default();
-                if signer==accountidmanager {
-                    flag=1;
-                    signingtype=1;
+                let managervec = bs58::decode(manager).into_vec().unwrap();
+                let accountidmanager = T::AccountId::decode(&mut &managervec[1..33])
+                    .map_err(|_| Error::<T>::InvalidJson)?;
+                if signer == accountidmanager {
+                    flag = 1;
+                    signingtype = 1;
                 }
             }
             // check the signer is is the supervisor for kyc
-            let supervisor=json_get_value(json.clone(),"supervisor".as_bytes().to_vec());
+            let supervisor = json_get_value(json.clone(), "supervisor".as_bytes().to_vec());
             if !supervisor.is_empty() {
-                let supervisorvec=bs58::decode(supervisor).into_vec().unwrap();
-                let accountidsupervisor=T::AccountId::decode(&mut &supervisorvec[1..33]).unwrap_or_default();
-                if signer==accountidsupervisor {
-                    flag=1;
-                    if signingtype==0 {
-                        signingtype=2;
+                let supervisorvec = bs58::decode(supervisor).into_vec().unwrap();
+                let accountidsupervisor = T::AccountId::decode(&mut &supervisorvec[1..33])
+                    .map_err(|_| Error::<T>::InvalidJson)?;
+                if signer == accountidsupervisor {
+                    flag = 1;
+                    if signingtype == 0 {
+                        signingtype = 2;
                     }
                 }
             }
             // check the signer is one of the operators for kyc
-            let operators=json_get_complexarray(json,"operators".as_bytes().to_vec());
-            let mut x=0;
+            let operators = json_get_complexarray(json, "operators".as_bytes().to_vec());
+            let mut x = 0;
             loop {
-                let operator=json_get_arrayvalue(operators.clone(),x);
+                let operator = json_get_arrayvalue(operators.clone(), x);
                 if operator.is_empty() {
                     break;
                 }
-                let operatorvec=bs58::decode(operator).into_vec().unwrap();
-                let accountidoperator=T::AccountId::decode(&mut &operatorvec[1..33]).unwrap_or_default();
-                if accountidoperator==signer {
-                    flag=1;
-                    if signingtype==0 {
-                        signingtype=3;
+                let operatorvec = bs58::decode(operator).into_vec().unwrap();
+                let accountidoperator = T::AccountId::decode(&mut &operatorvec[1..33])
+                    .map_err(|_| Error::<T>::InvalidJson)?;
+                if accountidoperator == signer {
+                    flag = 1;
+                    if signingtype == 0 {
+                        signingtype = 3;
                     }
                 }
                 x += 1;
             }
-            ensure!(flag==1,Error::<T>::SignerIsNotAuthorizedForKycApproval);
+            ensure!(flag == 1, Error::<T>::SignerIsNotAuthorizedForKycApproval);
             //check info length
             ensure!(info.len() < 8192, Error::<T>::KycInfoIsTooLong);
             // check json validity
-            let js=info.clone();
-            ensure!(json_check_validity(js),Error::<T>::InvalidJson);
+            let js = info.clone();
+            ensure!(json_check_validity(js), Error::<T>::InvalidJson);
             // check name
-            let name=json_get_value(info.clone(),"name".as_bytes().to_vec());
-            ensure!(name.len()>=3,Error::<T>::KycNameTooShort);
-            ensure!(name.len()<=64,Error::<T>::KycNameTooLong);
+            let name = json_get_value(info.clone(), "name".as_bytes().to_vec());
+            ensure!(name.len() >= 3, Error::<T>::KycNameTooShort);
+            ensure!(name.len() <= 64, Error::<T>::KycNameTooLong);
             // check Address
-            let address=json_get_value(info.clone(),"address".as_bytes().to_vec());
-            ensure!(address.len()>=3,Error::<T>::KycAddressTooShort);
-            ensure!(address.len()<=64,Error::<T>::KycAddressTooLong);
+            let address = json_get_value(info.clone(), "address".as_bytes().to_vec());
+            ensure!(address.len() >= 3, Error::<T>::KycAddressTooShort);
+            ensure!(address.len() <= 64, Error::<T>::KycAddressTooLong);
             // check Zip code
-            let zip=json_get_value(info.clone(),"zip".as_bytes().to_vec());
-            ensure!(zip.len()>3,Error::<T>::KycZipCodeTooShort);
-            ensure!(zip.len()<=6,Error::<T>::KycZipCodeTooLong);
+            let zip = json_get_value(info.clone(), "zip".as_bytes().to_vec());
+            ensure!(zip.len() > 3, Error::<T>::KycZipCodeTooShort);
+            ensure!(zip.len() <= 6, Error::<T>::KycZipCodeTooLong);
             // check City
-            let city=json_get_value(info.clone(),"city".as_bytes().to_vec());
-            ensure!(city.len()>3,Error::<T>::KycCityTooShort);
-            ensure!(city.len()<=64,Error::<T>::KycCityTooLong);
+            let city = json_get_value(info.clone(), "city".as_bytes().to_vec());
+            ensure!(city.len() > 3, Error::<T>::KycCityTooShort);
+            ensure!(city.len() <= 64, Error::<T>::KycCityTooLong);
             // check State
-            let state=json_get_value(info.clone(),"state".as_bytes().to_vec());
-            ensure!(state.len()>3,Error::<T>::KycStateTooShort);
-            ensure!(state.len()<=64,Error::<T>::KycStateTooLong);
+            let state = json_get_value(info.clone(), "state".as_bytes().to_vec());
+            ensure!(state.len() > 3, Error::<T>::KycStateTooShort);
+            ensure!(state.len() <= 64, Error::<T>::KycStateTooLong);
             // check Country
-            let country=json_get_value(info.clone(),"country".as_bytes().to_vec());
-            ensure!(country.len()>2,Error::<T>::KycCountryTooShort);
-            ensure!(country.len()<64,Error::<T>::KycCountryTooLong);
+            let country = json_get_value(info.clone(), "country".as_bytes().to_vec());
+            ensure!(country.len() > 2, Error::<T>::KycCountryTooShort);
+            ensure!(country.len() < 64, Error::<T>::KycCountryTooLong);
             // check Website
-            let website=json_get_value(info.clone(),"website".as_bytes().to_vec());
-            ensure!(website.len()>=5,Error::<T>::KycWebSiteTooShort);
-            ensure!(website.len()<=64,Error::<T>::KycWebSiteTooLong);
-            ensure!(validate_weburl(website),Error::<T>::KycWebSiteIsWrong);
+            let website = json_get_value(info.clone(), "website".as_bytes().to_vec());
+            ensure!(website.len() >= 5, Error::<T>::KycWebSiteTooShort);
+            ensure!(website.len() <= 64, Error::<T>::KycWebSiteTooLong);
+            ensure!(validate_weburl(website), Error::<T>::KycWebSiteIsWrong);
             // check Phone
-            let phone=json_get_value(info.clone(),"phone".as_bytes().to_vec());
-            ensure!(phone.len()>=10,Error::<T>::KycPhoneTooShort);
-            ensure!(phone.len()<=21,Error::<T>::KycPhoneTooLong);
-            ensure!(validate_phonenumber(phone),Error::<T>::KycPhoneIsWrong);
-            let ipfsdocs=json_get_complexarray(info.clone(),"ipfsdocs".as_bytes().to_vec());
-            if ipfsdocs.len()>2 {
-                let mut x=0;
+            let phone = json_get_value(info.clone(), "phone".as_bytes().to_vec());
+            ensure!(phone.len() >= 10, Error::<T>::KycPhoneTooShort);
+            ensure!(phone.len() <= 21, Error::<T>::KycPhoneTooLong);
+            ensure!(validate_phonenumber(phone), Error::<T>::KycPhoneIsWrong);
+            let ipfsdocs = json_get_complexarray(info.clone(), "ipfsdocs".as_bytes().to_vec());
+            if ipfsdocs.len() > 2 {
+                let mut x = 0;
                 loop {
-                    let w=json_get_recordvalue(ipfsdocs.clone(),x);
+                    let w = json_get_recordvalue(ipfsdocs.clone(), x);
                     if w.is_empty() {
                         break;
                     }
-                    let description=json_get_value(w.clone(),"description".as_bytes().to_vec());
-                    ensure!(description.len()>5,Error::<T>::KycDocumentDescriptionTooShort);
-                    let ipfsaddress=json_get_value(w.clone(),"ipfsaddress".as_bytes().to_vec());
-                    ensure!(ipfsaddress.len()>20,Error::<T>::KycDocumentIpfsAddressTooShort);
+                    let description = json_get_value(w.clone(), "description".as_bytes().to_vec());
+                    ensure!(
+                        description.len() > 5,
+                        Error::<T>::KycDocumentDescriptionTooShort
+                    );
+                    let ipfsaddress = json_get_value(w.clone(), "ipfsaddress".as_bytes().to_vec());
+                    ensure!(
+                        ipfsaddress.len() > 20,
+                        Error::<T>::KycDocumentIpfsAddressTooShort
+                    );
 
                     x += 1;
                 }
-                ensure!(x>0,Error::<T>::KycMissingDocuments);
+                ensure!(x > 0, Error::<T>::KycMissingDocuments);
             }
             //store Kyc on chain subject to further approval
             if Kyc::<T>::contains_key(&accountid) {
                 // check that is not already approved from anybody
-                let itr=KycSignatures::<T>::iter_prefix(accountid.clone());
-                ensure!(itr.count()==0,Error::<T>::KycUnderProcessItCannotBeChanged);
+                let itr = KycSignatures::<T>::iter_prefix(accountid.clone());
+                ensure!(
+                    itr.count() == 0,
+                    Error::<T>::KycUnderProcessItCannotBeChanged
+                );
                 // Replace Kyc Data
                 Kyc::<T>::take(accountid.clone());
             }
-             Kyc::<T>::insert(accountid.clone(),info.clone());
+            Kyc::<T>::insert(accountid.clone(), info.clone());
             // Generate event
-            Self::deposit_event(RawEvent::KycStored(accountid,info));
+            Self::deposit_event(Event::KycStored(accountid, info));
             // Return a successful DispatchResult
             Ok(())
         }
-        #[weight = 1000]
-        pub fn kyc_approve(origin, accountid: T::AccountId) -> dispatch::DispatchResult {
+        #[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
+        pub fn kyc_approve(origin: OriginFor<T>, accountid: T::AccountId) -> DispatchResult {
             let signer = ensure_signed(origin)?;
-            let mut signingtype=0;
+            let mut signingtype = 0;
             //check id >0
-            ensure!(Kyc::<T>::contains_key(&accountid),Error::<T>::KycIdNotFound);
-            ensure!(!KycSignatures::<T>::contains_key(&accountid,&signer),Error::<T>::KycSignatureAlreadyPresentrSameSigner);
+            ensure!(
+                Kyc::<T>::contains_key(&accountid),
+                Error::<T>::KycIdNotFound
+            );
+            ensure!(
+                !KycSignatures::<T>::contains_key(&accountid, &signer),
+                Error::<T>::KycSignatureAlreadyPresentrSameSigner
+            );
             // check the signer is one of the supervisors or manager for kyc
-            let json:Vec<u8>=Settings::get("kyc".as_bytes().to_vec()).unwrap();
-            let mut flag=0;
-            let manager=json_get_value(json.clone(),"manager".as_bytes().to_vec());
+            let json: Vec<u8> = Settings::<T>::get("kyc".as_bytes().to_vec()).unwrap();
+            let mut flag = 0;
+            let manager = json_get_value(json.clone(), "manager".as_bytes().to_vec());
             if !manager.is_empty() {
-                let managervec=bs58::decode(manager).into_vec().unwrap();
-                let accountidmanager=T::AccountId::decode(&mut &managervec[1..33]).unwrap_or_default();
-                if signer==accountidmanager {
-                    flag=1;
-                    signingtype=1;
+                let managervec = bs58::decode(manager).into_vec().unwrap();
+                let accountidmanager = T::AccountId::decode(&mut &managervec[1..33])
+                    .map_err(|_| Error::<T>::InvalidJson)?;
+                if signer == accountidmanager {
+                    flag = 1;
+                    signingtype = 1;
                 }
             }
             // signed from supervisor
-            let supervisor=json_get_value(json.clone(),"supervisor".as_bytes().to_vec());
+            let supervisor = json_get_value(json.clone(), "supervisor".as_bytes().to_vec());
             if !supervisor.is_empty() {
-                let supervisorvec=bs58::decode(supervisor).into_vec().unwrap();
-                let accountidsupervisor=T::AccountId::decode(&mut &supervisorvec[1..33]).unwrap_or_default();
-                if signer==accountidsupervisor {
-                    flag=1;
-                    if signingtype==0 {
-                        signingtype=2;
+                let supervisorvec = bs58::decode(supervisor).into_vec().unwrap();
+                let accountidsupervisor = T::AccountId::decode(&mut &supervisorvec[1..33])
+                    .map_err(|_| Error::<T>::InvalidJson)?;
+                if signer == accountidsupervisor {
+                    flag = 1;
+                    if signingtype == 0 {
+                        signingtype = 2;
                     }
                 }
             }
-            let operators=json_get_complexarray(json,"operators".as_bytes().to_vec());
-            let mut x=0;
+            let operators = json_get_complexarray(json, "operators".as_bytes().to_vec());
+            let mut x = 0;
             loop {
-                let operator=json_get_arrayvalue(operators.clone(),x);
+                let operator = json_get_arrayvalue(operators.clone(), x);
                 if operator.is_empty() {
                     break;
                 }
-                let operatorvec=bs58::decode(operator).into_vec().unwrap();
-                let accountidoperator=T::AccountId::decode(&mut &operatorvec[1..33]).unwrap_or_default();
-                if accountidoperator==signer {
-                    flag=1;
-                    if signingtype==0 {
-                        signingtype=3;
+                let operatorvec = bs58::decode(operator).into_vec().unwrap();
+                let accountidoperator = T::AccountId::decode(&mut &operatorvec[1..33])
+                    .map_err(|_| Error::<T>::InvalidJson)?;
+                if accountidoperator == signer {
+                    flag = 1;
+                    if signingtype == 0 {
+                        signingtype = 3;
                     }
                 }
                 x += 1;
             }
-            ensure!(flag==1,Error::<T>::SignerIsNotAuthorizedForKycApproval);
+            ensure!(flag == 1, Error::<T>::SignerIsNotAuthorizedForKycApproval);
             // write/update signature
-            KycSignatures::<T>::insert(accountid.clone(),signer.clone(),signingtype);
+            KycSignatures::<T>::insert(accountid.clone(), signer.clone(), signingtype);
             // check for all the approval
-            let mut sigmanager=0;
-            let mut sigsupervisor=0;
-            let mut itr=KycSignatures::<T>::iter_prefix(accountid.clone());
+            let mut sigmanager = 0;
+            let mut sigsupervisor = 0;
+            let mut itr = KycSignatures::<T>::iter_prefix(accountid.clone());
             let mut result;
             loop {
-                result=itr.next();
+                result = itr.next();
                 match result {
                     Some(x) => {
-                        if x.1==1 {
-                            sigmanager=1;
+                        if x.1 == 1 {
+                            sigmanager = 1;
                         }
-                        if x.1==2 {
-                            sigsupervisor=1;
+                        if x.1 == 2 {
+                            sigsupervisor = 1;
                         }
-                    },
+                    }
                     None => break,
                 }
             }
             // store approved flag if all signatures have been received
-            if sigmanager==1 && sigsupervisor==1  {
-                KycApproved::<T>::insert(accountid.clone(),1);
+            if sigmanager == 1 && sigsupervisor == 1 {
+                KycApproved::<T>::insert(accountid.clone(), 1);
                 // generate event for approved
-                Self::deposit_event(RawEvent::KycApproved(accountid.clone(),signer.clone()));
+                Self::deposit_event(Event::KycApproved(accountid.clone(), signer.clone()));
             }
             // generate event for the approval
-            Self::deposit_event(RawEvent::KycSignedforApproval(accountid,signer));
+            Self::deposit_event(Event::KycSignedforApproval(accountid, signer));
             // Return a successful DispatchResult
             Ok(())
         }
         // function to delete a KYC data set, it can be executed only frm the manager or supervisor of KYC till the KYC is not yet fully approved.
-        #[weight = 1000]
-        pub fn kyc_delete(origin, accountid: T::AccountId) -> dispatch::DispatchResult {
+        #[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
+        pub fn kyc_delete(origin: OriginFor<T>, accountid: T::AccountId) -> DispatchResult {
             let signer = ensure_signed(origin)?;
             //check id >0
-            ensure!(Kyc::<T>::contains_key(&accountid),Error::<T>::KycIdNotFound);
+            ensure!(
+                Kyc::<T>::contains_key(&accountid),
+                Error::<T>::KycIdNotFound
+            );
             // check the signer is one of the supervisors or manager for kyc
-            let json:Vec<u8>=Settings::get("kyc".as_bytes().to_vec()).unwrap();
-            let mut flag=0;
-            let manager=json_get_value(json.clone(),"manager".as_bytes().to_vec());
+            let json: Vec<u8> = Settings::<T>::get("kyc".as_bytes().to_vec()).unwrap();
+            let mut flag = 0;
+            let manager = json_get_value(json.clone(), "manager".as_bytes().to_vec());
             if !manager.is_empty() {
-                let managervec=bs58::decode(manager).into_vec().unwrap();
-                let accountidmanager=T::AccountId::decode(&mut &managervec[1..33]).unwrap_or_default();
-                if signer==accountidmanager {
-                    flag=1;
+                let managervec = bs58::decode(manager).into_vec().unwrap();
+                let accountidmanager = T::AccountId::decode(&mut &managervec[1..33])
+                    .map_err(|_| Error::<T>::InvalidJson)?;
+                if signer == accountidmanager {
+                    flag = 1;
                 }
             }
             // signed from supervisor
-            let supervisor=json_get_value(json.clone(),"supervisor".as_bytes().to_vec());
+            let supervisor = json_get_value(json.clone(), "supervisor".as_bytes().to_vec());
             if !supervisor.is_empty() {
-                let supervisorvec=bs58::decode(supervisor).into_vec().unwrap();
-                let accountidsupervisor=T::AccountId::decode(&mut &supervisorvec[1..33]).unwrap_or_default();
-                if signer==accountidsupervisor {
-                    flag=1;
+                let supervisorvec = bs58::decode(supervisor).into_vec().unwrap();
+                let accountidsupervisor = T::AccountId::decode(&mut &supervisorvec[1..33])
+                    .map_err(|_| Error::<T>::InvalidJson)?;
+                if signer == accountidsupervisor {
+                    flag = 1;
                 }
             }
-            ensure!(flag==1,Error::<T>::SignerIsNotAuthorizedForKycCancellation);
+            ensure!(
+                flag == 1,
+                Error::<T>::SignerIsNotAuthorizedForKycCancellation
+            );
             // delete the KYC
             Kyc::<T>::take(&accountid).unwrap();
             // generate event for the cancellation
-            Self::deposit_event(RawEvent::KycSignedforApproval(accountid,signer));
+            Self::deposit_event(Event::KycSignedforApproval(accountid, signer));
             // Return a successful DispatchResult
             Ok(())
         }
         // this function has the purpose to the insert or update data for a Fund (hedge or enterprise)
-        #[weight = 1000]
-        pub fn fund_create_change(origin, accountid: T::AccountId, info: Vec<u8>) -> dispatch::DispatchResult {
+        #[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
+        pub fn fund_create_change(
+            origin: OriginFor<T>,
+            accountid: T::AccountId,
+            info: Vec<u8>,
+        ) -> DispatchResult {
             let signer = ensure_signed(origin)?;
             // check the signer is one of the operators for kyc
-            ensure!(Settings::contains_key("kyc".as_bytes().to_vec()),Error::<T>::SettingsDoesNotExist);
-            let json:Vec<u8>=Settings::get("kyc".as_bytes().to_vec()).unwrap();
-            let mut flag=0;
-            let mut signingtype=0;
-            let manager=json_get_value(json.clone(),"manager".as_bytes().to_vec());
+            ensure!(
+                Settings::<T>::contains_key("kyc".as_bytes().to_vec()),
+                Error::<T>::SettingsDoesNotExist
+            );
+            let json: Vec<u8> = Settings::<T>::get("kyc".as_bytes().to_vec()).unwrap();
+            let mut flag = 0;
+            let mut signingtype = 0;
+            let manager = json_get_value(json.clone(), "manager".as_bytes().to_vec());
             if !manager.is_empty() {
-                let managervec=bs58::decode(manager).into_vec().unwrap();
-                let accountidmanager=T::AccountId::decode(&mut &managervec[1..33]).unwrap_or_default();
-                if signer==accountidmanager {
-                    flag=1;
-                    signingtype=1;
+                let managervec = bs58::decode(manager).into_vec().unwrap();
+                let accountidmanager = T::AccountId::decode(&mut &managervec[1..33])
+                    .map_err(|_| Error::<T>::InvalidJson)?;
+                if signer == accountidmanager {
+                    flag = 1;
+                    signingtype = 1;
                 }
             }
-            let supervisor=json_get_value(json.clone(),"supervisor".as_bytes().to_vec());
+            let supervisor = json_get_value(json.clone(), "supervisor".as_bytes().to_vec());
             if !supervisor.is_empty() {
-                let supervisorvec=bs58::decode(supervisor).into_vec().unwrap();
-                let accountidsupervisor=T::AccountId::decode(&mut &supervisorvec[1..33]).unwrap_or_default();
-                if signer==accountidsupervisor {
-                    flag=1;
-                    if signingtype==0 {
-                        signingtype=2;
+                let supervisorvec = bs58::decode(supervisor).into_vec().unwrap();
+                let accountidsupervisor = T::AccountId::decode(&mut &supervisorvec[1..33])
+                    .map_err(|_| Error::<T>::InvalidJson)?;
+                if signer == accountidsupervisor {
+                    flag = 1;
+                    if signingtype == 0 {
+                        signingtype = 2;
                     }
                 }
             }
-            let operators=json_get_complexarray(json,"operators".as_bytes().to_vec());
-            let mut x=0;
+            let operators = json_get_complexarray(json, "operators".as_bytes().to_vec());
+            let mut x = 0;
             loop {
-                let operator=json_get_arrayvalue(operators.clone(),x);
+                let operator = json_get_arrayvalue(operators.clone(), x);
                 if operator.is_empty() {
                     break;
                 }
-                let operatorvec=bs58::decode(operator).into_vec().unwrap();
-                let accountidoperator=T::AccountId::decode(&mut &operatorvec[1..33]).unwrap_or_default();
-                if accountidoperator==signer {
-                    flag=1;
-                    if signingtype==0 {
-                        signingtype=3;
+                let operatorvec = bs58::decode(operator).into_vec().unwrap();
+                let accountidoperator = T::AccountId::decode(&mut &operatorvec[1..33])
+                    .map_err(|_| Error::<T>::InvalidJson)?;
+                if accountidoperator == signer {
+                    flag = 1;
+                    if signingtype == 0 {
+                        signingtype = 3;
                     }
                 }
                 x += 1;
             }
-            ensure!(flag==1,Error::<T>::SignerIsNotAuthorizedForFundCreation);
+            ensure!(flag == 1, Error::<T>::SignerIsNotAuthorizedForFundCreation);
             //check info length
             ensure!(info.len() < 8192, Error::<T>::FundInfoIsTooLong);
             // check json validity
-            let js=info.clone();
-            ensure!(json_check_validity(js),Error::<T>::InvalidJson);
+            let js = info.clone();
+            ensure!(json_check_validity(js), Error::<T>::InvalidJson);
             // check name
-            let name=json_get_value(info.clone(),"name".as_bytes().to_vec());
-            ensure!(name.len()>=10,Error::<T>::FundNameTooShort);
-            ensure!(name.len()<=64,Error::<T>::FundNameTooLong);
+            let name = json_get_value(info.clone(), "name".as_bytes().to_vec());
+            ensure!(name.len() >= 10, Error::<T>::FundNameTooShort);
+            ensure!(name.len() <= 64, Error::<T>::FundNameTooLong);
             // check Address
-            let address=json_get_value(info.clone(),"address".as_bytes().to_vec());
-            ensure!(address.len()>=10,Error::<T>::FundAddressTooShort);
-            ensure!(address.len()<=64,Error::<T>::FundAddressTooLong);
+            let address = json_get_value(info.clone(), "address".as_bytes().to_vec());
+            ensure!(address.len() >= 10, Error::<T>::FundAddressTooShort);
+            ensure!(address.len() <= 64, Error::<T>::FundAddressTooLong);
             // check Zip code
-            let zip=json_get_value(info.clone(),"zip".as_bytes().to_vec());
-            ensure!(zip.len()>3,Error::<T>::FundZipCodeTooShort);
-            ensure!(zip.len()<=6,Error::<T>::FundZipCodeTooLong);
+            let zip = json_get_value(info.clone(), "zip".as_bytes().to_vec());
+            ensure!(zip.len() > 3, Error::<T>::FundZipCodeTooShort);
+            ensure!(zip.len() <= 6, Error::<T>::FundZipCodeTooLong);
             // check City
-            let city=json_get_value(info.clone(),"city".as_bytes().to_vec());
-            ensure!(city.len()>3,Error::<T>::FundCityTooShort);
-            ensure!(city.len()<=64,Error::<T>::FundCityTooLong);
+            let city = json_get_value(info.clone(), "city".as_bytes().to_vec());
+            ensure!(city.len() > 3, Error::<T>::FundCityTooShort);
+            ensure!(city.len() <= 64, Error::<T>::FundCityTooLong);
             // check State
-            let state=json_get_value(info.clone(),"state".as_bytes().to_vec());
-            ensure!(state.len()>3,Error::<T>::FundStateTooShort);
-            ensure!(state.len()<=64,Error::<T>::FundStateTooLong);
+            let state = json_get_value(info.clone(), "state".as_bytes().to_vec());
+            ensure!(state.len() > 3, Error::<T>::FundStateTooShort);
+            ensure!(state.len() <= 64, Error::<T>::FundStateTooLong);
             // check Country
-            let country=json_get_value(info.clone(),"country".as_bytes().to_vec());
-            ensure!(country.len()>3,Error::<T>::FundCountryTooShort);
-            ensure!(country.len()<64,Error::<T>::FundCountryTooLong);
+            let country = json_get_value(info.clone(), "country".as_bytes().to_vec());
+            ensure!(country.len() > 3, Error::<T>::FundCountryTooShort);
+            ensure!(country.len() < 64, Error::<T>::FundCountryTooLong);
             // check Website
-            let website=json_get_value(info.clone(),"website".as_bytes().to_vec());
-            ensure!(website.len()>=10,Error::<T>::FundWebSiteTooShort);
-            ensure!(website.len()<=64,Error::<T>::FundWebSiteTooLong);
-            ensure!(validate_weburl(website),Error::<T>::FundWebSiteIsWrong);
+            let website = json_get_value(info.clone(), "website".as_bytes().to_vec());
+            ensure!(website.len() >= 10, Error::<T>::FundWebSiteTooShort);
+            ensure!(website.len() <= 64, Error::<T>::FundWebSiteTooLong);
+            ensure!(validate_weburl(website), Error::<T>::FundWebSiteIsWrong);
             // check Phone
-            let phone=json_get_value(info.clone(),"phone".as_bytes().to_vec());
-            ensure!(phone.len()>=10,Error::<T>::FundPhoneTooShort);
-            ensure!(phone.len()<=21,Error::<T>::FundPhoneTooLong);
-            ensure!(validate_phonenumber(phone),Error::<T>::FundPhoneIsWrong);
-            let ipfsdocs=json_get_complexarray(info.clone(),"ipfsdocs".as_bytes().to_vec());
-            if ipfsdocs.len()>2 {
-                let mut x=0;
+            let phone = json_get_value(info.clone(), "phone".as_bytes().to_vec());
+            ensure!(phone.len() >= 10, Error::<T>::FundPhoneTooShort);
+            ensure!(phone.len() <= 21, Error::<T>::FundPhoneTooLong);
+            ensure!(validate_phonenumber(phone), Error::<T>::FundPhoneIsWrong);
+            let ipfsdocs = json_get_complexarray(info.clone(), "ipfsdocs".as_bytes().to_vec());
+            if ipfsdocs.len() > 2 {
+                let mut x = 0;
                 loop {
-                    let w=json_get_recordvalue(ipfsdocs.clone(),x);
+                    let w = json_get_recordvalue(ipfsdocs.clone(), x);
                     if w.is_empty() {
                         break;
                     }
-                    let description=json_get_value(w.clone(),"description".as_bytes().to_vec());
-                    ensure!(description.len()>5,Error::<T>::FundDocumentDescriptionTooShort);
-                    let ipfsaddress=json_get_value(w.clone(),"ipfsaddress".as_bytes().to_vec());
-                    ensure!(ipfsaddress.len()>20,Error::<T>::FundDocumentIpfsAddressTooShort);
+                    let description = json_get_value(w.clone(), "description".as_bytes().to_vec());
+                    ensure!(
+                        description.len() > 5,
+                        Error::<T>::FundDocumentDescriptionTooShort
+                    );
+                    let ipfsaddress = json_get_value(w.clone(), "ipfsaddress".as_bytes().to_vec());
+                    ensure!(
+                        ipfsaddress.len() > 20,
+                        Error::<T>::FundDocumentIpfsAddressTooShort
+                    );
 
                     x += 1;
                 }
-                ensure!(x>0,Error::<T>::FundMissingDocuments);
+                ensure!(x > 0, Error::<T>::FundMissingDocuments);
             }
             // check for Initial fees (considering 2 decimals as integer)
-            let initialfees=json_get_value(info.clone(),"initialfees".as_bytes().to_vec());
-            let initialfeesv=vecu8_to_u32(initialfees);
-            ensure!(initialfeesv>0,Error::<T>::FundInitialFeesCannotBeZero);
+            let initialfees = json_get_value(info.clone(), "initialfees".as_bytes().to_vec());
+            let initialfeesv = vecu8_to_u32(initialfees);
+            ensure!(initialfeesv > 0, Error::<T>::FundInitialFeesCannotBeZero);
             // check for yearly fees on capital (considering 2 decimals as integer)
-            let yearlyfees=json_get_value(info.clone(),"yearlyfees".as_bytes().to_vec());
-            let yearlyfeesv=vecu8_to_u32(yearlyfees);
-            ensure!(yearlyfeesv>0,Error::<T>::FundYearlyFeesCannotBeZero);
+            let yearlyfees = json_get_value(info.clone(), "yearlyfees".as_bytes().to_vec());
+            let yearlyfeesv = vecu8_to_u32(yearlyfees);
+            ensure!(yearlyfeesv > 0, Error::<T>::FundYearlyFeesCannotBeZero);
             // check for performance fees on interest (considering 2 decimals as integer)
-            let performancefees=json_get_value(info.clone(),"performancefees".as_bytes().to_vec());
-            let performancefeesv=vecu8_to_u32(performancefees);
-            ensure!(performancefeesv>0,Error::<T>::FundPerformanceFeesCannotBeZero);
+            let performancefees =
+                json_get_value(info.clone(), "performancefees".as_bytes().to_vec());
+            let performancefeesv = vecu8_to_u32(performancefees);
+            ensure!(
+                performancefeesv > 0,
+                Error::<T>::FundPerformanceFeesCannotBeZero
+            );
             // check fund type E==Enterprise Fund  H==Hedge Fund
-            let fundtype=json_get_value(info.clone(),"fundtype".as_bytes().to_vec());
-            ensure!(fundtype[0]==b'E' || fundtype[0]==b'H',Error::<T>::FundTypeIsWrong);
+            let fundtype = json_get_value(info.clone(), "fundtype".as_bytes().to_vec());
+            ensure!(
+                fundtype[0] == b'E' || fundtype[0] == b'H',
+                Error::<T>::FundTypeIsWrong
+            );
             // check deposit account id for the fund (Wallet Address)
-            let depositaccountid=json_get_value(info.clone(),"depositaccountid".as_bytes().to_vec());
-            ensure!(depositaccountid.len()==48, Error::<T>::FundDepositAccountIdIsWrong);
+            let depositaccountid =
+                json_get_value(info.clone(), "depositaccountid".as_bytes().to_vec());
+            ensure!(
+                depositaccountid.len() == 48,
+                Error::<T>::FundDepositAccountIdIsWrong
+            );
             // check fund managers id for the fund (Wallet Addresses) - At the least one is mandatory
-            let fundmanagers=json_get_complexarray(info.clone(),"fundmanagers".as_bytes().to_vec());
-            let mut x=0;
-            if fundmanagers.len()>2 {
+            let fundmanagers =
+                json_get_complexarray(info.clone(), "fundmanagers".as_bytes().to_vec());
+            let mut x = 0;
+            if fundmanagers.len() > 2 {
                 loop {
-                    let w=json_get_recordvalue(fundmanagers.clone(),x);
-                    if w.is_empty(){
+                    let w = json_get_recordvalue(fundmanagers.clone(), x);
+                    if w.is_empty() {
                         break;
                     }
-                    ensure!(w.len()==48, Error::<T>::FundManagerAccountIdIsWrong);
+                    ensure!(w.len() == 48, Error::<T>::FundManagerAccountIdIsWrong);
                     x += 1;
                 }
             }
-            ensure!(x>0,Error::<T>::FundManagerAccountisMissing);
+            ensure!(x > 0, Error::<T>::FundManagerAccountisMissing);
             //store Fund on chain
             if Funds::<T>::contains_key(&accountid) {
                 // check that is not already approved from anybody
-                let itr=FundsSignatures::<T>::iter_prefix(accountid.clone());
-                ensure!(itr.count()==0,Error::<T>::FundUnderProcessItCannotBeChanged);
+                let itr = FundsSignatures::<T>::iter_prefix(accountid.clone());
+                ensure!(
+                    itr.count() == 0,
+                    Error::<T>::FundUnderProcessItCannotBeChanged
+                );
                 // Replace Fund Data
                 Funds::<T>::take(accountid.clone());
             }
-            Funds::<T>::insert(accountid.clone(),info.clone());
+            Funds::<T>::insert(accountid.clone(), info.clone());
             // Generate event
-            Self::deposit_event(RawEvent::FundStored(accountid,info));
+            Self::deposit_event(Event::FundStored(accountid, info));
             // Return a successful DispatchResult
             Ok(())
         }
-        // This function allow the manager/supervisors for fund approval, to approve a new fund 
-        #[weight = 1000]
-        pub fn fund_approve(origin, accountid: T::AccountId) -> dispatch::DispatchResult {
+        // This function allow the manager/supervisors for fund approval, to approve a new fund
+        #[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
+        pub fn fund_approve(origin: OriginFor<T>, accountid: T::AccountId) -> DispatchResult {
             let signer = ensure_signed(origin)?;
-            let mut signingtype=0;
+            let mut signingtype = 0;
             //check that the fund Id exists
-            ensure!(Funds::<T>::contains_key(&accountid),Error::<T>::KycIdNotFound);
+            ensure!(
+                Funds::<T>::contains_key(&accountid),
+                Error::<T>::KycIdNotFound
+            );
             // check for possibile duplicated signatures
-            ensure!(!FundsSignatures::<T>::contains_key(&accountid,&signer),Error::<T>::FundsSignatureAlreadyPresentrSameSigner);
+            ensure!(
+                !FundsSignatures::<T>::contains_key(&accountid, &signer),
+                Error::<T>::FundsSignatureAlreadyPresentrSameSigner
+            );
             // check the signer is one of the operators for fund approval
-            let json:Vec<u8>=Settings::get("fundapproval".as_bytes().to_vec()).unwrap();
-            let mut flag=0;
-            let manager=json_get_value(json.clone(),"manager".as_bytes().to_vec());
+            let json: Vec<u8> = Settings::<T>::get("fundapproval".as_bytes().to_vec()).unwrap();
+            let mut flag = 0;
+            let manager = json_get_value(json.clone(), "manager".as_bytes().to_vec());
             if !manager.is_empty() {
-                let managervec=bs58::decode(manager).into_vec().unwrap();
-                let accountidmanager=T::AccountId::decode(&mut &managervec[1..33]).unwrap_or_default();
-                if signer==accountidmanager {
-                    flag=1;
-                    signingtype=1;
+                let managervec = bs58::decode(manager).into_vec().unwrap();
+                let accountidmanager = T::AccountId::decode(&mut &managervec[1..33])
+                    .map_err(|_| Error::<T>::InvalidJson)?;
+                if signer == accountidmanager {
+                    flag = 1;
+                    signingtype = 1;
                 }
             }
-            let supervisor=json_get_value(json.clone(),"supervisor".as_bytes().to_vec());
+            let supervisor = json_get_value(json.clone(), "supervisor".as_bytes().to_vec());
             if !supervisor.is_empty() {
-                let supervisorvec=bs58::decode(supervisor).into_vec().unwrap();
-                let accountidsupervisor=T::AccountId::decode(&mut &supervisorvec[1..33]).unwrap_or_default();
-                if signer==accountidsupervisor {
-                    flag=1;
-                    if signingtype==0 {
-                        signingtype=2;
+                let supervisorvec = bs58::decode(supervisor).into_vec().unwrap();
+                let accountidsupervisor = T::AccountId::decode(&mut &supervisorvec[1..33])
+                    .map_err(|_| Error::<T>::InvalidJson)?;
+                if signer == accountidsupervisor {
+                    flag = 1;
+                    if signingtype == 0 {
+                        signingtype = 2;
                     }
                 }
             }
-            ensure!(flag==1,Error::<T>::SignerIsNotAuthorizedForFundApproval);
+            ensure!(flag == 1, Error::<T>::SignerIsNotAuthorizedForFundApproval);
             // write/update signature
-            FundsSignatures::<T>::insert(accountid.clone(),signer.clone(),signingtype);
+            FundsSignatures::<T>::insert(accountid.clone(), signer.clone(), signingtype);
             // check for all the approval
-            let mut sigmanager=0;
-            let mut sigsupervisor=0;
-            let mut itr=FundsSignatures::<T>::iter_prefix(accountid.clone());
+            let mut sigmanager = 0;
+            let mut sigsupervisor = 0;
+            let mut itr = FundsSignatures::<T>::iter_prefix(accountid.clone());
             let mut result;
             loop {
-                result=itr.next();
+                result = itr.next();
                 match result {
                     Some(x) => {
-                        if x.1==1 {
-                            sigmanager=1;
+                        if x.1 == 1 {
+                            sigmanager = 1;
                         }
-                        if x.1==2 {
-                            sigsupervisor=1;
+                        if x.1 == 2 {
+                            sigsupervisor = 1;
                         }
-                    },
+                    }
                     None => break,
                 }
             }
             // store approved flag if all signatures have been received
-            if sigmanager==1 && sigsupervisor==1 {
-                FundsApproved::<T>::insert(accountid.clone(),1);
+            if sigmanager == 1 && sigsupervisor == 1 {
+                FundsApproved::<T>::insert(accountid.clone(), 1);
                 // generate event for approved
-                Self::deposit_event(RawEvent::FundApproved(accountid.clone(),signer.clone()));
+                Self::deposit_event(Event::FundApproved(accountid.clone(), signer.clone()));
             }
             // generate event for the approval
-            Self::deposit_event(RawEvent::FundSignedforApproval(accountid,signer));
+            Self::deposit_event(Event::FundSignedforApproval(accountid, signer));
             // Return a successful DispatchResult
             Ok(())
         }
@@ -1292,130 +1531,203 @@ decl_module! {
         // interestrate: is the interest rate expressed in an integer assumin 2 decimals, for example 200 is equivalent to 2.00 %
         // interest type: X=Fixed Rate / F=Floating Rate /Z= Zero Interest/ I= Inflation Linked
         // for example:
-        //  
-        #[weight = 1000]
-        pub fn bond_create_change(origin, id: u32,info: Vec<u8>) -> dispatch::DispatchResult {
+        //
+        #[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
+        pub fn bond_create_change(origin: OriginFor<T>, id: u32, info: Vec<u8>) -> DispatchResult {
             let signer = ensure_signed(origin)?;
             //check id >0
-            ensure!(id>0, Error::<T>::BondIdIsWrongCannotBeZero);
+            ensure!(id > 0, Error::<T>::BondIdIsWrongCannotBeZero);
             // check that the signer is the Owner of an authorized Fund
-            ensure!(Funds::<T>::contains_key(&signer),Error::<T>::FundNotFoundforSigner);
-            ensure!(FundsApproved::<T>::contains_key(&signer),Error::<T>::FundNotYetApproved);
-            // check the signer has been subject has a KYC 
-            ensure!(Kyc::<T>::contains_key(&signer),Error::<T>::MissingKycForSigner);
+            ensure!(
+                Funds::<T>::contains_key(&signer),
+                Error::<T>::FundNotFoundforSigner
+            );
+            ensure!(
+                FundsApproved::<T>::contains_key(&signer),
+                Error::<T>::FundNotYetApproved
+            );
+            // check the signer has been subject has a KYC
+            ensure!(
+                Kyc::<T>::contains_key(&signer),
+                Error::<T>::MissingKycForSigner
+            );
             // check the Kyc has been approved
-            ensure!(KycApproved::<T>::contains_key(&signer),Error::<T>::KycSignerIsNotApproved);
-            // check owner field 
-            let owner=json_get_value(info.clone(),"owner".as_bytes().to_vec());
-            ensure!(owner.len()==48,Error::<T>::OwnerAccountIsMissing);
-            let ownervec=bs58::decode(owner).into_vec().unwrap();
-            let accountidowner=T::AccountId::decode(&mut &ownervec[1..33]).unwrap_or_default();
+            ensure!(
+                KycApproved::<T>::contains_key(&signer),
+                Error::<T>::KycSignerIsNotApproved
+            );
+            // check owner field
+            let owner = json_get_value(info.clone(), "owner".as_bytes().to_vec());
+            ensure!(owner.len() == 48, Error::<T>::OwnerAccountIsMissing);
+            let ownervec = bs58::decode(owner).into_vec().unwrap();
+            let accountidowner =
+                T::AccountId::decode(&mut &ownervec[1..33]).map_err(|_| Error::<T>::InvalidJson)?;
             // check that the owner matches the signer of the transaction
-            ensure!(signer==accountidowner,Error::<T>::SignerIsNotMatchingOwnerAccount);
+            ensure!(
+                signer == accountidowner,
+                Error::<T>::SignerIsNotMatchingOwnerAccount
+            );
             // check if the bond exists is not yet under approval and belong to the signer
-            if Bonds::contains_key(&id){
+            if Bonds::<T>::contains_key(&id) {
                 // check there are not yet approval signatures
-                let itrs=BondsSignatures::<T>::iter_prefix(id);
-                ensure!(itrs.count()==0,Error::<T>::BondUnderApprovalCannotBeChanged);
+                let itrs = BondsSignatures::<T>::iter_prefix(id);
+                ensure!(
+                    itrs.count() == 0,
+                    Error::<T>::BondUnderApprovalCannotBeChanged
+                );
                 // check owner stored is matching the signer
-                let cinfo=Bonds::get(&id).unwrap();
-                let cowner=json_get_value(cinfo.clone(),"owner".as_bytes().to_vec());
-                let cownervec=bs58::decode(cowner).into_vec().unwrap();
-                let caccountidowner=T::AccountId::decode(&mut &cownervec[1..33]).unwrap_or_default();
-                ensure!(caccountidowner==signer,Error::<T>::SignerIsNotMatchingOwnerAccount);
+                let cinfo = Bonds::<T>::get(&id).unwrap();
+                let cowner = json_get_value(cinfo.clone(), "owner".as_bytes().to_vec());
+                let cownervec = bs58::decode(cowner).into_vec().unwrap();
+                let caccountidowner = T::AccountId::decode(&mut &cownervec[1..33])
+                    .map_err(|_| Error::<T>::InvalidJson)?;
+                ensure!(
+                    caccountidowner == signer,
+                    Error::<T>::SignerIsNotMatchingOwnerAccount
+                );
             }
             // check total amount >0
-            let totalamount=json_get_value(info.clone(),"totalamount".as_bytes().to_vec());
-            let totalamountv=vecu8_to_u32(totalamount);
-            ensure!(totalamountv>0,Error::<T>::BondTotalAmountCannotBeZero);
+            let totalamount = json_get_value(info.clone(), "totalamount".as_bytes().to_vec());
+            let totalamountv = vecu8_to_u32(totalamount);
+            ensure!(totalamountv > 0, Error::<T>::BondTotalAmountCannotBeZero);
             // check currency is one of the ISO set
-            let currency=json_get_value(info.clone(),"currency".as_bytes().to_vec());
-            ensure!(Currencies::contains_key(&currency), Error::<T>::CurrencyCodeNotFound);
+            let currency = json_get_value(info.clone(), "currency".as_bytes().to_vec());
+            ensure!(
+                Currencies::<T>::contains_key(&currency),
+                Error::<T>::CurrencyCodeNotFound
+            );
             // check country is a valid ISO set
-            let country=json_get_value(info.clone(),"country".as_bytes().to_vec());
-            ensure!(IsoCountries::contains_key(&country), Error::<T>::CountryCodeNotFound);
-            let country=json_get_value(info.clone(),"country".as_bytes().to_vec());
-            ensure!(IsoCountries::contains_key(&country), Error::<T>::CountryCodeNotFound);
+            let country = json_get_value(info.clone(), "country".as_bytes().to_vec());
+            ensure!(
+                IsoCountries::<T>::contains_key(&country),
+                Error::<T>::CountryCodeNotFound
+            );
+            let country = json_get_value(info.clone(), "country".as_bytes().to_vec());
+            ensure!(
+                IsoCountries::<T>::contains_key(&country),
+                Error::<T>::CountryCodeNotFound
+            );
             // check interest rate >0 considering 2 decimals as integer
-            let interestrate=json_get_value(info.clone(),"interestrate".as_bytes().to_vec());
-            let interestratev=vecu8_to_u32(interestrate);
-            let interestype=json_get_value(info.clone(),"interestype".as_bytes().to_vec());
-            ensure!(interestratev>0 || (interestratev==0 && interestype[0]==b'Z'),Error::<T>::BondInterestRateIsWrong); // Zero Interest Rate must be possible
-            // check interest type where X= FiXed Rate, F=Floating Rate, Z= Zero Interest Rate, I=Inflation Linked Rate
-            ensure!(interestype[0]==b'X'
-                || interestype[0]==b'F'
-                || interestype[0]==b'Z'
-                || interestype[0]==b'I'
-                ,Error::<T>::BondInterestTypeIsWrong);
+            let interestrate = json_get_value(info.clone(), "interestrate".as_bytes().to_vec());
+            let interestratev = vecu8_to_u32(interestrate);
+            let interestype = json_get_value(info.clone(), "interestype".as_bytes().to_vec());
+            ensure!(
+                interestratev > 0 || (interestratev == 0 && interestype[0] == b'Z'),
+                Error::<T>::BondInterestRateIsWrong
+            ); // Zero Interest Rate must be possible
+               // check interest type where X= FiXed Rate, F=Floating Rate, Z= Zero Interest Rate, I=Inflation Linked Rate
+            ensure!(
+                interestype[0] == b'X'
+                    || interestype[0] == b'F'
+                    || interestype[0] == b'Z'
+                    || interestype[0] == b'I',
+                Error::<T>::BondInterestTypeIsWrong
+            );
             // check maturity in months from the approval time
-            let maturity=json_get_value(info.clone(),"maturity".as_bytes().to_vec());
-            let maturityv=vecu8_to_u32(maturity);
-            ensure!(maturityv>0,Error::<T>::BondMaturityCannotBeZero);
+            let maturity = json_get_value(info.clone(), "maturity".as_bytes().to_vec());
+            let maturityv = vecu8_to_u32(maturity);
+            ensure!(maturityv > 0, Error::<T>::BondMaturityCannotBeZero);
             // 50 years maximum for any bond type
-            ensure!(maturityv<=600,Error::<T>::BondMaturityTooLong);  
+            ensure!(maturityv <= 600, Error::<T>::BondMaturityTooLong);
             // check Instalments
-            let instalments=json_get_value(info.clone(),"instalments".as_bytes().to_vec());
-            let instalmentsv=vecu8_to_u32(instalments);
-            ensure!(instalmentsv<=600,Error::<T>::BondTooManyInstalments);
-            ensure!(instalmentsv<=maturityv,Error::<T>::BondInstalmentsCannotExceedMaturity);
+            let instalments = json_get_value(info.clone(), "instalments".as_bytes().to_vec());
+            let instalmentsv = vecu8_to_u32(instalments);
+            ensure!(instalmentsv <= 600, Error::<T>::BondTooManyInstalments);
+            ensure!(
+                instalmentsv <= maturityv,
+                Error::<T>::BondInstalmentsCannotExceedMaturity
+            );
             // check Grace Period
-            let graceperiod=json_get_value(info.clone(),"graceperiod".as_bytes().to_vec());
-            let graceperiodv=vecu8_to_u32(graceperiod);
-            ensure!(graceperiodv<maturityv,Error::<T>::BondGracePeriodCannotExceedMaturity);
+            let graceperiod = json_get_value(info.clone(), "graceperiod".as_bytes().to_vec());
+            let graceperiodv = vecu8_to_u32(graceperiod);
+            ensure!(
+                graceperiodv < maturityv,
+                Error::<T>::BondGracePeriodCannotExceedMaturity
+            );
             // check accepted currencies
-            let acceptedcurrencies=json_get_value(info.clone(),"acceptedcurrencies".as_bytes().to_vec());
-            if acceptedcurrencies.len()>2 {
-                let mut x=0;
+            let acceptedcurrencies =
+                json_get_value(info.clone(), "acceptedcurrencies".as_bytes().to_vec());
+            if acceptedcurrencies.len() > 2 {
+                let mut x = 0;
                 loop {
-                    let ac=json_get_arrayvalue(acceptedcurrencies.clone(),x);
+                    let ac = json_get_arrayvalue(acceptedcurrencies.clone(), x);
                     if ac.is_empty() {
                         break;
                     }
                     // check crypto currency on blockchain
-                    ensure!(Currencies::contains_key(&ac), Error::<T>::CurrencyCodeNotFound);
+                    ensure!(
+                        Currencies::<T>::contains_key(&ac),
+                        Error::<T>::CurrencyCodeNotFound
+                    );
                     x += 1;
                 }
-                ensure!(x>0, Error::<T>::BondAcceptedCurrenciesCannotBeEmpty);
+                ensure!(x > 0, Error::<T>::BondAcceptedCurrenciesCannotBeEmpty);
             }
             // check subordinated field Y/N
-            let subordinated=json_get_value(info.clone(),"subordinated".as_bytes().to_vec());
-            ensure!(subordinated[0]==b'Y'  || subordinated[0]==b'N',Error::<T>::BondSubordinatedIsWrong);
+            let subordinated = json_get_value(info.clone(), "subordinated".as_bytes().to_vec());
+            ensure!(
+                subordinated[0] == b'Y' || subordinated[0] == b'N',
+                Error::<T>::BondSubordinatedIsWrong
+            );
             // check put option field Y/N
-            let putoption=json_get_value(info.clone(),"putoption".as_bytes().to_vec());
-            ensure!(putoption[0]==b'Y'  || putoption[0]==b'N',Error::<T>::BondPutOptionIsWrong);
+            let putoption = json_get_value(info.clone(), "putoption".as_bytes().to_vec());
+            ensure!(
+                putoption[0] == b'Y' || putoption[0] == b'N',
+                Error::<T>::BondPutOptionIsWrong
+            );
             // check vesting period for put option
-            if putoption[0]==b'Y' {
-                let putvestingperiod=json_get_value(info.clone(),"putvestingperiod".as_bytes().to_vec());
-                let putvestingperiodv=vecu8_to_u32(putvestingperiod);
-                ensure!(putvestingperiodv>0,Error::<T>::BondPutVestingPeriodCannotBeZero);
+            if putoption[0] == b'Y' {
+                let putvestingperiod =
+                    json_get_value(info.clone(), "putvestingperiod".as_bytes().to_vec());
+                let putvestingperiodv = vecu8_to_u32(putvestingperiod);
+                ensure!(
+                    putvestingperiodv > 0,
+                    Error::<T>::BondPutVestingPeriodCannotBeZero
+                );
             }
             // check call option field Y/N
-            let calloption=json_get_value(info.clone(),"calloption".as_bytes().to_vec());
-            ensure!(calloption[0]==b'Y'  || calloption[0]==b'N',Error::<T>::BondCallOptionIsWrong);
+            let calloption = json_get_value(info.clone(), "calloption".as_bytes().to_vec());
+            ensure!(
+                calloption[0] == b'Y' || calloption[0] == b'N',
+                Error::<T>::BondCallOptionIsWrong
+            );
             // check vesting period for call option
-            if calloption[0]==b'Y' {
-                let callvestingperiod=json_get_value(info.clone(),"callvestingperiod".as_bytes().to_vec());
-                let callvestingperiodv=vecu8_to_u32(callvestingperiod);
-                ensure!(callvestingperiodv>0,Error::<T>::BondCallVestingPeriodCannotBeZero);
+            if calloption[0] == b'Y' {
+                let callvestingperiod =
+                    json_get_value(info.clone(), "callvestingperiod".as_bytes().to_vec());
+                let callvestingperiodv = vecu8_to_u32(callvestingperiod);
+                ensure!(
+                    callvestingperiodv > 0,
+                    Error::<T>::BondCallVestingPeriodCannotBeZero
+                );
             }
             // check put convertible option field Y/N
-            let putconvertibleoption=json_get_value(info.clone(),"putconvertibleoption".as_bytes().to_vec());
-            ensure!(putconvertibleoption[0]==b'Y'  || putconvertibleoption[0]==b'N',Error::<T>::BondPutConvertibleOptionIsWrong);
-             // check call convertible option field Y/N
-             let callconvertibleoption=json_get_value(info.clone(),"callconvertibleoption".as_bytes().to_vec());
-             ensure!(callconvertibleoption[0]==b'Y'  || callconvertibleoption[0]==b'N',Error::<T>::BondCallConvertibleOptionIsWrong);
+            let putconvertibleoption =
+                json_get_value(info.clone(), "putconvertibleoption".as_bytes().to_vec());
+            ensure!(
+                putconvertibleoption[0] == b'Y' || putconvertibleoption[0] == b'N',
+                Error::<T>::BondPutConvertibleOptionIsWrong
+            );
+            // check call convertible option field Y/N
+            let callconvertibleoption =
+                json_get_value(info.clone(), "callconvertibleoption".as_bytes().to_vec());
+            ensure!(
+                callconvertibleoption[0] == b'Y' || callconvertibleoption[0] == b'N',
+                Error::<T>::BondCallConvertibleOptionIsWrong
+            );
             // check the info documents
             // get required documents as from settings
-            let mut settingdocs="".as_bytes().to_vec();
-            let mut settingconf=0;
-            let mut ndocuments=0;
-            if Settings::contains_key("infodocuments".as_bytes().to_vec()){
-                settingdocs=Settings::get("infodocuments".as_bytes().to_vec()).unwrap();
-                settingconf=1;
-                let documents=json_get_complexarray(settingdocs.clone(),"documents".as_bytes().to_vec());
-                if documents.len()>2 {
+            let mut settingdocs = "".as_bytes().to_vec();
+            let mut settingconf = 0;
+            let mut ndocuments = 0;
+            if Settings::<T>::contains_key("infodocuments".as_bytes().to_vec()) {
+                settingdocs = Settings::<T>::get("infodocuments".as_bytes().to_vec()).unwrap();
+                settingconf = 1;
+                let documents =
+                    json_get_complexarray(settingdocs.clone(), "documents".as_bytes().to_vec());
+                if documents.len() > 2 {
                     loop {
-                        let w=json_get_recordvalue(documents.clone(),ndocuments);
+                        let w = json_get_recordvalue(documents.clone(), ndocuments);
                         if w.is_empty() {
                             break;
                         }
@@ -1423,29 +1735,39 @@ decl_module! {
                     }
                 }
             }
-            let ipfsdocs=json_get_complexarray(info.clone(),"ipfsdocs".as_bytes().to_vec());
-            if ipfsdocs.len()>2 {
-                let mut x=0;
+            let ipfsdocs = json_get_complexarray(info.clone(), "ipfsdocs".as_bytes().to_vec());
+            if ipfsdocs.len() > 2 {
+                let mut x = 0;
                 loop {
-                    let w=json_get_recordvalue(ipfsdocs.clone(),x);
+                    let w = json_get_recordvalue(ipfsdocs.clone(), x);
                     if w.is_empty() {
                         break;
                     }
-                    let description=json_get_value(w.clone(),"description".as_bytes().to_vec());
-                    ensure!(description.len()>5,Error::<T>::BondDocumentDescriptionTooShort);
-                    let ipfsaddress=json_get_value(w.clone(),"ipfsaddress".as_bytes().to_vec());
-                    ensure!(ipfsaddress.len()>20,Error::<T>::BondDocumentIpfsAddressTooShort);
+                    let description = json_get_value(w.clone(), "description".as_bytes().to_vec());
+                    ensure!(
+                        description.len() > 5,
+                        Error::<T>::BondDocumentDescriptionTooShort
+                    );
+                    let ipfsaddress = json_get_value(w.clone(), "ipfsaddress".as_bytes().to_vec());
+                    ensure!(
+                        ipfsaddress.len() > 20,
+                        Error::<T>::BondDocumentIpfsAddressTooShort
+                    );
                     //check if one of the mandatory documents
-                    if settingconf==1 {
-                        let documents=json_get_complexarray(settingdocs.clone(),"documents".as_bytes().to_vec());
-                        if documents.len()>2 {
+                    if settingconf == 1 {
+                        let documents = json_get_complexarray(
+                            settingdocs.clone(),
+                            "documents".as_bytes().to_vec(),
+                        );
+                        if documents.len() > 2 {
                             loop {
-                                let ww=json_get_recordvalue(documents.clone(),ndocuments);
+                                let ww = json_get_recordvalue(documents.clone(), ndocuments);
                                 if ww.is_empty() {
                                     break;
                                 }
-                                let wdescription=json_get_value(ww.clone(),"description".as_bytes().to_vec());
-                                if wdescription==description {
+                                let wdescription =
+                                    json_get_value(ww.clone(), "description".as_bytes().to_vec());
+                                if wdescription == description {
                                     ndocuments -= 1;
                                 }
                             }
@@ -1453,1160 +1775,1578 @@ decl_module! {
                     }
                     x += 1;
                 }
-                ensure!(x>0 && ndocuments==0,Error::<T>::BondMissingDocuments);
+                ensure!(x > 0 && ndocuments == 0, Error::<T>::BondMissingDocuments);
             }
             // remove previous data if any
-            if Bonds::contains_key(&id){
-                Bonds::take(&id);    
+            if Bonds::<T>::contains_key(&id) {
+                Bonds::<T>::take(&id);
             }
             //store bond
-            Bonds::insert(id,info.clone());
+            Bonds::<T>::insert(id, info.clone());
             // Generate event
-            Self::deposit_event(RawEvent::BondCreated(signer,id,info));
+            Self::deposit_event(Event::BondCreated(signer, id, info));
             // Return a successful DispatchResult
             Ok(())
         }
         // function to approve the bond from manager or members of the committee
-        #[weight = 1000]
-        pub fn bond_approve(origin,bondid: u32) -> dispatch::DispatchResult {
+        #[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
+        pub fn bond_approve(origin: OriginFor<T>, bondid: u32) -> DispatchResult {
             let signer = ensure_signed(origin)?;
-            let mut signingtype=0;
+            let mut signingtype = 0;
             //check id >0
-            ensure!(Bonds::contains_key(&bondid),Error::<T>::BondsIdNotFound);
+            ensure!(
+                Bonds::<T>::contains_key(&bondid),
+                Error::<T>::BondsIdNotFound
+            );
             // check for already approved bond
-            ensure!(!BondsApproved::contains_key(bondid),Error::<T>::BondAlreadyApproved);
+            ensure!(
+                !BondsApproved::<T>::contains_key(bondid),
+                Error::<T>::BondAlreadyApproved
+            );
             //check for duplicated signatures
-            ensure!(!BondsSignatures::<T>::contains_key(&bondid,&signer),Error::<T>::BondsSignatureAlreadyPresentrSameSigner);
+            ensure!(
+                !BondsSignatures::<T>::contains_key(&bondid, &signer),
+                Error::<T>::BondsSignatureAlreadyPresentrSameSigner
+            );
             // check the signer is one of the operators for Bonds approval
-            let json:Vec<u8>=Settings::get("bondapproval".as_bytes().to_vec()).unwrap();
-            let mut flag=0;
-            let manager=json_get_value(json.clone(),"manager".as_bytes().to_vec());
+            let json: Vec<u8> = Settings::<T>::get("bondapproval".as_bytes().to_vec()).unwrap();
+            let mut flag = 0;
+            let manager = json_get_value(json.clone(), "manager".as_bytes().to_vec());
             if !manager.is_empty() {
-                let managervec=bs58::decode(manager).into_vec().unwrap();
-                let accountidmanager=T::AccountId::decode(&mut &managervec[1..33]).unwrap_or_default();
-                if signer==accountidmanager {
-                    flag=1;
-                    signingtype=1;
+                let managervec = bs58::decode(manager).into_vec().unwrap();
+                let accountidmanager = T::AccountId::decode(&mut &managervec[1..33])
+                    .map_err(|_| Error::<T>::InvalidJson)?;
+                if signer == accountidmanager {
+                    flag = 1;
+                    signingtype = 1;
                 }
             }
-            let committee=json_get_complexarray(json,"committee".as_bytes().to_vec());
-            let mut x=0;
+            let committee = json_get_complexarray(json, "committee".as_bytes().to_vec());
+            let mut x = 0;
             loop {
-                let committeem=json_get_arrayvalue(committee.clone(),x);
+                let committeem = json_get_arrayvalue(committee.clone(), x);
                 if committeem.is_empty() {
                     break;
                 }
-                let committeemvec=bs58::decode(committeem).into_vec().unwrap();
-                let accountidoperator=T::AccountId::decode(&mut &committeemvec[1..33]).unwrap_or_default();
-                if accountidoperator==signer {
-                    flag=1;
-                    if signingtype==0 {
-                        signingtype=2;
+                let committeemvec = bs58::decode(committeem).into_vec().unwrap();
+                let accountidoperator = T::AccountId::decode(&mut &committeemvec[1..33])
+                    .map_err(|_| Error::<T>::InvalidJson)?;
+                if accountidoperator == signer {
+                    flag = 1;
+                    if signingtype == 0 {
+                        signingtype = 2;
                     }
                 }
                 x += 1;
             }
-            ensure!(flag==1,Error::<T>::SignerIsNotAuthorizedForBondApproval);
+            ensure!(flag == 1, Error::<T>::SignerIsNotAuthorizedForBondApproval);
             // write/update signature
-            BondsSignatures::<T>::insert(bondid,signer.clone(),signingtype);
+            BondsSignatures::<T>::insert(bondid, signer.clone(), signingtype);
             // check for all the approval
             // TODO? actually one committe member is enough to reach the "approved" status. It may be necessary to let sign a minimum quorum
-            let mut sigmanager=0;
-            let mut sigcommitee=0;
-            let mut itr=BondsSignatures::<T>::iter_prefix(bondid);
+            let mut sigmanager = 0;
+            let mut sigcommitee = 0;
+            let mut itr = BondsSignatures::<T>::iter_prefix(bondid);
             let mut result;
             loop {
-                result=itr.next();
+                result = itr.next();
                 match result {
                     Some(x) => {
-                        if x.1==1 {
-                            sigmanager=1;
+                        if x.1 == 1 {
+                            sigmanager = 1;
                         }
-                        if x.1==2 {
-                            sigcommitee=1;
+                        if x.1 == 2 {
+                            sigcommitee = 1;
                         }
-                    },
+                    }
                     None => break,
                 }
             }
             // store approved flag if all signatures have been received
-            if sigmanager==1 && sigcommitee==1 {
-                BondsApproved::insert(bondid,1);
+            if sigmanager == 1 && sigcommitee == 1 {
+                BondsApproved::<T>::insert(bondid, 1);
                 // generate event for approved
-                Self::deposit_event(RawEvent::BondApproved(bondid,signer.clone()));
+                Self::deposit_event(Event::BondApproved(bondid, signer.clone()));
             }
             // generate event for the approval
-            Self::deposit_event(RawEvent::BondSignedforApproval(bondid,signer));
+            Self::deposit_event(Event::BondSignedforApproval(bondid, signer));
             // Return a successful DispatchResult
             Ok(())
         }
         // function to a bond paying for the amount requested
-        #[weight = 1000]
-        pub fn bond_subscribe(origin,bondid: u32,amount: u32) -> dispatch::DispatchResult {
+        #[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
+        pub fn bond_subscribe(origin: OriginFor<T>, bondid: u32, amount: u32) -> DispatchResult {
             // veryfy the transaction is signed
             let signer = ensure_signed(origin)?;
             //check bondid
-            ensure!(Bonds::contains_key(&bondid),Error::<T>::BondsIdNotFound);
+            ensure!(
+                Bonds::<T>::contains_key(&bondid),
+                Error::<T>::BondsIdNotFound
+            );
             // check for already approved bond
-            ensure!(!BondsApproved::contains_key(bondid),Error::<T>::BondAlreadyApproved);
+            ensure!(
+                !BondsApproved::<T>::contains_key(bondid),
+                Error::<T>::BondAlreadyApproved
+            );
             // get the currency address (tokenid) from the bond
-            let bondv=Bonds::get(&bondid).unwrap();
-            let currency=json_get_value(bondv.clone(),"currency".as_bytes().to_vec());
+            let bondv = Bonds::<T>::get(&bondid).unwrap();
+            let currency = json_get_value(bondv.clone(), "currency".as_bytes().to_vec());
             // search for the currency
-            ensure!(!Currencies::contains_key(currency.clone()),Error::<T>::CurrencyCodeNotFound);
-            let currencyv=Currencies::get(currency).unwrap();
-            let tokenidv=json_get_value(currencyv,"address".as_bytes().to_vec());
-            let tokenid=vecu8_to_u32(tokenidv);
-            ensure!(tokenid>0,Error::<T>::CurrencyCodeHasNotValidAddress);
+            ensure!(
+                !Currencies::<T>::contains_key(currency.clone()),
+                Error::<T>::CurrencyCodeNotFound
+            );
+            let currencyv = Currencies::<T>::get(currency).unwrap();
+            let tokenidv = json_get_value(currencyv, "address".as_bytes().to_vec());
+            let tokenid = vecu8_to_u32(tokenidv);
+            ensure!(tokenid > 0, Error::<T>::CurrencyCodeHasNotValidAddress);
             // check for enough balance in the stable coin
-			let depositstablecoin = pallet_assets::Module::<T>::balance(tokenid, signer.clone());
-			ensure!(depositstablecoin >= amount.into(), Error::<T>::InsufficientFunds);
+            let depositstablecoin = pallet_assets::Pallet::<T>::balance(tokenid, signer.clone());
+            ensure!(
+                depositstablecoin >= amount.into(),
+                Error::<T>::InsufficientFunds
+            );
             // check for quantity requested + total subscribe <= total bond amount
-            let totalbondamount=json_get_value(bondv.clone(),"totalamount".as_bytes().to_vec());
-            let totalbondamountv=vecu8_to_u32(totalbondamount);
-            let mut totalshares=BondsTotalShares::get(bondid).unwrap();
-            ensure!(totalbondamountv>=totalshares+amount,Error::<T>::TotalShareAvailablesNotEnough);
+            let totalbondamount = json_get_value(bondv.clone(), "totalamount".as_bytes().to_vec());
+            let totalbondamountv = vecu8_to_u32(totalbondamount);
+            let mut totalshares = BondsTotalShares::<T>::get(bondid).unwrap();
+            ensure!(
+                totalbondamountv >= totalshares + amount,
+                Error::<T>::TotalShareAvailablesNotEnough
+            );
             // get bond fund account
-            let owner=json_get_value(bondv.clone(),"owner".as_bytes().to_vec());
-            ensure!(owner.len()==48,Error::<T>::OwnerAccountIsMissing);
-            let ownervec=bs58::decode(owner).into_vec().unwrap();
-            let accountidowner=T::AccountId::decode(&mut &ownervec[1..33]).unwrap_or_default();
+            let owner = json_get_value(bondv.clone(), "owner".as_bytes().to_vec());
+            ensure!(owner.len() == 48, Error::<T>::OwnerAccountIsMissing);
+            let ownervec = bs58::decode(owner).into_vec().unwrap();
+            let accountidowner =
+                T::AccountId::decode(&mut &ownervec[1..33]).map_err(|_| Error::<T>::InvalidJson)?;
             // transfer amount of stable coins to the Bond Owner account
-            pallet_assets::Module::<T>::transfer(RawOrigin::Signed(signer.clone()).into(), bondid, T::Lookup::unlookup(accountidowner.clone()), amount.into()).unwrap();
+            pallet_assets::Pallet::<T>::transfer(
+                RawOrigin::Signed(signer.clone()).into(),
+                bondid,
+                T::Lookup::unlookup(accountidowner.clone()),
+                amount.into(),
+            )
+            .unwrap();
             // mint the shares
-            let mut sharessubscribed=0;
-            if BondsShares::<T>::contains_key(bondid,signer.clone()) {
-                sharessubscribed=BondsShares::<T>::get(bondid,signer.clone()).unwrap();
-                let tss=sharessubscribed+amount;
-                BondsShares::<T>::take(bondid,signer.clone());
-                BondsShares::<T>::insert(bondid,signer.clone(),tss);
-            }else {
-                BondsShares::<T>::insert(bondid,signer.clone(),amount+sharessubscribed);
+            let mut sharessubscribed = 0;
+            if BondsShares::<T>::contains_key(bondid, signer.clone()) {
+                sharessubscribed = BondsShares::<T>::get(bondid, signer.clone()).unwrap();
+                let tss = sharessubscribed + amount;
+                BondsShares::<T>::take(bondid, signer.clone());
+                BondsShares::<T>::insert(bondid, signer.clone(), tss);
+            } else {
+                BondsShares::<T>::insert(bondid, signer.clone(), amount + sharessubscribed);
             }
             // update the total shares subscribed for the bond.
-            if totalshares>0 {
-                BondsTotalShares::take(bondid);        
+            if totalshares > 0 {
+                BondsTotalShares::<T>::take(bondid);
             }
-            totalshares=totalshares+amount;
-            BondsTotalShares::insert(bondid,totalshares);        
+            totalshares = totalshares + amount;
+            BondsTotalShares::<T>::insert(bondid, totalshares);
 
             // generate event for the subscription
-            Self::deposit_event(RawEvent::BondSubscribed(bondid,signer,amount));
+            Self::deposit_event(Event::BondSubscribed(bondid, signer, amount));
             // Return a successful DispatchResult
             Ok(())
         }
         // this function has the purpose to the insert or update data for Credit Rating Agencies
-        #[weight = 1000]
-        pub fn credit_rating_agency_create_change(origin, accountid: T::AccountId, info: Vec<u8>) -> dispatch::DispatchResult {
-             let signer = ensure_signed(origin)?;
-             // check the signer is one of the manager or a member of the committee
-             // read configuration on chain
-             ensure!(Settings::contains_key("creditratingagencies".as_bytes().to_vec()),Error::<T>::SettingsDoesNotExist);
-             let json:Vec<u8>=Settings::get("creditratingagencies".as_bytes().to_vec()).unwrap();
-             let mut flag=0;
-             let mut signingtype=0;
-             // check for manager
-             let manager=json_get_value(json.clone(),"manager".as_bytes().to_vec());
-             if !manager.is_empty() {
-                 let managervec=bs58::decode(manager).into_vec().unwrap();
-                 let accountidmanager=T::AccountId::decode(&mut &managervec[1..33]).unwrap_or_default();
-                 if signer==accountidmanager {
-                     flag=1;
-                     signingtype=1;
-                 }
-             }
-             // check for member of the commitee
-             let operators=json_get_complexarray(json,"committee".as_bytes().to_vec());
-             let mut x=0;
-             loop {
-                 let operator=json_get_arrayvalue(operators.clone(),x);
-                 if operator.is_empty() {
-                     break;
-                 }
-                 let operatorvec=bs58::decode(operator).into_vec().unwrap();
-                 let accountidoperator=T::AccountId::decode(&mut &operatorvec[1..33]).unwrap_or_default();
-                 if accountidoperator==signer {
-                     flag=1;
-                     if signingtype==0 {
-                         signingtype=3;
-                     }
-                 }
-                 x += 1;
-             }
-             ensure!(flag==1,Error::<T>::SignerIsNotAuthorizedForCreditRatingAgencySubmission);
-             //check info length
-             ensure!(info.len() < 8192, Error::<T>::CreditRatingAgencyInfoIsTooLong);
-             // check json validity
-             let js=info.clone();
-             ensure!(json_check_validity(js),Error::<T>::InvalidJson);
-             // check name
-             let name=json_get_value(info.clone(),"name".as_bytes().to_vec());
-             ensure!(name.len()>=10,Error::<T>::CreditRatingAgencyNameTooShort);
-             ensure!(name.len()<=64,Error::<T>::CreditRatingAgencyNameTooLong);
-             // check Website
-             let website=json_get_value(info.clone(),"website".as_bytes().to_vec());
-             ensure!(validate_weburl(website),Error::<T>::CreditRatingAgencyWebSiteIsWrong);
-             let ipfsdocs=json_get_complexarray(info.clone(),"ipfsdocs".as_bytes().to_vec());
-             if ipfsdocs.len()>2 {
-                 let mut x=0;
-                 loop {
-                     let w=json_get_recordvalue(ipfsdocs.clone(),x);
-                     if w.is_empty() {
-                         break;
-                     }
-                     let description=json_get_value(w.clone(),"description".as_bytes().to_vec());
-                     ensure!(description.len()>5,Error::<T>::CreditRatingAgencyDocumentDescriptionTooShort);
-                     let ipfsaddress=json_get_value(w.clone(),"ipfsaddress".as_bytes().to_vec());
-                     ensure!(ipfsaddress.len()>20,Error::<T>::CreditRatingAgencyDocumentIpfsAddressTooShort);
-                     x += 1;
-                 }
-                 ensure!(x>0,Error::<T>::CreditRatingAgencyMissingDocuments);
-             }
-             if CreditRatingAgencies::<T>::contains_key(&accountid) {
-                 // Replace Credit Rating Agency Data
-                 CreditRatingAgencies::<T>::take(accountid.clone());
-             }
-            CreditRatingAgencies::<T>::insert(accountid.clone(),info.clone());
-             // Generate event
-             Self::deposit_event(RawEvent::CreditRatingAgencyStored(accountid,info));
-             // Return a successful DispatchResult
-             Ok(())
-        }
-        // this function has the purpose to remove a Rating Agency from the state. Only the manager is enabled
-        #[weight = 1000]
-        pub fn credit_rating_agency_destroy(origin, accountid: T::AccountId) -> dispatch::DispatchResult {
+        #[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
+        pub fn credit_rating_agency_create_change(
+            origin: OriginFor<T>,
+            accountid: T::AccountId,
+            info: Vec<u8>,
+        ) -> DispatchResult {
             let signer = ensure_signed(origin)?;
-            // check that the credit agency exists.
-            ensure!(CreditRatingAgencies::<T>::contains_key(&accountid),Error::<T>::CreditRatingAgencyNotFound);
-            // check the signer is one of the manager 
+            // check the signer is one of the manager or a member of the committee
             // read configuration on chain
-            ensure!(Settings::contains_key("creditratingagencies".as_bytes().to_vec()),Error::<T>::SettingsDoesNotExist);
-            let json:Vec<u8>=Settings::get("creditratingagencies".as_bytes().to_vec()).unwrap();
-            let mut flag=0;
+            ensure!(
+                Settings::<T>::contains_key("creditratingagencies".as_bytes().to_vec()),
+                Error::<T>::SettingsDoesNotExist
+            );
+            let json: Vec<u8> =
+                Settings::<T>::get("creditratingagencies".as_bytes().to_vec()).unwrap();
+            let mut flag = 0;
+            let mut signingtype = 0;
             // check for manager
-            let manager=json_get_value(json.clone(),"manager".as_bytes().to_vec());
+            let manager = json_get_value(json.clone(), "manager".as_bytes().to_vec());
             if !manager.is_empty() {
-                let managervec=bs58::decode(manager).into_vec().unwrap();
-                let accountidmanager=T::AccountId::decode(&mut &managervec[1..33]).unwrap_or_default();
-                if signer==accountidmanager {
-                    flag=1;
+                let managervec = bs58::decode(manager).into_vec().unwrap();
+                let accountidmanager = T::AccountId::decode(&mut &managervec[1..33])
+                    .map_err(|_| Error::<T>::InvalidJson)?;
+                if signer == accountidmanager {
+                    flag = 1;
+                    signingtype = 1;
                 }
             }
-            ensure!(flag==1,Error::<T>::SignerIsNotAuthorizedForCreditRatingAgencyCancellation);
+            // check for member of the commitee
+            let operators = json_get_complexarray(json, "committee".as_bytes().to_vec());
+            let mut x = 0;
+            loop {
+                let operator = json_get_arrayvalue(operators.clone(), x);
+                if operator.is_empty() {
+                    break;
+                }
+                let operatorvec = bs58::decode(operator).into_vec().unwrap();
+                let accountidoperator = T::AccountId::decode(&mut &operatorvec[1..33])
+                    .map_err(|_| Error::<T>::InvalidJson)?;
+                if accountidoperator == signer {
+                    flag = 1;
+                    if signingtype == 0 {
+                        signingtype = 3;
+                    }
+                }
+                x += 1;
+            }
+            ensure!(
+                flag == 1,
+                Error::<T>::SignerIsNotAuthorizedForCreditRatingAgencySubmission
+            );
+            //check info length
+            ensure!(
+                info.len() < 8192,
+                Error::<T>::CreditRatingAgencyInfoIsTooLong
+            );
+            // check json validity
+            let js = info.clone();
+            ensure!(json_check_validity(js), Error::<T>::InvalidJson);
+            // check name
+            let name = json_get_value(info.clone(), "name".as_bytes().to_vec());
+            ensure!(name.len() >= 10, Error::<T>::CreditRatingAgencyNameTooShort);
+            ensure!(name.len() <= 64, Error::<T>::CreditRatingAgencyNameTooLong);
+            // check Website
+            let website = json_get_value(info.clone(), "website".as_bytes().to_vec());
+            ensure!(
+                validate_weburl(website),
+                Error::<T>::CreditRatingAgencyWebSiteIsWrong
+            );
+            let ipfsdocs = json_get_complexarray(info.clone(), "ipfsdocs".as_bytes().to_vec());
+            if ipfsdocs.len() > 2 {
+                let mut x = 0;
+                loop {
+                    let w = json_get_recordvalue(ipfsdocs.clone(), x);
+                    if w.is_empty() {
+                        break;
+                    }
+                    let description = json_get_value(w.clone(), "description".as_bytes().to_vec());
+                    ensure!(
+                        description.len() > 5,
+                        Error::<T>::CreditRatingAgencyDocumentDescriptionTooShort
+                    );
+                    let ipfsaddress = json_get_value(w.clone(), "ipfsaddress".as_bytes().to_vec());
+                    ensure!(
+                        ipfsaddress.len() > 20,
+                        Error::<T>::CreditRatingAgencyDocumentIpfsAddressTooShort
+                    );
+                    x += 1;
+                }
+                ensure!(x > 0, Error::<T>::CreditRatingAgencyMissingDocuments);
+            }
+            if CreditRatingAgencies::<T>::contains_key(&accountid) {
+                // Replace Credit Rating Agency Data
+                CreditRatingAgencies::<T>::take(accountid.clone());
+            }
+            CreditRatingAgencies::<T>::insert(accountid.clone(), info.clone());
+            // Generate event
+            Self::deposit_event(Event::CreditRatingAgencyStored(accountid, info));
+            // Return a successful DispatchResult
+            Ok(())
+        }
+        // this function has the purpose to remove a Rating Agency from the state. Only the manager is enabled
+        #[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
+        pub fn credit_rating_agency_destroy(
+            origin: OriginFor<T>,
+            accountid: T::AccountId,
+        ) -> DispatchResult {
+            let signer = ensure_signed(origin)?;
+            // check that the credit agency exists.
+            ensure!(
+                CreditRatingAgencies::<T>::contains_key(&accountid),
+                Error::<T>::CreditRatingAgencyNotFound
+            );
+            // check the signer is one of the manager
+            // read configuration on chain
+            ensure!(
+                Settings::<T>::contains_key("creditratingagencies".as_bytes().to_vec()),
+                Error::<T>::SettingsDoesNotExist
+            );
+            let json: Vec<u8> =
+                Settings::<T>::get("creditratingagencies".as_bytes().to_vec()).unwrap();
+            let mut flag = 0;
+            // check for manager
+            let manager = json_get_value(json.clone(), "manager".as_bytes().to_vec());
+            if !manager.is_empty() {
+                let managervec = bs58::decode(manager).into_vec().unwrap();
+                let accountidmanager = T::AccountId::decode(&mut &managervec[1..33])
+                    .map_err(|_| Error::<T>::InvalidJson)?;
+                if signer == accountidmanager {
+                    flag = 1;
+                }
+            }
+            ensure!(
+                flag == 1,
+                Error::<T>::SignerIsNotAuthorizedForCreditRatingAgencyCancellation
+            );
             // cancel the credit agency
             CreditRatingAgencies::<T>::take(accountid.clone());
             // Generate event
-            Self::deposit_event(RawEvent::CreditRatingAgencyDestroyed(accountid));
+            Self::deposit_event(Event::CreditRatingAgencyDestroyed(accountid));
             // Return a successful DispatchResult
             Ok(())
         }
         // this function has the purpose to the insert or update data for Credit Rating
-        #[weight = 1000]
-        pub fn credit_rating_create(origin, bondid: u32, info: Vec<u8>) -> dispatch::DispatchResult {
-             let signer = ensure_signed(origin)?;
-             // check the signer is a credit rating agency
-             ensure!(CreditRatingAgencies::<T>::contains_key(&signer),Error::<T>::SignerIsNotAuthorizedAsCreditRatingAgency);
-             //check info length
-             ensure!(info.len() < 8192, Error::<T>::CreditRatingInfoIsTooLong);
-             // check json validity
-             let js=info.clone();
-             ensure!(json_check_validity(js),Error::<T>::InvalidJson);
-             // check description of the rating
-             let description=json_get_value(info.clone(),"description".as_bytes().to_vec());
-             ensure!(description.len()>=10,Error::<T>::CreditRatingDescriptionTooShort);
-             ensure!(description.len()<=64,Error::<T>::CreditRatingDescriptionTooLong);
-             let ipfsdocs=json_get_complexarray(info.clone(),"ipfsdocs".as_bytes().to_vec());
-             // check for the presence of Documents
-             ensure!(ipfsdocs.len()>2,Error::<T>::CreditRatingDocumentsAreMissing);
-             if ipfsdocs.len()>2 {
-                 let mut x=0;
-                 loop {
-                     let w=json_get_recordvalue(ipfsdocs.clone(),x);
-                     if w.is_empty() {
-                         break;
-                     }
-                     let description=json_get_value(w.clone(),"description".as_bytes().to_vec());
-                     ensure!(description.len()>5,Error::<T>::CreditRatingDocumentDescriptionTooShort);
-                     let ipfsaddress=json_get_value(w.clone(),"ipfsaddress".as_bytes().to_vec());
-                     ensure!(ipfsaddress.len()>20,Error::<T>::CreditRatingDocumentIpfsAddressTooShort);
-                     x += 1;
-                 }
-                 ensure!(x>0,Error::<T>::CreditRatingMissingDocuments);
-             }
-             // Insert Credit Rating
-             CreditRatings::insert(bondid,info.clone());
-             // Generate event
-             Self::deposit_event(RawEvent::CreditRatingStored(bondid,info));
-             // Return a successful DispatchResult
-             Ok(())
+        #[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
+        pub fn credit_rating_create(
+            origin: OriginFor<T>,
+            bondid: u32,
+            info: Vec<u8>,
+        ) -> DispatchResult {
+            let signer = ensure_signed(origin)?;
+            // check the signer is a credit rating agency
+            ensure!(
+                CreditRatingAgencies::<T>::contains_key(&signer),
+                Error::<T>::SignerIsNotAuthorizedAsCreditRatingAgency
+            );
+            //check info length
+            ensure!(info.len() < 8192, Error::<T>::CreditRatingInfoIsTooLong);
+            // check json validity
+            let js = info.clone();
+            ensure!(json_check_validity(js), Error::<T>::InvalidJson);
+            // check description of the rating
+            let description = json_get_value(info.clone(), "description".as_bytes().to_vec());
+            ensure!(
+                description.len() >= 10,
+                Error::<T>::CreditRatingDescriptionTooShort
+            );
+            ensure!(
+                description.len() <= 64,
+                Error::<T>::CreditRatingDescriptionTooLong
+            );
+            let ipfsdocs = json_get_complexarray(info.clone(), "ipfsdocs".as_bytes().to_vec());
+            // check for the presence of Documents
+            ensure!(
+                ipfsdocs.len() > 2,
+                Error::<T>::CreditRatingDocumentsAreMissing
+            );
+            if ipfsdocs.len() > 2 {
+                let mut x = 0;
+                loop {
+                    let w = json_get_recordvalue(ipfsdocs.clone(), x);
+                    if w.is_empty() {
+                        break;
+                    }
+                    let description = json_get_value(w.clone(), "description".as_bytes().to_vec());
+                    ensure!(
+                        description.len() > 5,
+                        Error::<T>::CreditRatingDocumentDescriptionTooShort
+                    );
+                    let ipfsaddress = json_get_value(w.clone(), "ipfsaddress".as_bytes().to_vec());
+                    ensure!(
+                        ipfsaddress.len() > 20,
+                        Error::<T>::CreditRatingDocumentIpfsAddressTooShort
+                    );
+                    x += 1;
+                }
+                ensure!(x > 0, Error::<T>::CreditRatingMissingDocuments);
+            }
+            // Insert Credit Rating
+            CreditRatings::<T>::insert(bondid, info.clone());
+            // Generate event
+            Self::deposit_event(Event::CreditRatingStored(bondid, info));
+            // Return a successful DispatchResult
+            Ok(())
         }
         // this function has the purpose to the insert collaterals document for a bond
-        #[weight = 1000]
-        pub fn collaterals_create(origin, bondid: u32, collateralid: u32, info: Vec<u8>) -> dispatch::DispatchResult {
+        #[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
+        pub fn collaterals_create(
+            origin: OriginFor<T>,
+            bondid: u32,
+            collateralid: u32,
+            info: Vec<u8>,
+        ) -> DispatchResult {
             let signer = ensure_signed(origin)?;
             // check for bond id
-            ensure!(Bonds::contains_key(&bondid),Error::<T>::BondsIdNotFound);
+            ensure!(
+                Bonds::<T>::contains_key(&bondid),
+                Error::<T>::BondsIdNotFound
+            );
             // check for collateral id  not already present
-            ensure!(!Collaterals::contains_key(&bondid,&collateralid),Error::<T>::CollateralIdAlreadyPresent);
+            ensure!(
+                !Collaterals::<T>::contains_key(&bondid, &collateralid),
+                Error::<T>::CollateralIdAlreadyPresent
+            );
             // check the signer is the owner of the bond
-            if Bonds::contains_key(&bondid){
+            if Bonds::<T>::contains_key(&bondid) {
                 // check owner stored is matching the signer
-                let cinfo=Bonds::get(&bondid).unwrap();
-                let cowner=json_get_value(cinfo.clone(),"owner".as_bytes().to_vec());
-                let cownervec=bs58::decode(cowner).into_vec().unwrap();
-                let caccountidowner=T::AccountId::decode(&mut &cownervec[1..33]).unwrap_or_default();
-                ensure!(caccountidowner==signer,Error::<T>::SignerIsNotMatchingOwnerAccount);
+                let cinfo = Bonds::<T>::get(&bondid).unwrap();
+                let cowner = json_get_value(cinfo.clone(), "owner".as_bytes().to_vec());
+                let cownervec = bs58::decode(cowner).into_vec().unwrap();
+                let caccountidowner = T::AccountId::decode(&mut &cownervec[1..33])
+                    .map_err(|_| Error::<T>::InvalidJson)?;
+                ensure!(
+                    caccountidowner == signer,
+                    Error::<T>::SignerIsNotMatchingOwnerAccount
+                );
             }
-             //check info length
-             ensure!(info.len() < 8192, Error::<T>::CollateralsInfoIsTooLong);
-             // check json validity
-             let js=info.clone();
-             ensure!(json_check_validity(js),Error::<T>::InvalidJson);
-             // check documents
-             let ipfsdocs=json_get_complexarray(info.clone(),"ipfsdocs".as_bytes().to_vec());
-             if ipfsdocs.len()>2 {
-                 let mut x=0;
-                 loop {
-                     let w=json_get_recordvalue(ipfsdocs.clone(),x);
-                     if w.is_empty() {
-                         break;
-                     }
-                     let description=json_get_value(w.clone(),"description".as_bytes().to_vec());
-                     ensure!(description.len()>5,Error::<T>::CollateralDocumentDescriptionTooShort);
-                     let ipfsaddress=json_get_value(w.clone(),"ipfsaddress".as_bytes().to_vec());
-                     ensure!(ipfsaddress.len()>20,Error::<T>::CollateralDocumentIpfsAddressTooShort);
-                     x += 1;
-                 }
-                 ensure!(x>0,Error::<T>::CollateralMissingDocuments);
-             }
-             // Insert Collateral
-             Collaterals::insert(bondid,collateralid,info.clone());
-             // Generate event
-             Self::deposit_event(RawEvent::CollateralsStored(bondid,collateralid,info));
-             // Return a successful DispatchResult
-             Ok(())
+            //check info length
+            ensure!(info.len() < 8192, Error::<T>::CollateralsInfoIsTooLong);
+            // check json validity
+            let js = info.clone();
+            ensure!(json_check_validity(js), Error::<T>::InvalidJson);
+            // check documents
+            let ipfsdocs = json_get_complexarray(info.clone(), "ipfsdocs".as_bytes().to_vec());
+            if ipfsdocs.len() > 2 {
+                let mut x = 0;
+                loop {
+                    let w = json_get_recordvalue(ipfsdocs.clone(), x);
+                    if w.is_empty() {
+                        break;
+                    }
+                    let description = json_get_value(w.clone(), "description".as_bytes().to_vec());
+                    ensure!(
+                        description.len() > 5,
+                        Error::<T>::CollateralDocumentDescriptionTooShort
+                    );
+                    let ipfsaddress = json_get_value(w.clone(), "ipfsaddress".as_bytes().to_vec());
+                    ensure!(
+                        ipfsaddress.len() > 20,
+                        Error::<T>::CollateralDocumentIpfsAddressTooShort
+                    );
+                    x += 1;
+                }
+                ensure!(x > 0, Error::<T>::CollateralMissingDocuments);
+            }
+            // Insert Collateral
+            Collaterals::<T>::insert(bondid, collateralid, info.clone());
+            // Generate event
+            Self::deposit_event(Event::CollateralsStored(bondid, collateralid, info));
+            // Return a successful DispatchResult
+            Ok(())
         }
         // this function has the purpose to remove the collateral from the owner of the bond
-        #[weight = 1000]
-        pub fn collaterals_destroy(origin, bondid: u32, collateralid: u32) -> dispatch::DispatchResult {
-             let signer = ensure_signed(origin)?;
-             // check for bond id
-             ensure!(Bonds::contains_key(&bondid),Error::<T>::BondsIdNotFound);
-             // check the signer is the owner of the bond
-             if Bonds::contains_key(&bondid){
+        #[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
+        pub fn collaterals_destroy(
+            origin: OriginFor<T>,
+            bondid: u32,
+            collateralid: u32,
+        ) -> DispatchResult {
+            let signer = ensure_signed(origin)?;
+            // check for bond id
+            ensure!(
+                Bonds::<T>::contains_key(&bondid),
+                Error::<T>::BondsIdNotFound
+            );
+            // check the signer is the owner of the bond
+            if Bonds::<T>::contains_key(&bondid) {
                 // check owner stored is matching the signer
-                let cinfo=Bonds::get(&bondid).unwrap();
-                let cowner=json_get_value(cinfo.clone(),"owner".as_bytes().to_vec());
-                let cownervec=bs58::decode(cowner).into_vec().unwrap();
-                let caccountidowner=T::AccountId::decode(&mut &cownervec[1..33]).unwrap_or_default();
-                ensure!(caccountidowner==signer,Error::<T>::SignerIsNotMatchingOwnerAccount);
+                let cinfo = Bonds::<T>::get(&bondid).unwrap();
+                let cowner = json_get_value(cinfo.clone(), "owner".as_bytes().to_vec());
+                let cownervec = bs58::decode(cowner).into_vec().unwrap();
+                let caccountidowner = T::AccountId::decode(&mut &cownervec[1..33])
+                    .map_err(|_| Error::<T>::InvalidJson)?;
+                ensure!(
+                    caccountidowner == signer,
+                    Error::<T>::SignerIsNotMatchingOwnerAccount
+                );
             }
-             // check for collateral id is already present
-             ensure!(Collaterals::contains_key(&bondid,&collateralid),Error::<T>::CollateralIdNotFound);
-             // check the collateral has not yet approved
-             ensure!(!CollateralsApproval::contains_key(bondid,collateralid),Error::<T>::CollateralAlreadyApproved);
-             // Delete Collateral
-             Collaterals::take(bondid,collateralid);
-             // Generate event
-             Self::deposit_event(RawEvent::CollateralsDestroyed(bondid,collateralid));
-             // Return a successful DispatchResult
-             Ok(())
+            // check for collateral id is already present
+            ensure!(
+                Collaterals::<T>::contains_key(&bondid, &collateralid),
+                Error::<T>::CollateralIdNotFound
+            );
+            // check the collateral has not yet approved
+            ensure!(
+                !CollateralsApproval::<T>::contains_key(bondid, collateralid),
+                Error::<T>::CollateralAlreadyApproved
+            );
+            // Delete Collateral
+            Collaterals::<T>::take(bondid, collateralid);
+            // Generate event
+            Self::deposit_event(Event::CollateralsDestroyed(bondid, collateralid));
+            // Return a successful DispatchResult
+            Ok(())
         }
         // this function has the purpose to the insert collaterals document for a bond
-        #[weight = 1000]
-        pub fn collaterals_approve(origin, bondid: u32, collateralid: u32, info: Vec<u8>) -> dispatch::DispatchResult {
-             let signer = ensure_signed(origin)?;
-             // check the signer is one of the manager or a member of the committee
-             ensure!(Settings::contains_key("collateralsverification".as_bytes().to_vec()),Error::<T>::SettingsDoesNotExist);
-             let json:Vec<u8>=Settings::get("collateralsverification".as_bytes().to_vec()).unwrap();
-             let mut flag=0;
-             let mut signingtype=0;
-             let manager=json_get_value(json.clone(),"manager".as_bytes().to_vec());
-             if !manager.is_empty() {
-                 let managervec=bs58::decode(manager).into_vec().unwrap();
-                 let accountidmanager=T::AccountId::decode(&mut &managervec[1..33]).unwrap_or_default();
-                 if signer==accountidmanager {
-                     flag=1;
-                     signingtype=1;
-                 }
-             }
-             let operators=json_get_complexarray(json,"committee".as_bytes().to_vec());
-             let mut x=0;
-             loop {
-                 let operator=json_get_arrayvalue(operators.clone(),x);
-                 if operator.is_empty() {
-                     break;
-                 }
-                 let operatorvec=bs58::decode(operator).into_vec().unwrap();
-                 let accountidoperator=T::AccountId::decode(&mut &operatorvec[1..33]).unwrap_or_default();
-                 if accountidoperator==signer {
-                     flag=1;
-                     if signingtype==0 {
-                         signingtype=3;
-                     }
-                 }
-                 x += 1;
-             }
-             ensure!(flag==1,Error::<T>::SignerIsNotAuthorizedForCollateralsApproval);
-             // check for bond id
-             ensure!(Bonds::contains_key(&bondid),Error::<T>::BondsIdNotFound);
-             // check for collateral id  not already present
-             ensure!(!CollateralsApproval::contains_key(&bondid,&collateralid),Error::<T>::CollateralIdAlreadyPresent);
-             //check info length
-             ensure!(info.len() < 8192, Error::<T>::CollateralsInfoIsTooLong);
-             // check json validity
-             let js=info.clone();
-             ensure!(json_check_validity(js),Error::<T>::InvalidJson);
-             // check documents
-             let ipfsdocs=json_get_complexarray(info.clone(),"ipfsdocs".as_bytes().to_vec());
-             if ipfsdocs.len()>2 {
-                 let mut x=0;
-                 loop {
-                     let w=json_get_recordvalue(ipfsdocs.clone(),x);
-                     if w.is_empty() {
-                         break;
-                     }
-                     let description=json_get_value(w.clone(),"description".as_bytes().to_vec());
-                     ensure!(description.len()>5,Error::<T>::CollateralDocumentDescriptionTooShort);
-                     let ipfsaddress=json_get_value(w.clone(),"ipfsaddress".as_bytes().to_vec());
-                     ensure!(ipfsaddress.len()>20,Error::<T>::CollateralDocumentIpfsAddressTooShort);
-                     x += 1;
-                 }
-                 ensure!(x>0,Error::<T>::CollateralMissingDocuments);
-             }
+        #[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
+        pub fn collaterals_approve(
+            origin: OriginFor<T>,
+            bondid: u32,
+            collateralid: u32,
+            info: Vec<u8>,
+        ) -> DispatchResult {
+            let signer = ensure_signed(origin)?;
+            // check the signer is one of the manager or a member of the committee
+            ensure!(
+                Settings::<T>::contains_key("collateralsverification".as_bytes().to_vec()),
+                Error::<T>::SettingsDoesNotExist
+            );
+            let json: Vec<u8> =
+                Settings::<T>::get("collateralsverification".as_bytes().to_vec()).unwrap();
+            let mut flag = 0;
+            let mut signingtype = 0;
+            let manager = json_get_value(json.clone(), "manager".as_bytes().to_vec());
+            if !manager.is_empty() {
+                let managervec = bs58::decode(manager).into_vec().unwrap();
+                let accountidmanager = T::AccountId::decode(&mut &managervec[1..33])
+                    .map_err(|_| Error::<T>::InvalidJson)?;
+                if signer == accountidmanager {
+                    flag = 1;
+                    signingtype = 1;
+                }
+            }
+            let operators = json_get_complexarray(json, "committee".as_bytes().to_vec());
+            let mut x = 0;
+            loop {
+                let operator = json_get_arrayvalue(operators.clone(), x);
+                if operator.is_empty() {
+                    break;
+                }
+                let operatorvec = bs58::decode(operator).into_vec().unwrap();
+                let accountidoperator = T::AccountId::decode(&mut &operatorvec[1..33])
+                    .map_err(|_| Error::<T>::InvalidJson)?;
+                if accountidoperator == signer {
+                    flag = 1;
+                    if signingtype == 0 {
+                        signingtype = 3;
+                    }
+                }
+                x += 1;
+            }
+            ensure!(
+                flag == 1,
+                Error::<T>::SignerIsNotAuthorizedForCollateralsApproval
+            );
+            // check for bond id
+            ensure!(
+                Bonds::<T>::contains_key(&bondid),
+                Error::<T>::BondsIdNotFound
+            );
+            // check for collateral id  not already present
+            ensure!(
+                !CollateralsApproval::<T>::contains_key(&bondid, &collateralid),
+                Error::<T>::CollateralIdAlreadyPresent
+            );
+            //check info length
+            ensure!(info.len() < 8192, Error::<T>::CollateralsInfoIsTooLong);
+            // check json validity
+            let js = info.clone();
+            ensure!(json_check_validity(js), Error::<T>::InvalidJson);
+            // check documents
+            let ipfsdocs = json_get_complexarray(info.clone(), "ipfsdocs".as_bytes().to_vec());
+            if ipfsdocs.len() > 2 {
+                let mut x = 0;
+                loop {
+                    let w = json_get_recordvalue(ipfsdocs.clone(), x);
+                    if w.is_empty() {
+                        break;
+                    }
+                    let description = json_get_value(w.clone(), "description".as_bytes().to_vec());
+                    ensure!(
+                        description.len() > 5,
+                        Error::<T>::CollateralDocumentDescriptionTooShort
+                    );
+                    let ipfsaddress = json_get_value(w.clone(), "ipfsaddress".as_bytes().to_vec());
+                    ensure!(
+                        ipfsaddress.len() > 20,
+                        Error::<T>::CollateralDocumentIpfsAddressTooShort
+                    );
+                    x += 1;
+                }
+                ensure!(x > 0, Error::<T>::CollateralMissingDocuments);
+            }
             // Insert Collateral
-            CollateralsApproval::insert(bondid,collateralid,info.clone());
+            CollateralsApproval::<T>::insert(bondid, collateralid, info.clone());
             // Generate event
-            Self::deposit_event(RawEvent::CollateralsApproved(bondid,collateralid,info));
+            Self::deposit_event(Event::CollateralsApproved(bondid, collateralid, info));
             // Return a successful DispatchResult
             Ok(())
         }
         /// Create a new Iso country code and name
-        #[weight = 1000]
-        pub fn iso_country_create(origin, countrycode: Vec<u8>, countryname: Vec<u8>) -> dispatch::DispatchResult {
+        #[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
+        pub fn iso_country_create(
+            origin: OriginFor<T>,
+            countrycode: Vec<u8>,
+            countryname: Vec<u8>,
+        ) -> DispatchResult {
             // check the request is signed from the Super User
             let _sender = ensure_root(origin)?;
             // check country code length == 2
-            ensure!(countrycode.len()==2, Error::<T>::WrongLengthCountryCode);
+            ensure!(countrycode.len() == 2, Error::<T>::WrongLengthCountryCode);
             // check country name length  >= 3
-            ensure!(countryname.len()>=3, Error::<T>::CountryNameTooShort);
+            ensure!(countryname.len() >= 3, Error::<T>::CountryNameTooShort);
             // check the country is not alreay present on chain
-            ensure!(!IsoCountries::contains_key(&countrycode), Error::<T>::CountryCodeAlreadyPresent);
+            ensure!(
+                !IsoCountries::<T>::contains_key(&countrycode),
+                Error::<T>::CountryCodeAlreadyPresent
+            );
             // store the Iso Country Code and Name
-            IsoCountries::insert(countrycode.clone(),countryname.clone());
+            IsoCountries::<T>::insert(countrycode.clone(), countryname.clone());
             // Generate event
-            Self::deposit_event(RawEvent::IsoCountryCreated(countrycode,countryname));
+            Self::deposit_event(Event::IsoCountryCreated(countrycode, countryname));
             // Return a successful DispatchResult
             Ok(())
         }
         /// Destroy an Iso country code and name
-        #[weight = 1000]
-        pub fn iso_country_destroy(origin, countrycode: Vec<u8>,) -> dispatch::DispatchResult {
+        #[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
+        pub fn iso_country_destroy(origin: OriginFor<T>, countrycode: Vec<u8>) -> DispatchResult {
             // check the request is signed from the Super User
             let _sender = ensure_root(origin)?;
             // verify the country code exists
-            ensure!(IsoCountries::contains_key(&countrycode), Error::<T>::CountryCodeNotFound);
+            ensure!(
+                IsoCountries::<T>::contains_key(&countrycode),
+                Error::<T>::CountryCodeNotFound
+            );
             // Remove country code
-            IsoCountries::take(countrycode.clone());
+            IsoCountries::<T>::take(countrycode.clone());
             // Generate event
             //it can leave orphans, anyway it's a decision of the super user
-            Self::deposit_event(RawEvent::IsoCountryDestroyed(countrycode));
+            Self::deposit_event(Event::IsoCountryDestroyed(countrycode));
             // Return a successful DispatchResult
             Ok(())
         }
         /// Create a new Currency code with name and other info in a json structure
-         /// {"name":"Bitcoin","category":"c(rypto)/f(iat)","country":"countryisocode","blockchain":"Ethereum(...)","address":"xxxfor_crypto_currencyxxx"}
-         /// for example: {"name":"Bitcoin","category":"c","country":"AE","blockchain":"Bitcoin","address":"not applicable"}
-         /// {"name":"American Dollars","category":"f","country":"US","blockchain":"not applicable","address":"not applicable"}
-         #[weight = 1000]
-         pub fn currency_create(origin, currencycode: Vec<u8>, info: Vec<u8>) -> dispatch::DispatchResult {
-             // check the request is signed from the Super User
-             let _sender = ensure_root(origin)?;
-             // check currency code length is between 3 and 5 bytes
-             ensure!((currencycode.len()==2), Error::<T>::WrongLengthCurrencyCode);
-             // check the info field is not longer 1024 bytes
-             ensure!((info.len()<=1024), Error::<T>::SizeInfoTooLong);
-             // check for a valid json structure
-             ensure!(json_check_validity(info.clone()),Error::<T>::InvalidJson);
-             // check for name
-             let name=json_get_value(info.clone(),"name".as_bytes().to_vec());
-             ensure!(name.len()>=3, Error::<T>::CurrencyNameTooShort);
-             ensure!(name.len()<=32, Error::<T>::CurrencyNameTooLong);
-             // check for type of currency (fiat/crypto)
-             let category=json_get_value(info.clone(),"category".as_bytes().to_vec());
-             let c: Vec<u8>= vec![b'c'];
-             let f: Vec<u8>= vec![b'f'];
-             ensure!((category==c || category==f),Error::<T>::CurrencyCategoryIswrong);
-             // check for the country code in case of Fiat currency
-             if category==f {
-                 let countrycode=json_get_value(info.clone(),"country".as_bytes().to_vec());
-                 ensure!(IsoCountries::contains_key(&countrycode), Error::<T>::CountryCodeNotFound);
-             }
-             // check for the blockchain in case of Crypto currency
-             if category==c {
-                 let blockchain=json_get_value(info.clone(),"blockchain".as_bytes().to_vec());
-                 ensure!(blockchain.len()>=3, Error::<T>::BlockchainNameTooShort);
-                 ensure!(blockchain.len()<=32, Error::<T>::BlockchainNameTooLong);
-             }
-             // check the currency is not alreay present on chain
-             ensure!(!Currencies::contains_key(&currencycode), Error::<T>::CurrencyCodeAlreadyPresent);
-             // store the Currency Code and info
-             Currencies::insert(currencycode.clone(),info.clone());
-             // Generate event
-             Self::deposit_event(RawEvent::CurrencyCodeCreated(currencycode,info));
-             // Return a successful DispatchResult
-             Ok(())
-         }
-         /// Destroy a currency
-         #[weight = 1000]
-         pub fn currency_destroy(origin, currencycode: Vec<u8>,) -> dispatch::DispatchResult {
-             // check the request is signed from the Super User
-             let _sender = ensure_root(origin)?;
-             // verify the currency code exists
-             ensure!(Currencies::contains_key(&currencycode), Error::<T>::CurrencyCodeNotFound);
-             // Remove currency code
-             Currencies::take(currencycode.clone());
-             // Generate event
-             //it can leave orphans, anyway it's a decision of the super user
-             Self::deposit_event(RawEvent::CurrencyDestroyed(currencycode));
-             // Return a successful DispatchResult
-             Ok(())
-         }
+        /// {"name":"Bitcoin","category":"c(rypto)/f(iat)","country":"countryisocode","blockchain":"Ethereum(...)","address":"xxxfor_crypto_currencyxxx"}
+        /// for example: {"name":"Bitcoin","category":"c","country":"AE","blockchain":"Bitcoin","address":"not applicable"}
+        /// {"name":"American Dollars","category":"f","country":"US","blockchain":"not applicable","address":"not applicable"}
+        #[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
+        pub fn currency_create(
+            origin: OriginFor<T>,
+            currencycode: Vec<u8>,
+            info: Vec<u8>,
+        ) -> DispatchResult {
+            // check the request is signed from the Super User
+            let _sender = ensure_root(origin)?;
+            // check currency code length is between 3 and 5 bytes
+            ensure!(
+                (currencycode.len() == 2),
+                Error::<T>::WrongLengthCurrencyCode
+            );
+            // check the info field is not longer 1024 bytes
+            ensure!((info.len() <= 1024), Error::<T>::SizeInfoTooLong);
+            // check for a valid json structure
+            ensure!(json_check_validity(info.clone()), Error::<T>::InvalidJson);
+            // check for name
+            let name = json_get_value(info.clone(), "name".as_bytes().to_vec());
+            ensure!(name.len() >= 3, Error::<T>::CurrencyNameTooShort);
+            ensure!(name.len() <= 32, Error::<T>::CurrencyNameTooLong);
+            // check for type of currency (fiat/crypto)
+            let category = json_get_value(info.clone(), "category".as_bytes().to_vec());
+            let c: Vec<u8> = vec![b'c'];
+            let f: Vec<u8> = vec![b'f'];
+            ensure!(
+                (category == c || category == f),
+                Error::<T>::CurrencyCategoryIswrong
+            );
+            // check for the country code in case of Fiat currency
+            if category == f {
+                let countrycode = json_get_value(info.clone(), "country".as_bytes().to_vec());
+                ensure!(
+                    IsoCountries::<T>::contains_key(&countrycode),
+                    Error::<T>::CountryCodeNotFound
+                );
+            }
+            // check for the blockchain in case of Crypto currency
+            if category == c {
+                let blockchain = json_get_value(info.clone(), "blockchain".as_bytes().to_vec());
+                ensure!(blockchain.len() >= 3, Error::<T>::BlockchainNameTooShort);
+                ensure!(blockchain.len() <= 32, Error::<T>::BlockchainNameTooLong);
+            }
+            // check the currency is not alreay present on chain
+            ensure!(
+                !Currencies::<T>::contains_key(&currencycode),
+                Error::<T>::CurrencyCodeAlreadyPresent
+            );
+            // store the Currency Code and info
+            Currencies::<T>::insert(currencycode.clone(), info.clone());
+            // Generate event
+            Self::deposit_event(Event::CurrencyCodeCreated(currencycode, info));
+            // Return a successful DispatchResult
+            Ok(())
+        }
+        /// Destroy a currency
+        #[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
+        pub fn currency_destroy(origin: OriginFor<T>, currencycode: Vec<u8>) -> DispatchResult {
+            // check the request is signed from the Super User
+            let _sender = ensure_root(origin)?;
+            // verify the currency code exists
+            ensure!(
+                Currencies::<T>::contains_key(&currencycode),
+                Error::<T>::CurrencyCodeNotFound
+            );
+            // Remove currency code
+            Currencies::<T>::take(currencycode.clone());
+            // Generate event
+            //it can leave orphans, anyway it's a decision of the super user
+            Self::deposit_event(Event::CurrencyDestroyed(currencycode));
+            // Return a successful DispatchResult
+            Ok(())
+        }
 
         /// Create an Underwriter
         /// Suggestion: An approval process with multiple signatures may be considered useful.
-        #[weight = 1000]
-        pub fn undwerwriter_create(origin, underwriter_account: T::AccountId, info: Vec<u8>) -> dispatch::DispatchResult {
-            let signer =  ensure_signed(origin)?;
+        #[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
+        pub fn undwerwriter_create(
+            origin: OriginFor<T>,
+            underwriter_account: T::AccountId,
+            info: Vec<u8>,
+        ) -> DispatchResult {
+            let signer = ensure_signed(origin)?;
             // check for a valid json structure
-            ensure!(json_check_validity(info.clone()),Error::<T>::InvalidJson);
+            ensure!(json_check_validity(info.clone()), Error::<T>::InvalidJson);
             // check the signer is one of the manager or a member of the committee
-            let json:Vec<u8>=Settings::get("underwriterssubmission".as_bytes().to_vec()).unwrap();
-            let mut flag=0;
-            let mut signingtype=0;
-            let manager=json_get_value(json.clone(),"manager".as_bytes().to_vec());
+            let json: Vec<u8> =
+                Settings::<T>::get("underwriterssubmission".as_bytes().to_vec()).unwrap();
+            let mut flag = 0;
+            let mut signingtype = 0;
+            let manager = json_get_value(json.clone(), "manager".as_bytes().to_vec());
             if !manager.is_empty() {
-                let managervec=bs58::decode(manager).into_vec().unwrap();
-                let accountidmanager=T::AccountId::decode(&mut &managervec[1..33]).unwrap_or_default();
-                if signer==accountidmanager {
-                    flag=1;
-                    signingtype=1;
+                let managervec = bs58::decode(manager).into_vec().unwrap();
+                let accountidmanager = T::AccountId::decode(&mut &managervec[1..33])
+                    .map_err(|_| Error::<T>::InvalidJson)?;
+                if signer == accountidmanager {
+                    flag = 1;
+                    signingtype = 1;
                 }
             }
-            let operators=json_get_complexarray(json, "committee".as_bytes().to_vec());
-            let mut x=0;
+            let operators = json_get_complexarray(json, "committee".as_bytes().to_vec());
+            let mut x = 0;
             loop {
-                let operator=json_get_arrayvalue(operators.clone(),x);
+                let operator = json_get_arrayvalue(operators.clone(), x);
                 if operator.is_empty() {
                     break;
                 }
-                let operatorvec=bs58::decode(operator).into_vec().unwrap();
-                let accountidoperator=T::AccountId::decode(&mut &operatorvec[1..33]).unwrap_or_default();
-                if accountidoperator==signer {
-                    flag=1;
-                    if signingtype==0 {
-                        signingtype=3;
+                let operatorvec = bs58::decode(operator).into_vec().unwrap();
+                let accountidoperator = T::AccountId::decode(&mut &operatorvec[1..33])
+                    .map_err(|_| Error::<T>::InvalidJson)?;
+                if accountidoperator == signer {
+                    flag = 1;
+                    if signingtype == 0 {
+                        signingtype = 3;
                     }
                 }
                 x += 1;
             }
-            ensure!(flag==1,Error::<T>::SignerIsNotAuthorizedForUnderwriterSubmissionOrRemoval);
+            ensure!(
+                flag == 1,
+                Error::<T>::SignerIsNotAuthorizedForUnderwriterSubmissionOrRemoval
+            );
 
             //Check if Underwriter not already stored on chain
-            ensure!(!Underwriters::<T>::contains_key(&underwriter_account), Error::<T>::UnderwriterAlreadyPresent);
+            ensure!(
+                !Underwriters::<T>::contains_key(&underwriter_account),
+                Error::<T>::UnderwriterAlreadyPresent
+            );
 
-             // check for name
-             let name=json_get_value(info.clone(),"name".as_bytes().to_vec());
-             ensure!(name.len()>=3, Error::<T>::UnderwriterNameTooShort);
+            // check for name
+            let name = json_get_value(info.clone(), "name".as_bytes().to_vec());
+            ensure!(name.len() >= 3, Error::<T>::UnderwriterNameTooShort);
 
             // check Website
-            let website=json_get_value(info.clone(),"website".as_bytes().to_vec());
-            ensure!(website.len()>=10,Error::<T>::UnderwriterWebSiteTooShort);
-            ensure!(website.len()<=64,Error::<T>::UnderwriterWebSiteTooLong);
-            ensure!(validate_weburl(website),Error::<T>::InvalidWebsite);
+            let website = json_get_value(info.clone(), "website".as_bytes().to_vec());
+            ensure!(website.len() >= 10, Error::<T>::UnderwriterWebSiteTooShort);
+            ensure!(website.len() <= 64, Error::<T>::UnderwriterWebSiteTooLong);
+            ensure!(validate_weburl(website), Error::<T>::InvalidWebsite);
 
             // check documents
-            let ipfsdocs=json_get_complexarray(info.clone(),"ipfsdocs".as_bytes().to_vec());
-            if ipfsdocs.len()>2 {
-                let mut x=0;
+            let ipfsdocs = json_get_complexarray(info.clone(), "ipfsdocs".as_bytes().to_vec());
+            if ipfsdocs.len() > 2 {
+                let mut x = 0;
                 loop {
-                    let w=json_get_recordvalue(ipfsdocs.clone(),x);
+                    let w = json_get_recordvalue(ipfsdocs.clone(), x);
                     if w.is_empty() {
                         break;
                     }
-                    let description=json_get_value(w.clone(),"description".as_bytes().to_vec());
-                    ensure!(description.len()>5,Error::<T>::UnderwriterDocumentDescriptionTooShort);
-                    let ipfsaddress=json_get_value(w.clone(),"ipfsaddress".as_bytes().to_vec());
-                    ensure!(ipfsaddress.len()>20,Error::<T>::UnderwriterDocumentIpfsAddressTooShort);
+                    let description = json_get_value(w.clone(), "description".as_bytes().to_vec());
+                    ensure!(
+                        description.len() > 5,
+                        Error::<T>::UnderwriterDocumentDescriptionTooShort
+                    );
+                    let ipfsaddress = json_get_value(w.clone(), "ipfsaddress".as_bytes().to_vec());
+                    ensure!(
+                        ipfsaddress.len() > 20,
+                        Error::<T>::UnderwriterDocumentIpfsAddressTooShort
+                    );
                     x += 1;
                 }
-                ensure!(x>0,Error::<T>::UnderwriterMissingDocuments);
-            } 
+                ensure!(x > 0, Error::<T>::UnderwriterMissingDocuments);
+            }
             // store the underwrited data
-            Underwriters::<T>::insert(underwriter_account.clone(),info.clone());
+            Underwriters::<T>::insert(underwriter_account.clone(), info.clone());
 
             // Generate event
-            Self::deposit_event(RawEvent::UnderwriterCreated(underwriter_account, info));
+            Self::deposit_event(Event::UnderwriterCreated(underwriter_account, info));
             // Return a successful DispatchResult
             Ok(())
         }
         /// Destroy an Underwriter
-        #[weight = 1000]
-        pub fn undwerwriter_destroy(origin, underwriter_account: T::AccountId) -> dispatch::DispatchResult {
-            let signer =  ensure_signed(origin)?;
+        #[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
+        pub fn undwerwriter_destroy(
+            origin: OriginFor<T>,
+            underwriter_account: T::AccountId,
+        ) -> DispatchResult {
+            let signer = ensure_signed(origin)?;
             // verify the underwriter  exists
-            ensure!(Underwriters::<T>::contains_key(&underwriter_account), Error::<T>::UnderwriterAccountNotFound);
+            ensure!(
+                Underwriters::<T>::contains_key(&underwriter_account),
+                Error::<T>::UnderwriterAccountNotFound
+            );
 
             // check the signer is one of the manager or a member of the committee
-            let json:Vec<u8>=Settings::get("underwriterssubmission".as_bytes().to_vec()).unwrap();
-            let mut flag=0;
-            let mut signingtype=0;
-            let manager=json_get_value(json.clone(),"manager".as_bytes().to_vec());
+            let json: Vec<u8> =
+                Settings::<T>::get("underwriterssubmission".as_bytes().to_vec()).unwrap();
+            let mut flag = 0;
+            let mut signingtype = 0;
+            let manager = json_get_value(json.clone(), "manager".as_bytes().to_vec());
             if !manager.is_empty() {
-                let managervec=bs58::decode(manager).into_vec().unwrap();
-                let accountidmanager=T::AccountId::decode(&mut &managervec[1..33]).unwrap_or_default();
-                if signer==accountidmanager {
-                    flag=1;
-                    signingtype=1;
+                let managervec = bs58::decode(manager).into_vec().unwrap();
+                let accountidmanager = T::AccountId::decode(&mut &managervec[1..33])
+                    .map_err(|_| Error::<T>::InvalidJson)?;
+                if signer == accountidmanager {
+                    flag = 1;
+                    signingtype = 1;
                 }
             }
-            let operators=json_get_complexarray(json,"committee".as_bytes().to_vec());
-            let mut x=0;
+            let operators = json_get_complexarray(json, "committee".as_bytes().to_vec());
+            let mut x = 0;
             loop {
-                let operator=json_get_arrayvalue(operators.clone(),x);
+                let operator = json_get_arrayvalue(operators.clone(), x);
                 if operator.is_empty() {
                     break;
                 }
-                let operatorvec=bs58::decode(operator).into_vec().unwrap();
-                let accountidoperator=T::AccountId::decode(&mut &operatorvec[1..33]).unwrap_or_default();
-                if accountidoperator==signer {
-                    flag=1;
-                    if signingtype==0 {
-                        signingtype=3;
+                let operatorvec = bs58::decode(operator).into_vec().unwrap();
+                let accountidoperator = T::AccountId::decode(&mut &operatorvec[1..33])
+                    .map_err(|_| Error::<T>::InvalidJson)?;
+                if accountidoperator == signer {
+                    flag = 1;
+                    if signingtype == 0 {
+                        signingtype = 3;
                     }
                 }
                 x += 1;
             }
-            ensure!(flag==1,Error::<T>::SignerIsNotAuthorizedForUnderwriterSubmissionOrRemoval);
+            ensure!(
+                flag == 1,
+                Error::<T>::SignerIsNotAuthorizedForUnderwriterSubmissionOrRemoval
+            );
 
             // Remove the underwriter
             Underwriters::<T>::take(underwriter_account.clone());
             // Generate event
-            Self::deposit_event(RawEvent::UnderwriterDestroyed(underwriter_account));
+            Self::deposit_event(Event::UnderwriterDestroyed(underwriter_account));
             // Return a successful DispatchResult
             Ok(())
         }
         /// Create an Insurer
-        #[weight = 1000]
-        pub fn insurer_create(origin, insurer_account: T::AccountId, info: Vec<u8>) -> dispatch::DispatchResult {
-            let signer =  ensure_signed(origin)?;
+        #[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
+        pub fn insurer_create(
+            origin: OriginFor<T>,
+            insurer_account: T::AccountId,
+            info: Vec<u8>,
+        ) -> DispatchResult {
+            let signer = ensure_signed(origin)?;
             // check for a valid json structure
-            ensure!(json_check_validity(info.clone()),Error::<T>::InvalidJson);
-            ensure!(Settings::contains_key("insurersubmission".as_bytes().to_vec()),Error::<T>::InsurerSettingIsMissing);
+            ensure!(json_check_validity(info.clone()), Error::<T>::InvalidJson);
+            ensure!(
+                Settings::<T>::contains_key("insurersubmission".as_bytes().to_vec()),
+                Error::<T>::InsurerSettingIsMissing
+            );
             // check the signer is one of the manager or a member of the committee
-            let json:Vec<u8>=Settings::get("insurersubmission".as_bytes().to_vec()).unwrap();
-            let mut flag=0;
-            let mut signingtype=0;
-            let manager=json_get_value(json.clone(),"manager".as_bytes().to_vec());
+            let json: Vec<u8> =
+                Settings::<T>::get("insurersubmission".as_bytes().to_vec()).unwrap();
+            let mut flag = 0;
+            let mut signingtype = 0;
+            let manager = json_get_value(json.clone(), "manager".as_bytes().to_vec());
             if !manager.is_empty() {
-                let managervec=bs58::decode(manager).into_vec().unwrap();
-                let accountidmanager=T::AccountId::decode(&mut &managervec[1..33]).unwrap_or_default();
-                if signer==accountidmanager {
-                    flag=1;
-                    signingtype=1;
+                let managervec = bs58::decode(manager).into_vec().unwrap();
+                let accountidmanager = T::AccountId::decode(&mut &managervec[1..33])
+                    .map_err(|_| Error::<T>::InvalidJson)?;
+                if signer == accountidmanager {
+                    flag = 1;
+                    signingtype = 1;
                 }
             }
-            let operators=json_get_complexarray(json,"committee".as_bytes().to_vec());
-            let mut x=0;
+            let operators = json_get_complexarray(json, "committee".as_bytes().to_vec());
+            let mut x = 0;
             loop {
-                let operator=json_get_arrayvalue(operators.clone(),x);
+                let operator = json_get_arrayvalue(operators.clone(), x);
                 if operator.is_empty() {
                     break;
                 }
-                let operatorvec=bs58::decode(operator).into_vec().unwrap();
-                let accountidoperator=T::AccountId::decode(&mut &operatorvec[1..33]).unwrap_or_default();
-                if accountidoperator==signer {
-                    flag=1;
-                    if signingtype==0 {
-                        signingtype=3;
+                let operatorvec = bs58::decode(operator).into_vec().unwrap();
+                let accountidoperator = T::AccountId::decode(&mut &operatorvec[1..33])
+                    .map_err(|_| Error::<T>::InvalidJson)?;
+                if accountidoperator == signer {
+                    flag = 1;
+                    if signingtype == 0 {
+                        signingtype = 3;
                     }
                 }
                 x += 1;
             }
-            ensure!(flag==1,Error::<T>::SignerIsNotAuthorizedForInsurerSubmissionOrRemoval);
+            ensure!(
+                flag == 1,
+                Error::<T>::SignerIsNotAuthorizedForInsurerSubmissionOrRemoval
+            );
             //Check if Insurer not already stored on chain
-            ensure!(!Insurers::<T>::contains_key(&insurer_account), Error::<T>::InsurerAlreadyPresent);
-             // check for name
-             let name=json_get_value(info.clone(),"name".as_bytes().to_vec());
-             ensure!(name.len()>=3, Error::<T>::InsurerNameTooShort);
+            ensure!(
+                !Insurers::<T>::contains_key(&insurer_account),
+                Error::<T>::InsurerAlreadyPresent
+            );
+            // check for name
+            let name = json_get_value(info.clone(), "name".as_bytes().to_vec());
+            ensure!(name.len() >= 3, Error::<T>::InsurerNameTooShort);
 
             // check Website
-            let website=json_get_value(info.clone(),"website".as_bytes().to_vec());
-            ensure!(website.len()>=10,Error::<T>::InsurerWebSiteTooShort);
-            ensure!(website.len()<=64,Error::<T>::UnderwriterWebSiteTooLong);
-            ensure!(validate_weburl(website),Error::<T>::InvalidWebsite);
+            let website = json_get_value(info.clone(), "website".as_bytes().to_vec());
+            ensure!(website.len() >= 10, Error::<T>::InsurerWebSiteTooShort);
+            ensure!(website.len() <= 64, Error::<T>::UnderwriterWebSiteTooLong);
+            ensure!(validate_weburl(website), Error::<T>::InvalidWebsite);
             // Check infodocs
-            let infodocs=json_get_value(info.clone(),"ipfsdocs".as_bytes().to_vec());
-            ensure!(!infodocs.is_empty(), Error::<T>::MissingInsurerInfoDocuments);
+            let infodocs = json_get_value(info.clone(), "ipfsdocs".as_bytes().to_vec());
+            ensure!(
+                !infodocs.is_empty(),
+                Error::<T>::MissingInsurerInfoDocuments
+            );
             // check documents
-            let ipfsdocs=json_get_complexarray(info.clone(),"ipfsdocs".as_bytes().to_vec());
-            if ipfsdocs.len()>2 {
-                let mut x=0;
+            let ipfsdocs = json_get_complexarray(info.clone(), "ipfsdocs".as_bytes().to_vec());
+            if ipfsdocs.len() > 2 {
+                let mut x = 0;
                 loop {
-                    let w=json_get_recordvalue(ipfsdocs.clone(),x);
+                    let w = json_get_recordvalue(ipfsdocs.clone(), x);
                     if w.is_empty() {
                         break;
                     }
-                    let description=json_get_value(w.clone(),"description".as_bytes().to_vec());
-                    ensure!(description.len()>5,Error::<T>::InsurerDocumentDescriptionTooShort);
-                    let ipfsaddress=json_get_value(w.clone(),"ipfsaddress".as_bytes().to_vec());
-                    ensure!(ipfsaddress.len()>20,Error::<T>::InsurerDocumentIpfsAddressTooShort);
+                    let description = json_get_value(w.clone(), "description".as_bytes().to_vec());
+                    ensure!(
+                        description.len() > 5,
+                        Error::<T>::InsurerDocumentDescriptionTooShort
+                    );
+                    let ipfsaddress = json_get_value(w.clone(), "ipfsaddress".as_bytes().to_vec());
+                    ensure!(
+                        ipfsaddress.len() > 20,
+                        Error::<T>::InsurerDocumentIpfsAddressTooShort
+                    );
                     x += 1;
                 }
-                ensure!(x>0,Error::<T>::InsurerMissingDocuments);
-            } 
-            Insurers::<T>::insert(insurer_account.clone(),info.clone());
+                ensure!(x > 0, Error::<T>::InsurerMissingDocuments);
+            }
+            Insurers::<T>::insert(insurer_account.clone(), info.clone());
             // Generate event
-            Self::deposit_event(RawEvent::InsurerCreated(insurer_account, info));
+            Self::deposit_event(Event::InsurerCreated(insurer_account, info));
             // Return a successful DispatchResult
             Ok(())
         }
         /// Destroy an Insurer
-        #[weight = 1000]
-        pub fn insurer_destroy(origin, insurer_account: T::AccountId) -> dispatch::DispatchResult {
-            let signer =  ensure_signed(origin)?;
+        #[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
+        pub fn insurer_destroy(
+            origin: OriginFor<T>,
+            insurer_account: T::AccountId,
+        ) -> DispatchResult {
+            let signer = ensure_signed(origin)?;
             // verify the underwriter  exists
-            ensure!(Underwriters::<T>::contains_key(&insurer_account), Error::<T>::InsurerAccountNotFound);
+            ensure!(
+                Underwriters::<T>::contains_key(&insurer_account),
+                Error::<T>::InsurerAccountNotFound
+            );
 
             // check the signer is one of the manager or a member of the committee
-            let json:Vec<u8>=Settings::get("insurerssubmission".as_bytes().to_vec()).unwrap();
-            let mut flag=0;
-            let mut signingtype=0;
-            let manager=json_get_value(json.clone(),"manager".as_bytes().to_vec());
+            let json: Vec<u8> =
+                Settings::<T>::get("insurerssubmission".as_bytes().to_vec()).unwrap();
+            let mut flag = 0;
+            let mut signingtype = 0;
+            let manager = json_get_value(json.clone(), "manager".as_bytes().to_vec());
             if !manager.is_empty() {
-                let managervec=bs58::decode(manager).into_vec().unwrap();
-                let accountidmanager=T::AccountId::decode(&mut &managervec[1..33]).unwrap_or_default();
-                if signer==accountidmanager {
-                    flag=1;
-                    signingtype=1;
+                let managervec = bs58::decode(manager).into_vec().unwrap();
+                let accountidmanager = T::AccountId::decode(&mut &managervec[1..33])
+                    .map_err(|_| Error::<T>::InvalidJson)?;
+                if signer == accountidmanager {
+                    flag = 1;
+                    signingtype = 1;
                 }
             }
-            let operators=json_get_complexarray(json,"committee".as_bytes().to_vec());
-            let mut x=0;
+            let operators = json_get_complexarray(json, "committee".as_bytes().to_vec());
+            let mut x = 0;
             loop {
-                let operator=json_get_arrayvalue(operators.clone(),x);
+                let operator = json_get_arrayvalue(operators.clone(), x);
                 if operator.is_empty() {
                     break;
                 }
-                let operatorvec=bs58::decode(operator).into_vec().unwrap();
-                let accountidoperator=T::AccountId::decode(&mut &operatorvec[1..33]).unwrap_or_default();
-                if accountidoperator==signer {
-                    flag=1;
-                    if signingtype==0 {
-                        signingtype=3;
+                let operatorvec = bs58::decode(operator).into_vec().unwrap();
+                let accountidoperator = T::AccountId::decode(&mut &operatorvec[1..33])
+                    .map_err(|_| Error::<T>::InvalidJson)?;
+                if accountidoperator == signer {
+                    flag = 1;
+                    if signingtype == 0 {
+                        signingtype = 3;
                     }
                 }
                 x += 1;
             }
-            ensure!(flag==1,Error::<T>::SignerIsNotAuthorizedForInsurerSubmissionOrRemoval);
+            ensure!(
+                flag == 1,
+                Error::<T>::SignerIsNotAuthorizedForInsurerSubmissionOrRemoval
+            );
             // Remove the Insurer
             Insurers::<T>::take(insurer_account.clone());
             // Generate event
-            Self::deposit_event(RawEvent::InsurerDestroyed(insurer_account));
+            Self::deposit_event(Event::InsurerDestroyed(insurer_account));
             // Return a successful DispatchResult
             Ok(())
         }
         /// Create an Insurance - Initially as proposal, it's confirmed once signed and the premium paid from the payer
         /// {"bondid":xxx,"maxcoverage":xxxx,"payer":"xxxxxxxxx","beneficiary":"xxxxoptionalxxxx","premium":xxxxxx,"ipfsdocs":"xxxxxx"}
-        #[weight = 1000]
-        pub fn insurance_create(origin, uid: u32, info: Vec<u8>) -> dispatch::DispatchResult {
-            let signer =  ensure_signed(origin)?;
+        #[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
+        pub fn insurance_create(origin: OriginFor<T>, uid: u32, info: Vec<u8>) -> DispatchResult {
+            let signer = ensure_signed(origin)?;
             //Get current reserve Balance
             let reserves = InsurerReserves::<T>::get(signer.clone());
             //Using a key "insuranceminreserve", gets the configuration in Settings
-            let settings_reserve: Vec<u8> = Settings::get("insuranceminreserve".as_bytes().to_vec()).unwrap();
+            let settings_reserve: Vec<u8> =
+                Settings::<T>::get("insuranceminreserve".as_bytes().to_vec()).unwrap();
             //Second key "reserve" gets the reserve minimum required value
-            let reserve=json_get_value(settings_reserve,"reserve".as_bytes().to_vec());
-            let reserve_min=vecu8_to_u128(reserve);
+            let reserve = json_get_value(settings_reserve, "reserve".as_bytes().to_vec());
+            let reserve_min = vecu8_to_u128(reserve);
             ensure!(reserves >= reserve_min, Error::<T>::BelowMinimumReserve);
             // check that the insurer has a reserve
-            ensure!(InsurerReserves::<T>::contains_key(signer.clone()),Error::<T>::ReserveNotFound);
+            ensure!(
+                InsurerReserves::<T>::contains_key(signer.clone()),
+                Error::<T>::ReserveNotFound
+            );
             // check for a valid json structure
-            ensure!(json_check_validity(info.clone()),Error::<T>::InvalidJson);
+            ensure!(json_check_validity(info.clone()), Error::<T>::InvalidJson);
             // check the signer is one of the insurers
-            ensure!(Insurers::<T>::contains_key(&signer), Error::<T>::SignerIsNotInsurer);
+            ensure!(
+                Insurers::<T>::contains_key(&signer),
+                Error::<T>::SignerIsNotInsurer
+            );
             // check for bondid
-            let bondid=json_get_value(info.clone(),"bondid".as_bytes().to_vec());
+            let bondid = json_get_value(info.clone(), "bondid".as_bytes().to_vec());
             ensure!(!bondid.is_empty(), Error::<T>::BondIdIsWrongCannotBeZero);
-            let bondidv=vecu8_to_u32(bondid);
-            ensure!(!Bonds::contains_key(&bondidv), Error::<T>::BondsIdNotFound);
+            let bondidv = vecu8_to_u32(bondid);
+            ensure!(
+                !Bonds::<T>::contains_key(&bondidv),
+                Error::<T>::BondsIdNotFound
+            );
             // check max coverage
-            let maxcoverage=json_get_value(info.clone(),"maxcoverage".as_bytes().to_vec());
+            let maxcoverage = json_get_value(info.clone(), "maxcoverage".as_bytes().to_vec());
             ensure!(!maxcoverage.is_empty(), Error::<T>::MaxCoverageCannotBeZero);
-            let maxcoveragev=vecu8_to_u128(maxcoverage);
-            ensure!(maxcoveragev>0,Error::<T>::MaxCoverageCannotBeZero);
+            let maxcoveragev = vecu8_to_u128(maxcoverage);
+            ensure!(maxcoveragev > 0, Error::<T>::MaxCoverageCannotBeZero);
             // check payer account
-            let payer=json_get_value(info.clone(),"payer".as_bytes().to_vec());
-            ensure!(payer.len()==48,  Error::<T>::PayerAccountIsWrong);
+            let payer = json_get_value(info.clone(), "payer".as_bytes().to_vec());
+            ensure!(payer.len() == 48, Error::<T>::PayerAccountIsWrong);
             // check beneficiary account
-            let beneficiary=json_get_value(info.clone(),"beneficiary".as_bytes().to_vec());
-            ensure!(beneficiary.len()==48,  Error::<T>::BeneficiaryAccountIsWrong);
+            let beneficiary = json_get_value(info.clone(), "beneficiary".as_bytes().to_vec());
+            ensure!(
+                beneficiary.len() == 48,
+                Error::<T>::BeneficiaryAccountIsWrong
+            );
             // check premium amount
-            let premium=json_get_value(info.clone(),"premium".as_bytes().to_vec());
-            ensure!(!premium.is_empty(), Error::<T>::InsurancePremiumCannotBeZero);
-            let premiumv=vecu8_to_u128(premium);
-            ensure!(premiumv>0,Error::<T>::InsurancePremiumCannotBeZero);
+            let premium = json_get_value(info.clone(), "premium".as_bytes().to_vec());
+            ensure!(
+                !premium.is_empty(),
+                Error::<T>::InsurancePremiumCannotBeZero
+            );
+            let premiumv = vecu8_to_u128(premium);
+            ensure!(premiumv > 0, Error::<T>::InsurancePremiumCannotBeZero);
             // check that the reserve staken covers the risk covered including the new insurance
-            let reserveamount=InsurerReserves::<T>::get(signer.clone());
-            let mut riskcovered:u128=0;
-            if InsurerRisksCovered::<T>::contains_key(&signer){
-                riskcovered=InsurerRisksCovered::<T>::get(&signer);
+            let reserveamount = InsurerReserves::<T>::get(signer.clone());
+            let mut riskcovered: u128 = 0;
+            if InsurerRisksCovered::<T>::contains_key(&signer) {
+                riskcovered = InsurerRisksCovered::<T>::get(&signer);
             }
-            ensure!(reserveamount> riskcovered+maxcoveragev,Error::<T>::InsufficientReserve);
+            ensure!(
+                reserveamount > riskcovered + maxcoveragev,
+                Error::<T>::InsufficientReserve
+            );
             // Check document
-            let ipfsdocs=json_get_value(info.clone(),"ipfsdocs".as_bytes().to_vec());
-            ensure!(!ipfsdocs.is_empty(), Error::<T>::MissingInsurerInfoDocuments);
+            let ipfsdocs = json_get_value(info.clone(), "ipfsdocs".as_bytes().to_vec());
+            ensure!(
+                !ipfsdocs.is_empty(),
+                Error::<T>::MissingInsurerInfoDocuments
+            );
             // check documents
-            let ipfsdocs=json_get_complexarray(info.clone(),"ipfsdocs".as_bytes().to_vec());
-            if ipfsdocs.len()>2 {
-                let mut x=0;
+            let ipfsdocs = json_get_complexarray(info.clone(), "ipfsdocs".as_bytes().to_vec());
+            if ipfsdocs.len() > 2 {
+                let mut x = 0;
                 loop {
-                    let w=json_get_recordvalue(ipfsdocs.clone(),x);
+                    let w = json_get_recordvalue(ipfsdocs.clone(), x);
                     if w.is_empty() {
                         break;
                     }
-                    let description=json_get_value(w.clone(),"description".as_bytes().to_vec());
-                    ensure!(description.len()>5,Error::<T>::InsurerDocumentDescriptionTooShort);
-                    let ipfsaddress=json_get_value(w.clone(),"ipfsaddress".as_bytes().to_vec());
-                    ensure!(ipfsaddress.len()>20,Error::<T>::InsurerDocumentIpfsAddressTooShort);
+                    let description = json_get_value(w.clone(), "description".as_bytes().to_vec());
+                    ensure!(
+                        description.len() > 5,
+                        Error::<T>::InsurerDocumentDescriptionTooShort
+                    );
+                    let ipfsaddress = json_get_value(w.clone(), "ipfsaddress".as_bytes().to_vec());
+                    ensure!(
+                        ipfsaddress.len() > 20,
+                        Error::<T>::InsurerDocumentIpfsAddressTooShort
+                    );
                     x += 1;
                 }
-                ensure!(x>0,Error::<T>::InsurerMissingDocuments);
-            } 
+                ensure!(x > 0, Error::<T>::InsurerMissingDocuments);
+            }
             //check insurance Id is not already present
-            ensure!(!Insurances::<T>::contains_key(signer.clone(),&uid), Error::<T>::InsuranceIdAlreadyPresent);
+            ensure!(
+                !Insurances::<T>::contains_key(signer.clone(), &uid),
+                Error::<T>::InsuranceIdAlreadyPresent
+            );
             // update insurance Risk Covered
-            InsurerRisksCovered::<T>::try_mutate(&signer,  |risk| -> DispatchResult {
-				let total_risk = risk.checked_add(maxcoveragev).ok_or(Error::<T>::Overflow)?;
-				*risk = total_risk;
-				Ok(())
-			})?;
+            InsurerRisksCovered::<T>::try_mutate(&signer, |risk| -> DispatchResult {
+                let total_risk = risk.checked_add(maxcoveragev).ok_or(Error::<T>::Overflow)?;
+                *risk = total_risk;
+                Ok(())
+            })?;
             // Store insurance on chain ready to be signed from the counterpart
-            Insurances::<T>::insert(signer.clone(),uid,info.clone());
+            Insurances::<T>::insert(signer.clone(), uid, info.clone());
             // Generate event
-            Self::deposit_event(RawEvent::InsuranceCreated(signer,uid, info));
+            Self::deposit_event(Event::InsuranceCreated(signer, uid, info));
             // Return a successful DispatchResult
             Ok(())
         }
         /// Sign an Insurance transferring the premium to the insurer account anyone can pay the premium
-        #[weight = 1000]
-        pub fn insurance_sign(origin, insurer_account: T::AccountId,uid: u32) -> dispatch::DispatchResult {
-            let signer =  ensure_signed(origin)?;
+        #[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
+        pub fn insurance_sign(
+            origin: OriginFor<T>,
+            insurer_account: T::AccountId,
+            uid: u32,
+        ) -> DispatchResult {
+            let signer = ensure_signed(origin)?;
             // verify the insurance existance
-            ensure!(Insurances::<T>::contains_key(insurer_account.clone(),uid), Error::<T>::InsuranceNotFound);
+            ensure!(
+                Insurances::<T>::contains_key(insurer_account.clone(), uid),
+                Error::<T>::InsuranceNotFound
+            );
             // verify not already signed
-            ensure!(!InsurancesSigned::<T>::contains_key(insurer_account.clone(),uid), Error::<T>::InsuranceAlreadySigned);
+            ensure!(
+                !InsurancesSigned::<T>::contains_key(insurer_account.clone(), uid),
+                Error::<T>::InsuranceAlreadySigned
+            );
             // store the signature
-            InsurancesSigned::<T>::insert(insurer_account.clone(),uid,signer.clone());
+            InsurancesSigned::<T>::insert(insurer_account.clone(), uid, signer.clone());
             // get defaul stable coin
-            ensure!(Settings::contains_key("stablecoin".as_bytes().to_vec()),Error::<T>::MissingStableCoinConfiguration);
-            let stablecoin=Settings::get("stablecoin".as_bytes().to_vec()).unwrap();
-            let stablecoinv=json_get_value(stablecoin,"tokenid".as_bytes().to_vec());
-            let tokenid=vecu8_to_u32(stablecoinv);
+            ensure!(
+                Settings::<T>::contains_key("stablecoin".as_bytes().to_vec()),
+                Error::<T>::MissingStableCoinConfiguration
+            );
+            let stablecoin = Settings::<T>::get("stablecoin".as_bytes().to_vec()).unwrap();
+            let stablecoinv = json_get_value(stablecoin, "tokenid".as_bytes().to_vec());
+            let tokenid = vecu8_to_u32(stablecoinv);
             // transfer the premium
-            let info = Insurances::<T>::get(insurer_account.clone(),uid).unwrap();
-            let premium = json_get_value(info.clone(),"premium".as_bytes().to_vec());
+            let info = Insurances::<T>::get(insurer_account.clone(), uid).unwrap();
+            let premium = json_get_value(info.clone(), "premium".as_bytes().to_vec());
             let premiumv = vecu8_to_u128(premium);
-            pallet_assets::Module::<T>::transfer(RawOrigin::Signed(signer.clone()).into(), tokenid, T::Lookup::unlookup(insurer_account.clone()), premiumv.into()).unwrap();
-            
+            pallet_assets::Pallet::<T>::transfer(
+                RawOrigin::Signed(signer.clone()).into(),
+                tokenid,
+                T::Lookup::unlookup(insurer_account.clone()),
+                premiumv.into(),
+            )
+            .unwrap();
+
             // Generate event
-            Self::deposit_event(RawEvent::InsuranceSigned(insurer_account,uid,signer));
+            Self::deposit_event(Event::InsuranceSigned(insurer_account, uid, signer));
             // Return a successful DispatchResult
             Ok(())
         }
         /// Destroy an Insurance, only the original creator can remove if the insurance is not yet signed
-        #[weight = 1000]
-        pub fn insurance_destroy(origin, uid: u32) -> dispatch::DispatchResult {
-            let signer =  ensure_signed(origin)?;
+        #[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
+        pub fn insurance_destroy(origin: OriginFor<T>, uid: u32) -> DispatchResult {
+            let signer = ensure_signed(origin)?;
             // verify the insurance existance
-            ensure!(Insurances::<T>::contains_key(signer.clone(),uid), Error::<T>::InsuranceNotFound);
+            ensure!(
+                Insurances::<T>::contains_key(signer.clone(), uid),
+                Error::<T>::InsuranceNotFound
+            );
             // check that the insurance is not already counter-signed and paid
-            ensure!(!InsurancesSigned::<T>::contains_key(signer.clone(),uid),Error::<T>::InsuranceAlreadySigned);
+            ensure!(
+                !InsurancesSigned::<T>::contains_key(signer.clone(), uid),
+                Error::<T>::InsuranceAlreadySigned
+            );
             // get the insurance value
-            let info = Insurances::<T>::get(signer.clone(),uid).unwrap();
-            let maxcoverage=json_get_value(info,"maxcoverage".as_bytes().to_vec());
-            let maxcoveragev=vecu8_to_u128(maxcoverage);
+            let info = Insurances::<T>::get(signer.clone(), uid).unwrap();
+            let maxcoverage = json_get_value(info, "maxcoverage".as_bytes().to_vec());
+            let maxcoveragev = vecu8_to_u128(maxcoverage);
             // update total risk
-            InsurerRisksCovered::<T>::try_mutate(&signer,|risk| -> DispatchResult {
-				let total_risk = risk.checked_sub(maxcoveragev).ok_or(Error::<T>::Underflow)?;
-				*risk = total_risk;
-				Ok(())
-			})?;
+            InsurerRisksCovered::<T>::try_mutate(&signer, |risk| -> DispatchResult {
+                let total_risk = risk
+                    .checked_sub(maxcoveragev)
+                    .ok_or(Error::<T>::Underflow)?;
+                *risk = total_risk;
+                Ok(())
+            })?;
             // Remove the Insurance
-            Insurances::<T>::take(signer.clone(),uid);
+            Insurances::<T>::take(signer.clone(), uid);
             // Generate event
-            Self::deposit_event(RawEvent::InsuranceDestroyed(signer,uid));
+            Self::deposit_event(Event::InsuranceDestroyed(signer, uid));
             // Return a successful DispatchResult
             Ok(())
         }
 
         /// Create a lawyer
-        #[weight = 1000]
-        pub fn lawyer_create(origin, lawyer_account: T::AccountId, info: Vec<u8>) -> dispatch::DispatchResult {
+        #[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
+        pub fn lawyer_create(
+            origin: OriginFor<T>,
+            lawyer_account: T::AccountId,
+            info: Vec<u8>,
+        ) -> DispatchResult {
             // check for signed transaction
-            let signer =  ensure_signed(origin)?;
+            let signer = ensure_signed(origin)?;
             // check the signer is one of the manager or a member of the committee
-            let json:Vec<u8>=Settings::get("lawyerssubmission".as_bytes().to_vec()).unwrap();
-            let mut flag=0;
-            let mut signingtype=0;
-            let manager=json_get_value(json.clone(),"manager".as_bytes().to_vec());
+            let json: Vec<u8> =
+                Settings::<T>::get("lawyerssubmission".as_bytes().to_vec()).unwrap();
+            let mut flag = 0;
+            let mut signingtype = 0;
+            let manager = json_get_value(json.clone(), "manager".as_bytes().to_vec());
             if !manager.is_empty() {
-                let managervec=bs58::decode(manager).into_vec().unwrap();
-                let accountidmanager=T::AccountId::decode(&mut &managervec[1..33]).unwrap_or_default();
-                if signer==accountidmanager {
-                    flag=1;
-                    signingtype=1;
+                let managervec = bs58::decode(manager).into_vec().unwrap();
+                let accountidmanager = T::AccountId::decode(&mut &managervec[1..33])
+                    .map_err(|_| Error::<T>::InvalidJson)?;
+                if signer == accountidmanager {
+                    flag = 1;
+                    signingtype = 1;
                 }
             }
-            let operators=json_get_complexarray(json,"committee".as_bytes().to_vec());
-            let mut x=0;
+            let operators = json_get_complexarray(json, "committee".as_bytes().to_vec());
+            let mut x = 0;
             loop {
-                let operator=json_get_arrayvalue(operators.clone(),x);
+                let operator = json_get_arrayvalue(operators.clone(), x);
                 if operator.is_empty() {
                     break;
                 }
-                let operatorvec=bs58::decode(operator).into_vec().unwrap();
-                let accountidoperator=T::AccountId::decode(&mut &operatorvec[1..33]).unwrap_or_default();
-                if accountidoperator==signer {
-                    flag=1;
-                    if signingtype==0 {
-                        signingtype=3;
+                let operatorvec = bs58::decode(operator).into_vec().unwrap();
+                let accountidoperator = T::AccountId::decode(&mut &operatorvec[1..33])
+                    .map_err(|_| Error::<T>::InvalidJson)?;
+                if accountidoperator == signer {
+                    flag = 1;
+                    if signingtype == 0 {
+                        signingtype = 3;
                     }
                 }
                 x += 1;
             }
-            ensure!(flag==1,Error::<T>::SignerIsNotAuthorizedForSubmissionOrRemoval);
+            ensure!(
+                flag == 1,
+                Error::<T>::SignerIsNotAuthorizedForSubmissionOrRemoval
+            );
             // check for a valid json structure
-            ensure!(json_check_validity(info.clone()),Error::<T>::InvalidJson);
+            ensure!(json_check_validity(info.clone()), Error::<T>::InvalidJson);
             //Check if lawyer not already stored on chain
-            ensure!(!Lawyers::<T>::contains_key(&lawyer_account), Error::<T>::AlreadyPresent);
+            ensure!(
+                !Lawyers::<T>::contains_key(&lawyer_account),
+                Error::<T>::AlreadyPresent
+            );
             // check for name
-            let name=json_get_value(info.clone(),"name".as_bytes().to_vec());
-            ensure!(name.len()>=3, Error::<T>::NameTooShort);
+            let name = json_get_value(info.clone(), "name".as_bytes().to_vec());
+            ensure!(name.len() >= 3, Error::<T>::NameTooShort);
             // check Website
-            let website=json_get_value(info.clone(),"website".as_bytes().to_vec());
-            ensure!(website.len()>=10,Error::<T>::WebSiteTooShort);
-            ensure!(website.len()<=64,Error::<T>::WebSiteTooLong);
-            ensure!(validate_weburl(website),Error::<T>::InvalidWebsite);
+            let website = json_get_value(info.clone(), "website".as_bytes().to_vec());
+            ensure!(website.len() >= 10, Error::<T>::WebSiteTooShort);
+            ensure!(website.len() <= 64, Error::<T>::WebSiteTooLong);
+            ensure!(validate_weburl(website), Error::<T>::InvalidWebsite);
             // Check for documents
-            let ipfsdocs=json_get_value(info.clone(),"ipfsdocs".as_bytes().to_vec());
+            let ipfsdocs = json_get_value(info.clone(), "ipfsdocs".as_bytes().to_vec());
             ensure!(!ipfsdocs.is_empty(), Error::<T>::LawyerMissingDocuments);
             // check documents
-            let ipfsdocs=json_get_complexarray(info.clone(),"ipfsdocs".as_bytes().to_vec());
-            if ipfsdocs.len()>2 {
-                let mut x=0;
+            let ipfsdocs = json_get_complexarray(info.clone(), "ipfsdocs".as_bytes().to_vec());
+            if ipfsdocs.len() > 2 {
+                let mut x = 0;
                 loop {
-                    let w=json_get_recordvalue(ipfsdocs.clone(),x);
+                    let w = json_get_recordvalue(ipfsdocs.clone(), x);
                     if w.is_empty() {
                         break;
                     }
-                    let description=json_get_value(w.clone(),"description".as_bytes().to_vec());
-                    ensure!(description.len()>5,Error::<T>::LawyerDocumentDescriptionTooShort);
-                    let ipfsaddress=json_get_value(w.clone(),"ipfsaddress".as_bytes().to_vec());
-                    ensure!(ipfsaddress.len()>20,Error::<T>::LawyerDocumentIpfsAddressTooShort);
+                    let description = json_get_value(w.clone(), "description".as_bytes().to_vec());
+                    ensure!(
+                        description.len() > 5,
+                        Error::<T>::LawyerDocumentDescriptionTooShort
+                    );
+                    let ipfsaddress = json_get_value(w.clone(), "ipfsaddress".as_bytes().to_vec());
+                    ensure!(
+                        ipfsaddress.len() > 20,
+                        Error::<T>::LawyerDocumentIpfsAddressTooShort
+                    );
                     x += 1;
                 }
-                ensure!(x>0,Error::<T>::LawyerMissingDocuments);
-            } 
+                ensure!(x > 0, Error::<T>::LawyerMissingDocuments);
+            }
             // store the lawyer on chain
-            Lawyers::<T>::insert(lawyer_account.clone(),info.clone());
+            Lawyers::<T>::insert(lawyer_account.clone(), info.clone());
             // Generate event LawyerCreated
-            Self::deposit_event(RawEvent::LawyerCreated(lawyer_account, info));
+            Self::deposit_event(Event::LawyerCreated(lawyer_account, info));
             // Return a successful DispatchResult
             Ok(())
         }
 
-         /// Destroy a lawyer
-         #[weight = 1000]
-         pub fn lawyer_destroy(origin, lawyer_account: T::AccountId) -> dispatch::DispatchResult {
-             let signer =  ensure_signed(origin)?;
-             // verify the lawyer  exists
-             ensure!(Lawyers::<T>::contains_key(&lawyer_account), Error::<T>::AccountNotFound);
+        /// Destroy a lawyer
+        #[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
+        pub fn lawyer_destroy(
+            origin: OriginFor<T>,
+            lawyer_account: T::AccountId,
+        ) -> DispatchResult {
+            let signer = ensure_signed(origin)?;
+            // verify the lawyer  exists
+            ensure!(
+                Lawyers::<T>::contains_key(&lawyer_account),
+                Error::<T>::AccountNotFound
+            );
 
-             // check the signer is one of the manager or a member of the committee
-             let json:Vec<u8>=Settings::get("lawyerssubmission".as_bytes().to_vec()).unwrap();
-             let mut flag=0;
-             let mut signingtype=0;
-             let manager=json_get_value(json.clone(),"manager".as_bytes().to_vec());
-             if !manager.is_empty() {
-                 let managervec=bs58::decode(manager).into_vec().unwrap();
-                 let accountidmanager=T::AccountId::decode(&mut &managervec[1..33]).unwrap_or_default();
-                 if signer==accountidmanager {
-                     flag=1;       
-                     signingtype=1;             
-                 }
-             }
-             let operators=json_get_complexarray(json,"committee".as_bytes().to_vec());
-             let mut x=0;
-             loop {  
-                 let operator=json_get_arrayvalue(operators.clone(),x);
-                 if operator.is_empty() {
-                     break;
-                 }
-                 let operatorvec=bs58::decode(operator).into_vec().unwrap();
-                 let accountidoperator=T::AccountId::decode(&mut &operatorvec[1..33]).unwrap_or_default();
-                 if accountidoperator==signer {
-                     flag=1;
-                     if signingtype==0 {
-                         signingtype=3;             
-                     }
-                 }
-                 x += 1;
-             }
-             ensure!(flag==1,Error::<T>::SignerIsNotAuthorizedForSubmissionOrRemoval);
- 
-             // Remove the lawyer
-             Lawyers::<T>::take(lawyer_account.clone());
-             // Generate event
-             Self::deposit_event(RawEvent::LawyerDestroyed(lawyer_account));
-             // Return a successful DispatchResult
-             Ok(())
-         }
-    
-         /// Create Interbank Rate
-        #[weight = 1000] 
-        pub fn interbankrate_create(origin, country_code: Vec<u8>, date: Vec<u8>, rate: u32) -> dispatch::DispatchResult {
+            // check the signer is one of the manager or a member of the committee
+            let json: Vec<u8> =
+                Settings::<T>::get("lawyerssubmission".as_bytes().to_vec()).unwrap();
+            let mut flag = 0;
+            let mut signingtype = 0;
+            let manager = json_get_value(json.clone(), "manager".as_bytes().to_vec());
+            if !manager.is_empty() {
+                let managervec = bs58::decode(manager).into_vec().unwrap();
+                let accountidmanager = T::AccountId::decode(&mut &managervec[1..33])
+                    .map_err(|_| Error::<T>::InvalidJson)?;
+                if signer == accountidmanager {
+                    flag = 1;
+                    signingtype = 1;
+                }
+            }
+            let operators = json_get_complexarray(json, "committee".as_bytes().to_vec());
+            let mut x = 0;
+            loop {
+                let operator = json_get_arrayvalue(operators.clone(), x);
+                if operator.is_empty() {
+                    break;
+                }
+                let operatorvec = bs58::decode(operator).into_vec().unwrap();
+                let accountidoperator = T::AccountId::decode(&mut &operatorvec[1..33])
+                    .map_err(|_| Error::<T>::InvalidJson)?;
+                if accountidoperator == signer {
+                    flag = 1;
+                    if signingtype == 0 {
+                        signingtype = 3;
+                    }
+                }
+                x += 1;
+            }
+            ensure!(
+                flag == 1,
+                Error::<T>::SignerIsNotAuthorizedForSubmissionOrRemoval
+            );
+
+            // Remove the lawyer
+            Lawyers::<T>::take(lawyer_account.clone());
+            // Generate event
+            Self::deposit_event(Event::LawyerDestroyed(lawyer_account));
+            // Return a successful DispatchResult
+            Ok(())
+        }
+
+        /// Create Interbank Rate
+        #[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
+        pub fn interbankrate_create(
+            origin: OriginFor<T>,
+            country_code: Vec<u8>,
+            date: Vec<u8>,
+            rate: u32,
+        ) -> DispatchResult {
             // check the transaction is signed from the super user
             ensure_root(origin)?;
             // check country code
-            ensure!(IsoCountries::contains_key(&country_code), Error::<T>::CountryCodeNotFound);
+            ensure!(
+                IsoCountries::<T>::contains_key(&country_code),
+                Error::<T>::CountryCodeNotFound
+            );
             // check for the date validity
             ensure!(validate_date(&date), Error::<T>::InvalidDateFormat);
-            // check Interbank rate does not exists 
-            ensure!(!InterbankRates::contains_key(&country_code,&date), Error::<T>::InterbankRateAlreadyPresent);
+            // check Interbank rate does not exists
+            ensure!(
+                !InterbankRates::<T>::contains_key(&country_code, &date),
+                Error::<T>::InterbankRateAlreadyPresent
+            );
             // Store Interbank info an integer considering 2 decimals
-            InterbankRates::insert(country_code.clone(),date.clone(),rate);
+            InterbankRates::<T>::insert(country_code.clone(), date.clone(), rate);
             // Generate event
-            Self::deposit_event(RawEvent::InterbankRateCreated(country_code,date));
+            Self::deposit_event(Event::InterbankRateCreated(country_code, date));
             // Return a successful DispatchResult
             Ok(())
         }
 
         /// Destroy Interbank Rate
-        #[weight = 1000]
-        pub fn interbankrate_destroy(origin, country_code: Vec<u8>, date: Vec<u8>) -> dispatch::DispatchResult {
+        #[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
+        pub fn interbankrate_destroy(
+            origin: OriginFor<T>,
+            country_code: Vec<u8>,
+            date: Vec<u8>,
+        ) -> DispatchResult {
             // check the transaction is signed from the super user
             ensure_root(origin)?;
             // check country
-            ensure!(IsoCountries::contains_key(&country_code), Error::<T>::CountryCodeNotFound);            
+            ensure!(
+                IsoCountries::<T>::contains_key(&country_code),
+                Error::<T>::CountryCodeNotFound
+            );
             // Remove Interbank info
-            InterbankRates::take(country_code.clone(),date.clone());
+            InterbankRates::<T>::take(country_code.clone(), date.clone());
             // Generate event
-            Self::deposit_event(RawEvent::InterbankRateDestroyed(country_code,date));
+            Self::deposit_event(Event::InterbankRateDestroyed(country_code, date));
             // Return a successful DispatchResult
             Ok(())
         }
         /// Create Inflation Rate
-        #[weight = 1000] 
-        pub fn inflationrate_create(origin, country_code: Vec<u8>, date: Vec<u8>, rate: u32) -> dispatch::DispatchResult {
+        #[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
+        pub fn inflationrate_create(
+            origin: OriginFor<T>,
+            country_code: Vec<u8>,
+            date: Vec<u8>,
+            rate: u32,
+        ) -> DispatchResult {
             // check the transaction is signed from the super user
             ensure_root(origin)?;
             // check country
-            ensure!(IsoCountries::contains_key(&country_code), Error::<T>::CountryCodeNotFound);
+            ensure!(
+                IsoCountries::<T>::contains_key(&country_code),
+                Error::<T>::CountryCodeNotFound
+            );
             // check for the date validity
             ensure!(validate_date(&date), Error::<T>::InvalidDateFormat);
-            // check inflation code does not exists 
-            ensure!(!InflationRates::contains_key(&country_code,&date), Error::<T>::InflationRateAlreadyPresent);
+            // check inflation code does not exists
+            ensure!(
+                !InflationRates::<T>::contains_key(&country_code, &date),
+                Error::<T>::InflationRateAlreadyPresent
+            );
             // Store inflation rate info
-            InflationRates::insert(country_code.clone(),date.clone(),rate);
+            InflationRates::<T>::insert(country_code.clone(), date.clone(), rate);
             // Generate event
-            Self::deposit_event(RawEvent::InflationRateCreated(country_code,date));
+            Self::deposit_event(Event::InflationRateCreated(country_code, date));
             // Return a successful DispatchResult
             Ok(())
         }
 
         /// Remove Inflation Rate
-        #[weight = 1000]
-        pub fn inflationrate_destroy(origin, country_code: Vec<u8>, date: Vec<u8>) -> dispatch::DispatchResult {
+        #[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
+        pub fn inflationrate_destroy(
+            origin: OriginFor<T>,
+            country_code: Vec<u8>,
+            date: Vec<u8>,
+        ) -> DispatchResult {
             // check the transaction is signed from the super user
             ensure_root(origin)?;
             // check country
-            ensure!(IsoCountries::contains_key(&country_code), Error::<T>::CountryCodeNotFound);            
+            ensure!(
+                IsoCountries::<T>::contains_key(&country_code),
+                Error::<T>::CountryCodeNotFound
+            );
             // remove inflation rate info
-            InflationRates::take(country_code.clone(),date.clone());
+            InflationRates::<T>::take(country_code.clone(), date.clone());
             // Generate event
-            Self::deposit_event(RawEvent::InflationRateDestroyed(country_code,date));
+            Self::deposit_event(Event::InflationRateDestroyed(country_code, date));
             // Return a successful DispatchResult
             Ok(())
         }
         /// Stake Reserves for insurers
-        #[weight = 1000]
-        pub fn insurance_reserve_stake(origin, amount: Balance) -> dispatch::DispatchResult {
+        #[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
+        pub fn insurance_reserve_stake(origin: OriginFor<T>, amount: Balance) -> DispatchResult {
             // check signature of insurer
             let signer = ensure_signed(origin)?;
             // check it's an approved insurer
-            ensure!(Insurers::<T>::contains_key(signer.clone()),Error::<T>::InsurerAccountNotFound);
-            ensure!(Settings::contains_key("insurancereserve".as_bytes().to_vec()),Error::<T>::InsuranceReserveAccountNotSet);
-            let json:Vec<u8>=Settings::get("insurancereserve".as_bytes().to_vec()).unwrap();
-            let account=json_get_value(json.clone(),"account".as_bytes().to_vec());
-            let accountvec=bs58::decode(account).into_vec().unwrap();
-            let accountid=T::AccountId::decode(&mut &accountvec[1..33]).unwrap_or_default();
+            ensure!(
+                Insurers::<T>::contains_key(signer.clone()),
+                Error::<T>::InsurerAccountNotFound
+            );
+            ensure!(
+                Settings::<T>::contains_key("insurancereserve".as_bytes().to_vec()),
+                Error::<T>::InsuranceReserveAccountNotSet
+            );
+            let json: Vec<u8> = Settings::<T>::get("insurancereserve".as_bytes().to_vec()).unwrap();
+            let account = json_get_value(json.clone(), "account".as_bytes().to_vec());
+            let accountvec = bs58::decode(account).into_vec().unwrap();
+            let accountid = T::AccountId::decode(&mut &accountvec[1..33])
+                .map_err(|_| Error::<T>::InvalidJson)?;
             // get defaul stable coin
-            ensure!(Settings::contains_key("stablecoin".as_bytes().to_vec()),Error::<T>::MissingStableCoinConfiguration);
-            let stablecoin=Settings::get("stablecoin".as_bytes().to_vec()).unwrap();
-            let stablecoinv=json_get_value(stablecoin,"tokenid".as_bytes().to_vec());
-            let tokenid=vecu8_to_u32(stablecoinv);
+            ensure!(
+                Settings::<T>::contains_key("stablecoin".as_bytes().to_vec()),
+                Error::<T>::MissingStableCoinConfiguration
+            );
+            let stablecoin = Settings::<T>::get("stablecoin".as_bytes().to_vec()).unwrap();
+            let stablecoinv = json_get_value(stablecoin, "tokenid".as_bytes().to_vec());
+            let tokenid = vecu8_to_u32(stablecoinv);
             //transfer the amount to the reserve account
-            pallet_assets::Module::<T>::transfer(RawOrigin::Signed(signer.clone()).into(), tokenid, T::Lookup::unlookup(accountid.clone()), amount.into()).unwrap();
+            pallet_assets::Pallet::<T>::transfer(
+                RawOrigin::Signed(signer.clone()).into(),
+                tokenid,
+                T::Lookup::unlookup(accountid.clone()),
+                amount.into(),
+            )
+            .unwrap();
             // update total reserve for the insurances
             match InsurerReserves::<T>::contains_key(signer.clone()) {
                 true => {
-                let current_reserve = InsurerReserves::<T>::take(signer.clone());
-                let new_reserve = current_reserve.checked_add(amount.into()).unwrap();
-                InsurerReserves::<T>::insert(signer.clone(), new_reserve);
-                },
+                    let current_reserve = InsurerReserves::<T>::take(signer.clone());
+                    let new_reserve = current_reserve.checked_add(amount.into()).unwrap();
+                    InsurerReserves::<T>::insert(signer.clone(), new_reserve);
+                }
                 false => {
                     let deposit_into: u128 = amount.into();
-                    InsurerReserves::<T>::insert(signer.clone(),deposit_into);
+                    InsurerReserves::<T>::insert(signer.clone(), deposit_into);
                 }
             }
             // emit event
-            Self::deposit_event(RawEvent::InsuranceFundStaken(signer,amount));
+            Self::deposit_event(Event::InsuranceFundStaken(signer, amount));
             Ok(())
         }
-        
+
         ///Unstake Reserves for insurers
-        #[weight = 1000]
-        pub fn insurance_reserve_unstake(origin, amount: Balance) -> dispatch::DispatchResult {
+        #[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
+        pub fn insurance_reserve_unstake(origin: OriginFor<T>, amount: Balance) -> DispatchResult {
             // check the transaction is signed
             let signer = ensure_signed(origin)?;
             // check for an available reserve
-            ensure!(InsurerReserves::<T>::contains_key(signer.clone()), Error::<T>::ReserveNotFound);
-            // check the signer is an insurer 
-            ensure!(Insurers::<T>::contains_key(signer.clone()),Error::<T>::InsurerAccountNotFound);
+            ensure!(
+                InsurerReserves::<T>::contains_key(signer.clone()),
+                Error::<T>::ReserveNotFound
+            );
+            // check the signer is an insurer
+            ensure!(
+                Insurers::<T>::contains_key(signer.clone()),
+                Error::<T>::InsurerAccountNotFound
+            );
             //check the amount is <= the available reserve
-            let reserve=Insurers::<T>::get(signer.clone()).unwrap();
-            let reservev=vecu8_to_u128(reserve);
-            ensure!(reservev>=amount,Error::<T>::CurrentReserveIsNotEnough);
+            let reserve = Insurers::<T>::get(signer.clone()).unwrap();
+            let reservev = vecu8_to_u128(reserve);
+            ensure!(reservev >= amount, Error::<T>::CurrentReserveIsNotEnough);
             // check that the reserve - amount > Insurance Coverage
-            let reserveamount=InsurerReserves::<T>::get(signer.clone());
-            let mut riskcovered:u128=0;
-            if InsurerRisksCovered::<T>::contains_key(&signer){
-                riskcovered=InsurerRisksCovered::<T>::get(&signer);
+            let reserveamount = InsurerReserves::<T>::get(signer.clone());
+            let mut riskcovered: u128 = 0;
+            if InsurerRisksCovered::<T>::contains_key(&signer) {
+                riskcovered = InsurerRisksCovered::<T>::get(&signer);
             }
-            ensure!(reserveamount-amount> riskcovered,Error::<T>::InsufficientReserve);
-            ensure!(Settings::contains_key("insurancereserve".as_bytes().to_vec()),Error::<T>::InsuranceReserveAccountNotSet);
-            let json:Vec<u8>=Settings::get("insurancereserve".as_bytes().to_vec()).unwrap();
-            let account=json_get_value(json.clone(),"account".as_bytes().to_vec());
-            let accountvec=bs58::decode(account).into_vec().unwrap();
-            let accountid=T::AccountId::decode(&mut &accountvec[1..33]).unwrap_or_default();
+            ensure!(
+                reserveamount - amount > riskcovered,
+                Error::<T>::InsufficientReserve
+            );
+            ensure!(
+                Settings::<T>::contains_key("insurancereserve".as_bytes().to_vec()),
+                Error::<T>::InsuranceReserveAccountNotSet
+            );
+            let json: Vec<u8> = Settings::<T>::get("insurancereserve".as_bytes().to_vec()).unwrap();
+            let account = json_get_value(json.clone(), "account".as_bytes().to_vec());
+            let accountvec = bs58::decode(account).into_vec().unwrap();
+            let accountid = T::AccountId::decode(&mut &accountvec[1..33])
+                .map_err(|_| Error::<T>::InvalidJson)?;
             // get defaul stable coin
-            ensure!(Settings::contains_key("stablecoin".as_bytes().to_vec()),Error::<T>::MissingStableCoinConfiguration);
-            let stablecoin=Settings::get("stablecoin".as_bytes().to_vec()).unwrap();
-            let stablecoinv=json_get_value(stablecoin,"tokenid".as_bytes().to_vec());
-            let tokenid=vecu8_to_u32(stablecoinv);
+            ensure!(
+                Settings::<T>::contains_key("stablecoin".as_bytes().to_vec()),
+                Error::<T>::MissingStableCoinConfiguration
+            );
+            let stablecoin = Settings::<T>::get("stablecoin".as_bytes().to_vec()).unwrap();
+            let stablecoinv = json_get_value(stablecoin, "tokenid".as_bytes().to_vec());
+            let tokenid = vecu8_to_u32(stablecoinv);
             //transfer the amount to the reserve account
-            pallet_assets::Module::<T>::transfer(RawOrigin::Signed(accountid.clone()).into(), tokenid, T::Lookup::unlookup(signer.clone()), amount.into()).unwrap();
+            pallet_assets::Pallet::<T>::transfer(
+                RawOrigin::Signed(accountid.clone()).into(),
+                tokenid,
+                T::Lookup::unlookup(signer.clone()),
+                amount.into(),
+            )
+            .unwrap();
             // reduce the counter of the reserve
             //Retrieve reserve from InsurerReserves double map
             let current_reserves = InsurerReserves::<T>::get(signer.clone());
@@ -2615,82 +3355,83 @@ decl_module! {
             InsurerReserves::<T>::take(signer.clone());
             InsurerReserves::<T>::insert(signer.clone(), new_reserve);
             // Emit Event for unstaken
-            Self::deposit_event(RawEvent::InsuranceFundUnstaken(signer,amount));
+            Self::deposit_event(Event::InsuranceFundUnstaken(signer, amount));
             Ok(())
         }
         /*
         ///Create new order book entry for sale or purchase
-        #[weight = 1000]
-        pub fn order_book_create(origin, _uid: u32,_info: Vec<u8>) -> dispatch::DispatchResult {
+        #[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
+        pub fn order_book_create(origin : OriginFor<T>, _uid: u32,_info: Vec<u8>) -> DispatchResult {
             // check the transaction is signed
             let _signer = ensure_signed(origin)?;
             // Emit Event for new book order
-            //Self::deposit_event(RawEvent::InsuranceFundUnstaken(signer,amount));
+            //Self::deposit_event(Event::InsuranceFundUnstaken(signer,amount));
             Ok(())
         }*/
     }
 }
+
 // function to validate a json string for no/std. It does not allocate of memory
-fn json_check_validity(j:Vec<u8>) -> bool{	
+fn json_check_validity(j: Vec<u8>) -> bool {
     // minimum lenght of 2
-    if j.len()<2 {
+    if j.len() < 2 {
         return false;
     }
     // checks star/end with {}
-    if *j.get(0).unwrap()==b'{' && *j.last().unwrap()!=b'}' {
+    if *j.get(0).unwrap() == b'{' && *j.last().unwrap() != b'}' {
         return false;
     }
     // checks start/end with []
-    if *j.get(0).unwrap()==b'[' && *j.last().unwrap()!=b']' {
+    if *j.get(0).unwrap() == b'[' && *j.last().unwrap() != b']' {
         return false;
     }
     // check that the start is { or [
-    if *j.get(0).unwrap()!=b'{' && *j.get(0).unwrap()!=b'[' {
-            return false;
+    if *j.get(0).unwrap() != b'{' && *j.get(0).unwrap() != b'[' {
+        return false;
     }
     //checks that end is } or ]
-    if *j.last().unwrap()!=b'}' && *j.last().unwrap()!=b']' {
+    if *j.last().unwrap() != b'}' && *j.last().unwrap() != b']' {
         return false;
     }
     //checks " opening/closing and : as separator between name and values
-    let mut s:bool=true;
-    let mut d:bool=true;
-    let mut pg:bool=true;
-    let mut ps:bool=true;
+    let mut s: bool = true;
+    let mut d: bool = true;
+    let mut pg: bool = true;
+    let mut ps: bool = true;
     let mut bp = b' ';
     for b in j {
-        if b==b'[' && s {
-            ps=false;
+        if b == b'[' && s {
+            ps = false;
         }
-        if b==b']' && s && !ps {
-            ps=true;
+        if b == b']' && s && !ps {
+            ps = true;
         }
 
-        if b==b'{' && s {
-            pg=false;
+        if b == b'{' && s {
+            pg = false;
         }
-        if b==b'}' && s && !pg {
-            pg=true;
+        if b == b'}' && s && !pg {
+            pg = true;
         }
 
         if b == b'"' && s && bp != b'\\' {
-            s=false;
-            bp=b;
-            d=false;
+            s = false;
+            bp = b;
+            d = false;
             continue;
         }
         if b == b':' && s {
-            d=true;
-            bp=b;
+            d = true;
+            bp = b;
             continue;
         }
         if b == b'"' && !s && bp != b'\\' {
-            s=true;
-            bp=b;
-            d=true;
+            s = true;
+            bp = b;
+            d = true;
             continue;
         }
-        bp=b;
+        bp = b;
     }
 
     //fields are not closed properly
@@ -2713,166 +3454,166 @@ fn json_check_validity(j:Vec<u8>) -> bool{
     true
 }
 // function to get record {} from multirecord json structure [{..},{.. }], it returns an empty Vec when the records is not present
-fn json_get_recordvalue(ar:Vec<u8>,p:i32) -> Vec<u8> {
-    let mut result=Vec::new();
-    let mut op=true;
-    let mut cn=0;
-    let mut lb=b' ';
+fn json_get_recordvalue(ar: Vec<u8>, p: i32) -> Vec<u8> {
+    let mut result = Vec::new();
+    let mut op = true;
+    let mut cn = 0;
+    let mut lb = b' ';
     for b in ar {
-        if b==b',' && op {
+        if b == b',' && op {
             cn += 1;
             continue;
         }
-        if b==b'[' && op && lb!=b'\\' {
+        if b == b'[' && op && lb != b'\\' {
             continue;
         }
-        if b==b']' && op && lb!=b'\\' {
+        if b == b']' && op && lb != b'\\' {
             continue;
         }
-        if b==b'{' && op && lb!=b'\\' { 
-            op=false;
+        if b == b'{' && op && lb != b'\\' {
+            op = false;
         }
-        if b==b'}' && !op && lb!=b'\\' {
-            op=true;
+        if b == b'}' && !op && lb != b'\\' {
+            op = true;
         }
         // field found
-        if cn==p {
+        if cn == p {
             result.push(b);
         }
-        lb= b ;
+        lb = b;
     }
     result
 }
 // function to get a field value from array field [1,2,3,4,100], it returns an empty Vec when the records is not present
-fn json_get_arrayvalue(ar:Vec<u8>,p:i32) -> Vec<u8> {
-    let mut result=Vec::new();
-    let mut op=true;
-    let mut cn=0;
-    let mut lb=b' ';
+fn json_get_arrayvalue(ar: Vec<u8>, p: i32) -> Vec<u8> {
+    let mut result = Vec::new();
+    let mut op = true;
+    let mut cn = 0;
+    let mut lb = b' ';
     for b in ar {
-        if b==b',' && op {
+        if b == b',' && op {
             cn += 1;
             continue;
         }
-        if b==b'[' && op && lb!=b'\\' {
+        if b == b'[' && op && lb != b'\\' {
             continue;
         }
-        if b==b']' && op && lb!=b'\\' {
+        if b == b']' && op && lb != b'\\' {
             continue;
         }
-        if b==b'"' && op && lb!=b'\\' {
+        if b == b'"' && op && lb != b'\\' {
             continue;
         }
-        if b==b'"' && op && lb!=b'\\' { 
-            op=false;
+        if b == b'"' && op && lb != b'\\' {
+            op = false;
         }
-        if b==b'"' && !op && lb!=b'\\' {
-            op=true;
+        if b == b'"' && !op && lb != b'\\' {
+            op = true;
         }
         // field found
-        if cn==p {
+        if cn == p {
             result.push(b);
         }
-        lb= b;
+        lb = b;
     }
     result
 }
 
 // function to get value of a field for Substrate runtime (no std library and no variable allocation)
-fn json_get_value(j:Vec<u8>,key:Vec<u8>) -> Vec<u8> {
-    let mut result=Vec::new();
-    let mut k=Vec::new();
+fn json_get_value(j: Vec<u8>, key: Vec<u8>) -> Vec<u8> {
+    let mut result = Vec::new();
+    let mut k = Vec::new();
     let keyl = key.len();
     let jl = j.len();
     k.push(b'"');
-    for xk in 0..keyl{
+    for xk in 0..keyl {
         k.push(*key.get(xk).unwrap());
     }
     k.push(b'"');
     k.push(b':');
     let kl = k.len();
-    for x in  0..jl {
-        let mut m=0;
-        if x+kl>jl {
+    for x in 0..jl {
+        let mut m = 0;
+        if x + kl > jl {
             break;
         }
-        for (xx, i) in (x..x+kl).enumerate() {
-            if *j.get(i).unwrap()== *k.get(xx).unwrap() {
+        for (xx, i) in (x..x + kl).enumerate() {
+            if *j.get(i).unwrap() == *k.get(xx).unwrap() {
                 m += 1;
             }
         }
-        if m==kl{
-            let mut lb=b' ';
-            let mut op=true;
-            let mut os=true;
-            for i in x+kl..jl-1 {
-                if *j.get(i).unwrap()==b'[' && op && os{
-                    os=false;
+        if m == kl {
+            let mut lb = b' ';
+            let mut op = true;
+            let mut os = true;
+            for i in x + kl..jl - 1 {
+                if *j.get(i).unwrap() == b'[' && op && os {
+                    os = false;
                 }
-                if *j.get(i).unwrap()==b'}' && op && !os{
-                    os=true;
+                if *j.get(i).unwrap() == b'}' && op && !os {
+                    os = true;
                 }
-                if *j.get(i).unwrap()==b':' && op{
+                if *j.get(i).unwrap() == b':' && op {
                     continue;
                 }
-                if *j.get(i).unwrap()==b'"' && op && lb!=b'\\' {
-                    op=false;
-                    continue
+                if *j.get(i).unwrap() == b'"' && op && lb != b'\\' {
+                    op = false;
+                    continue;
                 }
-                if *j.get(i).unwrap()==b'"' && !op && lb!=b'\\' {
+                if *j.get(i).unwrap() == b'"' && !op && lb != b'\\' {
                     break;
                 }
-                if *j.get(i).unwrap()==b'}' && op{
+                if *j.get(i).unwrap() == b'}' && op {
                     break;
                 }
-                if *j.get(i).unwrap()==b']' && op{
+                if *j.get(i).unwrap() == b']' && op {
                     break;
                 }
-                if *j.get(i).unwrap()==b',' && op && os{
+                if *j.get(i).unwrap() == b',' && op && os {
                     break;
                 }
                 result.push(*j.get(i).unwrap());
-                lb= *j.get(i).unwrap();
-            }   
+                lb = *j.get(i).unwrap();
+            }
             break;
         }
     }
     result
 }
 // function to get value of a field with a complex array like [{....},{.....}] for Substrate runtime (no std library and no variable allocation)
-fn json_get_complexarray(j:Vec<u8>,key:Vec<u8>) -> Vec<u8> {
-    let mut result=Vec::new();
-    let mut k=Vec::new();
+fn json_get_complexarray(j: Vec<u8>, key: Vec<u8>) -> Vec<u8> {
+    let mut result = Vec::new();
+    let mut k = Vec::new();
     let keyl = key.len();
     let jl = j.len();
     k.push(b'"');
-    for xk in 0..keyl{
+    for xk in 0..keyl {
         k.push(*key.get(xk).unwrap());
     }
     k.push(b'"');
     k.push(b':');
     let kl = k.len();
-    for x in  0..jl {
-        let mut m=0;
-        if x+kl>jl {
+    for x in 0..jl {
+        let mut m = 0;
+        if x + kl > jl {
             break;
         }
-        for (xx, i) in (x..x+kl).enumerate() {
-            if *j.get(i).unwrap()== *k.get(xx).unwrap() {
+        for (xx, i) in (x..x + kl).enumerate() {
+            if *j.get(i).unwrap() == *k.get(xx).unwrap() {
                 m += 1;
             }
         }
-        if m==kl{
-            let mut os=true;
-            for i in x+kl..jl-1 {
-                if *j.get(i).unwrap()==b'[' && os{
-                    os=false;
+        if m == kl {
+            let mut os = true;
+            for i in x + kl..jl - 1 {
+                if *j.get(i).unwrap() == b'[' && os {
+                    os = false;
                 }
                 result.push(*j.get(i).unwrap());
-                if *j.get(i).unwrap()==b']' && !os {
+                if *j.get(i).unwrap() == b']' && !os {
                     break;
                 }
-            }   
+            }
             break;
         }
     }
@@ -2895,17 +3636,17 @@ fn vecu8_to_u128(v: Vec<u8>) -> u128 {
 }
 
 // function to validate a phone number
-fn validate_phonenumber(phonenumber:Vec<u8>) -> bool {
+fn validate_phonenumber(phonenumber: Vec<u8>) -> bool {
     // check maximum lenght
-    if phonenumber.len()>23{
+    if phonenumber.len() > 23 {
         return false;
     }
     // check admitted bytes
-    let mut x=0;
+    let mut x = 0;
     for v in phonenumber.clone() {
-        if (48..=57).contains(&v) || (v==43 && x==0){
+        if (48..=57).contains(&v) || (v == 43 && x == 0) {
             x += 1;
-        }else {
+        } else {
             return false;
         }
     }
@@ -3130,36 +3871,36 @@ fn validate_phonenumber(phonenumber:Vec<u8>) -> bool {
     p.push("58".into());
     p.push("84".into());
     // normalis number
-    let mut startpoint=0;
-    if phonenumber[0]==b'0' && phonenumber[1]==b'0' {
-        startpoint=2;
+    let mut startpoint = 0;
+    if phonenumber[0] == b'0' && phonenumber[1] == b'0' {
+        startpoint = 2;
     }
-    if phonenumber[0]==b'+' {
-        startpoint=1;
+    if phonenumber[0] == b'+' {
+        startpoint = 1;
     }
     // create vec for comparison
-    let mut pc3:Vec<u8>= vec![phonenumber[startpoint]];
-    pc3.push(phonenumber[startpoint+1]);
-    pc3.push(phonenumber[startpoint+2]);
-    let mut pc2:Vec<u8>= vec![phonenumber[startpoint]];
-    pc2.push(phonenumber[startpoint+1]);
-    let pc1:Vec<u8>= vec![phonenumber[startpoint]];
-    let mut valid=false;
+    let mut pc3: Vec<u8> = vec![phonenumber[startpoint]];
+    pc3.push(phonenumber[startpoint + 1]);
+    pc3.push(phonenumber[startpoint + 2]);
+    let mut pc2: Vec<u8> = vec![phonenumber[startpoint]];
+    pc2.push(phonenumber[startpoint + 1]);
+    let pc1: Vec<u8> = vec![phonenumber[startpoint]];
+    let mut valid = false;
     for xp in p {
-        if xp==pc3 || xp==pc2 || xp==pc1 {
-            valid =true;
+        if xp == pc3 || xp == pc2 || xp == pc1 {
+            valid = true;
         }
     }
     valid
 }
 // function to validate an web url return true/false
-fn validate_weburl(weburl:Vec<u8>) -> bool {
-    let mut valid=false;
-    let mut x=0;
-    let mut httpsflag=false;
-    let mut httpflag=false;
-    let mut startpoint=0;
-    let mut https: Vec<u8>= vec![b'h'];
+fn validate_weburl(weburl: Vec<u8>) -> bool {
+    let mut valid = false;
+    let mut x = 0;
+    let mut httpsflag = false;
+    let mut httpflag = false;
+    let mut startpoint = 0;
+    let mut https: Vec<u8> = vec![b'h'];
     https.push(b't');
     https.push(b't');
     https.push(b'p');
@@ -3167,14 +3908,14 @@ fn validate_weburl(weburl:Vec<u8>) -> bool {
     https.push(b':');
     https.push(b'/');
     https.push(b'/');
-    let mut http: Vec<u8>= vec![b'h'];
+    let mut http: Vec<u8> = vec![b'h'];
     http.push(b't');
     http.push(b't');
     http.push(b'p');
     http.push(b':');
     http.push(b'/');
     http.push(b'/');
-    let mut httpscomp: Vec<u8> =vec![weburl[0]];
+    let mut httpscomp: Vec<u8> = vec![weburl[0]];
     httpscomp.push(weburl[1]);
     httpscomp.push(weburl[2]);
     httpscomp.push(weburl[3]);
@@ -3189,32 +3930,31 @@ fn validate_weburl(weburl:Vec<u8>) -> bool {
     httpcomp.push(weburl[4]);
     httpcomp.push(weburl[5]);
     httpcomp.push(weburl[6]);
-    if https==httpscomp {
-        httpsflag=true;
+    if https == httpscomp {
+        httpsflag = true;
     }
-    if http==httpcomp {
-        httpflag=true;
+    if http == httpcomp {
+        httpflag = true;
     }
     if !httpflag && !httpsflag {
         return false;
     }
     if httpsflag {
-        startpoint=8;
+        startpoint = 8;
     }
     if httpflag {
-        startpoint=7;
+        startpoint = 7;
     }
-    for c in weburl {    
-        if x<startpoint {
+    for c in weburl {
+        if x < startpoint {
             x += 1;
             continue;
         }
-        // check for allowed chars    
-        if  (32..=95).contains(&c) ||
-            (97..=126).contains(&c) {
-            valid=true;
-        }else{
-            valid=false;
+        // check for allowed chars
+        if (32..=95).contains(&c) || (97..=126).contains(&c) {
+            valid = true;
+        } else {
+            valid = false;
             break;
         }
     }
@@ -3225,63 +3965,62 @@ fn validate_weburl(weburl:Vec<u8>) -> bool {
 const DASH_AS_BYTE: u8 = 45;
 
 fn validate_date(date_vec: &[u8]) -> bool {
+    let str_date = str::from_utf8(date_vec).unwrap();
+    // check date length is correct YYYY-MM-DD
 
-    let str_date  = str::from_utf8(date_vec).unwrap();
-   // check date length is correct YYYY-MM-DD
-   
-    if str_date.len() != 10 {return false}
-    if date_vec.to_owned()[4] != DASH_AS_BYTE ||
-        date_vec.to_owned()[7] != DASH_AS_BYTE  {return false}
-    
+    if str_date.len() != 10 {
+        return false;
+    }
+    if date_vec.to_owned()[4] != DASH_AS_BYTE || date_vec.to_owned()[7] != DASH_AS_BYTE {
+        return false;
+    }
+
     let year = &str_date[0..=3];
     let month = &str_date[5..=6];
     let day = &str_date[8..=9];
     if !is_year_valid(year) || !is_day_valid(day) || !is_month_valid(month) {
-        return false
+        return false;
     }
-    
+
     true
 }
 
-fn is_year_valid(year: &str) -> bool{
-
+fn is_year_valid(year: &str) -> bool {
     let year_u16_res = year.parse();
 
-    if year_u16_res.is_err(){
-        return false
+    if year_u16_res.is_err() {
+        return false;
     }
     let year_u16: u16 = year_u16_res.unwrap();
 
     if !(1900..=2100).contains(&year_u16) {
-        return false
+        return false;
     }
     true
 }
 
 fn is_day_valid(day: &str) -> bool {
-
     let day_u8_res = day.parse();
     if day_u8_res.is_err() {
-        return false
+        return false;
     }
     let day_u8: u8 = day_u8_res.unwrap();
-    
+
     if !(1..=31).contains(&day_u8) {
-        return false
+        return false;
     }
     true
 }
 
 fn is_month_valid(month: &str) -> bool {
-
     let month_u8_res = month.parse();
-    if month_u8_res.is_err(){
-        return false
+    if month_u8_res.is_err() {
+        return false;
     }
     let month_u8: u8 = month_u8_res.unwrap();
-    
+
     if !(1..=12).contains(&month_u8) {
-        return false
+        return false;
     }
     true
 }
