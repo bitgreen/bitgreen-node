@@ -314,6 +314,7 @@ pub mod pallet {
         TooManyNumberofShares,
         /// AGV not found
         AssetGeneratedVCUNotFound,
+        NotAuthorised,
     }
 
     #[pallet::hooks]
@@ -324,47 +325,6 @@ pub mod pallet {
     // Dispatchable functions must be annotated with a weight and must return a DispatchResult.
     #[pallet::call]
     impl<T: Config> Pallet<T> {
-        // SBP M1 review: you could probably use Substrate FRAME's Proxy pallet for a more flexible & optimal call delegation system.
-        // Note: all dispatchable calls should be benchmarked.
-
-        /// Create new proxy setting that allow to define some accounts with administrator rights on the pallet.
-        /// The dispatch origin for this call must be `Signed` by the Root.
-        #[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
-        pub fn create_proxy_settings(
-            origin: OriginFor<T>,
-            accounts: Vec<T::AccountId>,
-        ) -> DispatchResult {
-            ensure_root(origin)?;
-
-            // check whether setting key already exists
-            ensure!(!Settings::<T>::exists(), Error::<T>::SettingsKeyExists);
-
-            Settings::<T>::set(Some(accounts.clone()));
-            // Generate event
-            Self::deposit_event(Event::SettingsCreated(accounts));
-            // Return a successful DispatchResult
-            Ok(())
-        }
-
-        /// Destroy proxy setting keys
-        ///
-        /// The dispatch origin for this call must be `Signed` by the Root.
-        #[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
-        pub fn destroy_proxy_settings(origin: OriginFor<T>) -> DispatchResult {
-            // check for SUDO
-            ensure_root(origin)?;
-
-            // check whether setting key exists
-            ensure!(Settings::<T>::exists(), Error::<T>::SettingsKeyNotFound);
-
-            // remove the proxy settings
-            Settings::<T>::kill();
-            // Generate event
-            Self::deposit_event(Event::SettingsDestroyed);
-            // Return a successful DispatchResult
-            Ok(())
-        }
-
         /// Store/update an AuthorizedAccountsAGV
         /// This function allows to store the Accounts enabled to create Assets generating VCU (AGV).
         ///
@@ -428,17 +388,8 @@ pub mod pallet {
             agv_id: u32,
             content: AssetGeneratingVCUContentOf<T>,
         ) -> DispatchResult {
-            // check for SUDO user or owner account
-            match ensure_root(origin.clone()) {
-                Ok(()) => Ok(()),
-                Err(e) => ensure_signed(origin).and_then(|o: T::AccountId| {
-                    if AuthorizedAccountsAGV::<T>::contains_key(&o) {
-                        Ok(())
-                    } else {
-                        Err(e)
-                    }
-                }),
-            }?;
+            // check for Sudo or other admnistrator account
+            Self::ensure_root_or_authorized_account(origin)?;
 
             ensure!(
                 content.number_of_shares > 0,
@@ -464,17 +415,8 @@ pub mod pallet {
             agv_account_id: T::AccountId,
             agv_id: u32,
         ) -> DispatchResult {
-            // check for SUDO or authorized account
-            match ensure_root(origin.clone()) {
-                Ok(()) => Ok(()),
-                Err(e) => ensure_signed(origin).and_then(|o: T::AccountId| {
-                    if AuthorizedAccountsAGV::<T>::contains_key(&o) {
-                        Ok(())
-                    } else {
-                        Err(e)
-                    }
-                }),
-            }?;
+            // check for Sudo or other admnistrator account
+            Self::ensure_root_or_authorized_account(origin)?;
 
             // check whether asset generated VCU exists or not
             ensure!(
@@ -503,16 +445,7 @@ pub mod pallet {
             number_of_shares: u32,
         ) -> DispatchResult {
             // checking for SUDO or authorized account
-            match ensure_root(origin.clone()) {
-                Ok(()) => Ok(()),
-                Err(e) => ensure_signed(origin).and_then(|o: T::AccountId| {
-                    if AuthorizedAccountsAGV::<T>::contains_key(&o) {
-                        Ok(())
-                    } else {
-                        Err(e)
-                    }
-                }),
-            }?;
+            Self::ensure_root_or_authorized_account(origin)?;
 
             // check whether asset generating VCU (AGV) exists or not
             // read info about the AGV
@@ -582,17 +515,8 @@ pub mod pallet {
             agv_id: u32,
             number_of_shares: u32,
         ) -> DispatchResult {
-            // checking for SUDO or authorized account
-            match ensure_root(origin.clone()) {
-                Ok(()) => Ok(()),
-                Err(e) => ensure_signed(origin).and_then(|o: T::AccountId| {
-                    if AuthorizedAccountsAGV::<T>::contains_key(&o) {
-                        Ok(())
-                    } else {
-                        Err(e)
-                    }
-                }),
-            }?;
+            // check for Sudo or other admnistrator account
+            Self::ensure_root_or_authorized_account(origin)?;
 
             // check whether asset generated VCU exists or not
             ensure!(
@@ -720,17 +644,9 @@ pub mod pallet {
             agv_id: u32,
             number_of_shares: u32,
         ) -> DispatchResult {
-            // chec for administrator access
-            match ensure_root(origin.clone()) {
-                Ok(()) => Ok(()),
-                Err(e) => ensure_signed(origin).and_then(|o: T::AccountId| {
-                    if AuthorizedAccountsAGV::<T>::contains_key(&o) {
-                        Ok(())
-                    } else {
-                        Err(e)
-                    }
-                }),
-            }?;
+            // check for Sudo or other admnistrator account
+            Self::ensure_root_or_authorized_account(origin)?;
+
             // check that the shares are present
             ensure!(
                 AssetsGeneratingVCUShares::<T>::contains_key((&agv_account, &agv_id, &sender)),
@@ -786,16 +702,7 @@ pub mod pallet {
             token_id: u32,
         ) -> DispatchResult {
             // check for Sudo or other admnistrator account
-            match ensure_root(origin.clone()) {
-                Ok(()) => Ok(()),
-                Err(e) => ensure_signed(origin).and_then(|o: T::AccountId| {
-                    if AuthorizedAccountsAGV::<T>::contains_key(&o) {
-                        Ok(())
-                    } else {
-                        Err(e)
-                    }
-                }),
-            }?;
+            Self::ensure_root_or_authorized_account(origin)?;
 
             // check whether asset generating VCU exists or not
             ensure!(
@@ -851,16 +758,7 @@ pub mod pallet {
             agv_id: u32,
         ) -> DispatchResult {
             // check for Sudo or other admnistrator account
-            match ensure_root(origin.clone()) {
-                Ok(()) => Ok(()),
-                Err(e) => ensure_signed(origin).and_then(|o: T::AccountId| {
-                    if AuthorizedAccountsAGV::<T>::contains_key(&o) {
-                        Ok(())
-                    } else {
-                        Err(e)
-                    }
-                }),
-            }?;
+            Self::ensure_root_or_authorized_account(origin)?;
 
             // check whether asset generated VCU exists or not
             ensure!(
@@ -900,16 +798,7 @@ pub mod pallet {
             agv_id: u32,
         ) -> DispatchResultWithPostInfo {
             // check for Sudo or other admnistrator account
-            match ensure_root(origin.clone()) {
-                Ok(()) => Ok(()),
-                Err(e) => ensure_signed(origin).and_then(|o: T::AccountId| {
-                    if AuthorizedAccountsAGV::<T>::contains_key(&o) {
-                        Ok(())
-                    } else {
-                        Err(e)
-                    }
-                }),
-            }?;
+            Self::ensure_root_or_authorized_account(origin)?;
 
             // check for AGV
             ensure!(
@@ -1080,16 +969,8 @@ pub mod pallet {
             token_id: u32,
         ) -> DispatchResult {
             // check for SUDO or administrator accounts
-            match ensure_root(origin.clone()) {
-                Ok(()) => Ok(()),
-                Err(e) => ensure_signed(origin).and_then(|o: T::AccountId| {
-                    if AuthorizedAccountsAGV::<T>::contains_key(&o) {
-                        Ok(())
-                    } else {
-                        Err(e)
-                    }
-                }),
-            }?;
+            Self::ensure_root_or_authorized_account(origin)?;
+
             // check if the AGV exists or not
             ensure!(
                 AssetsGeneratingVCU::<T>::contains_key(&agv_account_id, &agv_id),
@@ -1134,16 +1015,9 @@ pub mod pallet {
             agv_id: u32,
         ) -> DispatchResult {
             //store the oracle or replace if already present, we allow only one oracle for each AGV
-            match ensure_root(origin.clone()) {
-                Ok(()) => Ok(()),
-                Err(e) => ensure_signed(origin).and_then(|o: T::AccountId| {
-                    if AuthorizedAccountsAGV::<T>::contains_key(&o) {
-                        Ok(())
-                    } else {
-                        Err(e)
-                    }
-                }),
-            }?;
+            // check for Sudo or other admnistrator account
+            Self::ensure_root_or_authorized_account(origin)?;
+
             // check for Oracle presence on chain
             ensure!(
                 OraclesAccountMintingVCU::<T>::contains_key(&agv_account_id, &agv_id),
@@ -1266,17 +1140,8 @@ pub mod pallet {
             bundle_id: u32,
             info: BundleAssetGeneratingVCUContentOf<T>,
         ) -> DispatchResult {
-            // check for SUDO or administrator user
-            match ensure_root(origin.clone()) {
-                Ok(()) => Ok(()),
-                Err(e) => ensure_signed(origin).and_then(|o: T::AccountId| {
-                    if AuthorizedAccountsAGV::<T>::contains_key(&o) {
-                        Ok(())
-                    } else {
-                        Err(e)
-                    }
-                }),
-            }?;
+            // check for Sudo or other admnistrator account
+            Self::ensure_root_or_authorized_account(origin)?;
 
             // check whether asset exists or not
             ensure!(
@@ -1303,17 +1168,9 @@ pub mod pallet {
         /// The dispatch origin for this call must be `Signed` by the Root.
         #[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
         pub fn destroy_bundle_agv(origin: OriginFor<T>, bundle_id: u32) -> DispatchResult {
-            // check for SUDO or administrator user
-            match ensure_root(origin.clone()) {
-                Ok(()) => Ok(()),
-                Err(e) => ensure_signed(origin).and_then(|o: T::AccountId| {
-                    if AuthorizedAccountsAGV::<T>::contains_key(&o) {
-                        Ok(())
-                    } else {
-                        Err(e)
-                    }
-                }),
-            }?;
+            // check for Sudo or other admnistrator account
+            Self::ensure_root_or_authorized_account(origin)?;
+
             // check if the bundle is on chain
             ensure!(
                 BundleAssetsGeneratingVCU::<T>::contains_key(&bundle_id),
@@ -1325,6 +1182,23 @@ pub mod pallet {
             Self::deposit_event(Event::DestroyedBundleAssetsGeneratingVCU(bundle_id));
             // Return a successful DispatchResult
             Ok(())
+        }
+    }
+
+    impl<T: Config> Pallet<T> {
+        // Ensure the origin is Sudo key or an authorised account
+        pub fn ensure_root_or_authorized_account(origin: OriginFor<T>) -> DispatchResult {
+            match ensure_root(origin.clone()) {
+                Ok(()) => Ok(()),
+                Err(e) => ensure_signed(origin).and_then(|o: T::AccountId| {
+                    if AuthorizedAccountsAGV::<T>::contains_key(&o) {
+                        Ok(())
+                    } else {
+                        Err(e)
+                    }
+                }),
+            }
+            .map_err(|_| Error::<T>::NotAuthorised.into())
         }
     }
 }

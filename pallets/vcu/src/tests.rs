@@ -4,71 +4,6 @@ use crate::{
 };
 use frame_support::{assert_noop, assert_ok, traits::Currency};
 use frame_system::RawOrigin;
-use sp_runtime::DispatchError::BadOrigin;
-
-#[test]
-fn create_proxy_settings_should_only_be_called_by_root() {
-    new_test_ext().execute_with(|| {
-        assert_noop!(
-            VCU::create_proxy_settings(Origin::signed(1), [1, 2].into()),
-            BadOrigin
-        );
-    });
-}
-
-#[test]
-fn create_proxy_settings_should_work() {
-    new_test_ext().execute_with(|| {
-        assert_ok!(VCU::create_proxy_settings(
-            RawOrigin::Root.into(),
-            [1, 2].into()
-        ));
-    });
-}
-
-#[test]
-fn create_proxy_settings_should_not_work_for_existing_key() {
-    new_test_ext().execute_with(|| {
-        assert_ok!(VCU::create_proxy_settings(
-            RawOrigin::Root.into(),
-            [1, 2].into()
-        ));
-
-        assert_noop!(
-            VCU::create_proxy_settings(RawOrigin::Root.into(), [1, 2].into()),
-            Error::<Test>::SettingsKeyExists
-        );
-    });
-}
-
-#[test]
-fn destroy_proxy_settings_should_work() {
-    new_test_ext().execute_with(|| {
-        assert_ok!(VCU::create_proxy_settings(
-            RawOrigin::Root.into(),
-            [1, 2].into()
-        ));
-
-        assert_ok!(VCU::destroy_proxy_settings(RawOrigin::Root.into()));
-    });
-}
-
-#[test]
-fn destroy_proxy_settings_should_not_work_for_non_existing_key() {
-    new_test_ext().execute_with(|| {
-        assert_noop!(
-            VCU::destroy_proxy_settings(RawOrigin::Root.into()),
-            Error::<Test>::SettingsKeyNotFound
-        );
-    });
-}
-
-#[test]
-fn destroy_proxy_settings_should_only_be_called_by_root() {
-    new_test_ext().execute_with(|| {
-        assert_noop!(VCU::destroy_proxy_settings(Origin::signed(1)), BadOrigin);
-    });
-}
 
 #[test]
 fn add_new_authorized_accounts_should_work() {
@@ -188,7 +123,7 @@ fn create_asset_generating_vcu_should_not_work_if_not_valid_input() {
 
         assert_noop!(
             VCU::create_asset_generating_vcu(Origin::signed(11), 1, 1, input),
-            BadOrigin
+            Error::<Test>::NotAuthorised
         );
     });
 }
@@ -226,7 +161,7 @@ fn destroy_asset_generating_vcu_should_not_work_if_not_signed_by_root_or_authori
     new_test_ext().execute_with(|| {
         assert_noop!(
             VCU::destroy_asset_generating_vcu(Origin::signed(11), 1, 1),
-            BadOrigin
+            Error::<Test>::NotAuthorised
         );
     });
 }
