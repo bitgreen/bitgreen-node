@@ -1,6 +1,7 @@
 use crate::pallet;
 use codec::{Decode, Encode};
 use frame_support::pallet_prelude::*;
+use sp_std::vec::Vec;
 
 /// a value: json structure as follows:
 /// {

@@ -571,6 +571,11 @@ impl pallet_bridge::Config for Runtime {
     type Event = Event;
 }
 
+impl pallet_sudo::Config for Runtime {
+    type Event = Event;
+    type Call = Call;
+}
+
 // Claim pallet, to claim deposits from previous blockchain
 // impl pallet_claim::Config for Runtime {
 // 	type Event = Event;
@@ -620,7 +625,7 @@ construct_runtime!(
         ImpactActions: pallet_impact_actions::{Pallet, Call, Storage, Event<T>} = 54,
         Bonds: pallet_bonds::{Pallet, Call, Storage, Event<T>} = 55,
         Bridge: pallet_bridge::{Pallet, Call, Storage, Event<T>, Config} = 56,
-        //Claim: pallet_claim::{Pallet, Call, Storage, Event<T>} = 57,
+        Sudo: pallet_sudo::{Pallet, Call, Storage, Config<T>, Event<T>} = 57,
     }
 );
 
