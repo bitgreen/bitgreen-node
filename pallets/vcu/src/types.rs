@@ -1,4 +1,3 @@
-use crate::pallet;
 use codec::{Decode, Encode};
 use frame_support::pallet_prelude::*;
 use sp_std::vec::Vec;
@@ -11,17 +10,17 @@ use sp_std::vec::Vec;
 ///     ExpiringDateTime: DateTime, (YYYY-MM-DD hh:mm:ss) (optional)
 ///     NumberofShares: Integer (maximum 10000 shares mandatory)
 /// }
-#[derive(Clone, Encode, Decode, Eq, PartialEq, Debug, TypeInfo)]
+#[derive(Clone, Encode, Decode, Eq, PartialEq, Debug, TypeInfo, MaxEncodedLen)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub struct AssetGeneratingVCUContent<Time> {
-    pub description: Vec<u8>,
-    pub proof_of_ownership: Vec<u8>,
-    pub other_documents: Option<Vec<u8>>,
+pub struct AssetGeneratingVCUContent<Time, Description, Document> {
+    pub description: Description,
+    pub proof_of_ownership: Document,
+    pub other_documents: Option<Document>,
     pub expiry: Option<Time>,
     pub number_of_shares: u32,
 }
 
-#[derive(Clone, Encode, Decode, Eq, PartialEq, Debug, TypeInfo)]
+#[derive(Clone, Encode, Decode, Eq, PartialEq, Debug, TypeInfo, MaxEncodedLen)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct AssetsGeneratingVCUScheduleContent {
     pub period_days: u64,
@@ -33,15 +32,15 @@ pub struct AssetsGeneratingVCUScheduleContent {
 /// but potentially different schedules or Oracle for the generation of the VCU.
 ///
 /// example: {"description":"xxxxxxx","agvs":[{"accountid","xxxxxxx","id":xx},{..}],assetid:xx}
-#[derive(Clone, Encode, Decode, Eq, PartialEq, Debug, TypeInfo)]
+#[derive(Clone, Encode, Decode, Eq, PartialEq, Debug, TypeInfo, MaxEncodedLen)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub struct BundleAssetGeneratingVCUContent<AccountId, AssetId> {
-    pub description: Vec<u8>,
+pub struct BundleAssetGeneratingVCUContent<AssetId, Description, BundleList> {
+    pub description: Description,
     pub asset_id: AssetId,
-    pub bundle: Vec<BundleAssetGeneratingVCUData<AccountId>>,
+    pub bundle: BundleList,
 }
 
-#[derive(Clone, Encode, Decode, Eq, PartialEq, Debug, TypeInfo)]
+#[derive(Clone, Encode, Decode, Eq, PartialEq, Debug, TypeInfo, MaxEncodedLen)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct BundleAssetGeneratingVCUData<AccountId> {
     pub account_id: AccountId,

@@ -122,6 +122,9 @@ impl pallet_vcu::Config for Test {
     type Event = Event;
     type MinPIDLength = MinPIDLength;
     type UnixTime = Timestamp;
+    type MaxDescriptionLength = ConstU32<15>;
+    type MaxDocumentLength = ConstU32<15>;
+    type MaxBundleSize = ConstU32<10>;
 }
 
 // Build genesis storage according to the mock runtime.

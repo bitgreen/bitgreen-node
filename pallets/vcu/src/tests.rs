@@ -4,6 +4,7 @@ use crate::{
 };
 use frame_support::{assert_noop, assert_ok, traits::Currency};
 use frame_system::RawOrigin;
+use sp_std::convert::TryInto;
 
 #[test]
 fn add_new_authorized_accounts_should_work() {
@@ -11,9 +12,12 @@ fn add_new_authorized_accounts_should_work() {
         assert_ok!(VCU::add_authorized_account(
             RawOrigin::Root.into(),
             1,
-            b"Verra".to_vec()
+            b"Verra".to_vec().try_into().unwrap()
         ));
-        assert_eq!(VCU::get_authorized_accounts(1), Some(b"Verra".to_vec()));
+        assert_eq!(
+            VCU::get_authorized_accounts(1),
+            Some(b"Verra".to_vec().try_into().unwrap())
+        );
     });
 }
 
@@ -23,16 +27,22 @@ fn update_existing_authorized_accounts_should_work() {
         assert_ok!(VCU::add_authorized_account(
             RawOrigin::Root.into(),
             1,
-            b"Verra".to_vec()
+            b"Verra".to_vec().try_into().unwrap()
         ));
-        assert_eq!(VCU::get_authorized_accounts(1), Some(b"Verra".to_vec()));
+        assert_eq!(
+            VCU::get_authorized_accounts(1),
+            Some(b"Verra".to_vec().try_into().unwrap())
+        );
 
         assert_ok!(VCU::add_authorized_account(
             RawOrigin::Root.into(),
             1,
-            b"Verra22".to_vec()
+            b"Verra22".to_vec().try_into().unwrap()
         ));
-        assert_eq!(VCU::get_authorized_accounts(1), Some(b"Verra22".to_vec()));
+        assert_eq!(
+            VCU::get_authorized_accounts(1),
+            Some(b"Verra22".to_vec().try_into().unwrap())
+        );
     });
 }
 
@@ -40,7 +50,11 @@ fn update_existing_authorized_accounts_should_work() {
 fn add_authorized_accounts_should_not_work_for_invalid_description() {
     new_test_ext().execute_with(|| {
         assert_noop!(
-            VCU::add_authorized_account(RawOrigin::Root.into(), 1, b"".to_vec()),
+            VCU::add_authorized_account(
+                RawOrigin::Root.into(),
+                1,
+                b"".to_vec().try_into().unwrap()
+            ),
             Error::<Test>::InvalidDescription
         );
     });
@@ -52,9 +66,12 @@ fn destroy_authorized_accounts_should_work() {
         assert_ok!(VCU::add_authorized_account(
             RawOrigin::Root.into(),
             1,
-            b"Verra".to_vec()
+            b"Verra".to_vec().try_into().unwrap()
         ));
-        assert_eq!(VCU::get_authorized_accounts(1), Some(b"Verra".to_vec()));
+        assert_eq!(
+            VCU::get_authorized_accounts(1),
+            Some(b"Verra".to_vec().try_into().unwrap())
+        );
 
         assert_ok!(VCU::destroy_authorized_account(RawOrigin::Root.into(), 1));
         assert_eq!(VCU::get_authorized_accounts(1), None);
@@ -62,21 +79,11 @@ fn destroy_authorized_accounts_should_work() {
 }
 
 #[test]
-fn destroy_authorized_accounts_should_not_work_for_non_existing_account() {
-    new_test_ext().execute_with(|| {
-        assert_noop!(
-            VCU::destroy_authorized_account(RawOrigin::Root.into(), 1),
-            Error::<Test>::AuthorizedAccountsAGVNotFound
-        );
-    });
-}
-
-#[test]
 fn create_asset_generating_vcu_should_work_if_signed_by_root_or_authorized_user() {
     new_test_ext().execute_with(|| {
         let input: AssetGeneratingVCUContentOf<Test> = AssetGeneratingVCUContent {
-            description: "Description".into(),
-            proof_of_ownership: "proof".into(),
+            description: b"Description".to_vec().try_into().unwrap(),
+            proof_of_ownership: b"proof".to_vec().try_into().unwrap(),
             number_of_shares: 10000,
             other_documents: None,
             expiry: None,
@@ -93,7 +100,7 @@ fn create_asset_generating_vcu_should_work_if_signed_by_root_or_authorized_user(
         assert_ok!(VCU::add_authorized_account(
             RawOrigin::Root.into(),
             11,
-            b"Verra".to_vec()
+            b"Verra".to_vec().try_into().unwrap()
         ));
 
         assert_ok!(VCU::create_asset_generating_vcu(
@@ -109,8 +116,8 @@ fn create_asset_generating_vcu_should_work_if_signed_by_root_or_authorized_user(
 fn create_asset_generating_vcu_should_not_work_if_not_valid_input() {
     new_test_ext().execute_with(|| {
         let input: AssetGeneratingVCUContentOf<Test> = AssetGeneratingVCUContent {
-            description: "Description".into(),
-            proof_of_ownership: "proof".into(),
+            description: b"Description".to_vec().try_into().unwrap(),
+            proof_of_ownership: b"proof".to_vec().try_into().unwrap(),
             number_of_shares: 0,
             other_documents: None,
             expiry: None,
@@ -132,8 +139,8 @@ fn create_asset_generating_vcu_should_not_work_if_not_valid_input() {
 fn destroy_asset_generating_vcu_should_work_if_signed_by_root_or_authorized_user() {
     new_test_ext().execute_with(|| {
         let input: AssetGeneratingVCUContentOf<Test> = AssetGeneratingVCUContent {
-            description: "Description".into(),
-            proof_of_ownership: "proof".into(),
+            description: b"Description".to_vec().try_into().unwrap(),
+            proof_of_ownership: b"proof".to_vec().try_into().unwrap(),
             number_of_shares: 1000,
             other_documents: None,
             expiry: None,
@@ -180,8 +187,8 @@ fn destroy_asset_generating_vcu_should_not_work_if_not_exists() {
 fn create_asset_generating_vcu_schedule_should_work_if_signed_by_root_or_authorized_user() {
     new_test_ext().execute_with(|| {
         let input: AssetGeneratingVCUContentOf<Test> = AssetGeneratingVCUContent {
-            description: "Description".into(),
-            proof_of_ownership: "proof".into(),
+            description: b"Description".to_vec().try_into().unwrap(),
+            proof_of_ownership: b"proof".to_vec().try_into().unwrap(),
             number_of_shares: 1000,
             other_documents: None,
             expiry: None,
@@ -233,8 +240,8 @@ fn create_asset_generating_vcu_schedule_should_not_work_if_not_exists() {
 fn create_asset_generating_vcu_schedule_should_not_work_if_amount_is_zero() {
     new_test_ext().execute_with(|| {
         let input: AssetGeneratingVCUContentOf<Test> = AssetGeneratingVCUContent {
-            description: "Description".into(),
-            proof_of_ownership: "proof".into(),
+            description: b"Description".to_vec().try_into().unwrap(),
+            proof_of_ownership: b"proof".to_vec().try_into().unwrap(),
             number_of_shares: 1000,
             other_documents: None,
             expiry: None,
@@ -257,8 +264,8 @@ fn create_asset_generating_vcu_schedule_should_not_work_if_amount_is_zero() {
 fn destroy_asset_generating_vcu_schedule_should_work_if_signed_by_root_or_authorized_user() {
     new_test_ext().execute_with(|| {
         let input: AssetGeneratingVCUContentOf<Test> = AssetGeneratingVCUContent {
-            description: "Description".into(),
-            proof_of_ownership: "proof".into(),
+            description: b"Description".to_vec().try_into().unwrap(),
+            proof_of_ownership: b"proof".to_vec().try_into().unwrap(),
             number_of_shares: 1000,
             other_documents: None,
             expiry: None,
@@ -319,8 +326,8 @@ fn destroy_asset_generating_vcu_schedule_should_not_work_if_not_exists() {
 //     new_test_ext().execute_with(|| {
 //
 //         let input: AssetGeneratingVCUContentOf<Test> = AssetGeneratingVCUContent {
-//             description: "Description".into(),
-//             proof_of_ownership: "proof".into(),
+//             description: b"Description".to_vec().try_into().unwrap(),
+//             proof_of_ownership: b"proof".to_vec().try_into().unwrap(),
 //             number_of_shares: 1000,
 //             other_documents: None,
 //             expiry: None,
@@ -332,7 +339,7 @@ fn destroy_asset_generating_vcu_schedule_should_not_work_if_not_exists() {
 //         Balances::make_free_balance_be(&1, 1000);
 //         Assets::create(Origin::signed(1), 10000, 1, 1_u32.into()).unwrap();
 //
-// 		assert_ok!(VCU::add_authorized_account(RawOrigin::Root.into(), 11, b"Verra".to_vec()));
+// 		assert_ok!(VCU::add_authorized_account(RawOrigin::Root.into(), 11, b"Verra".to_vec().try_into().unwrap()));
 // 		assert_ok!(VCU::create_asset_generating_vcu(Origin::signed(11), 1, 1, input.clone()));
 // 		assert_eq!(VCU::asset_generating_vcu(1, 1), Some(input));
 //
@@ -367,8 +374,8 @@ fn mint_scheduled_vcu_should_not_work_if_not_exists() {
 // fn mint_scheduled_vcu_should_not_mint_if_schedule_has_been_expired() {
 //     new_test_ext().execute_with(|| {
 //         let input: AssetGeneratingVCUContentOf<Test> = AssetGeneratingVCUContent {
-//             description: "Description".into(),
-//             proof_of_ownership: "proof".into(),
+//             description: b"Description".to_vec().try_into().unwrap(),
+//             proof_of_ownership: b"proof".to_vec().try_into().unwrap(),
 //             number_of_shares: 1000,
 //             other_documents: None,
 //             expiry: None,
@@ -383,7 +390,7 @@ fn mint_scheduled_vcu_should_not_work_if_not_exists() {
 //         Balances::make_free_balance_be(&1, 1000);
 //         Assets::create(Origin::signed(1), 10000, 1, 1_u32.into()).unwrap();
 //
-// 		assert_ok!(VCU::add_authorized_account(RawOrigin::Root.into(), 11, b"Verra".to_vec()));
+// 		assert_ok!(VCU::add_authorized_account(RawOrigin::Root.into(), 11, b"Verra".to_vec().try_into().unwrap()));
 // 		assert_ok!(VCU::create_asset_generating_vcu(Origin::signed(11), 1, 1, input.clone()));
 //
 //
@@ -415,8 +422,8 @@ fn mint_scheduled_vcu_should_not_work_if_not_exists() {
 fn create_oracle_account_minting_vcu_should_work() {
     new_test_ext().execute_with(|| {
         let input: AssetGeneratingVCUContentOf<Test> = AssetGeneratingVCUContent {
-            description: "Description".into(),
-            proof_of_ownership: "proof".into(),
+            description: b"Description".to_vec().try_into().unwrap(),
+            proof_of_ownership: b"proof".to_vec().try_into().unwrap(),
             number_of_shares: 1000,
             other_documents: None,
             expiry: None,
@@ -452,8 +459,8 @@ fn create_oracle_account_minting_vcu_should_work() {
 fn destroy_oracle_account_minting_vcu_should_work() {
     new_test_ext().execute_with(|| {
         let input: AssetGeneratingVCUContentOf<Test> = AssetGeneratingVCUContent {
-            description: "Description".into(),
-            proof_of_ownership: "proof".into(),
+            description: b"Description".to_vec().try_into().unwrap(),
+            proof_of_ownership: b"proof".to_vec().try_into().unwrap(),
             number_of_shares: 1000,
             other_documents: None,
             expiry: None,
@@ -504,8 +511,8 @@ fn destroy_oracle_account_minting_vcu_not_work_for_non_existing_key() {
 // fn mint_vcu_from_oracle_should_work() {
 //     new_test_ext().execute_with(|| {
 //         let input: AssetGeneratingVCUContentOf<Test> = AssetGeneratingVCUContent {
-//             description: "Description".into(),
-//             proof_of_ownership: "proof".into(),
+//             description: b"Description".to_vec().try_into().unwrap(),
+//             proof_of_ownership: b"proof".to_vec().try_into().unwrap(),
 //             number_of_shares: 1000,
 //             other_documents: None,
 //             expiry: None,
@@ -521,7 +528,7 @@ fn destroy_oracle_account_minting_vcu_not_work_for_non_existing_key() {
 //         Assets::create(Origin::signed(1), 10000, 1, 1_u32.into()).unwrap();
 //
 //
-// 		assert_ok!(VCU::add_authorized_account(RawOrigin::Root.into(), 11, b"Verra".to_vec()));
+// 		assert_ok!(VCU::add_authorized_account(RawOrigin::Root.into(), 11, b"Verra".to_vec().try_into().unwrap()));
 // 		assert_ok!(VCU::create_asset_generating_vcu(Origin::signed(11), 11, 1, input.clone()));
 //
 //

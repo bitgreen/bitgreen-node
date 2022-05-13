@@ -15,10 +15,6 @@
 // limitations under the License.
 
 // SBP M1 review: missing documentation & benchmarks.
-// General remark: you should avoid using JSON as an internal format,
-// and instead leverage the built-in suport for SCALE encoding.
-// Perform JSON string parsing operations will make your runtime perform
-// suboptimally, and bloat the chain's storage.
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
@@ -30,33 +26,39 @@ mod mock;
 #[cfg(test)]
 mod tests;
 
-use codec::Decode;
-use frame_support::dispatch::DispatchResult;
-use frame_support::traits::UnixTime;
-use frame_support::{ensure, traits::Get};
-pub use frame_system::pallet_prelude::*;
-use frame_system::RawOrigin;
-use frame_system::{ensure_root, ensure_signed};
-use primitives::Balance;
-use sp_runtime::traits::One;
-use sp_runtime::traits::StaticLookup;
-use sp_std::convert::TryInto;
-use sp_std::vec;
-use sp_std::vec::Vec;
-
 mod types;
 pub use types::*;
 
 #[frame_support::pallet]
 pub mod pallet {
     use super::*;
+    use frame_support::dispatch::DispatchResult;
+    use frame_support::traits::UnixTime;
     use frame_support::{dispatch::DispatchResultWithPostInfo, pallet_prelude::*};
+    use frame_support::{ensure, traits::Get};
+    pub use frame_system::pallet_prelude::*;
+    use frame_system::RawOrigin;
+    use frame_system::{ensure_root, ensure_signed};
+    use primitives::Balance;
+    use sp_runtime::traits::One;
+    use sp_runtime::traits::StaticLookup;
+    use sp_std::convert::TryInto;
 
-    pub type AssetGeneratingVCUContentOf<T> =
-        AssetGeneratingVCUContent<<T as frame_system::Config>::BlockNumber>;
+    pub type AssetGeneratingVCUContentOf<T> = AssetGeneratingVCUContent<
+        <T as frame_system::Config>::BlockNumber,
+        DescriptionOf<T>,
+        DocumentOf<T>,
+    >;
 
     pub type BundleAssetGeneratingVCUContentOf<T> =
-        BundleAssetGeneratingVCUContent<<T as frame_system::Config>::AccountId, u32>;
+        BundleAssetGeneratingVCUContent<u32, DescriptionOf<T>, BundleListOf<T>>;
+
+    pub type DescriptionOf<T> = BoundedVec<u8, <T as Config>::MaxDescriptionLength>;
+    pub type DocumentOf<T> = BoundedVec<u8, <T as Config>::MaxDocumentLength>;
+    pub type BundleAssetGeneratingVCUDataOf<T> =
+        BundleAssetGeneratingVCUData<<T as frame_system::Config>::AccountId>;
+    pub type BundleListOf<T> =
+        BoundedVec<BundleAssetGeneratingVCUDataOf<T>, <T as Config>::MaxBundleSize>;
 
     #[pallet::config]
     pub trait Config:
@@ -66,25 +68,25 @@ pub mod pallet {
         type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
         /// Veera project id minimum length
         type MinPIDLength: Get<u32>;
+        /// Max size of description
+        type MaxDescriptionLength: Get<u32>;
+        /// Max size of document length
+        type MaxDocumentLength: Get<u32>;
+        /// Max size of BundleAssetsGeneratingVCU
+        type MaxBundleSize: Get<u32>;
         /// Unix time
         type UnixTime: UnixTime;
     }
 
     #[pallet::pallet]
     #[pallet::generate_store(pub(super) trait Store)]
-    #[pallet::without_storage_info]
     pub struct Pallet<T>(_);
-
-    /// Settings configuration, we define some administrator accounts for the pallet VCU without using the super user account.
-    #[pallet::storage]
-    #[pallet::getter(fn get_settings)]
-    pub type Settings<T: Config> = StorageValue<_, Vec<T::AccountId>>;
 
     /// AuthorizedAccountsAGV, we define authorized accounts to store/change the Assets Generating VCU (Verified Carbon Credit).
     #[pallet::storage]
     #[pallet::getter(fn get_authorized_accounts)]
     pub type AuthorizedAccountsAGV<T: Config> =
-        StorageMap<_, Blake2_128Concat, T::AccountId, Vec<u8>>;
+        StorageMap<_, Blake2_128Concat, T::AccountId, DescriptionOf<T>>;
 
     /// AssetsGeneratingVCU (Verified Carbon Credit) should be stored on chain from the authorized accounts.
     #[pallet::storage]
@@ -184,8 +186,6 @@ pub mod pallet {
     pub type BurnedCounter<T: Config> =
         StorageDoubleMap<_, Blake2_128Concat, T::AccountId, Blake2_128Concat, u32, u32, ValueQuery>;
 
-    // Pallets use events to inform users when important changes are made.
-    // https://docs.substrate.io/v3/runtime/events-and-errors
     #[pallet::event]
     #[pallet::generate_deposit(pub(super) fn deposit_event)]
     pub enum Event<T: Config> {
@@ -230,20 +230,8 @@ pub mod pallet {
     // Errors inform users that something went wrong.
     #[pallet::error]
     pub enum Error<T> {
-        /// Settings Key already exists
-        SettingsKeyExists,
-        /// Settings Key has not been found on the blockchain
-        SettingsKeyNotFound,
-        /// Settings data is too short to be valid
-        SettingsJsonTooShort,
-        /// Settings data is too long to be valid
-        SettingsJsonTooLong,
-        /// Invalid Json structure
-        InvalidJson,
         /// Invalid Description
         InvalidDescription,
-        /// AuthorizedAccountsAGV has not been found on the blockchain
-        AuthorizedAccountsAGVNotFound,
         /// NumberofShares not found
         NumberofSharesNotFound,
         /// Number of share cannot be zero
@@ -272,16 +260,8 @@ pub mod pallet {
         AssetGeneratedScheduleExpired,
         /// AOraclesAccountMintingVCU Not Found
         OraclesAccountMintingVCUNotFound,
-        /// BundleAssetsGeneratingVCU JSON is too short to be valid
-        BundleAssetsGeneratingVCUJsonTooShort,
-        /// BundleAssetsGeneratingVCU is too long to be valid
-        BundleAssetsGeneratingVCUJsonTooLong,
-        /// InvalidAGVs
-        InvalidAGVs,
         /// Bundle does not exist,
         BundleDoesNotExist,
-        /// BundleAssetIdNotSame
-        BundleAssetIdNotSame,
         /// The recipient has not shares minted
         RecipientSharesNotFound,
         /// Recipient Shares are less of burning shares
@@ -290,8 +270,6 @@ pub mod pallet {
         TotalSharesNotEnough,
         /// Invalid period in days
         InvalidPeriodDays,
-        /// The schedule is already present on chain
-        ScheduleDuplicated,
         /// The minting time is not not yet arrived based on the schedule
         AssetGeneratedScheduleNotYetArrived,
         /// Token id not found in Assets Pallet
@@ -306,28 +284,23 @@ pub mod pallet {
         InsufficientVCUs,
         /// Token id must have a value > 10000 because till 10000 is reserved for the Bridge pallet.
         ReservedTokenId,
-        /// Asset Already In Use
-        AssetAlreadyInUse,
         /// The AVG has not yet shares minted
         NoAVGSharesNotFound,
         /// Too many shares
         TooManyNumberofShares,
         /// AGV not found
         AssetGeneratedVCUNotFound,
+        /// The account is not authorised to make the call
         NotAuthorised,
     }
 
     #[pallet::hooks]
     impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {}
 
-    // Dispatchable functions allows users to interact with the pallet and invoke state changes.
-    // These functions materialize as "extrinsics", which are often compared to transactions.
-    // Dispatchable functions must be annotated with a weight and must return a DispatchResult.
     #[pallet::call]
     impl<T: Config> Pallet<T> {
         /// Store/update an AuthorizedAccountsAGV
         /// This function allows to store the Accounts enabled to create Assets generating VCU (AGV).
-        ///
         /// `add_authorized_accounts` will accept `account_id` and `description` as parameter
         ///
         /// The dispatch origin for this call must be `Signed` by the Root.
@@ -335,13 +308,13 @@ pub mod pallet {
         pub fn add_authorized_account(
             origin: OriginFor<T>,
             account_id: T::AccountId,
-            description: Vec<u8>,
+            description: DescriptionOf<T>,
         ) -> DispatchResult {
             // check for SUDO
             ensure_root(origin)?;
             // description is mandatory
             ensure!(!description.is_empty(), Error::<T>::InvalidDescription);
-            //minimu lenght of 4 chars
+            //minimum lenght of 4 chars
             ensure!(description.len() > 4, Error::<T>::InvalidDescription);
             // add/replace the description for the account received
             AuthorizedAccountsAGV::<T>::try_mutate_exists(account_id.clone(), |desc| {
@@ -353,7 +326,7 @@ pub mod pallet {
             })
         }
 
-        /// Destroys an authorized account revekin its authorization
+        /// Destroys an authorized account revoking its authorization
         ///
         /// The dispatch origin for this call must be `Signed` by the Root.
         #[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
@@ -363,11 +336,6 @@ pub mod pallet {
         ) -> DispatchResult {
             // check for SUDO
             ensure_root(origin)?;
-            // check whether authorized account exists or not
-            ensure!(
-                AuthorizedAccountsAGV::<T>::contains_key(&account_id),
-                Error::<T>::AuthorizedAccountsAGVNotFound
-            );
             // remove the authorized account from the state
             AuthorizedAccountsAGV::<T>::remove(account_id.clone());
             // Generate event
