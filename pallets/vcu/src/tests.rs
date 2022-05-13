@@ -378,120 +378,223 @@ fn destroy_asset_generating_vcu_schedule_should_not_work_if_not_exists() {
     });
 }
 
+// TODO : Fix time elapsed calculation
 // #[test]
 // fn mint_scheduled_vcu_should_work_if_signed_by_root_or_authorized_user() {
 //     new_test_ext().execute_with(|| {
 //
-// 		let input = r#"{"description":"Description", "proofOwnership":"ipfslink", "numberOfShares":"1000"}"#.as_bytes().to_vec();
+//         let input: AssetGeneratingVCUContentOf<Test> = AssetGeneratingVCUContent {
+//             description: "Description".into(),
+//             proof_of_ownership: "proof".into(),
+//             number_of_shares: 1000,
+//             other_documents: None,
+//             expiry: None,
+//         };
+//
+//         let token_id:u32 = 1;
+//         let amount_vcu: u128 = 1000;
+//
+//         Balances::make_free_balance_be(&1, 1000);
+//         Assets::create(Origin::signed(1), 10000, 1, 1_u32.into()).unwrap();
+//
 // 		assert_ok!(VCU::add_authorized_account(RawOrigin::Root.into(), 11, b"Verra".to_vec()));
 // 		assert_ok!(VCU::create_asset_generating_vcu(Origin::signed(11), 1, 1, input.clone()));
-// 		assert_eq!(VCU::asset_generating_vcu(1, 1), input);
+// 		assert_eq!(VCU::asset_generating_vcu(1, 1), Some(input));
 //
-// 		let token_id:u32 = 1;
-// 		let amount_vcu: u128 = 1000;
-//
-// 		assert_ok!(VCU::create_asset_generating_vcu_schedule(Origin::signed(11), 1, 1, 0, amount_vcu, token_id));
+//         assert_ok!(VCU::create_asset_generating_vcu_schedule(
+//             RawOrigin::Root.into(),
+//             1,
+//             1,
+//             1,
+//             1,
+//             10000
+//         ));
 //
 // 		assert_eq!(Assets::total_supply(token_id), 0);
-// 		let avg_account = r#"1-1"#.as_bytes().to_vec();
-// 		assert_ok!(VCU::mint_scheduled_vcu(Origin::signed(11), avg_account));
+// 		assert_ok!(VCU::mint_scheduled_vcu(Origin::signed(11), 1,1));
 // 		assert_eq!(Assets::total_supply(token_id), amount_vcu);
 //
 // 	});
 // }
-//
-// #[test]
-// fn mint_scheduled_vcu_should_not_work_if_not_exists() {
-//     new_test_ext().execute_with(|| {
-//         let avg_account = r#"1-1"#.as_bytes().to_vec();
-//         assert_noop!(
-//             VCU::mint_scheduled_vcu(RawOrigin::Root.into(), avg_account),
-//             Error::<Test>::AssetGeneratedVCUScheduleNotFound
-//         );
-//     });
-// }
-//
+
+#[test]
+fn mint_scheduled_vcu_should_not_work_if_not_exists() {
+    new_test_ext().execute_with(|| {
+        assert_noop!(
+            VCU::mint_scheduled_vcu(RawOrigin::Root.into(), 1, 1),
+            Error::<Test>::AssetGeneratedVCUScheduleNotFound
+        );
+    });
+}
+
+// TODO : Fix after time elapsed fixes
 // #[test]
 // fn mint_scheduled_vcu_should_not_mint_if_schedule_has_been_expired() {
 //     new_test_ext().execute_with(|| {
-// 		let input = r#"{"description":"Description", "proofOwnership":"ipfslink", "numberOfShares":"1000"}"#.as_bytes().to_vec();
+//         let input: AssetGeneratingVCUContentOf<Test> = AssetGeneratingVCUContent {
+//             description: "Description".into(),
+//             proof_of_ownership: "proof".into(),
+//             number_of_shares: 1000,
+//             other_documents: None,
+//             expiry: None,
+//         };
+//
+//         let expected_schedule = AssetsGeneratingVCUScheduleContent {
+//             period_days: 1_u64,
+//             amount_vcu: 1_u128,
+//             token_id: 10000_u32,
+//         };
+//
+//         Balances::make_free_balance_be(&1, 1000);
+//         Assets::create(Origin::signed(1), 10000, 1, 1_u32.into()).unwrap();
+//
 // 		assert_ok!(VCU::add_authorized_account(RawOrigin::Root.into(), 11, b"Verra".to_vec()));
 // 		assert_ok!(VCU::create_asset_generating_vcu(Origin::signed(11), 1, 1, input.clone()));
-// 		assert_eq!(VCU::asset_generating_vcu(1, 1), input);
+//
 //
 // 		let token_id:u32 = 1;
 // 		let amount_vcu: u128 = 1000;
 //
-// 		assert_ok!(VCU::create_asset_generating_vcu_schedule(Origin::signed(11), 1, 1, 1, amount_vcu, token_id));
+//         assert_ok!(VCU::create_asset_generating_vcu_schedule(
+//             RawOrigin::Root.into(),
+//             1,
+//             1,
+//             1,
+//             1,
+//             10000
+//         ));
 //
 // 		assert_eq!(Assets::total_supply(token_id), 0);
 //
 //
-// 		// assert_noop!(
-// 		//VCU::mint_scheduled_vcu(Origin::signed(11), 1, 1),
-// 		// 	Error::<Test>::AssetGeneratedScheduleExpired
-// 		// );
+// 		assert_noop!(
+// 		VCU::mint_scheduled_vcu(Origin::signed(11), 1, 1),
+// 			Error::<Test>::AssetGeneratedScheduleExpired
+// 		);
 //
 // 		assert_eq!(Assets::total_supply(token_id), 0);
 // 	});
 // }
 //
-// #[test]
-// fn create_oracle_account_minting_vcu_should_work() {
-//     new_test_ext().execute_with(|| {
-//         assert_ok!(VCU::create_oracle_account_minting_vcu(
-//             RawOrigin::Root.into(),
-//             1,
-//             1,
-//             10,
-//             1
-//         ));
-//     });
-// }
-//
-// #[test]
-// fn destroy_oracle_account_minting_vcu_should_work() {
-//     new_test_ext().execute_with(|| {
-//         assert_ok!(VCU::create_oracle_account_minting_vcu(
-//             RawOrigin::Root.into(),
-//             1,
-//             1,
-//             10,
-//             1
-//         ));
-//         assert_ok!(VCU::destroy_oracle_account_minting_vcu(
-//             RawOrigin::Root.into(),
-//             1,
-//             1
-//         ));
-//     });
-// }
-//
-// #[test]
-// fn destroy_oracle_account_minting_vcu_not_work_for_non_existing_key() {
-//     new_test_ext().execute_with(|| {
-//         assert_noop!(
-//             VCU::destroy_oracle_account_minting_vcu(RawOrigin::Root.into(), 1, 1),
-//             Error::<Test>::OraclesAccountMintingVCUNotFound
-//         );
-//     });
-// }
-//
+#[test]
+fn create_oracle_account_minting_vcu_should_work() {
+    new_test_ext().execute_with(|| {
+        let input: AssetGeneratingVCUContentOf<Test> = AssetGeneratingVCUContent {
+            description: "Description".into(),
+            proof_of_ownership: "proof".into(),
+            number_of_shares: 1000,
+            other_documents: None,
+            expiry: None,
+        };
+
+        let expected_schedule = AssetsGeneratingVCUScheduleContent {
+            period_days: 1_u64,
+            amount_vcu: 1_u128,
+            token_id: 10000_u32,
+        };
+
+        Balances::make_free_balance_be(&1, 1000);
+        Assets::create(Origin::signed(1), 10000, 1, 1_u32.into()).unwrap();
+
+        assert_ok!(VCU::create_asset_generating_vcu(
+            RawOrigin::Root.into(),
+            1,
+            1,
+            input.clone()
+        ));
+
+        assert_ok!(VCU::create_oracle_account_minting_vcu(
+            RawOrigin::Root.into(),
+            1,
+            1,
+            10,
+            10_000
+        ));
+    });
+}
+
+#[test]
+fn destroy_oracle_account_minting_vcu_should_work() {
+    new_test_ext().execute_with(|| {
+        let input: AssetGeneratingVCUContentOf<Test> = AssetGeneratingVCUContent {
+            description: "Description".into(),
+            proof_of_ownership: "proof".into(),
+            number_of_shares: 1000,
+            other_documents: None,
+            expiry: None,
+        };
+
+        let expected_schedule = AssetsGeneratingVCUScheduleContent {
+            period_days: 1_u64,
+            amount_vcu: 1_u128,
+            token_id: 10000_u32,
+        };
+
+        Balances::make_free_balance_be(&1, 1000);
+        Assets::create(Origin::signed(1), 10000, 1, 1_u32.into()).unwrap();
+
+        assert_ok!(VCU::create_asset_generating_vcu(
+            RawOrigin::Root.into(),
+            1,
+            1,
+            input.clone()
+        ));
+
+        assert_ok!(VCU::create_oracle_account_minting_vcu(
+            RawOrigin::Root.into(),
+            1,
+            1,
+            10,
+            10000
+        ));
+        assert_ok!(VCU::destroy_oracle_account_minting_vcu(
+            RawOrigin::Root.into(),
+            1,
+            1
+        ));
+    });
+}
+
+#[test]
+fn destroy_oracle_account_minting_vcu_not_work_for_non_existing_key() {
+    new_test_ext().execute_with(|| {
+        assert_noop!(
+            VCU::destroy_oracle_account_minting_vcu(RawOrigin::Root.into(), 1, 1),
+            Error::<Test>::OraclesAccountMintingVCUNotFound
+        );
+    });
+}
+
 // #[test]
 // fn mint_vcu_from_oracle_should_work() {
 //     new_test_ext().execute_with(|| {
-// 		let input = r#"{"description":"Description", "proofOwnership":"ipfslink", "numberOfShares":"1000"}"#.as_bytes().to_vec();
+//         let input: AssetGeneratingVCUContentOf<Test> = AssetGeneratingVCUContent {
+//             description: "Description".into(),
+//             proof_of_ownership: "proof".into(),
+//             number_of_shares: 1000,
+//             other_documents: None,
+//             expiry: None,
+//         };
+//
+//         let expected_schedule = AssetsGeneratingVCUScheduleContent {
+//             period_days: 1_u64,
+//             amount_vcu: 1_u128,
+//             token_id: 10000_u32,
+//         };
+//
+//         Balances::make_free_balance_be(&1, 1000);
+//         Assets::create(Origin::signed(1), 10000, 1, 1_u32.into()).unwrap();
+//
+//
 // 		assert_ok!(VCU::add_authorized_account(RawOrigin::Root.into(), 11, b"Verra".to_vec()));
 // 		assert_ok!(VCU::create_asset_generating_vcu(Origin::signed(11), 11, 1, input.clone()));
-// 		assert_eq!(VCU::asset_generating_vcu(11, 1), input);
+//
 //
 // 		let asset_id:u32 = 1;
 // 		let amount_vcu: u128 = 1000;
 //
-// 		assert_ok!(VCU::create_oracle_account_minting_vcu(RawOrigin::Root.into(), 11, 1, 10,1));
-// 		assert_eq!(Assets::total_supply(asset_id), 0);
-// 		let avg_account = r#"11-1"#.as_bytes().to_vec();
-// 		assert_ok!(VCU::mint_vcu_from_oracle(RawOrigin::Root.into(), avg_account, amount_vcu));
+// 		assert_ok!(VCU::create_oracle_account_minting_vcu(RawOrigin::Root.into(), 1, 1, 10,10_000));
+// 		assert_ok!(VCU::mint_vcu_from_oracle(Origin::signed(1), 1,1, amount_vcu));
 // 		assert_eq!(Assets::total_supply(asset_id), amount_vcu);
 //
 // 	});

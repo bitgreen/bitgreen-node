@@ -30,7 +30,6 @@ mod mock;
 #[cfg(test)]
 mod tests;
 
-use codec::alloc::string::ToString;
 use codec::Decode;
 use frame_support::dispatch::DispatchResult;
 use frame_support::traits::UnixTime;
@@ -55,6 +54,9 @@ pub mod pallet {
 
     pub type AssetGeneratingVCUContentOf<T> =
         AssetGeneratingVCUContent<<T as frame_system::Config>::BlockNumber>;
+
+    pub type BundleAssetGeneratingVCUContentOf<T> =
+        BundleAssetGeneratingVCUContent<<T as frame_system::Config>::AccountId, u32>;
 
     #[pallet::config]
     pub trait Config:
@@ -174,7 +176,7 @@ pub mod pallet {
     #[pallet::storage]
     #[pallet::getter(fn bundle_asset_generating_vcu)]
     pub(super) type BundleAssetsGeneratingVCU<T: Config> =
-        StorageMap<_, Blake2_128Concat, u32, Vec<u8>, ValueQuery>;
+        StorageMap<_, Blake2_128Concat, u32, BundleAssetGeneratingVCUContentOf<T>>;
 
     /// A counter of burned tokens for the signer
     #[pallet::storage]
@@ -1002,345 +1004,299 @@ pub mod pallet {
             Ok(().into())
         }
 
-        // /// The owner of the “VCUs”  can decide anytime to “retire”, basically burning them.
-        // ///
-        // /// The dispatch origin for this call must be `Signed` from the owner of the VCU
-        // #[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
-        // pub fn retire_vcu(
-        //     origin: OriginFor<T>,
-        //     agv_account_id: T::AccountId,
-        //     agv_id: u32,
-        //     amount: u128,
-        // ) -> DispatchResultWithPostInfo {
-        //     // check for a signed transaction
-        //     let sender = ensure_signed(origin)?;
-        //     // check for the schedule of the assetid
-        //     ensure!(
-        //         AssetsGeneratingVCUSchedule::<T>::contains_key(&agv_account_id, &agv_id),
-        //         Error::<T>::AssetGeneratedVCUScheduleNotFound
-        //     );
-        //     let content: Vec<u8> =
-        //         AssetsGeneratingVCUSchedule::<T>::get(agv_account_id.clone(), &agv_id);
-        //     let token_id = Self::json_get_value(content.clone(), "token_id".as_bytes().to_vec());
-        //     let token_id = str::parse::<u32>(sp_std::str::from_utf8(&token_id).unwrap()).unwrap();
-        //     // check for enough balance
-        //     let amount_vcu = pallet_assets::Pallet::<T>::balance(token_id, sender.clone());
-        //     ensure!(amount_vcu >= amount, Error::<T>::InsufficientVCUs);
-        //
-        //     // burn the tokens on assets pallet for the requested amount
-        //     pallet_assets::Pallet::<T>::burn(
-        //         RawOrigin::Signed(sender.clone()).into(),
-        //         token_id,
-        //         T::Lookup::unlookup(agv_account_id.clone()),
-        //         amount,
-        //     )?;
-        //     // increase the counter of burned VCU for the signer of th transaction
-        //     BurnedCounter::<T>::try_mutate(&sender, &token_id, |count| -> DispatchResult {
-        //         *count += 1;
-        //         Ok(())
-        //     })?;
-        //     //increase burned VCU for the AGV
-        //     VCUsBurnedAccounts::<T>::try_mutate(
-        //         &agv_account_id,
-        //         &agv_id,
-        //         |vcu| -> DispatchResult {
-        //             let total_vcu = vcu.checked_add(amount).ok_or(Error::<T>::Overflow)?;
-        //             *vcu = total_vcu;
-        //             Ok(())
-        //         },
-        //     )?;
-        //     // increase global counter burned VCU
-        //     VCUsBurned::<T>::try_mutate(&token_id, |vcu| -> DispatchResult {
-        //         let total_vcu = vcu.checked_add(amount).ok_or(Error::<T>::Overflow)?;
-        //         *vcu = total_vcu;
-        //         Ok(())
-        //     })?;
-        //     // Generate event
-        //     Self::deposit_event(Event::VCUsBurnedAdded(agv_account_id, agv_id, token_id));
-        //     // Return a successful DispatchResult
-        //     Ok(().into())
-        // }
-        //
-        // /// The VCUs may be generated from Oracle collecting data from off-chain. For example a Solar Panel field may have an Oracle collecting the
-        // /// output power and generating the VCUs periodically on Chain. We have allowed the account of the Oracle to mint the VCU for his AGV.
-        // ///
-        // /// The dispatch origin for this call must be `Signed` either by the Root or authorized account.
-        // #[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
-        // pub fn create_oracle_account_minting_vcu(
-        //     origin: OriginFor<T>,
-        //     agv_account_id: T::AccountId,
-        //     agv_id: u32,
-        //     oracle_account_id: T::AccountId,
-        //     token_id: u32,
-        // ) -> DispatchResult {
-        //     // check for SUDO or administrator accounts
-        //     match ensure_root(origin.clone()) {
-        //         Ok(()) => Ok(()),
-        //         Err(e) => ensure_signed(origin).and_then(|o: T::AccountId| {
-        //             if AuthorizedAccountsAGV::<T>::contains_key(&o) {
-        //                 Ok(())
-        //             } else {
-        //                 Err(e)
-        //             }
-        //         }),
-        //     }?;
-        //     // check if the AGV exists or not
-        //     ensure!(
-        //         AssetsGeneratingVCU::<T>::contains_key(&agv_account_id, &agv_id),
-        //         Error::<T>::AssetGeneratingVCUNotFound
-        //     );
-        //     // check token id >10000
-        //     ensure!(token_id >= 10000, Error::<T>::ReservedTokenId);
-        //     // store the token if assigned for the Oracle
-        //     if OraclesTokenMintingVCU::<T>::contains_key(agv_account_id.clone(), agv_id.clone()) {
-        //         OraclesTokenMintingVCU::<T>::take(agv_account_id.clone(), agv_id.clone());
-        //     }
-        //     OraclesTokenMintingVCU::<T>::insert(
-        //         agv_account_id.clone(),
-        //         agv_id.clone(),
-        //         token_id.clone(),
-        //     );
-        //     //store the oracle or replace if already present, we allow only one oracle for each AGV
-        //     OraclesAccountMintingVCU::<T>::try_mutate_exists(
-        //         agv_account_id.clone(),
-        //         agv_id,
-        //         |oracle| {
-        //             *oracle = Some(oracle_account_id.clone());
-        //             // Generate event
-        //             Self::deposit_event(Event::OraclesAccountMintingVCUAdded(
-        //                 agv_account_id,
-        //                 agv_id,
-        //                 oracle_account_id,
-        //             ));
-        //             // Return a successful DispatchResult
-        //             Ok(())
-        //         },
-        //     )
-        // }
-        //
-        // /// Removes Oracles Generating VCU from storage.
-        // ///
-        // /// The dispatch origin for this call must be `Signed` either by the Root or authorized account.
-        // #[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
-        // pub fn destroy_oracle_account_minting_vcu(
-        //     origin: OriginFor<T>,
-        //     agv_account_id: T::AccountId,
-        //     agv_id: u32,
-        // ) -> DispatchResult {
-        //     //store the oracle or replace if already present, we allow only one oracle for each AGV
-        //     match ensure_root(origin.clone()) {
-        //         Ok(()) => Ok(()),
-        //         Err(e) => ensure_signed(origin).and_then(|o: T::AccountId| {
-        //             if AuthorizedAccountsAGV::<T>::contains_key(&o) {
-        //                 Ok(())
-        //             } else {
-        //                 Err(e)
-        //             }
-        //         }),
-        //     }?;
-        //     // check for Oracle presence on chain
-        //     ensure!(
-        //         OraclesAccountMintingVCU::<T>::contains_key(&agv_account_id, &agv_id),
-        //         Error::<T>::OraclesAccountMintingVCUNotFound
-        //     );
-        //     // remove the Oracle Account
-        //     OraclesAccountMintingVCU::<T>::remove(agv_account_id.clone(), &agv_id);
-        //     // remove the Oracle Token Id
-        //     OraclesTokenMintingVCU::<T>::remove(agv_account_id.clone(), &agv_id);
-        //     // Generate event
-        //     Self::deposit_event(Event::OraclesAccountMintingVCUDestroyed(
-        //         agv_account_id,
-        //         agv_id,
-        //     ));
-        //     // Return a successful DispatchResult
-        //     Ok(())
-        // }
-        //
-        // /// Mints Oracles Generating VCUs
-        // ///
-        // /// The dispatch origin for this call must be `Signed` either by the Root or authorized account.
-        // #[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
-        // pub fn mint_vcu_from_oracle(
-        //     origin: OriginFor<T>,
-        //     agv_account: Vec<u8>,
-        //     amount_vcu: Balance,
-        // ) -> DispatchResultWithPostInfo {
-        //     let sender = ensure_signed(origin)?;
-        //     // get avg_account_id  and agv_id from the vector agv_account
-        //     let agv_id_vec: Vec<&str> = sp_std::str::from_utf8(&agv_account)
-        //         .unwrap()
-        //         .split('-')
-        //         .collect();
-        //     ensure!(agv_id_vec.len() >= 1, Error::<T>::InvalidAGVId);
-        //     let (str_account_id, agv_id): (&str, u32) =
-        //         (agv_id_vec[0], str::parse::<u32>(agv_id_vec[1]).unwrap());
-        //     let agv_account_id =
-        //         T::AccountId::decode(&mut &str_account_id.as_bytes().to_vec()[1..33])
-        //             .map_err(|_| Error::<T>::InvalidJson)?;
-        //     // check for Oracle presence on chain
-        //     // check for matching signer with Oracle Account
-        //     let oracle_account: T::AccountId =
-        //         OraclesAccountMintingVCU::<T>::get(&agv_account_id, &agv_id)
-        //             .ok_or(Error::<T>::OraclesAccountMintingVCUNotFound)?;
-        //     ensure!(
-        //         oracle_account == sender,
-        //         Error::<T>::OracleAccountNotMatchingSigner
-        //     );
-        //     // check for Token id in Oracle configuration
-        //     ensure!(
-        //         OraclesTokenMintingVCU::<T>::contains_key(&agv_account_id, &agv_id),
-        //         Error::<T>::OraclesTokenMintingVCUNotFound
-        //     );
-        //     // get the token id
-        //     let token_id = OraclesTokenMintingVCU::<T>::get(&agv_account_id, &agv_id);
-        //     // create token if it does not exist yet
-        //     if let None = pallet_assets::Pallet::<T>::maybe_total_supply(token_id) {
-        //         pallet_assets::Pallet::<T>::force_create(
-        //             RawOrigin::Root.into(),
-        //             token_id,
-        //             T::Lookup::unlookup(oracle_account.clone()),
-        //             false,
-        //             One::one(),
-        //         )?;
-        //     }
-        //     // check for existing shares
-        //     ensure!(
-        //         AssetsGeneratingVCUSharesMintedTotal::<T>::contains_key(
-        //             agv_account_id.clone(),
-        //             agv_id.clone()
-        //         ),
-        //         Error::<T>::NoAVGSharesNotFound
-        //     );
-        //     // read totals shares minted for the AGV
-        //     let totalshares: u128 = AssetsGeneratingVCUSharesMintedTotal::<T>::get(
-        //         agv_account_id.clone(),
-        //         agv_id.clone(),
-        //     )
-        //     .into();
-        //     // set the key of search
-        //     let shareholdersc = AssetsGeneratingVCUShares::<T>::iter_prefix(agv_account.clone());
-        //     let nshareholders = shareholdersc.count();
-        //     // iter for the available shareholders
-        //     let shareholders = AssetsGeneratingVCUShares::<T>::iter_prefix(agv_account);
-        //     let mut vcuminted: u128 = 0;
-        //     let mut nshareholdersprocessed: usize = 0;
-        //     for numsh in shareholders {
-        //         let shareholder = numsh.0;
-        //         let numshares: u128 = numsh.1.into();
-        //         //compute VCU for the shareholder
-        //         let mut nvcu = amount_vcu / totalshares * numshares;
-        //         // increase counter shareholders processed
-        //         nshareholdersprocessed = nshareholdersprocessed + 1;
-        //         // manage overflow for rounding
-        //         if nshareholdersprocessed == nshareholders && vcuminted + nvcu > amount_vcu {
-        //             nvcu = amount_vcu - vcuminted;
-        //         }
-        //         // manage underflow for rounding
-        //         if nshareholdersprocessed == nshareholders && vcuminted + nvcu < amount_vcu {
-        //             nvcu = amount_vcu - vcuminted;
-        //         }
-        //         //mint the vcu in proportion to the shares owned
-        //         pallet_assets::Pallet::<T>::mint(
-        //             RawOrigin::Signed(oracle_account.clone()).into(),
-        //             token_id,
-        //             T::Lookup::unlookup(shareholder.clone()),
-        //             nvcu,
-        //         )
-        //         .unwrap();
-        //         // increase counter minted
-        //         vcuminted = vcuminted + nvcu;
-        //     }
-        //     // here the total vcu minted should be exactly the amount received as parameter.
-        //     // generate event
-        //     Self::deposit_event(Event::OracleAccountVCUMinted(
-        //         agv_account_id,
-        //         agv_id,
-        //         oracle_account,
-        //     ));
-        //     Ok(().into())
-        // }
-        //
-        // /// To store a "bundle" of AGV that has the constraint of using the same "asset id"
-        // /// but potentially different schedules or Oracle for the generation of the VCU.
-        // ///
-        // /// example: {"description":"xxxxxxx","agvs":[{"accountid","xxxxxxx","id":xx},{..}],assetid:xx}
-        // /// The dispatch origin for this call must be `Signed` either by the Root or authorized account.
-        // #[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
-        // pub fn create_bundle_agv(
-        //     origin: OriginFor<T>,
-        //     bundle_id: u32,
-        //     info: Vec<u8>,
-        // ) -> DispatchResult {
-        //     // check for SUDO or administrator user
-        //     match ensure_root(origin.clone()) {
-        //         Ok(()) => Ok(()),
-        //         Err(e) => ensure_signed(origin).and_then(|o: T::AccountId| {
-        //             if AuthorizedAccountsAGV::<T>::contains_key(&o) {
-        //                 Ok(())
-        //             } else {
-        //                 Err(e)
-        //             }
-        //         }),
-        //     }?;
-        //
-        //     //check accounts json length
-        //     ensure!(
-        //         info.len() > 12,
-        //         Error::<T>::BundleAssetsGeneratingVCUJsonTooShort
-        //     );
-        //     ensure!(
-        //         info.len() < 8192,
-        //         Error::<T>::BundleAssetsGeneratingVCUJsonTooLong
-        //     );
-        //
-        //     // check json validity
-        //     let js = info.clone();
-        //     ensure!(Self::json_check_validity(js), Error::<T>::InvalidJson);
-        //     // check for description validity
-        //     let description = Self::json_get_value(info.clone(), "description".as_bytes().to_vec());
-        //     ensure!(
-        //         !description.is_empty() && description.len() <= 64,
-        //         Error::<T>::InvalidDescription
-        //     );
-        //     // check for asset id
-        //     let asset_id = Self::json_get_value(info.clone(), "assetid".as_bytes().to_vec());
-        //     ensure!(asset_id.len() > 0, Error::<T>::AssetDoesNotExist);
-        //     let asset_id = str::parse::<u32>(sp_std::str::from_utf8(&asset_id).unwrap()).unwrap();
-        //     // check whether asset exists or not
-        //     ensure!(
-        //         pallet_assets::Pallet::<T>::maybe_total_supply(asset_id).is_some(),
-        //         Error::<T>::AssetDoesNotExist
-        //     );
-        //     // check the validity of the AGV in the array
-        //     let agvs = Self::json_get_complexarray(info.clone(), "agvs".as_bytes().to_vec());
-        //     let mut x = 0;
-        //     if agvs.len() > 2 {
-        //         loop {
-        //             let w = Self::json_get_recordvalue(agvs.clone(), x);
-        //             if w.is_empty() {
-        //                 break;
-        //             }
-        //             let account_id =
-        //                 Self::json_get_value(w.clone(), "accountid".as_bytes().to_vec());
-        //             let id = Self::json_get_value(w.clone(), "id".as_bytes().to_vec());
-        //
-        //             let account_id = T::AccountId::decode(&mut &account_id[1..33])
-        //                 .map_err(|_| Error::<T>::InvalidJson)?;
-        //             let id = str::parse::<u32>(sp_std::str::from_utf8(&id).unwrap()).unwrap();
-        //             // check whether asset generated VCU exists or not
-        //             ensure!(
-        //                 AssetsGeneratingVCU::<T>::contains_key(&account_id, &id),
-        //                 Error::<T>::AssetGeneratingVCUNotFound
-        //             );
-        //             x += 1;
-        //         }
-        //     }
-        //     ensure!(x > 0, Error::<T>::InvalidAGVs);
-        //     BundleAssetsGeneratingVCU::<T>::insert(&bundle_id, &info);
-        //     Self::deposit_event(Event::AddedBundleAssetsGeneratingVCU(bundle_id));
-        //
-        //     Ok(())
-        // }
+        /// The owner of the “VCUs”  can decide anytime to “retire”, basically burning them.
+        ///
+        /// The dispatch origin for this call must be `Signed` from the owner of the VCU
+        #[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
+        pub fn retire_vcu(
+            origin: OriginFor<T>,
+            agv_account_id: T::AccountId,
+            agv_id: u32,
+            amount: u128,
+        ) -> DispatchResultWithPostInfo {
+            // check for a signed transaction
+            let sender = ensure_signed(origin)?;
+
+            let content: AssetsGeneratingVCUScheduleContent =
+                AssetsGeneratingVCUSchedule::<T>::get(agv_account_id.clone(), &agv_id)
+                    .ok_or(Error::<T>::AssetGeneratedVCUScheduleNotFound)?;
+
+            // check for enough balance
+            let amount_vcu = pallet_assets::Pallet::<T>::balance(content.token_id, sender.clone());
+            ensure!(amount_vcu >= amount, Error::<T>::InsufficientVCUs);
+
+            // burn the tokens on assets pallet for the requested amount
+            pallet_assets::Pallet::<T>::burn(
+                RawOrigin::Signed(sender.clone()).into(),
+                content.token_id,
+                T::Lookup::unlookup(agv_account_id.clone()),
+                amount,
+            )?;
+            // increase the counter of burned VCU for the signer of th transaction
+            BurnedCounter::<T>::try_mutate(
+                &sender,
+                &content.token_id,
+                |count| -> DispatchResult {
+                    *count += 1;
+                    Ok(())
+                },
+            )?;
+            //increase burned VCU for the AGV
+            VCUsBurnedAccounts::<T>::try_mutate(
+                &agv_account_id,
+                &agv_id,
+                |vcu| -> DispatchResult {
+                    let total_vcu = vcu.checked_add(amount).ok_or(Error::<T>::Overflow)?;
+                    *vcu = total_vcu;
+                    Ok(())
+                },
+            )?;
+            // increase global counter burned VCU
+            VCUsBurned::<T>::try_mutate(&content.token_id, |vcu| -> DispatchResult {
+                let total_vcu = vcu.checked_add(amount).ok_or(Error::<T>::Overflow)?;
+                *vcu = total_vcu;
+                Ok(())
+            })?;
+            // Generate event
+            Self::deposit_event(Event::VCUsBurnedAdded(
+                agv_account_id,
+                agv_id,
+                content.token_id,
+            ));
+            // Return a successful DispatchResult
+            Ok(().into())
+        }
+
+        /// The VCUs may be generated from Oracle collecting data from off-chain. For example a Solar Panel field may have an Oracle collecting the
+        /// output power and generating the VCUs periodically on Chain. We have allowed the account of the Oracle to mint the VCU for his AGV.
+        ///
+        /// The dispatch origin for this call must be `Signed` either by the Root or authorized account.
+        #[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
+        pub fn create_oracle_account_minting_vcu(
+            origin: OriginFor<T>,
+            agv_account_id: T::AccountId,
+            agv_id: u32,
+            oracle_account_id: T::AccountId,
+            token_id: u32,
+        ) -> DispatchResult {
+            // check for SUDO or administrator accounts
+            match ensure_root(origin.clone()) {
+                Ok(()) => Ok(()),
+                Err(e) => ensure_signed(origin).and_then(|o: T::AccountId| {
+                    if AuthorizedAccountsAGV::<T>::contains_key(&o) {
+                        Ok(())
+                    } else {
+                        Err(e)
+                    }
+                }),
+            }?;
+            // check if the AGV exists or not
+            ensure!(
+                AssetsGeneratingVCU::<T>::contains_key(&agv_account_id, &agv_id),
+                Error::<T>::AssetGeneratingVCUNotFound
+            );
+            // check token id >10000
+            ensure!(token_id >= 10000, Error::<T>::ReservedTokenId);
+            // store the token if assigned for the Oracle
+            if OraclesTokenMintingVCU::<T>::contains_key(agv_account_id.clone(), agv_id.clone()) {
+                OraclesTokenMintingVCU::<T>::take(agv_account_id.clone(), agv_id.clone());
+            }
+            OraclesTokenMintingVCU::<T>::insert(
+                agv_account_id.clone(),
+                agv_id.clone(),
+                token_id.clone(),
+            );
+            //store the oracle or replace if already present, we allow only one oracle for each AGV
+            OraclesAccountMintingVCU::<T>::try_mutate_exists(
+                agv_account_id.clone(),
+                agv_id,
+                |oracle| {
+                    *oracle = Some(oracle_account_id.clone());
+                    // Generate event
+                    Self::deposit_event(Event::OraclesAccountMintingVCUAdded(
+                        agv_account_id,
+                        agv_id,
+                        oracle_account_id,
+                    ));
+                    // Return a successful DispatchResult
+                    Ok(())
+                },
+            )
+        }
+
+        /// Removes Oracles Generating VCU from storage.
+        ///
+        /// The dispatch origin for this call must be `Signed` either by the Root or authorized account.
+        #[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
+        pub fn destroy_oracle_account_minting_vcu(
+            origin: OriginFor<T>,
+            agv_account_id: T::AccountId,
+            agv_id: u32,
+        ) -> DispatchResult {
+            //store the oracle or replace if already present, we allow only one oracle for each AGV
+            match ensure_root(origin.clone()) {
+                Ok(()) => Ok(()),
+                Err(e) => ensure_signed(origin).and_then(|o: T::AccountId| {
+                    if AuthorizedAccountsAGV::<T>::contains_key(&o) {
+                        Ok(())
+                    } else {
+                        Err(e)
+                    }
+                }),
+            }?;
+            // check for Oracle presence on chain
+            ensure!(
+                OraclesAccountMintingVCU::<T>::contains_key(&agv_account_id, &agv_id),
+                Error::<T>::OraclesAccountMintingVCUNotFound
+            );
+            // remove the Oracle Account
+            OraclesAccountMintingVCU::<T>::remove(agv_account_id.clone(), &agv_id);
+            // remove the Oracle Token Id
+            OraclesTokenMintingVCU::<T>::remove(agv_account_id.clone(), &agv_id);
+            // Generate event
+            Self::deposit_event(Event::OraclesAccountMintingVCUDestroyed(
+                agv_account_id,
+                agv_id,
+            ));
+            // Return a successful DispatchResult
+            Ok(())
+        }
+
+        /// Mints Oracles Generating VCUs
+        ///
+        /// The dispatch origin for this call must be `Signed` either by the Root or authorized account.
+        #[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
+        pub fn mint_vcu_from_oracle(
+            origin: OriginFor<T>,
+            agv_account_id: T::AccountId,
+            agv_id: u32,
+            amount_vcu: Balance,
+        ) -> DispatchResultWithPostInfo {
+            let sender = ensure_signed(origin)?;
+
+            // check for Oracle presence on chain
+            // check for matching signer with Oracle Account
+            let oracle_account: T::AccountId =
+                OraclesAccountMintingVCU::<T>::get(&agv_account_id, &agv_id)
+                    .ok_or(Error::<T>::OraclesAccountMintingVCUNotFound)?;
+            ensure!(
+                oracle_account == sender,
+                Error::<T>::OracleAccountNotMatchingSigner
+            );
+            // check for Token id in Oracle configuration
+            ensure!(
+                OraclesTokenMintingVCU::<T>::contains_key(&agv_account_id, &agv_id),
+                Error::<T>::OraclesTokenMintingVCUNotFound
+            );
+            // get the token id
+            let token_id = OraclesTokenMintingVCU::<T>::get(&agv_account_id, &agv_id);
+            // create token if it does not exist yet
+            if let None = pallet_assets::Pallet::<T>::maybe_total_supply(token_id) {
+                pallet_assets::Pallet::<T>::force_create(
+                    RawOrigin::Root.into(),
+                    token_id,
+                    T::Lookup::unlookup(oracle_account.clone()),
+                    false,
+                    One::one(),
+                )?;
+            }
+            // check for existing shares
+            ensure!(
+                AssetsGeneratingVCUSharesMintedTotal::<T>::contains_key(
+                    agv_account_id.clone(),
+                    agv_id.clone()
+                ),
+                Error::<T>::NoAVGSharesNotFound
+            );
+            // read totals shares minted for the AGV
+            let totalshares: u128 = AssetsGeneratingVCUSharesMintedTotal::<T>::get(
+                agv_account_id.clone(),
+                agv_id.clone(),
+            )
+            .into();
+            // set the key of search
+            let shareholdersc =
+                AssetsGeneratingVCUShares::<T>::iter_prefix((agv_account_id.clone(), agv_id));
+            let nshareholders = shareholdersc.count();
+            // iter for the available shareholders
+            let shareholders =
+                AssetsGeneratingVCUShares::<T>::iter_prefix((agv_account_id.clone(), agv_id));
+            let mut vcuminted: u128 = 0;
+            let mut nshareholdersprocessed: usize = 0;
+            for numsh in shareholders {
+                let shareholder = numsh.0;
+                let numshares: u128 = numsh.1.into();
+                //compute VCU for the shareholder
+                let mut nvcu = amount_vcu / totalshares * numshares;
+                // increase counter shareholders processed
+                nshareholdersprocessed = nshareholdersprocessed + 1;
+                // manage overflow for rounding
+                if nshareholdersprocessed == nshareholders && vcuminted + nvcu > amount_vcu {
+                    nvcu = amount_vcu - vcuminted;
+                }
+                // manage underflow for rounding
+                if nshareholdersprocessed == nshareholders && vcuminted + nvcu < amount_vcu {
+                    nvcu = amount_vcu - vcuminted;
+                }
+                //mint the vcu in proportion to the shares owned
+                pallet_assets::Pallet::<T>::mint(
+                    RawOrigin::Signed(oracle_account.clone()).into(),
+                    token_id,
+                    T::Lookup::unlookup(shareholder.clone()),
+                    nvcu,
+                )
+                .unwrap();
+                // increase counter minted
+                vcuminted = vcuminted + nvcu;
+            }
+            // here the total vcu minted should be exactly the amount received as parameter.
+            // generate event
+            Self::deposit_event(Event::OracleAccountVCUMinted(
+                agv_account_id,
+                agv_id,
+                oracle_account,
+            ));
+            Ok(().into())
+        }
+
+        /// The dispatch origin for this call must be `Signed` either by the Root or authorized account.
+        #[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
+        pub fn create_bundle_agv(
+            origin: OriginFor<T>,
+            bundle_id: u32,
+            info: BundleAssetGeneratingVCUContentOf<T>,
+        ) -> DispatchResult {
+            // check for SUDO or administrator user
+            match ensure_root(origin.clone()) {
+                Ok(()) => Ok(()),
+                Err(e) => ensure_signed(origin).and_then(|o: T::AccountId| {
+                    if AuthorizedAccountsAGV::<T>::contains_key(&o) {
+                        Ok(())
+                    } else {
+                        Err(e)
+                    }
+                }),
+            }?;
+
+            // check whether asset exists or not
+            ensure!(
+                pallet_assets::Pallet::<T>::maybe_total_supply(info.asset_id).is_some(),
+                Error::<T>::AssetDoesNotExist
+            );
+
+            for agv in info.bundle.clone() {
+                // check whether asset generated VCU exists or not
+                ensure!(
+                    AssetsGeneratingVCU::<T>::contains_key(&agv.account_id, &agv.id),
+                    Error::<T>::AssetGeneratingVCUNotFound
+                );
+            }
+
+            BundleAssetsGeneratingVCU::<T>::insert(&bundle_id, &info);
+            Self::deposit_event(Event::AddedBundleAssetsGeneratingVCU(bundle_id));
+
+            Ok(())
+        }
 
         /// Destroys an AGV bundle from storage.
         ///
@@ -1369,245 +1325,6 @@ pub mod pallet {
             Self::deposit_event(Event::DestroyedBundleAssetsGeneratingVCU(bundle_id));
             // Return a successful DispatchResult
             Ok(())
-        }
-    }
-
-    impl<T: Config> Pallet<T> {
-        // function to validate a json string for no/std. It does not allocate of memory
-        fn json_check_validity(j: Vec<u8>) -> bool {
-            // minimum lenght of 2
-            if j.len() < 2 {
-                return false;
-            }
-            // checks star/end with {}
-            if *j.get(0).unwrap() == b'{' && *j.last().unwrap() != b'}' {
-                return false;
-            }
-            // checks start/end with []
-            if *j.get(0).unwrap() == b'[' && *j.last().unwrap() != b']' {
-                return false;
-            }
-            // check that the start is { or [
-            if *j.get(0).unwrap() != b'{' && *j.get(0).unwrap() != b'[' {
-                return false;
-            }
-            //checks that end is } or ]
-            if *j.last().unwrap() != b'}' && *j.last().unwrap() != b']' {
-                return false;
-            }
-            //checks " opening/closing and : as separator between name and values
-            let mut s: bool = true;
-            let mut d: bool = true;
-            let mut pg: bool = true;
-            let mut ps: bool = true;
-            let mut bp = b' ';
-            for b in j {
-                if b == b'[' && s {
-                    ps = false;
-                }
-                if b == b']' && s && !ps {
-                    ps = true;
-                }
-
-                if b == b'{' && s {
-                    pg = false;
-                }
-                if b == b'}' && s && !pg {
-                    pg = true;
-                }
-
-                if b == b'"' && s && bp != b'\\' {
-                    s = false;
-                    bp = b;
-                    d = false;
-                    continue;
-                }
-                if b == b':' && s {
-                    d = true;
-                    bp = b;
-                    continue;
-                }
-                if b == b'"' && !s && bp != b'\\' {
-                    s = true;
-                    bp = b;
-                    d = true;
-                    continue;
-                }
-                bp = b;
-            }
-
-            //fields are not closed properly
-            if !s {
-                return false;
-            }
-            //fields are not closed properly
-            if !d {
-                return false;
-            }
-            //fields are not closed properly
-            if !ps {
-                return false;
-            }
-            //fields are not closed properly
-            if !pg {
-                return false;
-            }
-            // every ok returns true
-            true
-        }
-
-        // function to get value of a field for Substrate runtime (no std library and no variable allocation)
-        fn json_get_value(j: Vec<u8>, key: Vec<u8>) -> Vec<u8> {
-            let mut result = Vec::new();
-            let mut k = Vec::new();
-            let keyl = key.len();
-            let jl = j.len();
-            k.push(b'"');
-            for xk in 0..keyl {
-                k.push(*key.get(xk).unwrap());
-            }
-            k.push(b'"');
-            k.push(b':');
-            let kl = k.len();
-            for x in 0..jl {
-                let mut m = 0;
-                if x + kl > jl {
-                    break;
-                }
-                for (xx, i) in (x..x + kl).enumerate() {
-                    if *j.get(i).unwrap() == *k.get(xx).unwrap() {
-                        m += 1;
-                    }
-                }
-                if m == kl {
-                    let mut lb = b' ';
-                    let mut op = true;
-                    let mut os = true;
-                    for i in x + kl..jl - 1 {
-                        if *j.get(i).unwrap() == b'[' && op && os {
-                            os = false;
-                        }
-                        if *j.get(i).unwrap() == b'}' && op && !os {
-                            os = true;
-                        }
-                        if *j.get(i).unwrap() == b':' && op {
-                            continue;
-                        }
-                        if *j.get(i).unwrap() == b'"' && op && lb != b'\\' {
-                            op = false;
-                            continue;
-                        }
-                        if *j.get(i).unwrap() == b'"' && !op && lb != b'\\' {
-                            break;
-                        }
-                        if *j.get(i).unwrap() == b'}' && op {
-                            break;
-                        }
-                        if *j.get(i).unwrap() == b']' && op {
-                            break;
-                        }
-                        if *j.get(i).unwrap() == b',' && op && os {
-                            break;
-                        }
-                        result.push(*j.get(i).unwrap());
-                        lb = *j.get(i).unwrap();
-                    }
-                    break;
-                }
-            }
-            result
-        }
-
-        fn create_json_string(inputs: Vec<(&str, &mut Vec<u8>)>) -> Vec<u8> {
-            let mut v: Vec<u8> = vec![b'{'];
-            let mut flag = false;
-
-            for (arg, val) in inputs {
-                if flag {
-                    v.push(b',');
-                }
-                v.push(b'"');
-                for i in arg.as_bytes().to_vec().iter() {
-                    v.push(*i);
-                }
-                v.push(b'"');
-                v.push(b':');
-                v.append(val);
-                flag = true;
-            }
-            v.push(b'}');
-            v
-        }
-
-        // function to get record {} from multirecord json structure [{..},{.. }], it returns an empty Vec when the records is not present
-        fn json_get_recordvalue(ar: Vec<u8>, p: i32) -> Vec<u8> {
-            let mut result = Vec::new();
-            let mut op = true;
-            let mut cn = 0;
-            let mut lb = b' ';
-            for b in ar {
-                if b == b',' && op {
-                    cn += 1;
-                    continue;
-                }
-                if b == b'[' && op && lb != b'\\' {
-                    continue;
-                }
-                if b == b']' && op && lb != b'\\' {
-                    continue;
-                }
-                if b == b'{' && op && lb != b'\\' {
-                    op = false;
-                }
-                if b == b'}' && !op && lb != b'\\' {
-                    op = true;
-                }
-                // field found
-                if cn == p {
-                    result.push(b);
-                }
-                lb = b;
-            }
-            result
-        }
-
-        fn json_get_complexarray(j: Vec<u8>, key: Vec<u8>) -> Vec<u8> {
-            let mut result = Vec::new();
-            let mut k = Vec::new();
-            let keyl = key.len();
-            let jl = j.len();
-            k.push(b'"');
-            for xk in 0..keyl {
-                k.push(*key.get(xk).unwrap());
-            }
-            k.push(b'"');
-            k.push(b':');
-            let kl = k.len();
-            for x in 0..jl {
-                let mut m = 0;
-                if x + kl > jl {
-                    break;
-                }
-                for (xx, i) in (x..x + kl).enumerate() {
-                    if *j.get(i).unwrap() == *k.get(xx).unwrap() {
-                        m += 1;
-                    }
-                }
-                if m == kl {
-                    let mut os = true;
-                    for i in x + kl..jl - 1 {
-                        if *j.get(i).unwrap() == b'[' && os {
-                            os = false;
-                        }
-                        result.push(*j.get(i).unwrap());
-                        if *j.get(i).unwrap() == b']' && !os {
-                            break;
-                        }
-                    }
-                    break;
-                }
-            }
-            result
         }
     }
 }

@@ -1,7 +1,7 @@
 use crate as pallet_vcu;
 use frame_support::{
     parameter_types,
-    traits::{ConstU32, ConstU64, Everything},
+    traits::{ConstU32, Everything},
 };
 use frame_system as system;
 use sp_core::H256;
