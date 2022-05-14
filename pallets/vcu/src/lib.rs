@@ -45,7 +45,7 @@ pub mod pallet {
     use sp_std::convert::TryInto;
 
     pub type AssetGeneratingVCUContentOf<T> = AssetGeneratingVCUContent<
-        <T as frame_system::Config>::BlockNumber,
+        u64, // seconds
         DescriptionOf<T>,
         DocumentOf<T>,
     >;
@@ -189,10 +189,6 @@ pub mod pallet {
     #[pallet::event]
     #[pallet::generate_deposit(pub(super) fn deposit_event)]
     pub enum Event<T: Config> {
-        /// New proxy setting has been created.
-        SettingsCreated(Vec<T::AccountId>),
-        /// Proxy setting has been destroyed.
-        SettingsDestroyed,
         /// Added authorized account.
         AuthorizedAccountAdded(T::AccountId),
         /// Destroyed authorized account.

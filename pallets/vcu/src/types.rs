@@ -1,6 +1,5 @@
 use codec::{Decode, Encode};
 use frame_support::pallet_prelude::*;
-use sp_std::vec::Vec;
 
 /// a value: json structure as follows:
 /// {
@@ -30,13 +29,14 @@ pub struct AssetsGeneratingVCUScheduleContent {
 
 /// To store a "bundle" of AGV that has the constraint of using the same "asset id"
 /// but potentially different schedules or Oracle for the generation of the VCU.
-///
-/// example: {"description":"xxxxxxx","agvs":[{"accountid","xxxxxxx","id":xx},{..}],assetid:xx}
 #[derive(Clone, Encode, Decode, Eq, PartialEq, Debug, TypeInfo, MaxEncodedLen)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct BundleAssetGeneratingVCUContent<AssetId, Description, BundleList> {
+    /// Description for the bundle
     pub description: Description,
+    /// AssetId for the bundle
     pub asset_id: AssetId,
+    /// List of {account_id, id} of AGVs in bundle
     pub bundle: BundleList,
 }
 
