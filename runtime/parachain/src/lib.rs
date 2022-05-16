@@ -45,7 +45,7 @@ use sp_std::convert::TryInto;
 use weights::{BlockExecutionWeight, ExtrinsicBaseWeight, RocksDbWeight};
 use xcm_config::{XcmConfig, XcmOriginToTransactDispatchOrigin};
 
-pub use primitives::{Amount, CurrencyId, TokenSymbol};
+pub use primitives::{Amount, TokenSymbol};
 
 #[cfg(any(feature = "std", test))]
 pub use sp_runtime::BuildStorage;
@@ -458,7 +458,7 @@ impl pallet_collator_selection::Config for Runtime {
 
 // orml pallets
 parameter_type_with_key! {
-    pub ExistentialDeposits: |_currency_id: CurrencyId| -> Balance {
+    pub ExistentialDeposits: |_currency_id: u32| -> Balance {
         Zero::zero()
     };
 }
@@ -474,7 +474,7 @@ impl orml_tokens::Config for Runtime {
     type Event = Event;
     type Balance = Balance;
     type Amount = Amount;
-    type CurrencyId = CurrencyId;
+    type CurrencyId = u32;
     type WeightInfo = ();
     type ExistentialDeposits = ExistentialDeposits;
     type OnDust = orml_tokens::BurnDust<Runtime>;
@@ -540,12 +540,19 @@ impl pallet_assets::Config for Runtime {
 
 parameter_types! {
   pub const MinPIDLength: u32 = 1;
+  pub const IpfsHashLength: u32 = 46;
+  pub const MaxDescriptionLength : u32 = 10;
+  pub const MaxDocumentLength : u32 = 10;
+  pub const MaxBundleSize : u32 = 10;
 }
 
 impl pallet_vcu::Config for Runtime {
     type Event = Event;
     type MinPIDLength = MinPIDLength;
     type UnixTime = Timestamp;
+    type MaxDescriptionLength = MaxDescriptionLength;
+    type MaxDocumentLength = MaxDocumentLength;
+    type MaxBundleSize = MaxBundleSize;
 }
 
 parameter_types! {
@@ -642,6 +649,7 @@ mod benches {
         [pallet_timestamp, Timestamp]
         [pallet_collator_selection, CollatorSelection]
         [cumulus_pallet_xcmp_queue, XcmpQueue]
+        [pallet_vcu, VCU]
     );
 }
 

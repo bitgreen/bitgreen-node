@@ -14,7 +14,6 @@ use sp_std::convert::{Into, TryFrom, TryInto};
 #[cfg(feature = "std")]
 use serde::{Deserialize, Serialize};
 
-
 pub const BBB_TOKEN: u32 = 1;
 
 /// Amounts

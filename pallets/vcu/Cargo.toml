@@ -25,11 +25,15 @@ pallet-assets = { git = "https://github.com/paritytech/substrate.git", branch = 
 primitives = { package = 'bitg-primitives', path = '../../primitives', default-features = false }
 pallet-balances = { git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.19", default-features = false }
 
+# Benchmarking
+frame-benchmarking = { git = "https://github.com/paritytech/substrate.git", default-features = false, optional = true, branch = "polkadot-v0.9.19" }
+pallet-timestamp = { git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.19", default-features = false }
+sp-core = { git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.19", default-features = false }
+
+
 [dev-dependencies]
 serde = { version = "1.0.136" }
-sp-core = { git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.19", default-features = false }
 sp-io = { git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.19", default-features = false }
-pallet-timestamp = { git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.19", default-features = false }
 
 [features]
 default = ['std']
@@ -43,4 +47,7 @@ std = [
     'pallet-assets/std',
     'pallet-balances/std',
     'sp-runtime/std',
+]
+runtime-benchmarks = [
+  "frame-benchmarking/runtime-benchmarks",
 ]

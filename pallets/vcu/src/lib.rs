@@ -26,6 +26,9 @@ mod mock;
 #[cfg(test)]
 mod tests;
 
+#[cfg(feature = "runtime-benchmarks")]
+pub mod benchmarking;
+
 mod types;
 pub use types::*;
 
@@ -76,6 +79,8 @@ pub mod pallet {
         type MaxBundleSize: Get<u32>;
         /// Unix time
         type UnixTime: UnixTime;
+        // Information on runtime weights.
+        //type WeightInfo: WeightInfo;
     }
 
     #[pallet::pallet]
@@ -252,8 +257,6 @@ pub mod pallet {
         AssetGeneratedVCUScheduleNotFound,
         /// Asset does not exist,
         AssetDoesNotExist,
-        /// AssetGeneratingSchedule has been Expired
-        AssetGeneratedScheduleExpired,
         /// AOraclesAccountMintingVCU Not Found
         OraclesAccountMintingVCUNotFound,
         /// Bundle does not exist,
@@ -401,6 +404,7 @@ pub mod pallet {
         /// ex: agvaccout: 5Hdr4DQufkxmhFcymTR71jqYtTnfkfG5jTs6p6MSnsAcy5ui-1
         /// The dispatch origin for this call must be `Signed` either by the Root or authorized account.
         #[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
+        // TODO : Rename as mint_into
         pub fn mint_shares_asset_generating_vcu(
             origin: OriginFor<T>,
             recipient: T::AccountId,
@@ -472,6 +476,7 @@ pub mod pallet {
         /// ex: agv_id: 5Hdr4DQufkxmhFcymTR71jqYtTnfkfG5jTs6p6MSnsAcy5ui-1
         /// The dispatch origin for this call must be `Signed` either by the Root or authorized account.
         #[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
+        // TODO : Rename as burn_from
         pub fn burn_shares_asset_generating_vcu(
             origin: OriginFor<T>,
             recipient: T::AccountId,
@@ -521,6 +526,7 @@ pub mod pallet {
                     let total_sh = share
                         .checked_sub(number_of_shares)
                         .ok_or(Error::<T>::InsufficientShares)?;
+                    // TODO : Is this check needed??
                     ensure!(total_sh > 0, Error::<T>::TooLessShares);
                     *share = total_sh;
                     Ok(())
@@ -600,6 +606,7 @@ pub mod pallet {
         /// ex: agv_id: 5Hdr4DQufkxmhFcymTR71jqYtTnfkfG5jTs6p6MSnsAcy5ui-1
         /// The dispatch origin for this call must be `Signed` either by the Root or authorized account.
         #[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
+        // TODO : Rename with proper camel case
         pub fn forcetransfer_shares_asset_generating_vcu(
             origin: OriginFor<T>,
             sender: T::AccountId,
@@ -778,9 +785,11 @@ pub mod pallet {
             if AssetsGeneratingVCUGenerated::<T>::contains_key(&agv_account_id, &agv_id) {
                 timestamp = AssetsGeneratingVCUGenerated::<T>::get(&agv_account_id, &agv_id);
             }
+
+            // TODO : Replace time calculation with blocks calculation
             let elapse: u64 = content.period_days * 24 * 60;
             ensure!(
-                now + elapse <= timestamp,
+                timestamp + now <= elapse,
                 Error::<T>::AssetGeneratedScheduleNotYetArrived
             );
             // create token if it does not exists
@@ -809,6 +818,7 @@ pub mod pallet {
             )
             .into();
             // set the key of search
+            // TODO : Replace this with BTreeMap, this is unbounded!!
             let shareholdersc =
                 AssetsGeneratingVCUShares::<T>::iter_prefix((agv_account_id.clone(), agv_id));
             let nshareholders = shareholdersc.count();
@@ -835,13 +845,13 @@ pub mod pallet {
                     nvcu = content.amount_vcu - vcuminted;
                 }
                 //mint the vcu in proportion to the shares owned
+                // TODO : Remove tight coupling and use traits
                 pallet_assets::Pallet::<T>::mint(
                     RawOrigin::Signed(agv_account_id.clone()).into(),
                     content.token_id,
                     T::Lookup::unlookup(shareholder.clone()),
                     nvcu,
-                )
-                .unwrap();
+                )?;
                 // increase counter minted
                 vcuminted = vcuminted + nvcu;
             }
@@ -880,9 +890,9 @@ pub mod pallet {
 
             // burn the tokens on assets pallet for the requested amount
             pallet_assets::Pallet::<T>::burn(
-                RawOrigin::Signed(sender.clone()).into(),
+                RawOrigin::Signed(agv_account_id.clone()).into(),
                 content.token_id,
-                T::Lookup::unlookup(agv_account_id.clone()),
+                T::Lookup::unlookup(sender.clone()),
                 amount,
             )?;
             // increase the counter of burned VCU for the signer of th transaction
@@ -1078,12 +1088,11 @@ pub mod pallet {
                 }
                 //mint the vcu in proportion to the shares owned
                 pallet_assets::Pallet::<T>::mint(
-                    RawOrigin::Signed(oracle_account.clone()).into(),
+                    RawOrigin::Signed(agv_account_id.clone()).into(),
                     token_id,
                     T::Lookup::unlookup(shareholder.clone()),
                     nvcu,
-                )
-                .unwrap();
+                )?;
                 // increase counter minted
                 vcuminted = vcuminted + nvcu;
             }
