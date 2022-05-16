@@ -287,6 +287,9 @@ fn testnet_genesis(
         tokens: bitg_parachain_runtime::TokensConfig {
             balances: [].to_vec(),
         },
+        sudo: bitg_parachain_runtime::SudoConfig {
+            key: Some(get_account_id_from_seed::<sr25519::Public>("Alice")),
+        },
         nft: bitg_parachain_runtime::NftConfig { tokens: vec![] },
         bridge: bitg_parachain_runtime::BridgeConfig {
             lockdown_status: false,

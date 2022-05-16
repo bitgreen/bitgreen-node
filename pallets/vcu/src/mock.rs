@@ -1,5 +1,8 @@
 use crate as pallet_vcu;
-use frame_support::parameter_types;
+use frame_support::{
+    parameter_types,
+    traits::{ConstU32, Everything},
+};
 use frame_system as system;
 use sp_core::H256;
 use sp_runtime::{
@@ -32,7 +35,7 @@ parameter_types! {
 }
 
 impl system::Config for Test {
-    type BaseCallFilter = ();
+    type BaseCallFilter = Everything;
     type BlockWeights = ();
     type BlockLength = ();
     type DbWeight = ();
@@ -54,6 +57,8 @@ impl system::Config for Test {
     type OnKilledAccount = ();
     type SystemWeightInfo = ();
     type SS58Prefix = SS58Prefix;
+    type OnSetCode = ();
+    type MaxConsumers = frame_support::traits::ConstU32<16>;
 }
 
 parameter_types! {
@@ -61,12 +66,14 @@ parameter_types! {
 }
 
 impl pallet_balances::Config for Test {
-    type MaxLocks = ();
     type Balance = u128;
-    type DustRemoval = ();
     type Event = Event;
+    type DustRemoval = ();
     type ExistentialDeposit = ExistentialDeposit;
     type AccountStore = System;
+    type MaxLocks = ();
+    type MaxReserves = ();
+    type ReserveIdentifier = [u8; 8];
     type WeightInfo = ();
 }
 
@@ -79,15 +86,20 @@ parameter_types! {
 }
 
 impl pallet_assets::Config for Test {
-    type Currency = Balances;
     type Event = Event;
     type Balance = u128;
     type AssetId = u32;
+    type Currency = Balances;
     type ForceOrigin = frame_system::EnsureRoot<u64>;
-    type StringLimit = StringLimit;
+    type AssetDeposit = AssetDepositBase;
+    type AssetAccountDeposit = AssetDepositBase;
     type MetadataDepositBase = MetadataDepositBase;
     type MetadataDepositPerByte = MetadataDepositPerByte;
+    type ApprovalDeposit = AssetDepositBase;
+    type StringLimit = ConstU32<50>;
+    type Freezer = ();
     type WeightInfo = ();
+    type Extra = ();
 }
 
 parameter_types! {
@@ -110,6 +122,9 @@ impl pallet_vcu::Config for Test {
     type Event = Event;
     type MinPIDLength = MinPIDLength;
     type UnixTime = Timestamp;
+    type MaxDescriptionLength = ConstU32<15>;
+    type MaxDocumentLength = ConstU32<15>;
+    type MaxBundleSize = ConstU32<10>;
 }
 
 // Build genesis storage according to the mock runtime.

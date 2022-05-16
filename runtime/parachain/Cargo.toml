@@ -174,4 +174,6 @@ runtime-benchmarks = [
 	"xcm-builder/runtime-benchmarks",
 	"cumulus-pallet-session-benchmarking/runtime-benchmarks",
 	"cumulus-pallet-xcmp-queue/runtime-benchmarks",
+	"pallet-vcu/runtime-benchmarks",
+	"orml-authority/runtime-benchmarks",
 ]

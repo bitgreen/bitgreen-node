@@ -47,8 +47,8 @@ pub use pallet_balances::Call as BalancesCall;
 pub use pallet_timestamp::Call as TimestampCall;
 use pallet_transaction_payment::CurrencyAdapter;
 pub use primitives::{
-    evm::EstimateResourcesRequest, AccountId, AccountIndex, Amount, AuthoritysOriginId, Balance,
-    BlockNumber, CurrencyId, EraIndex, Hash, Moment, Nonce, Signature, TokenSymbol,
+    AccountId, AccountIndex, Amount, Balance, BlockNumber, EraIndex, Hash, Moment, Nonce,
+    Signature, TokenSymbol,
 };
 #[cfg(any(feature = "std", test))]
 pub use sp_runtime::BuildStorage;
@@ -334,12 +334,18 @@ impl pallet_vesting::Config for Runtime {
 parameter_types! {
   pub const MinPIDLength: u32 = 1;
   pub const IpfsHashLength: u32 = 46;
+  pub const MaxDescriptionLength : u32 = 10;
+  pub const MaxDocumentLength : u32 = 10;
+  pub const MaxBundleSize : u32 = 10;
 }
 
 impl pallet_vcu::Config for Runtime {
     type Event = Event;
     type MinPIDLength = MinPIDLength;
     type UnixTime = Timestamp;
+    type MaxDescriptionLength = MaxDescriptionLength;
+    type MaxDocumentLength = MaxDocumentLength;
+    type MaxBundleSize = MaxBundleSize;
 }
 
 // Bonds management
@@ -391,7 +397,7 @@ impl Contains<AccountId> for DustRemovalWhitelist {
 }
 
 parameter_type_with_key! {
-    pub ExistentialDeposits: |_currency_id: CurrencyId| -> Balance {
+    pub ExistentialDeposits: |_currency_id: u32| -> Balance {
         Zero::zero()
     };
 }
@@ -400,7 +406,7 @@ impl orml_tokens::Config for Runtime {
     type Event = Event;
     type Balance = Balance;
     type Amount = Amount;
-    type CurrencyId = CurrencyId;
+    type CurrencyId = u32;
     type WeightInfo = ();
     type ExistentialDeposits = ExistentialDeposits;
     type OnDust = orml_tokens::BurnDust<Runtime>;
