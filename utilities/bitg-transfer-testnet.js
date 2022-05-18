@@ -43,7 +43,7 @@ async function mainloop(){
         // generate key pair from Seed
         const keyring = new Keyring({ type: 'sr25519', ss58Format: 42 });
         const keyspair = keyring.createFromUri(SECRETSEED, { name: 'sr25519' });
-        const wsProvider = new WsProvider('wss://testnet.bitg.org');  
+        const wsProvider = new WsProvider('wss://testnet.bitgreen.org');  
         const api = await ApiPromise.create({ provider: wsProvider,"types" :{
         
                 "CallOf": "Call",
@@ -321,8 +321,8 @@ console.log("[info] - listening for connections on port TCP/3000...");
 let server=app.listen(3000,function() {});
 // loading certificate/key
 const options = {
-    key: fs.readFileSync("/etc/letsencrypt/live/testnet.bitg.org/privkey.pem"),
-    cert: fs.readFileSync("/etc/letsencrypt/live/testnet.bitg.org/fullchain.pem")
+    key: fs.readFileSync("/etc/letsencrypt/live/testnet.bitgreen.org/privkey.pem"),
+    cert: fs.readFileSync("/etc/letsencrypt/live/testnet.bitgreen.org/fullchain.pem")
 };
 // Https listening on port 8443 -> proxy to 3000
 https.createServer(options, app).listen(8443);
