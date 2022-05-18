@@ -24,7 +24,6 @@ mod mock;
 mod tests;
 
 use codec::Encode;
-use frame_support::pallet_prelude::DispatchResultWithPostInfo;
 use frame_support::{
     codec::Decode,
     dispatch::DispatchResult,
@@ -33,9 +32,7 @@ use frame_support::{
 };
 use frame_system::ensure_root;
 use frame_system::ensure_signed;
-use frame_system::RawOrigin;
 use primitives::Balance;
-use sp_runtime::traits::StaticLookup;
 use sp_std::cmp::Ordering;
 use sp_std::str::FromStr;
 use sp_std::vec::Vec;
@@ -58,7 +55,7 @@ pub mod pallet {
     #[pallet::generate_store(pub(super) trait Store)]
     #[pallet::without_storage_info]
     pub struct Pallet<T>(_);
-
+    // storage definitions
     #[pallet::storage]
     #[pallet::getter(fn get_settings)]
     pub type Settings<T: Config> = StorageMap<_, Blake2_128Concat, Vec<u8>, Vec<u8>, OptionQuery>;
@@ -123,7 +120,8 @@ pub mod pallet {
             <Lockdown<T>>::put(&self.lockdown_status);
         }
     }
-
+    
+    // definitions of the events emitted from this pallet
     #[pallet::event]
     #[pallet::generate_deposit(pub(super) fn deposit_event)]
     pub enum Event<T: Config> {
@@ -147,7 +145,7 @@ pub mod pallet {
         Request(T::AccountId, Vec<u8>, Vec<u8>, Balance),
     }
 
-    // Errors inform users that something went wrong.
+    // definition of Errors to inform users that something went wrong.
     #[pallet::error]
     pub enum Error<T> {
         /// Settings Key already exists
@@ -255,7 +253,7 @@ pub mod pallet {
             let js = data.clone();
             ensure!(Self::json_check_validity(js), Error::<T>::InvalidJson);
 
-            // check whether setting key for minx/max length
+            // check whether setting key for min/max length
             ensure!(key.len() >= 3, Error::<T>::SettingsKeyTooShort);
             ensure!(key.len() <= 8, Error::<T>::SettingsKeyTooLong);
 
@@ -268,9 +266,10 @@ pub mod pallet {
             let chain_id = Self::json_get_value(data.clone(), "chainid".as_bytes().to_vec());
             ensure!(!chain_id.is_empty(), Error::<T>::InvalidChainId);
             ensure!(
-                chain_id=="1".as_bytes().to_vec() ||     // Ethereum
+                chain_id=="1".as_bytes().to_vec() ||         // Ethereum
                     chain_id=="2".as_bytes().to_vec() ||     // Binance
-                    chain_id=="3".as_bytes().to_vec(), // Solana
+                    chain_id=="3".as_bytes().to_vec() ||     // Solana
+                    chain_id=="4".as_bytes().to_vec(),       // Avalanche
                 Error::<T>::InvalidChainId
             );
             // check for description not empty and <64 bytes
@@ -435,7 +434,7 @@ pub mod pallet {
             Ok(())
         }
 
-        // function to Mint an assetid
+        // function to Mint an assetid, only keepers are allowed
         #[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
         pub fn mint(
             origin: OriginFor<T>,
@@ -479,7 +478,7 @@ pub mod pallet {
                 }
                 x += 1;
             }
-
+            // checkin for keepers' account
             ensure!(flag == 1, Error::<T>::SignerIsNotKeeper);
 
             // check for duplicated minting for the same transaction/signer
@@ -489,7 +488,6 @@ pub mod pallet {
             );
             // store minting tracker
             TransactionMintTracker::<T>::insert(transaction_id.clone(), signer.clone(), asset_id);
-
             // storing the minting request if it's not already present
             let key = &mut token.clone();
             key.push(b'-');
@@ -558,29 +556,7 @@ pub mod pallet {
 
             Ok(().into())
         }
-
-        #[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
-        pub fn request(
-            origin: OriginFor<T>,
-            token: Vec<u8>,
-            destination: Vec<u8>,
-            amount: Balance,
-        ) -> DispatchResultWithPostInfo {
-            let signer = ensure_signed(origin)?;
-            // check if lockdownmode is off
-            ensure!(!Lockdown::<T>::get(), Error::<T>::NotAllowedSystemLockdown);
-            ensure!(
-                Settings::<T>::contains_key(&token),
-                Error::<T>::SettingsKeyNotFound
-            );
-            // let content: Vec<u8> = Settings::<T>::get(&token).unwrap();
-            // let asset_idv = Self::json_get_value(content.clone(),"assetid".as_bytes().to_vec());
-            // let asset_id = Self::vecu8_to_u32(asset_idv);
-            // generate an event
-            Self::deposit_event(Event::Request(signer, token, destination.clone(), amount));
-            Ok(().into())
-        }
-
+        // function to burn a certain amount of an assetid
         #[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
         pub fn burn(
             origin: OriginFor<T>,
@@ -638,8 +614,8 @@ pub mod pallet {
             key.append(&mut recipient.encode());
             key.push(b'-');
             key.append(&mut transaction_id.clone());
-            if !MintRequest::<T>::contains_key(key.clone()) {
-                MintRequest::<T>::insert(key.clone(), amount);
+            if !BurnRequest::<T>::contains_key(key.clone()) {
+                BurnRequest::<T>::insert(key.clone(), amount);
             } else {
                 // when already present
                 // checking that the amount to burn is the same of the previous one, if does not, we have an Oracle hacked or not updated
@@ -647,7 +623,7 @@ pub mod pallet {
                 ensure!(am == amount, Error::<T>::AmountBurningIsNotMatching);
             }
 
-            // update the counter for the minting requests of the transaction
+            // update the counter for the burning requests of the transaction
             let mut key = token.clone();
             key.push(b'-');
             key.append(&mut recipient.encode());
@@ -681,7 +657,7 @@ pub mod pallet {
                     // store the BurnConfirmation
                     BurnConfirmation::<T>::insert(key, true);
                     //burning of the asset_id matching the token configured
-                    <pallet_assets::Pallet<T> as Mutate<T::AccountId>>::mint_into(
+                    <pallet_assets::Pallet<T> as Mutate<T::AccountId>>::burn_from(
                         asset_id,
                         &recipient.clone(),
                         amount,
@@ -699,7 +675,7 @@ pub mod pallet {
 
             Ok(().into())
         }
-        // function to set a system lockdown, watchdogs and watchcats account can set it
+        // function to set a system lockdown, watchdogs and watchcats account can set it (sudo can set its own account as watchcat in case of emergency)
         #[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
         pub fn set_lockdown(origin: OriginFor<T>, token: Vec<u8>) -> DispatchResult {
             let signer = ensure_signed(origin)?;
@@ -708,7 +684,7 @@ pub mod pallet {
                 Error::<T>::SettingsKeyNotFound
             );
             let content: Vec<u8> = Settings::<T>::get(&token).unwrap();
-            let mut flag = 0;
+            let mut flag = 0; //used for authorisation to execute the lockdown
             let internal_watch_dogs = Self::json_get_complexarray(
                 content.clone(),
                 "internalwatchdogs".as_bytes().to_vec(),
