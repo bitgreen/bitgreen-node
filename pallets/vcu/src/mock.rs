@@ -122,9 +122,12 @@ impl pallet_vcu::Config for Test {
     type Event = Event;
     type Balance = u128;
     type AssetId = u32;
+    type ProjectId = u32;
+    type VcuId = u32;
     type AssetHandler = Assets;
     type MaxAuthorizedAccountCount = ConstU32<2>;
     type MaxBundleSize = ConstU32<10>;
+    type WeightInfo = ();
 }
 
 // Build genesis storage according to the mock runtime.

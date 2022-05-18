@@ -14,7 +14,7 @@ The VCU pallet creates and retires VCU units that represent the VCUs on the Verr
 /// The VCUDetails as stored in pallet storage
 #[derive(Clone, Encode, Decode, Eq, PartialEq, Debug, TypeInfo, MaxEncodedLen)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub struct VCUDetail<AccountId, Balance, AssetId, BundleList> {
+pub struct VCUDetail<AccountId, Balance, AssetId, VcuId, BundleList> {
     /// The account that owns/controls the VCU class
     pub originator: AccountId,
     /// Count of current active units of VCU
@@ -24,7 +24,7 @@ pub struct VCUDetail<AccountId, Balance, AssetId, BundleList> {
     /// The AssetId that represents the Fungible class of VCU
     pub asset_id: AssetId,
     /// The type of VCU [Bundle, Single]
-    pub vcu_type: VCUType<BundleList>,
+    pub vcu_type: VCUType<VcuId, BundleList>,
 }
 ```
 
@@ -43,16 +43,16 @@ We also rely on the Asset Handler to help the user manage these tokens, currentl
 
 ### Extrinsics
 
-- `add_authorized_account(origin: OriginFor<T>,account_id: T::AccountId)`
+- `force_add_authorized_account(origin: OriginFor<T>,account_id: T::AccountId)`
 
 	This extrinsic allows the Root to add a new authorised account to the list of permitted origins. Only authorised accounts are permitted to create new VCU units, this is to ensure the validity of VCU units.
 
-- `remove_authorized_account(origin: OriginFor<T>,account_id: T::AccountId)`
+- `force_remove_authorized_account(origin: OriginFor<T>,account_id: T::AccountId)`
 
 	This extrinsic allows the Root to remove an authorised account from the list of permitted origins.
-- `create_vcu(origin: OriginFor<T>,project_id: ProjectId,params: VCUCreationParamsOf<T>)`
+- `create(origin: OriginFor<T>,project_id: ProjectId, params: VCUCreationParamsOf<T>)`
 
-	The create_vcu extrinsic performs three main functions,
+	The create extrinsic performs three main functions,
 	1. Create a project/vcu entry in the pallet storage
 	2. Create an Asset Class with the originator as the admin
 	3. Mint amount of Asset (vcus) to the recipient account
@@ -86,6 +86,10 @@ pub enum VCUType<BundleList> {
 }
 ```
 
-- `retire_vcu(origin: OriginFor<T>, project_id: ProjectId,vcu_id: VcuId, amount: T::Balance)`
+- `retire(origin: OriginFor<T>, project_id: ProjectId,vcu_id: VcuId, amount: T::Balance)`
 
 	The retire vcu will burn the VCU units and update the `retired` field of the VCUDetail storage. It also stores the details in the RetiredVCUs storage.
+
+- `mint_into(origin: OriginFor<T>, project_id: ProjectId, vcu_id: VcuId, amount: T::Balance)`
+
+  The mint into function is used to mint more VCUs for an already existing asset.
