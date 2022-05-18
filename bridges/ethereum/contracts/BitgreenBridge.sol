@@ -9,9 +9,9 @@ contract BitgreenBridge {
     uint8 threshold;
     // address of the owner of the contract (the one allowed to change the settings)
     address payable public owner;
-    // lockdown 
+    // lockdown flag, it's checked before any transaction
     bool public lockdown;
-    // transaction queue structure
+    // transactions queue structure (the transactions are executed only when the minimum consensus is reached)
     struct transactionqueue {
         address payable recipient;      // recipient of the transaction
         uint amount;                    // amount of the transaction
@@ -30,6 +30,7 @@ contract BitgreenBridge {
     // voting transaction logs of keepers activity
     mapping( bytes32 => mapping(address => bool)) public txvotes;
 
+    // definitions of the events emitted from the bridges
     event BridgeTransferQueued (bytes32 txid,address recipient, uint amount,address erc20, address sender);
     event BridgeTransfer (bytes32 txid,address recipient, uint amount,address erc20, uint256 fees);
     event BridgeDepositRequest (bytes32 destination, uint amount, address sender);
@@ -42,7 +43,7 @@ contract BitgreenBridge {
      
     /**
      * @dev store configuration  for Keepers
-     * @param Keepers is an array of address of the allowed keepers of the bridge transactions
+     * @param Keepers is an array of address of the allowed keepers of the bridge transactions (max 10 keepers are allowed)
      */
     function setKeepers(address [10] memory Keepers) public {
         require(msg.sender == owner,"Function accessible only to owner");
@@ -58,7 +59,7 @@ contract BitgreenBridge {
     }
     /**
      * @dev store configuration for Watchdogs
-     * @param Watchdogs is an array of address of the accounts allowed to lockdown the bridge when a transaction arrives
+     * @param Watchdogs is an array of address of the accounts allowed to lockdown the bridge when a transaction arrives (max 3 Watchdogs)
      */
     function setWatchdogs(address [3] memory Watchdogs) public {
         require(msg.sender == owner,"Function accessible only to owner");
@@ -74,7 +75,7 @@ contract BitgreenBridge {
     }
     /**
      * @dev store configuration for Watchcats
-     * @param Watchcats is an array of address of the accounts allowed to lockdown the bridge when a transaction is in the pool mem
+     * @param Watchcats is an array of address of the accounts allowed to lockdown the bridge when a transaction is in the pool mem (max 3 watchcats)
      */
     function setWatchcats(address [3] memory Watchcats) public {
         require(msg.sender == owner,"Function accessible only to owner");
@@ -94,6 +95,7 @@ contract BitgreenBridge {
      */
     function setThreshold(uint8 Threshold) public {
         require(msg.sender == owner,"Function accessible only to owner");
+        require(lockdown==false,"contract in lockdown, please try later");
         threshold=Threshold;
     }
     /**
@@ -102,6 +104,7 @@ contract BitgreenBridge {
      */
     function setWithDrawalFews(uint256 Withdrawalfees) public {
         require(msg.sender == owner,"Function accessible only to owner");
+        require(lockdown==false,"contract in lockdown, please try later");
         withdrawalfees=Withdrawalfees;
     }
     /**
@@ -110,6 +113,7 @@ contract BitgreenBridge {
      */
     function setMinimumWithDrawalFees(uint256 Minimumwithdrawalfees) public {
         require(msg.sender == owner,"Function accessible only to owner");
+        require(lockdown==false,"contract in lockdown, please try later");
         minimumwithdrawalfees=Minimumwithdrawalfees;
     }
     /** 
@@ -118,6 +122,7 @@ contract BitgreenBridge {
      */
     function setMaxmimumWithDrawalFees(uint256 Maximumwithdrawalfees) public {
         require(msg.sender == owner,"Function accessible only to owner");
+        require(lockdown==false,"contract in lockdown, please try later");
         maximumwithdrawalfees=Maximumwithdrawalfees;
     }
     /**
@@ -133,15 +138,16 @@ contract BitgreenBridge {
     function deposit(bytes32 destination) public payable {
         require(lockdown==false,"contract in lockdown, please try later");
         require(destination.length>0,"destination is required");
+        // the event is read from the Keepers to proceed with the transactions required
         emit BridgeDepositRequest(destination, msg.value, msg.sender);
     }
 
-    //function to send back the balance
+    //function to read the balance of the contract
     function getBalance() public view returns (uint) {
         return address(this).balance;
     }
     /**
-     * @dev transfer native tokens to a recipient
+     * @dev transfer native tokens to a recipient, this functions is called from the "Keepers" only
       * @param txid is the transaction id, it should be unique
      * @param recipient is a payable address
      * @param amount is a payable address
