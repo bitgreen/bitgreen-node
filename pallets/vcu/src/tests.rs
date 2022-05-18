@@ -1,155 +1,87 @@
-use crate::{
-    mock::*, AssetGeneratingVCUContent, AssetGeneratingVCUContentOf,
-    AssetsGeneratingVCUScheduleContent, Error,
-};
-use frame_support::{assert_noop, assert_ok, traits::Currency};
+//! Tests for vcu pallet
+use crate::{mock::*, Error, NextAssetId, VCUCreationParams, VCUDetail, VCUType, VCUs};
+use frame_support::{assert_noop, assert_ok, traits::tokens::fungibles::Inspect};
 use frame_system::RawOrigin;
 use sp_std::convert::TryInto;
 
 #[test]
 fn add_new_authorized_accounts_should_work() {
     new_test_ext().execute_with(|| {
-        assert_ok!(VCU::add_authorized_account(
+        let authorised_account_one = 1;
+        let authorised_account_two = 2;
+        let authorised_account_three = 3;
+        assert_ok!(VCU::force_add_authorized_account(
             RawOrigin::Root.into(),
-            1,
-            b"Verra".to_vec().try_into().unwrap()
+            authorised_account_one,
         ));
-        assert_eq!(
-            VCU::get_authorized_accounts(1),
-            Some(b"Verra".to_vec().try_into().unwrap())
-        );
-    });
-}
 
-#[test]
-fn update_existing_authorized_accounts_should_work() {
-    new_test_ext().execute_with(|| {
-        assert_ok!(VCU::add_authorized_account(
-            RawOrigin::Root.into(),
-            1,
-            b"Verra".to_vec().try_into().unwrap()
-        ));
         assert_eq!(
-            VCU::get_authorized_accounts(1),
-            Some(b"Verra".to_vec().try_into().unwrap())
+            VCU::authorized_accounts().first(),
+            Some(&authorised_account_one)
         );
 
-        assert_ok!(VCU::add_authorized_account(
-            RawOrigin::Root.into(),
-            1,
-            b"Verra22".to_vec().try_into().unwrap()
-        ));
-        assert_eq!(
-            VCU::get_authorized_accounts(1),
-            Some(b"Verra22".to_vec().try_into().unwrap())
-        );
-    });
-}
-
-#[test]
-fn add_authorized_accounts_should_not_work_for_invalid_description() {
-    new_test_ext().execute_with(|| {
         assert_noop!(
-            VCU::add_authorized_account(
-                RawOrigin::Root.into(),
-                1,
-                b"".to_vec().try_into().unwrap()
-            ),
-            Error::<Test>::InvalidDescription
+            VCU::force_add_authorized_account(RawOrigin::Root.into(), authorised_account_one,),
+            Error::<Test>::AuthorizedAccountAlreadyExists
+        );
+
+        assert_ok!(VCU::force_add_authorized_account(
+            RawOrigin::Root.into(),
+            authorised_account_two,
+        ));
+
+        assert_noop!(
+            VCU::force_add_authorized_account(RawOrigin::Root.into(), authorised_account_three,),
+            Error::<Test>::TooManyAuthorizedAccounts
         );
     });
 }
 
 #[test]
-fn destroy_authorized_accounts_should_work() {
+fn force_remove_authorized_accounts_should_work() {
     new_test_ext().execute_with(|| {
-        assert_ok!(VCU::add_authorized_account(
+        let authorised_account_one = 1;
+        assert_ok!(VCU::force_add_authorized_account(
             RawOrigin::Root.into(),
-            1,
-            b"Verra".to_vec().try_into().unwrap()
+            authorised_account_one,
         ));
         assert_eq!(
-            VCU::get_authorized_accounts(1),
-            Some(b"Verra".to_vec().try_into().unwrap())
+            VCU::authorized_accounts().first(),
+            Some(&authorised_account_one)
         );
 
-        assert_ok!(VCU::destroy_authorized_account(RawOrigin::Root.into(), 1));
-        assert_eq!(VCU::get_authorized_accounts(1), None);
+        assert_ok!(VCU::force_remove_authorized_account(
+            RawOrigin::Root.into(),
+            authorised_account_one,
+        ));
+
+        assert_eq!(VCU::authorized_accounts().len(), 0);
     });
 }
 
 #[test]
-fn create_asset_generating_vcu_should_work_if_signed_by_root_or_authorized_user() {
+fn create_fails_for_unauthorized() {
     new_test_ext().execute_with(|| {
-        let input: AssetGeneratingVCUContentOf<Test> = AssetGeneratingVCUContent {
-            description: b"Description".to_vec().try_into().unwrap(),
-            proof_of_ownership: b"proof".to_vec().try_into().unwrap(),
-            number_of_shares: 10000,
-            other_documents: None,
-            expiry: None,
+        let authorised_account_one = 1;
+        let project_id = 1;
+        let vcu_id = 1;
+        let vcu_type = VCUType::Single(vcu_id);
+        let owner = 10;
+        let recipient = owner;
+        let amount = 100;
+
+        let creation_params = VCUCreationParams {
+            originator: owner,
+            amount,
+            recipient,
+            vcu_type: vcu_type.clone(),
         };
 
-        let agv_account_id = 1;
-        let agv_id = 1;
-        let authorised_account = 11;
-
-        assert_ok!(VCU::create_asset_generating_vcu(
-            RawOrigin::Root.into(),
-            agv_account_id,
-            agv_id,
-            input.clone()
-        ));
-        assert_eq!(
-            VCU::asset_generating_vcu(agv_account_id, agv_id),
-            Some(input.clone())
-        );
-
-        assert_ok!(VCU::add_authorized_account(
-            RawOrigin::Root.into(),
-            authorised_account,
-            b"Verra".to_vec().try_into().unwrap()
-        ));
-
-        assert_ok!(VCU::create_asset_generating_vcu(
-            Origin::signed(authorised_account),
-            agv_account_id,
-            agv_id,
-            input
-        ));
-    });
-}
-
-#[test]
-fn create_asset_generating_vcu_should_not_work_if_not_valid_input() {
-    new_test_ext().execute_with(|| {
-        let input: AssetGeneratingVCUContentOf<Test> = AssetGeneratingVCUContent {
-            description: b"Description".to_vec().try_into().unwrap(),
-            proof_of_ownership: b"proof".to_vec().try_into().unwrap(),
-            number_of_shares: 0,
-            other_documents: None,
-            expiry: None,
-        };
-
-        let agv_account_id = 1;
-        let agv_id = 1;
-        let unauthorised_account = 11;
-
         assert_noop!(
-            VCU::create_asset_generating_vcu(
-                RawOrigin::Root.into(),
-                agv_account_id,
-                agv_id,
-                input.clone()
-            ),
-            Error::<Test>::NumberofSharesCannotBeZero
-        );
-
-        assert_noop!(
-            VCU::create_asset_generating_vcu(
-                Origin::signed(unauthorised_account),
-                agv_account_id,
-                agv_id,
-                input
+            VCU::create(
+                RawOrigin::Signed(authorised_account_one).into(),
+                project_id,
+                creation_params
             ),
             Error::<Test>::NotAuthorised
         );
@@ -157,881 +89,276 @@ fn create_asset_generating_vcu_should_not_work_if_not_valid_input() {
 }
 
 #[test]
-fn destroy_asset_generating_vcu_should_work_if_signed_by_root_or_authorized_user() {
+fn create_works_for_single() {
     new_test_ext().execute_with(|| {
-        let input: AssetGeneratingVCUContentOf<Test> = AssetGeneratingVCUContent {
-            description: b"Description".to_vec().try_into().unwrap(),
-            proof_of_ownership: b"proof".to_vec().try_into().unwrap(),
-            number_of_shares: 1000,
-            other_documents: None,
-            expiry: None,
+        let authorised_account_one = 1;
+        let project_id = 1;
+        let vcu_id = 1;
+        let vcu_type = VCUType::Single(vcu_id);
+        let owner = 10;
+        let recipient = owner;
+        let amount = 100;
+        let expected_asset_id = 0;
+
+        assert_ok!(VCU::force_add_authorized_account(
+            RawOrigin::Root.into(),
+            authorised_account_one,
+        ));
+
+        let creation_params = VCUCreationParams {
+            originator: owner,
+            amount,
+            recipient,
+            vcu_type: vcu_type.clone(),
         };
 
-        let agv_account_id = 1;
-        let agv_id = 1;
-        let authorised_account = 11;
-
-        assert_ok!(VCU::create_asset_generating_vcu(
-            RawOrigin::Root.into(),
-            agv_account_id,
-            agv_id,
-            input.clone()
+        assert_ok!(VCU::create(
+            RawOrigin::Signed(authorised_account_one).into(),
+            project_id,
+            creation_params
         ));
+
+        // Ensure the storage updated correctly
         assert_eq!(
-            VCU::asset_generating_vcu(agv_account_id, agv_id),
-            Some(input)
+            VCUs::<Test>::get(project_id, vcu_id).unwrap(),
+            VCUDetail {
+                originator: owner,
+                supply: amount,
+                retired: 0,
+                asset_id: expected_asset_id,
+                vcu_type
+            }
         );
 
-        assert_ok!(VCU::destroy_asset_generating_vcu(
+        assert_eq!(NextAssetId::<Test>::get(), 1);
+
+        // Ensure the asset is created and minted correctly
+        assert_eq!(Assets::total_issuance(expected_asset_id), amount);
+        assert_eq!(Assets::minimum_balance(expected_asset_id), 1);
+        assert_eq!(Assets::balance(expected_asset_id, recipient), amount);
+    });
+}
+
+#[test]
+fn create_works_for_bundle() {
+    new_test_ext().execute_with(|| {
+        let authorised_account_one = 1;
+        let project_id = 1;
+        let vcu_ids = vec![1, 2, 3];
+        let vcu_type = VCUType::Bundle(vcu_ids.clone().try_into().unwrap());
+        let owner = 10;
+        let recipient = owner;
+        let amount = 100;
+        let expected_asset_id = 0;
+
+        assert_ok!(VCU::force_add_authorized_account(
             RawOrigin::Root.into(),
-            agv_account_id,
-            agv_id
+            authorised_account_one,
         ));
-        assert_eq!(VCU::asset_generating_vcu(agv_account_id, agv_id), None);
-    });
-}
 
-#[test]
-fn destroy_asset_generating_vcu_should_not_work_if_not_signed_by_root_or_authorized_user() {
-    new_test_ext().execute_with(|| {
-        assert_noop!(
-            VCU::destroy_asset_generating_vcu(Origin::signed(11), 1, 1),
-            Error::<Test>::NotAuthorised
-        );
-    });
-}
-
-#[test]
-fn destroy_asset_generating_vcu_should_not_work_if_not_exists() {
-    new_test_ext().execute_with(|| {
-        assert_noop!(
-            VCU::destroy_asset_generating_vcu(RawOrigin::Root.into(), 1, 1),
-            Error::<Test>::AssetGeneratingVCUNotFound
-        );
-    });
-}
-
-#[test]
-fn mint_shares_asset_generating_vcu_should_work() {
-    new_test_ext().execute_with(|| {
-        let input: AssetGeneratingVCUContentOf<Test> = AssetGeneratingVCUContent {
-            description: b"Description".to_vec().try_into().unwrap(),
-            proof_of_ownership: b"proof".to_vec().try_into().unwrap(),
-            number_of_shares: 1000,
-            other_documents: None,
-            expiry: None,
+        let creation_params = VCUCreationParams {
+            originator: owner,
+            amount,
+            recipient,
+            vcu_type: vcu_type.clone(),
         };
 
-        let agv_account_id = 1;
-        let agv_id = 1;
-        let recipient_account_id = 2;
-        let shares_to_mint = 100;
-
-        assert_ok!(VCU::create_asset_generating_vcu(
-            RawOrigin::Root.into(),
-            agv_account_id,
-            agv_id,
-            input.clone()
-        ));
-        assert_eq!(
-            VCU::asset_generating_vcu(agv_account_id, agv_id),
-            Some(input)
-        );
-
-        assert_ok!(VCU::mint_shares_asset_generating_vcu(
-            RawOrigin::Root.into(),
-            recipient_account_id,
-            agv_account_id,
-            agv_id,
-            shares_to_mint
+        assert_ok!(VCU::create(
+            RawOrigin::Signed(authorised_account_one).into(),
+            project_id,
+            creation_params
         ));
 
-        // ensure minting worked correctly
-
-        // the minted count should be updated
+        // Ensure the storage updated correctly
+        // ethe vcu_id is the first vcu_id in the bundle
         assert_eq!(
-            VCU::asset_generating_vcu_shares_minted(agv_account_id, agv_id),
-            shares_to_mint
-        );
-        // the shares should be updated correctly for asset
-        assert_eq!(
-            VCU::asset_generating_vcu_shares_minted_total(agv_account_id, agv_id),
-            shares_to_mint
-        );
-        // the recipient should have received the shares_to_mint
-        assert_eq!(
-            VCU::asset_generating_vcu_shares((agv_account_id, agv_id, recipient_account_id)),
-            shares_to_mint
+            VCUs::<Test>::get(project_id, 1).unwrap(),
+            VCUDetail {
+                originator: owner,
+                supply: amount,
+                retired: 0,
+                asset_id: expected_asset_id,
+                vcu_type
+            }
         );
 
-        // TODO : ensure event is deposited correctly
+        // Ensure the asset is created and minted correctly
+        assert_eq!(Assets::total_issuance(expected_asset_id), amount);
+        assert_eq!(Assets::minimum_balance(expected_asset_id), 1);
+        assert_eq!(Assets::balance(expected_asset_id, recipient), amount);
     });
 }
 
 #[test]
-fn mint_shares_asset_generating_vcu_should_fail_if_agv_not_found() {
+fn retire_vcu_works_for_single() {
     new_test_ext().execute_with(|| {
-        assert_noop!(
-            VCU::mint_shares_asset_generating_vcu(RawOrigin::Root.into(), 1, 1, 1, 100),
-            Error::<Test>::AssetGeneratingVCUNotFound
-        );
-    });
-}
+        let authorised_account_one = 1;
+        let project_id = 1;
+        let vcu_id = 1;
+        let vcu_type = VCUType::Single(vcu_id);
+        let owner = 10;
+        let recipient = owner;
+        let amount = 100;
+        let expected_asset_id = 0;
 
-#[test]
-fn mint_shares_asset_generating_vcu_should_fail_if_exceeds_limit() {
-    new_test_ext().execute_with(|| {
-        let input: AssetGeneratingVCUContentOf<Test> = AssetGeneratingVCUContent {
-            description: b"Description".to_vec().try_into().unwrap(),
-            proof_of_ownership: b"proof".to_vec().try_into().unwrap(),
-            number_of_shares: 1000,
-            other_documents: None,
-            expiry: None,
+        assert_ok!(VCU::force_add_authorized_account(
+            RawOrigin::Root.into(),
+            authorised_account_one,
+        ));
+
+        let creation_params = VCUCreationParams {
+            originator: owner,
+            amount,
+            recipient,
+            vcu_type: vcu_type.clone(),
         };
 
-        let agv_account_id = 1;
-        let agv_id = 1;
-        let recipient_account_id = 2;
-        let shares_to_mint = 1001;
-
-        assert_ok!(VCU::create_asset_generating_vcu(
-            RawOrigin::Root.into(),
-            agv_account_id,
-            agv_id,
-            input.clone()
+        assert_ok!(VCU::create(
+            RawOrigin::Signed(authorised_account_one).into(),
+            project_id,
+            creation_params
         ));
+
+        // Ensure the storage updated correctly
         assert_eq!(
-            VCU::asset_generating_vcu(agv_account_id, agv_id),
-            Some(input)
+            VCUs::<Test>::get(project_id, vcu_id).unwrap(),
+            VCUDetail {
+                originator: owner,
+                supply: amount,
+                retired: 0,
+                asset_id: expected_asset_id,
+                vcu_type: vcu_type.clone()
+            }
         );
 
+        // Ensure the asset is created and minted correctly
+        assert_eq!(Assets::total_issuance(expected_asset_id), amount);
+        assert_eq!(Assets::minimum_balance(expected_asset_id), 1);
+        assert_eq!(Assets::balance(expected_asset_id, recipient), amount);
+
+        assert_ok!(VCU::retire(
+            RawOrigin::Signed(recipient).into(),
+            project_id,
+            vcu_id,
+            amount
+        ));
+
+        assert_eq!(
+            VCUs::<Test>::get(project_id, vcu_id).unwrap(),
+            VCUDetail {
+                originator: owner,
+                supply: 0,
+                retired: amount,
+                asset_id: expected_asset_id,
+                vcu_type
+            }
+        );
+
+        assert_eq!(Assets::total_issuance(expected_asset_id), 0);
+        assert_eq!(Assets::minimum_balance(expected_asset_id), 1);
+        assert_eq!(Assets::balance(expected_asset_id, recipient), 0);
+    });
+}
+
+#[test]
+fn retire_non_existent_vcu_should_fail() {
+    new_test_ext().execute_with(|| {
+        let authorised_account_one = 1;
+        let project_id = 1;
+        let vcu_id = 1;
+        let vcu_type = VCUType::Single(vcu_id);
+        let owner = 10;
+        let recipient = owner;
+        let amount = 100;
+
+        assert_ok!(VCU::force_add_authorized_account(
+            RawOrigin::Root.into(),
+            authorised_account_one,
+        ));
+
+        let creation_params = VCUCreationParams {
+            originator: owner,
+            amount,
+            recipient,
+            vcu_type: vcu_type.clone(),
+        };
+
+        assert_ok!(VCU::create(
+            RawOrigin::Signed(authorised_account_one).into(),
+            project_id,
+            creation_params
+        ));
+
         assert_noop!(
-            VCU::mint_shares_asset_generating_vcu(
-                RawOrigin::Root.into(),
-                recipient_account_id,
-                agv_account_id,
-                agv_id,
-                shares_to_mint
+            VCU::retire(
+                RawOrigin::Signed(authorised_account_one).into(),
+                project_id,
+                vcu_id,
+                amount
             ),
-            Error::<Test>::TooManyShares
+            pallet_assets::Error::<Test>::NoAccount
         );
     });
 }
 
 #[test]
-fn burn_shares_asset_generating_vcu_should_work() {
+fn mint_into_works() {
     new_test_ext().execute_with(|| {
-        let input: AssetGeneratingVCUContentOf<Test> = AssetGeneratingVCUContent {
-            description: b"Description".to_vec().try_into().unwrap(),
-            proof_of_ownership: b"proof".to_vec().try_into().unwrap(),
-            number_of_shares: 1000,
-            other_documents: None,
-            expiry: None,
+        let authorised_account_one = 1;
+        let project_id = 1;
+        let vcu_id = 1;
+        let vcu_type = VCUType::Single(vcu_id);
+        let owner = 10;
+        let recipient = owner;
+        let amount = 100;
+        let expected_asset_id = 0;
+
+        assert_ok!(VCU::force_add_authorized_account(
+            RawOrigin::Root.into(),
+            authorised_account_one,
+        ));
+
+        let creation_params = VCUCreationParams {
+            originator: owner,
+            amount,
+            recipient,
+            vcu_type: vcu_type.clone(),
         };
 
-        let agv_account_id = 1;
-        let agv_id = 1;
-        let recipient_account_id = 2;
-        let shares_to_mint = 100;
-
-        assert_ok!(VCU::create_asset_generating_vcu(
-            RawOrigin::Root.into(),
-            agv_account_id,
-            agv_id,
-            input.clone()
-        ));
-        assert_eq!(
-            VCU::asset_generating_vcu(agv_account_id, agv_id),
-            Some(input)
-        );
-
-        assert_ok!(VCU::mint_shares_asset_generating_vcu(
-            RawOrigin::Root.into(),
-            recipient_account_id,
-            agv_account_id,
-            agv_id,
-            shares_to_mint
+        assert_ok!(VCU::create(
+            RawOrigin::Signed(authorised_account_one).into(),
+            project_id,
+            creation_params
         ));
 
-        // ensure minting worked correctly
+        // Ensure the asset is created and minted correctly
+        assert_eq!(Assets::total_issuance(expected_asset_id), amount);
+        assert_eq!(Assets::minimum_balance(expected_asset_id), 1);
+        assert_eq!(Assets::balance(expected_asset_id, recipient), amount);
 
-        // the minted count should be updated
-        assert_eq!(
-            VCU::asset_generating_vcu_shares_minted(agv_account_id, agv_id),
-            shares_to_mint
-        );
-        // the shares should be updated correctly for asset
-        assert_eq!(
-            VCU::asset_generating_vcu_shares_minted_total(agv_account_id, agv_id),
-            shares_to_mint
-        );
-        // the recipient should have received the shares_to_mint
-        assert_eq!(
-            VCU::asset_generating_vcu_shares((agv_account_id, agv_id, recipient_account_id)),
-            shares_to_mint
-        );
-
-        // burn the shares we created
-        assert_ok!(VCU::burn_shares_asset_generating_vcu(
-            RawOrigin::Root.into(),
-            recipient_account_id,
-            agv_account_id,
-            agv_id,
-            shares_to_mint - 1
+        assert_ok!(VCU::mint_into(
+            RawOrigin::Signed(authorised_account_one).into(),
+            project_id,
+            vcu_id,
+            recipient,
+            amount
         ));
 
-        // the minted count should be updated
+        // Ensure the storage updated correctly
         assert_eq!(
-            VCU::asset_generating_vcu_shares_minted(agv_account_id, agv_id),
-            1
+            VCUs::<Test>::get(project_id, vcu_id).unwrap(),
+            VCUDetail {
+                originator: owner,
+                supply: amount * 2,
+                retired: 0,
+                asset_id: expected_asset_id,
+                vcu_type
+            }
         );
-        // the shares should be updated correctly for asset
-        assert_eq!(
-            VCU::asset_generating_vcu_shares_minted_total(agv_account_id, agv_id),
-            100
-        );
-        // the recipient should have received the shares_to_mint
-        assert_eq!(
-            VCU::asset_generating_vcu_shares((agv_account_id, agv_id, recipient_account_id)),
-            1
-        );
+
+        // Ensure the asset is created and minted correctly
+        assert_eq!(Assets::total_issuance(expected_asset_id), amount * 2);
+        assert_eq!(Assets::minimum_balance(expected_asset_id), 1);
+        assert_eq!(Assets::balance(expected_asset_id, recipient), amount * 2);
     });
 }
-
-#[test]
-fn transfer_shares_asset_generating_vcu_should_work() {
-    new_test_ext().execute_with(|| {
-        let input: AssetGeneratingVCUContentOf<Test> = AssetGeneratingVCUContent {
-            description: b"Description".to_vec().try_into().unwrap(),
-            proof_of_ownership: b"proof".to_vec().try_into().unwrap(),
-            number_of_shares: 1000,
-            other_documents: None,
-            expiry: None,
-        };
-
-        let agv_account_id = 1;
-        let agv_id = 1;
-        let sender_account_id = 2;
-        let recipient_account_id = 3;
-        let shares_to_mint = 100;
-
-        assert_ok!(VCU::create_asset_generating_vcu(
-            RawOrigin::Root.into(),
-            agv_account_id,
-            agv_id,
-            input.clone()
-        ));
-        assert_eq!(
-            VCU::asset_generating_vcu(agv_account_id, agv_id),
-            Some(input)
-        );
-
-        assert_ok!(VCU::mint_shares_asset_generating_vcu(
-            RawOrigin::Root.into(),
-            sender_account_id,
-            agv_account_id,
-            agv_id,
-            shares_to_mint
-        ));
-
-        // ensure minting worked correctly
-
-        // the minted count should be updated
-        assert_eq!(
-            VCU::asset_generating_vcu_shares_minted(agv_account_id, agv_id),
-            shares_to_mint
-        );
-        // the shares should be updated correctly for asset
-        assert_eq!(
-            VCU::asset_generating_vcu_shares_minted_total(agv_account_id, agv_id),
-            shares_to_mint
-        );
-        // the recipient should have received the shares_to_mint
-        assert_eq!(
-            VCU::asset_generating_vcu_shares((agv_account_id, agv_id, sender_account_id)),
-            shares_to_mint
-        );
-        assert_eq!(
-            VCU::asset_generating_vcu_shares((agv_account_id, agv_id, recipient_account_id)),
-            0
-        );
-
-        // transfer the shares we created
-        assert_ok!(VCU::transfer_shares_asset_generating_vcu(
-            RawOrigin::Signed(sender_account_id).into(),
-            recipient_account_id,
-            agv_account_id,
-            agv_id,
-            shares_to_mint
-        ));
-
-        // the minted count should be updated
-        assert_eq!(
-            VCU::asset_generating_vcu_shares_minted(agv_account_id, agv_id),
-            shares_to_mint
-        );
-        // the shares should be updated correctly for asset
-        assert_eq!(
-            VCU::asset_generating_vcu_shares_minted_total(agv_account_id, agv_id),
-            100
-        );
-        // the recipient should have received the shares_to_mint
-        assert_eq!(
-            VCU::asset_generating_vcu_shares((agv_account_id, agv_id, sender_account_id)),
-            0
-        );
-        assert_eq!(
-            VCU::asset_generating_vcu_shares((agv_account_id, agv_id, recipient_account_id)),
-            100
-        );
-    });
-}
-
-#[test]
-fn force_transfer_shares_asset_generating_vcu_should_work() {
-    new_test_ext().execute_with(|| {
-        let input: AssetGeneratingVCUContentOf<Test> = AssetGeneratingVCUContent {
-            description: b"Description".to_vec().try_into().unwrap(),
-            proof_of_ownership: b"proof".to_vec().try_into().unwrap(),
-            number_of_shares: 1000,
-            other_documents: None,
-            expiry: None,
-        };
-
-        let agv_account_id = 1;
-        let agv_id = 1;
-        let sender_account_id = 2;
-        let recipient_account_id = 3;
-        let shares_to_mint = 100;
-
-        assert_ok!(VCU::create_asset_generating_vcu(
-            RawOrigin::Root.into(),
-            agv_account_id,
-            agv_id,
-            input.clone()
-        ));
-        assert_eq!(
-            VCU::asset_generating_vcu(agv_account_id, agv_id),
-            Some(input)
-        );
-
-        assert_ok!(VCU::mint_shares_asset_generating_vcu(
-            RawOrigin::Root.into(),
-            sender_account_id,
-            agv_account_id,
-            agv_id,
-            shares_to_mint
-        ));
-
-        // ensure minting worked correctly
-
-        // the minted count should be updated
-        assert_eq!(
-            VCU::asset_generating_vcu_shares_minted(agv_account_id, agv_id),
-            shares_to_mint
-        );
-        // the shares should be updated correctly for asset
-        assert_eq!(
-            VCU::asset_generating_vcu_shares_minted_total(agv_account_id, agv_id),
-            shares_to_mint
-        );
-        // the recipient should have received the shares_to_mint
-        assert_eq!(
-            VCU::asset_generating_vcu_shares((agv_account_id, agv_id, sender_account_id)),
-            shares_to_mint
-        );
-        assert_eq!(
-            VCU::asset_generating_vcu_shares((agv_account_id, agv_id, recipient_account_id)),
-            0
-        );
-
-        // transfer the shares we created
-        assert_ok!(VCU::forcetransfer_shares_asset_generating_vcu(
-            RawOrigin::Root.into(),
-            sender_account_id,
-            recipient_account_id,
-            agv_account_id,
-            agv_id,
-            shares_to_mint
-        ));
-
-        // the minted count should be updated
-        assert_eq!(
-            VCU::asset_generating_vcu_shares_minted(agv_account_id, agv_id),
-            shares_to_mint
-        );
-        // the shares should be updated correctly for asset
-        assert_eq!(
-            VCU::asset_generating_vcu_shares_minted_total(agv_account_id, agv_id),
-            100
-        );
-        // the recipient should have received the shares_to_mint
-        assert_eq!(
-            VCU::asset_generating_vcu_shares((agv_account_id, agv_id, sender_account_id)),
-            0
-        );
-        assert_eq!(
-            VCU::asset_generating_vcu_shares((agv_account_id, agv_id, recipient_account_id)),
-            100
-        );
-    });
-}
-
-#[test]
-fn create_asset_generating_vcu_schedule_should_work_if_signed_by_root_or_authorized_user() {
-    new_test_ext().execute_with(|| {
-        let input: AssetGeneratingVCUContentOf<Test> = AssetGeneratingVCUContent {
-            description: b"Description".to_vec().try_into().unwrap(),
-            proof_of_ownership: b"proof".to_vec().try_into().unwrap(),
-            number_of_shares: 1000,
-            other_documents: None,
-            expiry: None,
-        };
-
-        let expected_schedule = AssetsGeneratingVCUScheduleContent {
-            period_days: 1_u64,
-            amount_vcu: 1_u128,
-            token_id: 10000_u32,
-        };
-
-        Balances::make_free_balance_be(&1, 1000);
-        Assets::create(Origin::signed(1), 10000, 1, 1_u32.into()).unwrap();
-
-        assert_ok!(VCU::create_asset_generating_vcu(
-            RawOrigin::Root.into(),
-            1,
-            1,
-            input.clone()
-        ));
-        assert_eq!(VCU::asset_generating_vcu(1, 1), Some(input));
-
-        assert_ok!(VCU::create_asset_generating_vcu_schedule(
-            RawOrigin::Root.into(),
-            1,
-            1,
-            1,
-            1,
-            10000
-        ));
-
-        let stored_schedule: AssetsGeneratingVCUScheduleContent =
-            VCU::asset_generating_vcu_schedule(1, 1).unwrap();
-        assert_eq!(expected_schedule, stored_schedule);
-    });
-}
-
-#[test]
-fn create_asset_generating_vcu_schedule_should_not_work_if_not_exists() {
-    new_test_ext().execute_with(|| {
-        assert_noop!(
-            VCU::create_asset_generating_vcu_schedule(RawOrigin::Root.into(), 1, 1, 1, 1, 1),
-            Error::<Test>::AssetGeneratingVCUNotFound
-        );
-    });
-}
-
-#[test]
-fn create_asset_generating_vcu_schedule_should_not_work_if_amount_is_zero() {
-    new_test_ext().execute_with(|| {
-        let input: AssetGeneratingVCUContentOf<Test> = AssetGeneratingVCUContent {
-            description: b"Description".to_vec().try_into().unwrap(),
-            proof_of_ownership: b"proof".to_vec().try_into().unwrap(),
-            number_of_shares: 1000,
-            other_documents: None,
-            expiry: None,
-        };
-
-        assert_ok!(VCU::create_asset_generating_vcu(
-            RawOrigin::Root.into(),
-            1,
-            1,
-            input.clone()
-        ));
-        assert_noop!(
-            VCU::create_asset_generating_vcu_schedule(RawOrigin::Root.into(), 1, 1, 1, 0, 1),
-            Error::<Test>::InvalidVCUAmount
-        );
-    });
-}
-
-#[test]
-fn destroy_asset_generating_vcu_schedule_should_work_if_signed_by_root_or_authorized_user() {
-    new_test_ext().execute_with(|| {
-        let input: AssetGeneratingVCUContentOf<Test> = AssetGeneratingVCUContent {
-            description: b"Description".to_vec().try_into().unwrap(),
-            proof_of_ownership: b"proof".to_vec().try_into().unwrap(),
-            number_of_shares: 1000,
-            other_documents: None,
-            expiry: None,
-        };
-
-        let expected_schedule = AssetsGeneratingVCUScheduleContent {
-            period_days: 1_u64,
-            amount_vcu: 1_u128,
-            token_id: 10000_u32,
-        };
-
-        Balances::make_free_balance_be(&1, 1000);
-        Assets::create(Origin::signed(1), 10000, 1, 1_u32.into()).unwrap();
-
-        assert_ok!(VCU::create_asset_generating_vcu(
-            RawOrigin::Root.into(),
-            1,
-            1,
-            input.clone()
-        ));
-        assert_eq!(VCU::asset_generating_vcu(1, 1), Some(input));
-
-        assert_ok!(VCU::create_asset_generating_vcu_schedule(
-            RawOrigin::Root.into(),
-            1,
-            1,
-            1,
-            1,
-            10000
-        ));
-
-        let stored_schedule: AssetsGeneratingVCUScheduleContent =
-            VCU::asset_generating_vcu_schedule(1, 1).unwrap();
-        assert_eq!(expected_schedule, stored_schedule);
-
-        assert_ok!(VCU::destroy_asset_generating_vcu_schedule(
-            RawOrigin::Root.into(),
-            1,
-            1
-        ));
-        assert_eq!(VCU::asset_generating_vcu_schedule(1, 1), None);
-    });
-}
-
-#[test]
-fn destroy_asset_generating_vcu_schedule_should_not_work_if_not_exists() {
-    new_test_ext().execute_with(|| {
-        assert_noop!(
-            VCU::destroy_asset_generating_vcu_schedule(RawOrigin::Root.into(), 1, 1),
-            Error::<Test>::AssetGeneratedVCUScheduleNotFound
-        );
-    });
-}
-
-#[test]
-fn mint_scheduled_vcu_should_work_if_signed_by_root_or_authorized_user() {
-    new_test_ext().execute_with(|| {
-        let input: AssetGeneratingVCUContentOf<Test> = AssetGeneratingVCUContent {
-            description: b"Description".to_vec().try_into().unwrap(),
-            proof_of_ownership: b"proof".to_vec().try_into().unwrap(),
-            number_of_shares: 1000,
-            other_documents: None,
-            expiry: None,
-        };
-
-        let token_id: u32 = 10_000;
-        let amount_vcu: u128 = 1000;
-        let agv_account_id = 1;
-        let agv_id = 1;
-        let recipient_account_id = 2;
-        let shares_to_mint = 100;
-        let period_days = 1;
-
-        Balances::make_free_balance_be(&agv_account_id, 10000);
-        Balances::make_free_balance_be(&11, 100);
-        Assets::create(
-            Origin::signed(agv_account_id),
-            token_id,
-            agv_account_id,
-            100_u32.into(),
-        )
-        .unwrap();
-
-        assert_ok!(VCU::add_authorized_account(
-            RawOrigin::Root.into(),
-            11,
-            b"Verra".to_vec().try_into().unwrap()
-        ));
-        assert_ok!(VCU::create_asset_generating_vcu(
-            Origin::signed(11),
-            agv_account_id,
-            agv_id,
-            input.clone()
-        ));
-
-        assert_ok!(VCU::create_asset_generating_vcu_schedule(
-            RawOrigin::Root.into(),
-            agv_account_id,
-            agv_id,
-            period_days,
-            amount_vcu,
-            token_id
-        ));
-
-        assert_ok!(VCU::mint_shares_asset_generating_vcu(
-            RawOrigin::Root.into(),
-            11,
-            agv_account_id,
-            agv_id,
-            shares_to_mint
-        ));
-
-        let now = Timestamp::get();
-
-        // set the timestamp to future so we can mint
-        Timestamp::set(RawOrigin::Root.into(), now + period_days * 24 * 60);
-        assert_eq!(Assets::total_supply(token_id), 0);
-        assert_ok!(VCU::mint_scheduled_vcu(Origin::signed(11), 1, 1));
-        assert_eq!(Assets::total_supply(token_id), amount_vcu);
-
-        // the minted count should be updated
-        assert_eq!(
-            VCU::asset_generating_vcu_shares_minted(agv_account_id, agv_id),
-            shares_to_mint
-        );
-        // the shares should be updated correctly for asset
-        assert_eq!(
-            VCU::asset_generating_vcu_shares_minted_total(agv_account_id, agv_id),
-            100
-        );
-        // the recipient should have received the shares_to_mint
-        assert_eq!(
-            VCU::asset_generating_vcu_shares((agv_account_id, agv_id, 11)),
-            100
-        );
-    });
-}
-
-#[test]
-fn retire_vcu_should_work() {
-    new_test_ext().execute_with(|| {
-        let input: AssetGeneratingVCUContentOf<Test> = AssetGeneratingVCUContent {
-            description: b"Description".to_vec().try_into().unwrap(),
-            proof_of_ownership: b"proof".to_vec().try_into().unwrap(),
-            number_of_shares: 1000,
-            other_documents: None,
-            expiry: None,
-        };
-
-        let token_id: u32 = 10_000;
-        let amount_vcu: u128 = 1000;
-        let agv_account_id = 1;
-        let agv_id = 1;
-        let recipient_account_id = 2;
-        let shares_to_mint = 100;
-        let period_days = 1;
-
-        Balances::make_free_balance_be(&agv_account_id, 10000);
-        Balances::make_free_balance_be(&11, 100);
-        Assets::create(
-            Origin::signed(agv_account_id),
-            token_id,
-            agv_account_id,
-            100_u32.into(),
-        )
-        .unwrap();
-
-        assert_ok!(VCU::add_authorized_account(
-            RawOrigin::Root.into(),
-            11,
-            b"Verra".to_vec().try_into().unwrap()
-        ));
-        assert_ok!(VCU::create_asset_generating_vcu(
-            Origin::signed(11),
-            agv_account_id,
-            agv_id,
-            input.clone()
-        ));
-
-        assert_ok!(VCU::create_asset_generating_vcu_schedule(
-            RawOrigin::Root.into(),
-            agv_account_id,
-            agv_id,
-            period_days,
-            amount_vcu,
-            token_id
-        ));
-
-        assert_ok!(VCU::mint_shares_asset_generating_vcu(
-            RawOrigin::Root.into(),
-            11,
-            agv_account_id,
-            agv_id,
-            shares_to_mint
-        ));
-
-        let now = Timestamp::get();
-
-        // set the timestamp to future so we can mint
-        Timestamp::set(RawOrigin::Root.into(), now + period_days * 24 * 60);
-        assert_eq!(Assets::total_supply(token_id), 0);
-        assert_ok!(VCU::mint_scheduled_vcu(Origin::signed(11), 1, 1));
-        assert_eq!(Assets::total_supply(token_id), amount_vcu);
-
-        // the minted count should be updated
-        assert_eq!(
-            VCU::asset_generating_vcu_shares_minted(agv_account_id, agv_id),
-            shares_to_mint
-        );
-        // the shares should be updated correctly for asset
-        assert_eq!(
-            VCU::asset_generating_vcu_shares_minted_total(agv_account_id, agv_id),
-            100
-        );
-        // the recipient should have received the shares_to_mint
-        assert_eq!(
-            VCU::asset_generating_vcu_shares((agv_account_id, agv_id, 11)),
-            100
-        );
-
-        assert_ok!(VCU::retire_vcu(
-            Origin::signed(11),
-            agv_account_id,
-            agv_id,
-            1
-        ));
-
-        // TODO : Is this correct?
-        // assert_eq!(
-        //     VCU::asset_generating_vcu_shares((agv_account_id, agv_id, 11)),
-        //     99
-        // );
-    });
-}
-
-#[test]
-fn mint_scheduled_vcu_should_not_work_if_not_exists() {
-    new_test_ext().execute_with(|| {
-        assert_noop!(
-            VCU::mint_scheduled_vcu(RawOrigin::Root.into(), 1, 1),
-            Error::<Test>::AssetGeneratedVCUScheduleNotFound
-        );
-    });
-}
-
-#[test]
-fn create_oracle_account_minting_vcu_should_work() {
-    new_test_ext().execute_with(|| {
-        let input: AssetGeneratingVCUContentOf<Test> = AssetGeneratingVCUContent {
-            description: b"Description".to_vec().try_into().unwrap(),
-            proof_of_ownership: b"proof".to_vec().try_into().unwrap(),
-            number_of_shares: 1000,
-            other_documents: None,
-            expiry: None,
-        };
-
-        let expected_schedule = AssetsGeneratingVCUScheduleContent {
-            period_days: 1_u64,
-            amount_vcu: 1_u128,
-            token_id: 10000_u32,
-        };
-
-        Balances::make_free_balance_be(&1, 1000);
-        Assets::create(Origin::signed(1), 10000, 1, 1_u32.into()).unwrap();
-
-        assert_ok!(VCU::create_asset_generating_vcu(
-            RawOrigin::Root.into(),
-            1,
-            1,
-            input.clone()
-        ));
-
-        assert_ok!(VCU::create_oracle_account_minting_vcu(
-            RawOrigin::Root.into(),
-            1,
-            1,
-            10,
-            10_000
-        ));
-    });
-}
-
-#[test]
-fn destroy_oracle_account_minting_vcu_should_work() {
-    new_test_ext().execute_with(|| {
-        let input: AssetGeneratingVCUContentOf<Test> = AssetGeneratingVCUContent {
-            description: b"Description".to_vec().try_into().unwrap(),
-            proof_of_ownership: b"proof".to_vec().try_into().unwrap(),
-            number_of_shares: 1000,
-            other_documents: None,
-            expiry: None,
-        };
-
-        let expected_schedule = AssetsGeneratingVCUScheduleContent {
-            period_days: 1_u64,
-            amount_vcu: 1_u128,
-            token_id: 10000_u32,
-        };
-
-        Balances::make_free_balance_be(&1, 1000);
-        Assets::create(Origin::signed(1), 10000, 1, 1_u32.into()).unwrap();
-
-        assert_ok!(VCU::create_asset_generating_vcu(
-            RawOrigin::Root.into(),
-            1,
-            1,
-            input.clone()
-        ));
-
-        assert_ok!(VCU::create_oracle_account_minting_vcu(
-            RawOrigin::Root.into(),
-            1,
-            1,
-            10,
-            10000
-        ));
-        assert_ok!(VCU::destroy_oracle_account_minting_vcu(
-            RawOrigin::Root.into(),
-            1,
-            1
-        ));
-    });
-}
-
-#[test]
-fn destroy_oracle_account_minting_vcu_not_work_for_non_existing_key() {
-    new_test_ext().execute_with(|| {
-        assert_noop!(
-            VCU::destroy_oracle_account_minting_vcu(RawOrigin::Root.into(), 1, 1),
-            Error::<Test>::OraclesAccountMintingVCUNotFound
-        );
-    });
-}
-
-// #[test]
-// fn mint_vcu_from_oracle_should_work() {
-//     new_test_ext().execute_with(|| {
-//         let input: AssetGeneratingVCUContentOf<Test> = AssetGeneratingVCUContent {
-//             description: b"Description".to_vec().try_into().unwrap(),
-//             proof_of_ownership: b"proof".to_vec().try_into().unwrap(),
-//             number_of_shares: 1000,
-//             other_documents: None,
-//             expiry: None,
-//         };
-//
-//         let expected_schedule = AssetsGeneratingVCUScheduleContent {
-//             period_days: 1_u64,
-//             amount_vcu: 1_u128,
-//             token_id: 10000_u32,
-//         };
-//
-//         let asset_id:u32 = 1;
-//         let amount_vcu: u128 = 1000;
-//
-//         Balances::make_free_balance_be(&1, 100000);
-//         Assets::create(Origin::signed(11), 10000, 1, 100_u32.into()).unwrap();
-//
-// 		assert_ok!(VCU::add_authorized_account(RawOrigin::Root.into(), 11, b"Verra".to_vec().try_into().unwrap()));
-// 		assert_ok!(VCU::create_asset_generating_vcu(Origin::signed(11), 11, 1, input.clone()));
-//
-//
-//         assert_ok!(VCU::mint_shares_asset_generating_vcu(
-//             RawOrigin::Root.into(),
-//             1,
-//             11,
-//             1,
-//             1000
-//         ));
-//
-// 		assert_ok!(VCU::create_oracle_account_minting_vcu(RawOrigin::Root.into(), 11, 1, 10, 10_000));
-// 		assert_ok!(VCU::mint_vcu_from_oracle(Origin::signed(10), 11 ,1, amount_vcu));
-// 		assert_eq!(Assets::total_supply(asset_id), amount_vcu);
-//
-// 	});
-// }

@@ -1,48 +1,43 @@
 use codec::{Decode, Encode};
 use frame_support::pallet_prelude::*;
 
-/// a value: json structure as follows:
-/// {
-///     Description: Vec<u8> (max 64 bytes) (mandatory)
-///     ProofOwnership: ipfs link to a folder with the proof of ownership (mandatory)
-///     OtherDocuments: [{description:string,ipfs:hash},{....}], (Optional)
-///     ExpiringDateTime: DateTime, (YYYY-MM-DD hh:mm:ss) (optional)
-///     NumberofShares: Integer (maximum 10000 shares mandatory)
-/// }
+/// The input params for creating a new VCU
 #[derive(Clone, Encode, Decode, Eq, PartialEq, Debug, TypeInfo, MaxEncodedLen)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub struct AssetGeneratingVCUContent<Time, Description, Document> {
-    pub description: Description,
-    pub proof_of_ownership: Document,
-    pub other_documents: Option<Document>,
-    pub expiry: Option<Time>,
-    pub number_of_shares: u32,
+pub struct VCUCreationParams<AccountId, Balance, VcuId, BundleList> {
+    /// The type of VCU used [Single, Bundle]
+    pub vcu_type: VCUType<VcuId, BundleList>,
+    /// The account that owns/controls the VCU class
+    pub originator: AccountId,
+    /// The amount of VCU units to create
+    pub amount: Balance,
+    /// The account that receives the amount of VCU units
+    pub recipient: AccountId,
 }
 
+/// The VCUDetails as stored in pallet storage
 #[derive(Clone, Encode, Decode, Eq, PartialEq, Debug, TypeInfo, MaxEncodedLen)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub struct AssetsGeneratingVCUScheduleContent {
-    pub period_days: u64,
-    pub amount_vcu: u128,
-    pub token_id: u32,
-}
-
-/// To store a "bundle" of AGV that has the constraint of using the same "asset id"
-/// but potentially different schedules or Oracle for the generation of the VCU.
-#[derive(Clone, Encode, Decode, Eq, PartialEq, Debug, TypeInfo, MaxEncodedLen)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub struct BundleAssetGeneratingVCUContent<AssetId, Description, BundleList> {
-    /// Description for the bundle
-    pub description: Description,
-    /// AssetId for the bundle
+pub struct VCUDetail<AccountId, Balance, AssetId, VcuId, BundleList> {
+    /// The account that owns/controls the VCU class
+    pub originator: AccountId,
+    /// Count of current active units of VCU
+    pub supply: Balance,
+    /// Count of retired units of VCU
+    pub retired: Balance,
+    /// The AssetId that represents the Fungible class of VCU
     pub asset_id: AssetId,
-    /// List of {account_id, id} of AGVs in bundle
-    pub bundle: BundleList,
+    /// The type of VCU [Bundle, Single]
+    pub vcu_type: VCUType<VcuId, BundleList>,
 }
 
+/// The types of VcuId, VCUs can be created from one single type or can be a mix
+/// of multiple different types called a Bundle
 #[derive(Clone, Encode, Decode, Eq, PartialEq, Debug, TypeInfo, MaxEncodedLen)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub struct BundleAssetGeneratingVCUData<AccountId> {
-    pub account_id: AccountId,
-    pub id: u32,
+pub enum VCUType<VcuId, BundleList> {
+    /// Represents a list of different types of VCU units
+    Bundle(BundleList),
+    /// Represents a single type
+    Single(VcuId),
 }
