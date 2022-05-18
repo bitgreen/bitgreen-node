@@ -32,7 +32,7 @@ pub struct VCUDetail<AccountId, Balance, AssetId, BundleList> {
 
 The VCU units are created by an account that controls VCU units on the Verra registry, represented in the pallet as the originator. The creation process will store the VCU details on the pallet storage and then mint the given amount of Vcu units using the Asset Handler like pallet-assets. These newly minted vcu units will be transferred to the recipient, this can be any address (for simplicity lets assume its the originator address). These units can then be sold/transferred to a buyer of carbon credits, these transactions can take place multiple times but the final goal of purchasing a Vcu unit is to retire them. The current holder of the vcu units can call the `retire_vcu` extrinsic to burn these tokens (erase from storage), this process will store a reference of the tokens burned.
 
-![vcu workflow](../../doc/images/vcuflow.svg "workflow")
+![vcu workflow](../../../doc/images/vcuflow.svg "workflow")
 
 ### Asset Handler
 
