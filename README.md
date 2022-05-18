@@ -82,12 +82,12 @@ Please follow [this guide](doc/validator.md).
 
 ### How to get BITG for Testnet
 You can get 100 free BITG on Testnet using our free minter available at:  
-[https://testnet.bitg.org:8443](https://testnet.bitg.org:8443)  
+[https://testnet.bitgreeb.org:8443](https://testnet.bitgreen.org:8443)  
 
 ## Cache Engine
 We developed a light cache engine to query the transactions by account date/time limits and transaction id (txhash).  
 It's reachable at:  
-[https://testnet.bitg.org:9443](https://testnet.bitg.org:9443)  
+[https://testnet.bitgreen.org:9443](https://testnet.bitgreen.org:9443)  
 You can install in your node as from [instructions here](cache-engine/README.md)
 
 
@@ -145,8 +145,8 @@ server {
 
         listen [::]:443 ssl ipv6only=on;
         listen 443 ssl;
-        ssl_certificate /etc/letsencrypt/live/testnet.bitg.org/fullchain.pem; # managed by Certbot
-        ssl_certificate_key /etc/letsencrypt/live/testnet.bitg.org/privkey.pem; # managed by Certbot
+        ssl_certificate /etc/letsencrypt/live/testnet.bitgreen.org/fullchain.pem; # managed by Certbot
+        ssl_certificate_key /etc/letsencrypt/live/testnet.bitgreen.org/privkey.pem; # managed by Certbot
 
         ssl_session_cache shared:cache_nginx_SSL:1m;
         ssl_session_timeout 1440m;
@@ -247,11 +247,11 @@ BitGreen blockchain has specific support for the [Verified Carbon Units.](doc/vc
 
 You can interact with our testing node:
 ```
-testnode.bitg.org
+testnode.bitgreen.org
 ```
 using the web app hosted here:    
 [https://polkadot.js.org/apps](https://polkadot.js.org/apps)  
-To configure, click on the top left menu option and set the "Custom Node" field with 'wss://testnode.bitg.org'  
+To configure, click on the top left menu option and set the "Custom Node" field with 'wss://testnode.bitgreen.org'  
 You may get and error about "Not recognised data types".  
 Click on "Settings","Developer" and copy/paste the [data types of this blockchain](assets/types.json).  
 
