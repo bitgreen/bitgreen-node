@@ -120,10 +120,10 @@ parameter_types! {
 
 impl pallet_vcu::Config for Test {
     type Event = Event;
-    type MinPIDLength = MinPIDLength;
-    type UnixTime = Timestamp;
-    type MaxDescriptionLength = ConstU32<15>;
-    type MaxDocumentLength = ConstU32<15>;
+    type Balance = u128;
+    type AssetId = u32;
+    type AssetHandler = Assets;
+    type MaxAuthorizedAccountCount = ConstU32<2>;
     type MaxBundleSize = ConstU32<10>;
 }
 

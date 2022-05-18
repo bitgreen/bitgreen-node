@@ -331,21 +331,13 @@ impl pallet_vesting::Config for Runtime {
     type NativeTokenId = ();
 }
 
-parameter_types! {
-  pub const MinPIDLength: u32 = 1;
-  pub const IpfsHashLength: u32 = 46;
-  pub const MaxDescriptionLength : u32 = 10;
-  pub const MaxDocumentLength : u32 = 10;
-  pub const MaxBundleSize : u32 = 10;
-}
-
 impl pallet_vcu::Config for Runtime {
     type Event = Event;
-    type MinPIDLength = MinPIDLength;
-    type UnixTime = Timestamp;
-    type MaxDescriptionLength = MaxDescriptionLength;
-    type MaxDocumentLength = MaxDocumentLength;
-    type MaxBundleSize = MaxBundleSize;
+    type Balance = u128;
+    type AssetId = u32;
+    type AssetHandler = Assets;
+    type MaxAuthorizedAccountCount = ConstU32<2>;
+    type MaxBundleSize = ConstU32<10>;
 }
 
 // Bonds management
