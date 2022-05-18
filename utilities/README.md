@@ -1,9 +1,9 @@
 # Utilities 
-- Minter of BITG for Test Net
+- Minter of BBB for Test Net
 - Proxy Claim Server
 
 # Bitgreen Minter for Test Net 
-This programs is an https server where the user can require the transfer of 100 BITG for the TEST NET.
+This programs is an https server where the user can require the transfer of 100 BBB for the TEST NET.
 
 ## Installation
 - Install [Nodejs](https://nodejs.org)  
@@ -25,7 +25,7 @@ Point the browser to your server on port 8443, for example:
 https://testnet.bitgreen.org:8443
 
 Insert you account and click on "Submit". 
-In a few seconds you will receive 100 BITG.
+In a few seconds you will receive 100 BBB.
 
 
 
