@@ -2,7 +2,7 @@
 authors = ['BitGreen <https://bitg.org>']
 edition = '2021'
 homepage = 'https://bitg.org'
-license = 'Unlicense'
+license = 'MIT'
 name = 'pallet-claim'
 description = "Module to transfer balances from the 'bitcoin' chain to the 'substrate' chain"
 repository = 'https://github.com/bitgreen/bitg-node'
