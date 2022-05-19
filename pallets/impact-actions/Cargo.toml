@@ -2,8 +2,7 @@
 authors = ['BitGreen <https://bitg.org>']
 edition = '2021'
 homepage = 'https://bitg.org'
-# SBP M1 review: you should pick a license for your code.
-license = 'Unlicense'
+license = 'MIT'
 name = 'pallet-impact-actions'
 description = "Module to manage the impact actions"
 repository = 'https://github.com/bitgreen/bitg-node'
