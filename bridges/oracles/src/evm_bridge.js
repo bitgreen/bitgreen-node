@@ -1,10 +1,10 @@
 /// Module for evm compatible client integration based on web3js
-
 import Web3 from 'web3';
 import { readFileSync } from 'fs';
 import { dirname, join, normalize, format } from 'path';
 import { fileURLToPath } from 'url';
 
+// options for connection to the Ethereum Node
 export const options = {
     timeout: 30000, // ms
 
@@ -31,15 +31,17 @@ export const options = {
         onTimeout: false
     }
 };
-
+// read parameters from Environment variable
 export const NODE_ADDRESS = process.env.NODE_ADDRESS || Web3.givenProvider || new Web3.providers.WebsocketProvider('ws://127.0.0.1:8546', options);
 export const ROUTER_ADDRESS = process.env.ROUTER_ADDRESS;
 export const privateKey = process.env.PRIVATE_KEY;
+
+//constant an global var definition
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
-
 var nonce_block = {};
 
+// define a function to the get the nonce for an account
 const get_nonce = async (web3, account) => {    
     if (nonce_block[account]) {
         nonce_block[account] = nonce_block[account] + 1;
@@ -49,12 +51,12 @@ const get_nonce = async (web3, account) => {
     return nonce_block[account]
 }
 
-
+// 0x0 is the native Etherum, we can add in future other ERC20 implementing this function.
 export const get_erc20 = async (asset_id) => {
     const erc20 = '0x0000000000000000000000000000000000000000';
     return erc20;
 };
-
+// function to call general methods/params
 async function send(web3, gasPrice, contract, method, params) {
     const account = web3.eth.accounts.privateKeyToAccount(privateKey).address;
     const transaction = contract.methods[method](params);
