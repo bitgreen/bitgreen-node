@@ -120,7 +120,7 @@ pub mod pallet {
             <Lockdown<T>>::put(&self.lockdown_status);
         }
     }
-    
+
     // definitions of the events emitted from this pallet
     #[pallet::event]
     #[pallet::generate_deposit(pub(super) fn deposit_event)]
@@ -269,7 +269,7 @@ pub mod pallet {
                 chain_id=="1".as_bytes().to_vec() ||         // Ethereum
                     chain_id=="2".as_bytes().to_vec() ||     // Binance
                     chain_id=="3".as_bytes().to_vec() ||     // Solana
-                    chain_id=="4".as_bytes().to_vec(),       // Avalanche
+                    chain_id=="4".as_bytes().to_vec(), // Avalanche
                 Error::<T>::InvalidChainId
             );
             // check for description not empty and <64 bytes

@@ -2,8 +2,7 @@
 authors = ['BitGreen <https://bitg.org>']
 edition = '2021'
 homepage = 'https://bitg.org'
-# SBP M1 review: you should pick a license for your code.
-license = 'Unlicense'
+license = 'MIT'
 name = 'pallet-bridge'
 description = "The purpose of the bridge is to allow the cross-chain movement of tokens."
 repository = 'https://github.com/bitgreen/bitg-node'

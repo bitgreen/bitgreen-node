@@ -13,3 +13,4 @@ polkadot.*
 .cargo
 ./bridges/ethereum/nodes_modules/
 bridges/ethereum/node_modules/*
+*/node_modules/*
