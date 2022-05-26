@@ -14,39 +14,29 @@
 
 //! VCU Pallet
 //! The VCU pallet creates and retires VCU units that represent the VCUs on the Verra registry. These onchain vcu units can represent a
-//! single type of VCU or can build to represent a combination of different types of VCUs.  The VCUs are represented onchain as follows:
+//! single type of VCU or can build to represent a combination of different types of VCUs.
 //!
-//! pub struct VCUDetail<AccountId, Balance, AssetId, VcuId, BundleList> {
-//!     // The account that owns/controls the VCU class
-//!     pub originator: AccountId,
-//!     // Count of current active units of VCU
-//!     pub supply: Balance,
-//!     // Count of retired units of VCU
-//!     pub retired: Balance,
-//!     // The AssetId that represents the Fungible class of VCU
-//!     pub asset_id: AssetId,
-//!     // The type of VCU [Bundle, Single]
-//!     pub vcu_type: VCUType<VcuId, BundleList>,
-//! }
 //! The VCU units are created by an account that controls VCU units on the Verra registry, represented in the pallet as the originator.
 //! The creation process will store the VCU details on the pallet storage and then mint the given amount of Vcu units using the Asset Handler
 //! like pallet-assets. These newly minted vcu units will be transferred to the recipient, this can be any address.
 //! These units can then be sold/transferred to a buyer of carbon credits, these transactions can take place multiple times but the final goal
-//! of purchasing a Vcu unit is to retire them. The current holder of the vcu units can call the `retire_vcu` extrinsic to burn these
+//! of purchasing a Vcu unit is to retire them. The current holder of the vcu units can call the `retire` extrinsic to burn these
 //! tokens (erase from storage), this process will store a reference of the tokens burned.
 //!
 //! ## Interface
 //!
 //! ### Permissionless Functions
 //!
-//! * `create`: Creates a new VCU, minting an amount of tokens
-//! * `retire`: Burns an amount of VCU tokens
-//! * `mint_into`: Create more units of already existing VCU
+//! * `create`: Creates a new project onchain with details of batches of credits
+//! * `mint`: Mint a specified amount of token credits
+//! * `retire`: Burn a specified amount of token credits
 //!
 //! ### Permissioned Functions
 //!
 //! * `force_add_authorized_account`: Adds a new_authorized_account to the list
 //! * `force_remove_authorized_account`: Removes an authorized_account from the list
+//! * `force_set_next_asset_id`: Set the NextAssetId in storage
+//! * `approve_project`: Set the project status to approved so minting can be executed
 //!
 #![cfg_attr(not(feature = "std"), no_std)]
 
@@ -80,7 +70,7 @@ pub mod pallet {
     use sp_runtime::traits::{
         AccountIdConversion, AtLeast32Bit, AtLeast32BitUnsigned, CheckedAdd, Scale, Zero,
     };
-    use sp_std::{cmp, convert::TryInto};
+    use sp_std::{cmp, convert::TryInto, vec::Vec};
 
     /// The parameters the VCU pallet depends on
     #[pallet::config]
@@ -354,6 +344,8 @@ pub mod pallet {
             })
         }
 
+        /// TODO : Need an ext to resubmit
+
         /// Mint tokens for an approved project
         #[transactional]
         #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
@@ -447,7 +439,7 @@ pub mod pallet {
                     project.asset_id = Some(asset_id);
                 }
 
-                //mint the asset to the recipient
+                // mint the asset to the recipient
                 T::AssetHandler::mint_into(project.asset_id.unwrap(), &recipient, amount_to_mint)?;
 
                 // TODO : set metadata for the asset
@@ -501,6 +493,7 @@ pub mod pallet {
                 let mut remaining = amount;
                 for batch in batch_list.iter_mut() {
                     // lets retire from the older batches as much as possible
+                    // this is safe since we ensure minted >= retired
                     let available_to_retire = batch.minted - batch.retired;
                     let actual = cmp::min(available_to_retire, remaining);
 
@@ -520,6 +513,16 @@ pub mod pallet {
                 // lets be safe
                 ensure!(
                     remaining == Zero::zero(),
+                    Error::<T>::AmountGreaterThanSupply
+                );
+
+                // sanity checks to ensure accounting is correct
+                ensure!(
+                    project.minted <= project.total_supply,
+                    Error::<T>::AmountGreaterThanSupply
+                );
+                ensure!(
+                    project.retired <= project.minted,
                     Error::<T>::AmountGreaterThanSupply
                 );
 

@@ -39,7 +39,7 @@ pub use frame_support::{
         IdentityFee, Weight, WeightToFeeCoefficient, WeightToFeeCoefficients,
         WeightToFeePolynomial,
     },
-    StorageValue,
+    PalletId, StorageValue,
 };
 pub use frame_system::Call as SystemCall;
 use frame_system::EnsureRoot;
@@ -50,6 +50,7 @@ pub use primitives::{
     AccountId, AccountIndex, Amount, Balance, BlockNumber, EraIndex, Hash, Moment, Nonce,
     Signature, TokenSymbol,
 };
+use sp_runtime::traits::AccountIdConversion;
 #[cfg(any(feature = "std", test))]
 pub use sp_runtime::BuildStorage;
 pub use sp_runtime::{Perbill, Permill};
@@ -331,15 +332,28 @@ impl pallet_vesting::Config for Runtime {
     type NativeTokenId = ();
 }
 
+parameter_types! {
+  pub MarketplaceEscrowAccount : AccountId =  PalletId(*b"bitg/mkp").into_account();
+  pub const VCUPalletId: PalletId = PalletId(*b"bitg/vcu");
+}
+
+// TODO : Ensure sensible values
 impl pallet_vcu::Config for Runtime {
     type Event = Event;
     type Balance = u128;
-    type AssetId = u32;
     type ProjectId = u32;
-    type VcuId = u32;
+    type AssetId = u32;
+    type Moment = u64;
+    type PalletId = VCUPalletId;
     type AssetHandler = Assets;
-    type MaxAuthorizedAccountCount = ConstU32<2>;
-    type MaxBundleSize = ConstU32<10>;
+    type MarketplaceEscrow = MarketplaceEscrowAccount;
+    type Time = Timestamp;
+    type MaxAuthorizedAccountCount = ConstU32<10>;
+    type MaxShortStringLength = ConstU32<300>;
+    type MaxLongStringLength = ConstU32<3000>;
+    type MaxIpfsReferenceLength = ConstU32<300>;
+    type MaxDocumentCount = ConstU32<10>;
+    type MaxGroupSize = ConstU32<10>;
     type WeightInfo = ();
 }
 
