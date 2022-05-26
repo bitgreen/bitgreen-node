@@ -1,43 +1,143 @@
-use codec::{Decode, Encode};
+use crate::pallet;
+use codec::{Decode, Encode, MaxEncodedLen};
 use frame_support::pallet_prelude::*;
 
-/// The input params for creating a new VCU
+/// AuthorizedAccounts type of pallet
+pub type AuthorizedAccountsListOf<T> = BoundedVec<
+    <T as frame_system::Config>::AccountId,
+    <T as pallet::Config>::MaxAuthorizedAccountCount,
+>;
+
+pub type ShortStringOf<T> = BoundedVec<u8, <T as pallet::Config>::MaxShortStringLength>;
+
+pub type LongStringOf<T> = BoundedVec<u8, <T as pallet::Config>::MaxLongStringLength>;
+
+pub type IpfsLinkOf<T> = BoundedVec<u8, <T as pallet::Config>::MaxIpfsReferenceLength>;
+
+pub type IpfsLinkListsOf<T> = BoundedVec<IpfsLinkOf<T>, <T as pallet::Config>::MaxDocumentCount>;
+
+pub type BatchGroupOf<T> = BoundedVec<Batch<T>, <T as pallet::Config>::MaxGroupSize>;
+
+pub type SDGTypesListOf<T> = BoundedVec<SDGDetails<ShortStringOf<T>>, ConstU32<12>>;
+
 #[derive(Clone, Encode, Decode, Eq, PartialEq, Debug, TypeInfo, MaxEncodedLen)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub struct VCUCreationParams<AccountId, Balance, VcuId, BundleList> {
-    /// The type of VCU used [Single, Bundle]
-    pub vcu_type: VCUType<VcuId, BundleList>,
-    /// The account that owns/controls the VCU class
-    pub originator: AccountId,
-    /// The amount of VCU units to create
-    pub amount: Balance,
-    /// The account that receives the amount of VCU units
-    pub recipient: AccountId,
+pub struct RegistryDetails<StringType> {
+    pub name: StringType,
+    pub id: StringType,
+    pub summary: StringType,
 }
 
-/// The VCUDetails as stored in pallet storage
 #[derive(Clone, Encode, Decode, Eq, PartialEq, Debug, TypeInfo, MaxEncodedLen)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub struct VCUDetail<AccountId, Balance, AssetId, VcuId, BundleList> {
-    /// The account that owns/controls the VCU class
-    pub originator: AccountId,
-    /// Count of current active units of VCU
-    pub supply: Balance,
-    /// Count of retired units of VCU
-    pub retired: Balance,
-    /// The AssetId that represents the Fungible class of VCU
-    pub asset_id: AssetId,
-    /// The type of VCU [Bundle, Single]
-    pub vcu_type: VCUType<VcuId, BundleList>,
+pub enum SdgType {
+    NoPoverty,
+    ZeroHunger,
+    GoodHealthAndWellBeing,
+    QualityEducation,
+    GenderEquality,
+    CleanWaterAndSanitation,
+    AffordableAndCleanEnergy,
+    DecentWorkAndEconomicGrowth,
+    IndustryInnovationAndInfrastructure,
+    ReducedInequalities,
+    SustainableCitiesAndCommunities,
+    ResponsibleConsumptionAndProduction,
+    ClimateAction,
+    LifeBelowWater,
+    LifeOnLand,
+    PeaceJusticeAndStrongInstitutions,
+    ParternshipsForTheGoals,
 }
 
-/// The types of VcuId, VCUs can be created from one single type or can be a mix
-/// of multiple different types called a Bundle
 #[derive(Clone, Encode, Decode, Eq, PartialEq, Debug, TypeInfo, MaxEncodedLen)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub enum VCUType<VcuId, BundleList> {
-    /// Represents a list of different types of VCU units
-    Bundle(BundleList),
-    /// Represents a single type
-    Single(VcuId),
+pub struct SDGDetails<StringType> {
+    pub sdg_type: SdgType,
+    pub description: StringType,
+    pub refrences: StringType,
+}
+
+#[derive(Clone, Encode, Decode, Eq, PartialEq, TypeInfo, MaxEncodedLen)]
+#[scale_info(skip_type_params(T))]
+#[codec(mel_bound(T: pallet::Config))]
+#[derive(frame_support::DebugNoBound)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct Batch<T: pallet::Config> {
+    pub name: ShortStringOf<T>,
+    pub uuid: ShortStringOf<T>,
+    pub issuance_year: u32,
+    pub start_date: u32,
+    pub end_date: u32,
+
+    // batch credits details
+    pub total_supply: T::Balance,
+    pub minted: T::Balance,
+    pub retired: T::Balance,
+}
+
+#[derive(Clone, Encode, Decode, Eq, PartialEq, TypeInfo, MaxEncodedLen)]
+#[scale_info(skip_type_params(T))]
+#[codec(mel_bound(T: pallet::Config))]
+#[derive(frame_support::DebugNoBound)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct ProjectCreateParams<T: pallet::Config> {
+    // Project Details
+    pub name: ShortStringOf<T>,
+    pub description: LongStringOf<T>,
+    // TODO : Improve this data type
+    pub location: [(u32, u32); 8],
+    pub images: IpfsLinkListsOf<T>,
+    pub videos: IpfsLinkListsOf<T>,
+    pub documents: IpfsLinkListsOf<T>,
+    // Registry details
+    pub registry_details: RegistryDetails<ShortStringOf<T>>,
+
+    // SDG details
+    pub sdg_details: SDGTypesListOf<T>,
+
+    // batch details
+    pub batches: BatchGroupOf<T>,
+
+    // credits details
+    pub unit_price: T::Balance,
+}
+
+#[derive(Clone, Encode, Decode, Eq, PartialEq, TypeInfo, MaxEncodedLen)]
+#[scale_info(skip_type_params(T))]
+#[codec(mel_bound(T: pallet::Config))]
+#[derive(frame_support::DebugNoBound)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct ProjectDetail<T: pallet::Config> {
+    // Project Details
+    pub originator: T::AccountId,
+    pub name: ShortStringOf<T>,
+    pub description: LongStringOf<T>,
+    // TODO : Improve this data type
+    pub location: [(u32, u32); 8],
+    pub images: IpfsLinkListsOf<T>,
+    pub videos: IpfsLinkListsOf<T>,
+    pub documents: IpfsLinkListsOf<T>,
+    // Registry details
+    pub registry_details: RegistryDetails<ShortStringOf<T>>,
+
+    // SDG details
+    pub sdg_details: SDGTypesListOf<T>,
+
+    // batch details
+    pub batches: BatchGroupOf<T>,
+
+    // origination details
+    pub created: T::Moment,
+    pub updated: Option<T::Moment>,
+
+    // approval details
+    pub approved: bool,
+
+    // credits details
+    pub asset_id: Option<T::AssetId>,
+    pub total_supply: T::Balance,
+    pub minted: T::Balance,
+    pub retired: T::Balance,
+    pub unit_price: T::Balance,
 }

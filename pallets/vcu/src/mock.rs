@@ -2,6 +2,7 @@ use crate as pallet_vcu;
 use frame_support::{
     parameter_types,
     traits::{ConstU32, Everything},
+    PalletId,
 };
 use frame_system as system;
 use sp_core::H256;
@@ -114,19 +115,26 @@ impl pallet_timestamp::Config for Test {
 }
 
 parameter_types! {
-  pub const MinPIDLength: u32 = 1;
-  pub const IpfsHashLength: u32 = 46;
+  pub const MarketplaceEscrowAccount : u64 = 10;
+  pub const VCUPalletId: PalletId = PalletId(*b"bitg/vcu");
 }
 
 impl pallet_vcu::Config for Test {
     type Event = Event;
     type Balance = u128;
-    type AssetId = u32;
     type ProjectId = u32;
-    type VcuId = u32;
+    type AssetId = u32;
+    type Moment = u64;
+    type PalletId = VCUPalletId;
     type AssetHandler = Assets;
+    type MarketplaceEscrow = MarketplaceEscrowAccount;
+    type Time = Timestamp;
     type MaxAuthorizedAccountCount = ConstU32<2>;
-    type MaxBundleSize = ConstU32<10>;
+    type MaxShortStringLength = ConstU32<20>;
+    type MaxLongStringLength = ConstU32<100>;
+    type MaxIpfsReferenceLength = ConstU32<20>;
+    type MaxDocumentCount = ConstU32<2>;
+    type MaxGroupSize = ConstU32<5>;
     type WeightInfo = ();
 }
 

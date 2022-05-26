@@ -58,8 +58,8 @@ mod mock;
 #[cfg(test)]
 mod tests;
 
-#[cfg(feature = "runtime-benchmarks")]
-mod benchmarking;
+// #[cfg(feature = "runtime-benchmarks")]
+// mod benchmarking;
 
 mod types;
 pub use types::*;
@@ -70,41 +70,17 @@ pub mod pallet {
     use codec::HasCompact;
     use frame_support::{
         pallet_prelude::*,
-        traits::tokens::fungibles::{Create, Mutate},
-        transactional,
+        traits::{
+            tokens::fungibles::{Create, Mutate},
+            Time,
+        },
+        transactional, PalletId,
     };
     use frame_system::{pallet_prelude::*, WeightInfo};
-    use sp_runtime::traits::AtLeast32BitUnsigned;
-    use sp_runtime::traits::Zero;
-    use sp_runtime::traits::{CheckedAdd, CheckedSub};
-    use sp_std::convert::TryInto;
-
-    /// AuthorizedAccounts type of pallet
-    pub type AuthorizedAccountsListOf<T> = BoundedVec<
-        <T as frame_system::Config>::AccountId,
-        <T as Config>::MaxAuthorizedAccountCount,
-    >;
-
-    /// BundleList type of pallet
-    pub type BundleListOf<T> = BoundedVec<<T as Config>::VcuId, <T as Config>::MaxBundleSize>;
-    /// VCUDetail type of pallet
-    pub type VCUDetailOf<T> = VCUDetail<
-        <T as frame_system::Config>::AccountId,
-        <T as Config>::Balance,
-        <T as Config>::AssetId,
-        <T as Config>::VcuId,
-        BundleListOf<T>,
-    >;
-    /// VCUType type of pallet
-    pub type VCUTypeOf<T> = VCUType<<T as Config>::VcuId, BundleListOf<T>>;
-
-    /// VCUCreationParams type of pallet
-    pub type VCUCreationParamsOf<T> = VCUCreationParams<
-        <T as frame_system::Config>::AccountId,
-        <T as Config>::Balance,
-        <T as Config>::VcuId,
-        BundleListOf<T>,
-    >;
+    use sp_runtime::traits::{
+        AccountIdConversion, AtLeast32Bit, AtLeast32BitUnsigned, CheckedAdd, Scale, Zero,
+    };
+    use sp_std::{cmp, convert::TryInto};
 
     /// The parameters the VCU pallet depends on
     #[pallet::config]
@@ -121,6 +97,16 @@ pub mod pallet {
             + MaxEncodedLen
             + TypeInfo;
 
+        /// Identifier for the project.
+        type ProjectId: Member
+            + Parameter
+            + Default
+            + Copy
+            + HasCompact
+            + MaybeSerializeDeserialize
+            + MaxEncodedLen
+            + TypeInfo;
+
         /// Identifier for the class of asset.
         type AssetId: Member
             + Parameter
@@ -133,33 +119,38 @@ pub mod pallet {
             + From<u32>
             + Into<u32>;
 
-        /// Identifier for a project
-        type ProjectId: Member
-            + Parameter
+        /// Type used for expressing timestamp.
+        type Moment: Parameter
             + Default
+            + AtLeast32Bit
+            + Scale<Self::BlockNumber, Output = Self::Moment>
             + Copy
-            + HasCompact
-            + MaybeSerializeDeserialize
             + MaxEncodedLen
-            + TypeInfo;
+            + scale_info::StaticTypeInfo;
 
-        /// Identifier for a VCU
-        type VcuId: Member
-            + Parameter
-            + Default
-            + Copy
-            + HasCompact
-            + MaybeSerializeDeserialize
-            + MaxEncodedLen
-            + TypeInfo;
+        /// The vcu pallet id
+        #[pallet::constant]
+        type PalletId: Get<PalletId>;
 
         // Asset manager config
         type AssetHandler: Create<Self::AccountId, AssetId = Self::AssetId, Balance = Self::Balance>
             + Mutate<Self::AccountId>;
+        /// Marketplace Escrow provider
+        type MarketplaceEscrow: Get<Self::AccountId>;
+        /// Timestamp provider for the pallet
+        type Time: Time<Moment = Self::Moment>;
         /// Maximum amount of authorised accounts permitted
         type MaxAuthorizedAccountCount: Get<u32>;
+        /// Maximum length of short string types
+        type MaxShortStringLength: Get<u32>;
+        /// Maximum length of long string types
+        type MaxLongStringLength: Get<u32>;
+        /// Maximum length of ipfs reference data
+        type MaxIpfsReferenceLength: Get<u32>;
+        /// Maximum count of documents for one type
+        type MaxDocumentCount: Get<u32>;
         /// Maximum amount of vcus in a bundle
-        type MaxBundleSize: Get<u32>;
+        type MaxGroupSize: Get<u32>;
         /// Weight information for extrinsics in this pallet.
         type WeightInfo: WeightInfo;
     }
@@ -169,28 +160,23 @@ pub mod pallet {
     pub struct Pallet<T>(_);
 
     #[pallet::storage]
+    #[pallet::getter(fn next_asset_id)]
+    // NextAssetId for the generated vcu_tokens, start from 1000
+    // TODO : Ensure starts from 1000
+    pub type NextAssetId<T: Config> = StorageValue<_, T::AssetId, ValueQuery>;
+
+    #[pallet::storage]
     #[pallet::getter(fn authorized_accounts)]
     // List of AuthorizedAccounts for the pallet
     pub type AuthorizedAccounts<T: Config> =
         StorageValue<_, AuthorizedAccountsListOf<T>, ValueQuery>;
 
     #[pallet::storage]
-    #[pallet::getter(fn next_token_id)]
-    // NextAssetId for the generated vcu_tokens, start from 1000
-    // TODO : Ensure starts from 1000
-    pub type NextAssetId<T: Config> = StorageValue<_, T::AssetId, ValueQuery>;
-
-    #[pallet::storage]
-    #[pallet::getter(fn vcus)]
+    #[pallet::getter(fn projects)]
     /// The details of a VCU
-    pub(super) type VCUs<T: Config> = StorageDoubleMap<
-        _,
-        Blake2_128Concat,
-        T::ProjectId,
-        Blake2_128Concat,
-        T::VcuId,
-        VCUDetailOf<T>,
-    >;
+    // TODO : Maybe another storage to act as a reverse lookup for assetid -> projectid
+    pub(super) type Projects<T: Config> =
+        StorageMap<_, Blake2_128Concat, T::ProjectId, ProjectDetail<T>>;
 
     #[pallet::storage]
     #[pallet::getter(fn retired_vcus)]
@@ -199,7 +185,6 @@ pub mod pallet {
         _,
         (
             NMapKey<Blake2_128Concat, T::ProjectId>,
-            NMapKey<Blake2_128Concat, T::VcuId>,
             NMapKey<Blake2_128Concat, T::AccountId>,
         ),
         T::Balance,
@@ -216,42 +201,32 @@ pub mod pallet {
         /// An AuthorizedAccount has been removed
         AuthorizedAccountRemoved { account_id: T::AccountId },
         /// A new VCU has been created
-        VCUCreated {
-            /// The T::ProjectId of the created VCU
+        ProjectCreated {
+            /// The T::ProjectId of the created project
             project_id: T::ProjectId,
-            /// The T::VcuId of the created VCU
-            vcu_id: T::VcuId,
-            /// The VCUType of the created VCU
-            vcu_type: VCUTypeOf<T>,
-            /// The AccountId that controls the VCU asset
-            originator: T::AccountId,
-            /// The AccountId that received the amount
+            /// The details of the created project
+            details: ProjectDetail<T>,
+        },
+        ProjectApproved {
+            /// The T::ProjectId of the approved project
+            project_id: T::ProjectId,
+        },
+        // An amount of VCUs was minted
+        VCUMinted {
+            /// The T::ProjectId of the minted VCU
+            project_id: T::ProjectId,
+            /// The AccountId that received the minted VCU
             recipient: T::AccountId,
-            /// The amount of VCU units created
+            /// The amount of VCU units minted
             amount: T::Balance,
         },
         // An existing VCU was retired
         VCURetired {
             /// The T::ProjectId of the retired VCU
             project_id: T::ProjectId,
-            /// the T::VcuId of the retired VCU
-            vcu_id: T::VcuId,
             /// The AccountId that retired the VCU
             account: T::AccountId,
-            /// The VCUType of the retired VCU
-            vcu_type: VCUTypeOf<T>,
             /// The amount of VCU units retired
-            amount: T::Balance,
-        },
-        // An existing VCU was retired
-        VCUMinted {
-            /// The T::ProjectId of the minted VCU
-            project_id: T::ProjectId,
-            /// the T::VcuId of the minted VCU
-            vcu_id: T::VcuId,
-            /// The AccountId that received the minted VCU
-            recipient: T::AccountId,
-            /// The amount of VCU units minted
             amount: T::Balance,
         },
     }
@@ -263,16 +238,24 @@ pub mod pallet {
         TooManyAuthorizedAccounts,
         /// Cannot add a duplicate authorised account
         AuthorizedAccountAlreadyExists,
-        /// Cannot create duplicate VCUs
-        VCUAlreadyExists,
+        /// Cannot create duplicate Projects
+        ProjectAlreadyExists,
         /// The account is not authorised
         NotAuthorised,
-        /// The given VCU was not found in storage
-        VCUNotFound,
+        /// The given Project was not found in storage
+        ProjectNotFound,
         /// The Amount of VCU units is greater than supply
         AmountGreaterThanSupply,
         /// Calculcation triggered an Overflow
         Overflow,
+        /// The token accounting generated an error
+        SupplyAmountMismatch,
+        /// The unit price for vcu cannot be zero
+        UnitPriceIsZero,
+        /// The project is not approved
+        ProjectNotApproved,
+        /// The tokens for the VCU have not been minted
+        VCUNotMinted,
     }
 
     #[pallet::hooks]
@@ -280,81 +263,75 @@ pub mod pallet {
 
     #[pallet::call]
     impl<T: Config> Pallet<T> {
-        /// Create a new vcu and mint `amount` of vcus to the recipient account
+        /// Register a new project onchain
         #[transactional]
         #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
         pub fn create(
             origin: OriginFor<T>,
             project_id: T::ProjectId,
-            params: VCUCreationParamsOf<T>,
+            params: ProjectCreateParams<T>,
         ) -> DispatchResult {
             let sender = ensure_signed(origin)?;
 
-            let authorized_accounts = AuthorizedAccounts::<T>::get();
+            // the unit price should not be zero
             ensure!(
-                authorized_accounts.contains(&sender),
-                Error::<T>::NotAuthorised
+                params.unit_price > Zero::zero(),
+                Error::<T>::UnitPriceIsZero
             );
 
-            // get the vcu_id depending on the type
-            let vcu_id = match params.vcu_type {
-                // for bundle, we select the first id
-                // TODO : Better error handling
-                VCUType::Bundle(ref vcu_ids) => vcu_ids.first().unwrap().clone(),
-                VCUType::Single(vcu_id) => vcu_id,
-            };
+            Projects::<T>::try_mutate(project_id, |project| -> DispatchResult {
+                ensure!(project.is_none(), Error::<T>::ProjectAlreadyExists);
 
-            VCUs::<T>::try_mutate(project_id, vcu_id, |vcu| -> DispatchResult {
-                ensure!(vcu.is_none(), Error::<T>::VCUAlreadyExists);
+                // the total supply of project must match the supply of all batches
+                let batch_total_supply =
+                    params
+                        .batches
+                        .iter()
+                        .fold(Zero::zero(), |mut sum: T::Balance, batch| {
+                            sum += batch.total_supply;
+                            sum
+                        });
 
-                let asset_id = NextAssetId::<T>::get();
-
-                // TODO : We could add metadata to the created asset class
-                // create the token
-                T::AssetHandler::create(asset_id, params.originator.clone(), true, 1_u32.into())?;
-
-                // mint the asset to the recipient
-                T::AssetHandler::mint_into(asset_id, &params.recipient, params.amount)?;
-
-                // update the storage
-                let new_vcu = VCUDetailOf::<T> {
-                    originator: params.originator.clone(),
-                    supply: params.amount,
+                let new_project = ProjectDetail {
+                    originator: sender,
+                    name: params.name,
+                    description: params.description,
+                    location: params.location,
+                    images: params.images,
+                    videos: params.videos,
+                    documents: params.documents,
+                    registry_details: params.registry_details,
+                    sdg_details: params.sdg_details,
+                    batches: params.batches,
+                    created: T::Time::now(),
+                    updated: None,
+                    approved: false,
+                    total_supply: batch_total_supply,
+                    minted: Zero::zero(),
                     retired: Zero::zero(),
-                    asset_id,
-                    vcu_type: params.vcu_type.clone(),
+                    asset_id: None,
+                    unit_price: params.unit_price,
                 };
 
-                //increment assetId counter
-                let next_asset_id: u32 = asset_id.into() + 1_u32;
-
-                NextAssetId::<T>::set(next_asset_id.into());
+                *project = Some(new_project.clone());
 
                 // emit event
-                Self::deposit_event(Event::VCUCreated {
-                    originator: params.originator,
+                Self::deposit_event(Event::ProjectCreated {
                     project_id,
-                    vcu_id: vcu_id,
-                    vcu_type: params.vcu_type,
-                    recipient: params.recipient,
-                    amount: params.amount,
+                    details: new_project,
                 });
-
-                *vcu = Some(new_vcu);
 
                 Ok(())
             })
         }
 
-        /// Mint amount of tokens to already existing VCU
+        /// Set the project status to approve/reject
         #[transactional]
         #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
-        pub fn mint_into(
+        pub fn approve_project(
             origin: OriginFor<T>,
             project_id: T::ProjectId,
-            vcu_id: T::VcuId,
-            recipient: T::AccountId,
-            amount: T::Balance,
+            is_approved: bool,
         ) -> DispatchResult {
             let sender = ensure_signed(origin)?;
 
@@ -364,25 +341,122 @@ pub mod pallet {
                 Error::<T>::NotAuthorised
             );
 
-            VCUs::<T>::try_mutate(project_id, vcu_id, |vcu| -> DispatchResult {
-                // ensure the VCU exists
-                let vcu = vcu.as_mut().ok_or(Error::<T>::VCUNotFound)?;
+            Projects::<T>::try_mutate(project_id, |project| -> DispatchResult {
+                // ensure the Project exists
+                let project = project.as_mut().ok_or(Error::<T>::ProjectNotFound)?;
 
-                // mint the asset to the recipient
-                T::AssetHandler::mint_into(vcu.asset_id, &recipient, amount)?;
+                project.approved = is_approved;
 
-                // reduce the supply of the vcu
-                vcu.supply = vcu
-                    .supply
-                    .checked_add(&amount)
+                // emit event
+                Self::deposit_event(Event::ProjectApproved { project_id });
+
+                Ok(())
+            })
+        }
+
+        /// Mint tokens for an approved project
+        #[transactional]
+        #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
+        pub fn mint(
+            origin: OriginFor<T>,
+            project_id: T::ProjectId,
+            amount_to_mint: T::Balance,
+            list_to_marketplace: bool,
+        ) -> DispatchResult {
+            let sender = ensure_signed(origin)?;
+
+            Projects::<T>::try_mutate(project_id, |project| -> DispatchResult {
+                // ensure the project exists
+                let project = project.as_mut().ok_or(Error::<T>::ProjectNotFound)?;
+
+                // ensure the project is approved
+                ensure!(project.approved, Error::<T>::ProjectNotApproved);
+
+                // ensure the caller is the originator
+                ensure!(
+                    sender == project.originator.clone(),
+                    Error::<T>::NotAuthorised
+                );
+
+                // ensure the amount_to_mint does not exceed limit
+                ensure!(
+                    amount_to_mint + project.minted <= project.total_supply,
+                    Error::<T>::AmountGreaterThanSupply
+                );
+
+                let recipient = match list_to_marketplace {
+                    true => T::MarketplaceEscrow::get(),
+                    false => project.originator.clone(),
+                };
+
+                // Mint in the individual batches too
+                let mut batch_list: Vec<_> = project.batches.clone().into_iter().collect();
+                // sort by issuance year so we mint from oldest batch
+                batch_list.sort_by(|x, y| x.issuance_year.cmp(&y.issuance_year));
+                let mut remaining = amount_to_mint;
+                for batch in batch_list.iter_mut() {
+                    // lets mint from the older batches as much as possible
+                    let available_to_mint = batch.total_supply - batch.minted;
+                    let actual = cmp::min(available_to_mint, remaining);
+
+                    batch.minted = batch
+                        .minted
+                        .checked_add(&actual)
+                        .ok_or(Error::<T>::Overflow)?;
+
+                    // this is safe since actual is <= remaining
+                    remaining = remaining - actual;
+                    if remaining <= Zero::zero() {
+                        break;
+                    }
+                }
+
+                // this should not happen since total_supply = batches supply but
+                // lets be safe
+                ensure!(
+                    remaining == Zero::zero(),
+                    Error::<T>::AmountGreaterThanSupply
+                );
+
+                project.batches = batch_list
+                    .try_into()
+                    .expect("This should not fail since we did not change the size. qed");
+
+                // increase the minted count
+                project.minted = project
+                    .minted
+                    .checked_add(&amount_to_mint)
                     .ok_or(Error::<T>::Overflow)?;
+
+                // another check to ensure accounting is correct
+                ensure!(
+                    project.minted <= project.total_supply,
+                    Error::<T>::AmountGreaterThanSupply
+                );
+
+                // create the asset if not already existing
+                if project.asset_id.is_none() {
+                    let asset_id = NextAssetId::<T>::get();
+                    T::AssetHandler::create(asset_id, Self::account_id(), true, 1_u32.into())?;
+
+                    //increment assetId counter
+                    let next_asset_id: u32 = asset_id.into() + 1_u32;
+                    NextAssetId::<T>::set(next_asset_id.into());
+
+                    // set the new asset_id in storage
+                    project.asset_id = Some(asset_id);
+                }
+
+                //mint the asset to the recipient
+                T::AssetHandler::mint_into(project.asset_id.unwrap(), &recipient, amount_to_mint)?;
+
+                // TODO : set metadata for the asset
 
                 // emit event
                 Self::deposit_event(Event::VCUMinted {
                     project_id,
-                    vcu_id,
                     recipient,
-                    amount,
+                    amount: amount_to_mint,
                 });
 
                 Ok(())
@@ -395,48 +469,80 @@ pub mod pallet {
         pub fn retire(
             origin: OriginFor<T>,
             project_id: T::ProjectId,
-            vcu_id: T::VcuId,
             amount: T::Balance,
         ) -> DispatchResult {
             let sender = ensure_signed(origin)?;
 
-            VCUs::<T>::try_mutate(project_id, vcu_id, |vcu| -> DispatchResult {
-                // ensure the VCU exists
-                let vcu = vcu.as_mut().ok_or(Error::<T>::VCUNotFound)?;
+            Projects::<T>::try_mutate(project_id, |project| -> DispatchResult {
+                // ensure the project exists
+                let project = project.as_mut().ok_or(Error::<T>::ProjectNotFound)?;
+
+                let asset_id = project.asset_id.as_ref().ok_or(Error::<T>::VCUNotMinted)?;
 
                 // attempt to burn the tokens from the caller
-                T::AssetHandler::burn_from(vcu.asset_id, &sender.clone(), amount)?;
+                T::AssetHandler::burn_from(*asset_id, &sender.clone(), amount)?;
 
                 // reduce the supply of the vcu
-                vcu.supply = vcu
-                    .supply
-                    .checked_sub(&amount)
-                    .ok_or(Error::<T>::AmountGreaterThanSupply)?;
-
-                vcu.retired = vcu
+                project.retired = project
                     .retired
                     .checked_add(&amount)
                     .ok_or(Error::<T>::AmountGreaterThanSupply)?;
 
+                // another check to ensure accounting is correct
+                ensure!(
+                    project.retired <= project.total_supply,
+                    Error::<T>::AmountGreaterThanSupply
+                );
+
+                // Retire in the individual batches too
+                let mut batch_list: Vec<_> = project.batches.clone().into_iter().collect();
+                // sort by issuance year so we retire from oldest batch
+                batch_list.sort_by(|x, y| x.issuance_year.cmp(&y.issuance_year));
+                let mut remaining = amount;
+                for batch in batch_list.iter_mut() {
+                    // lets retire from the older batches as much as possible
+                    let available_to_retire = batch.minted - batch.retired;
+                    let actual = cmp::min(available_to_retire, remaining);
+
+                    batch.retired = batch
+                        .retired
+                        .checked_add(&actual)
+                        .ok_or(Error::<T>::Overflow)?;
+
+                    // this is safe since actual is <= remaining
+                    remaining = remaining - actual;
+                    if remaining <= Zero::zero() {
+                        break;
+                    }
+                }
+
+                // this should not happen since total_retired = batches supply but
+                // lets be safe
+                ensure!(
+                    remaining == Zero::zero(),
+                    Error::<T>::AmountGreaterThanSupply
+                );
+
+                project.batches = batch_list
+                    .try_into()
+                    .expect("This should not fail since we did not change the size. qed");
+
                 // increment the retired vcus count
+                // TODO : Maybe add the NFT details
                 RetiredVCUs::<T>::try_mutate(
-                    (project_id, vcu_id, sender.clone()),
+                    (project_id, sender.clone()),
                     |retired_vcu| -> DispatchResult {
                         retired_vcu.checked_add(&amount);
                         Ok(())
                     },
                 )?;
 
-                // TODO : When the supply reaches zero we can delete the VCU storage from memory
-
                 // TODO : Mint an NFT with the burned vcu details
 
                 // emit event
                 Self::deposit_event(Event::VCURetired {
-                    account: sender,
                     project_id,
-                    vcu_id,
-                    vcu_type: vcu.vcu_type.clone(),
+                    account: sender,
                     amount,
                 });
 
@@ -493,6 +599,28 @@ pub mod pallet {
                 }
                 Ok(())
             })
+        }
+
+        /// Remove an account from the list of authorised accounts
+        #[transactional]
+        #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
+        pub fn force_set_next_asset_id(
+            origin: OriginFor<T>,
+            asset_id: T::AssetId,
+        ) -> DispatchResult {
+            // check for SUDO
+            // TODO : Remove tight coupling with sudo, make configurable from config
+            ensure_root(origin)?;
+            // remove the account_id from the list of authorized accounts if already exists
+            NextAssetId::<T>::set(asset_id);
+            Ok(())
+        }
+    }
+
+    impl<T: Config> Pallet<T> {
+        /// The account ID of the vcu pallet
+        pub fn account_id() -> T::AccountId {
+            T::PalletId::get().into_account()
         }
     }
 }
