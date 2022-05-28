@@ -1,13 +1,14 @@
 //! Tests for vcu pallet
 use crate::{
-    mock::*, Batch, BatchGroupOf, Config, Error, NextAssetId, ProjectCreateParams, Projects,
-    RegistryDetails, SDGDetails, SDGTypesListOf, SdgType, ShortStringOf,
+    mock::*, Batch, BatchGroupOf, Config, Error, Event, NextAssetId, ProjectCreateParams, Projects,
+    RegistryDetails, Royalty, SDGDetails, SDGTypesListOf, SdgType, ShortStringOf,
 };
 use frame_support::{assert_noop, assert_ok, traits::tokens::fungibles::Inspect};
 use frame_system::RawOrigin;
+use sp_runtime::Percent;
 use sp_std::convert::TryInto;
 
-// TODO : Add test for events
+pub type VCUEvent = crate::Event<Test>;
 
 /// helper function to generate standard registry details
 fn get_default_registry_details<T: Config>() -> RegistryDetails<ShortStringOf<T>> {
@@ -81,7 +82,14 @@ fn get_multiple_batch_group<T: Config>() -> BatchGroupOf<T> {
 }
 
 /// helper function to generate standard creation details
-fn get_default_creation_params<T: Config>() -> ProjectCreateParams<T> {
+fn get_default_creation_params<T: Config>() -> ProjectCreateParams<T>
+where
+    <T as frame_system::Config>::AccountId: From<u32>,
+{
+    let royalty = Royalty::<T::AccountId> {
+        account_id: 1_u32.into(),
+        percent_of_fees: Percent::from_percent(0),
+    };
     let creation_params = ProjectCreateParams {
         name: "name".as_bytes().to_vec().try_into().unwrap(),
         description: "description".as_bytes().to_vec().try_into().unwrap(),
@@ -107,6 +115,7 @@ fn get_default_creation_params<T: Config>() -> ProjectCreateParams<T> {
         registry_details: get_default_registry_details::<T>(),
         sdg_details: get_default_sdg_details::<T>(),
         batches: get_default_batch_group::<T>(),
+        royalties: vec![royalty].try_into().unwrap(),
         unit_price: 100_u32.into(),
     };
 
@@ -123,6 +132,14 @@ fn add_new_authorized_accounts_should_work() {
             RawOrigin::Root.into(),
             authorised_account_one,
         ));
+
+        assert_eq!(
+            last_event(),
+            VCUEvent::AuthorizedAccountAdded {
+                account_id: authorised_account_one
+            }
+            .into()
+        );
 
         assert_eq!(
             VCU::authorized_accounts().first(),
@@ -142,6 +159,14 @@ fn add_new_authorized_accounts_should_work() {
         assert_noop!(
             VCU::force_add_authorized_account(RawOrigin::Root.into(), authorised_account_three,),
             Error::<Test>::TooManyAuthorizedAccounts
+        );
+
+        assert_eq!(
+            last_event(),
+            VCUEvent::AuthorizedAccountAdded {
+                account_id: authorised_account_two
+            }
+            .into()
         );
     });
 }
@@ -163,6 +188,14 @@ fn force_remove_authorized_accounts_should_work() {
             RawOrigin::Root.into(),
             authorised_account_one,
         ));
+
+        assert_eq!(
+            last_event(),
+            VCUEvent::AuthorizedAccountRemoved {
+                account_id: authorised_account_one
+            }
+            .into()
+        );
 
         assert_eq!(VCU::authorized_accounts().len(), 0);
     });
@@ -198,6 +231,15 @@ fn create_works_for_single_batch() {
         assert_eq!(stored_data.minted, 0_u32.into());
         assert_eq!(stored_data.retired, 0_u32.into());
         assert_eq!(stored_data.approved, false);
+
+        assert_eq!(
+            last_event(),
+            VCUEvent::ProjectCreated {
+                project_id,
+                details: stored_data
+            }
+            .into()
+        );
     });
 }
 
@@ -234,6 +276,15 @@ fn create_works_for_multiple_batch() {
         assert_eq!(stored_data.minted, 0_u32.into());
         assert_eq!(stored_data.retired, 0_u32.into());
         assert_eq!(stored_data.approved, false);
+
+        assert_eq!(
+            last_event(),
+            VCUEvent::ProjectCreated {
+                project_id,
+                details: stored_data
+            }
+            .into()
+        );
     });
 }
 
@@ -290,6 +341,11 @@ fn approve_project_works() {
         // ensure storage changed correctly
         let stored_data = Projects::<Test>::get(project_id).unwrap();
         assert_eq!(stored_data.approved, true);
+
+        assert_eq!(
+            last_event(),
+            VCUEvent::ProjectApproved { project_id }.into()
+        );
     });
 }
 
@@ -373,6 +429,16 @@ fn mint_without_list_to_marketplace_works_for_single_batch() {
             amount_to_mint,
             list_to_marketplace
         ));
+
+        assert_eq!(
+            last_event(),
+            VCUEvent::VCUMinted {
+                project_id,
+                recipient: originator_account,
+                amount: amount_to_mint
+            }
+            .into()
+        );
 
         // ensure minting worked correctly
         let stored_data = Projects::<Test>::get(project_id).unwrap();
@@ -472,6 +538,16 @@ fn mint_without_list_to_marketplace_works_for_multiple_batches() {
             amount_to_mint,
             list_to_marketplace
         ));
+
+        assert_eq!(
+            last_event(),
+            VCUEvent::VCUMinted {
+                project_id,
+                recipient: originator_account,
+                amount: amount_to_mint
+            }
+            .into()
+        );
 
         // ensure minting worked correctly
         let stored_data = Projects::<Test>::get(project_id).unwrap();
@@ -683,6 +759,16 @@ fn retire_for_single_batch() {
             project_id,
             amount_to_retire
         ));
+
+        assert_eq!(
+            last_event(),
+            VCUEvent::VCURetired {
+                project_id,
+                account: originator_account,
+                amount: amount_to_retire
+            }
+            .into()
+        );
 
         // Ensure the retirement happend correctly
         let stored_data = Projects::<Test>::get(project_id).unwrap();

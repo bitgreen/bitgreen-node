@@ -1,6 +1,7 @@
 use crate::pallet;
 use codec::{Decode, Encode, MaxEncodedLen};
 use frame_support::pallet_prelude::*;
+use sp_runtime::Percent;
 
 /// AuthorizedAccounts type of pallet
 pub type AuthorizedAccountsListOf<T> = BoundedVec<
@@ -73,6 +74,23 @@ pub struct SDGDetails<StringType> {
 /// A project can address more than one SDG, this type stores the
 /// list of SDGs the project addresses, upper bound is max number of existing SDGs
 pub type SDGTypesListOf<T> = BoundedVec<SDGDetails<ShortStringOf<T>>, ConstU32<17>>;
+
+/// Projects can have rolyalties attached to the tokens, these royalties
+/// are paid out when the token is purchased
+#[derive(Clone, Encode, Decode, Eq, PartialEq, Debug, TypeInfo, MaxEncodedLen)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct Royalty<AccountId> {
+    /// The account_id of the royalty recipeint
+    pub account_id: AccountId,
+    /// The percent of fees to be paid to the recipient
+    pub percent_of_fees: Percent,
+}
+
+/// List of royalty recipients for a project
+pub type RoyaltyRecipientsOf<T> = BoundedVec<
+    Royalty<<T as frame_system::Config>::AccountId>,
+    <T as pallet::Config>::MaxRoyaltyRecipients,
+>;
 
 /// Credits in a project are represented in terms of batches, these batches are usually seperated in terms of 'vintages'. The vintage
 /// refers to the `age` of the credit. So a batch could hold 500credits with 2020 vintage.
@@ -156,6 +174,8 @@ pub struct ProjectCreateParams<T: pallet::Config> {
     pub batches: BatchGroupOf<T>,
     // Price in USD for a single credit
     pub unit_price: T::Balance,
+    /// The royalties to be paid when tokens are purchased
+    pub royalties: RoyaltyRecipientsOf<T>,
 }
 
 /// Details of the project stored on-chain
@@ -186,6 +206,8 @@ pub struct ProjectDetail<T: pallet::Config> {
     pub sdg_details: SDGTypesListOf<T>,
     /// List of batches in the project
     pub batches: BatchGroupOf<T>,
+    /// The royalties to be paid when tokens are purchased
+    pub royalties: RoyaltyRecipientsOf<T>,
 
     // origination details
     /// Creation time of project

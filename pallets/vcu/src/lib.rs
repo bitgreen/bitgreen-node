@@ -131,6 +131,8 @@ pub mod pallet {
         type Time: Time<Moment = Self::Moment>;
         /// Maximum amount of authorised accounts permitted
         type MaxAuthorizedAccountCount: Get<u32>;
+        /// Maximum amount of royalty recipient accounts permitted
+        type MaxRoyaltyRecipients: Get<u32>;
         /// Maximum length of short string types
         type MaxShortStringLength: Get<u32>;
         /// Maximum length of long string types
@@ -292,6 +294,7 @@ pub mod pallet {
                     documents: params.documents,
                     registry_details: params.registry_details,
                     sdg_details: params.sdg_details,
+                    royalties: params.royalties,
                     batches: params.batches,
                     created: T::Time::now(),
                     updated: None,

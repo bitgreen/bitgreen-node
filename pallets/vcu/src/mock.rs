@@ -134,14 +134,22 @@ impl pallet_vcu::Config for Test {
     type MaxLongStringLength = ConstU32<100>;
     type MaxIpfsReferenceLength = ConstU32<20>;
     type MaxDocumentCount = ConstU32<2>;
+    type MaxRoyaltyRecipients = ConstU32<5>;
     type MaxGroupSize = ConstU32<5>;
     type WeightInfo = ();
 }
 
 // Build genesis storage according to the mock runtime.
 pub fn new_test_ext() -> sp_io::TestExternalities {
-    system::GenesisConfig::default()
+    let t = system::GenesisConfig::default()
         .build_storage::<Test>()
-        .unwrap()
-        .into()
+        .unwrap();
+    let mut ext: sp_io::TestExternalities = t.into();
+    // set to block 1 to test events
+    ext.execute_with(|| System::set_block_number(1));
+    ext
+}
+
+pub fn last_event() -> Event {
+    System::events().pop().expect("Event expected").event
 }

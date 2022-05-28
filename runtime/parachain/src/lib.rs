@@ -563,6 +563,7 @@ impl pallet_vcu::Config for Runtime {
     type MaxIpfsReferenceLength = ConstU32<300>;
     type MaxDocumentCount = ConstU32<10>;
     type MaxGroupSize = ConstU32<10>;
+    type MaxRoyaltyRecipients = ConstU32<10>;
     type WeightInfo = ();
 }
 
