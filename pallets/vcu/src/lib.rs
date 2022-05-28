@@ -183,6 +183,27 @@ pub mod pallet {
         ValueQuery,
     >;
 
+    #[pallet::genesis_config]
+    pub struct GenesisConfig<T: Config> {
+        pub next_asset_id: T::AssetId,
+    }
+
+    #[cfg(feature = "std")]
+    impl<T: Config> Default for GenesisConfig<T> {
+        fn default() -> Self {
+            Self {
+                next_asset_id: 1000_u32.into(),
+            }
+        }
+    }
+
+    #[pallet::genesis_build]
+    impl<T: Config> GenesisBuild<T> for GenesisConfig<T> {
+        fn build(&self) {
+            <NextAssetId<T>>::put(&self.next_asset_id);
+        }
+    }
+
     // Pallets use events to inform users when important changes are made.
     // https://docs.substrate.io/v3/runtime/events-and-errors
     #[pallet::event]
