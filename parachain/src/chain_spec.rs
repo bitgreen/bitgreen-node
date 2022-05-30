@@ -294,6 +294,8 @@ fn testnet_genesis(
         bridge: bitg_parachain_runtime::BridgeConfig {
             lockdown_status: false,
         },
-        vcu: bitg_node_runtime::VCUConfig { next_asset_id: 1000_u32.into() },
+        vcu: bitg_parachain_runtime::VCUConfig {
+            next_asset_id: 1000_u32.into(),
+        },
     }
 }

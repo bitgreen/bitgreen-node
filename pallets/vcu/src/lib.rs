@@ -144,6 +144,8 @@ pub mod pallet {
         type MaxDocumentCount: Get<u32>;
         /// Maximum amount of vcus in a bundle
         type MaxGroupSize: Get<u32>;
+        /// Maximum amount of location cordinates to store
+        type MaxCoordinatesLength: Get<u32>;
         /// Weight information for extrinsics in this pallet.
         type WeightInfo: WeightInfo;
     }

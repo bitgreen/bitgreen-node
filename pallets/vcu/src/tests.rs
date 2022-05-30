@@ -93,16 +93,7 @@ where
     let creation_params = ProjectCreateParams {
         name: "name".as_bytes().to_vec().try_into().unwrap(),
         description: "description".as_bytes().to_vec().try_into().unwrap(),
-        location: [
-            (1, 1),
-            (2, 2),
-            (3, 3),
-            (4, 4),
-            (0, 0),
-            (0, 0),
-            (0, 0),
-            (0, 0),
-        ],
+        location: vec![(1, 1), (2, 2), (3, 3), (4, 4)].try_into().unwrap(),
         images: vec!["image_link".as_bytes().to_vec().try_into().unwrap()]
             .try_into()
             .unwrap(),

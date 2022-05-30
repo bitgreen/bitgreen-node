@@ -136,6 +136,7 @@ impl pallet_vcu::Config for Test {
     type MaxDocumentCount = ConstU32<2>;
     type MaxRoyaltyRecipients = ConstU32<5>;
     type MaxGroupSize = ConstU32<5>;
+    type MaxCoordinatesLength = ConstU32<8>;
     type WeightInfo = ();
 }
 

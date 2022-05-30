@@ -22,6 +22,10 @@ pub type IpfsLinkOf<T> = BoundedVec<u8, <T as pallet::Config>::MaxIpfsReferenceL
 /// Type for lists of ipfs links
 pub type IpfsLinkListsOf<T> = BoundedVec<IpfsLinkOf<T>, <T as pallet::Config>::MaxDocumentCount>;
 
+/// Type for storing location co-ordinates
+pub type LocationCoordinatesOf<T> =
+    BoundedVec<(u32, u32), <T as pallet::Config>::MaxCoordinatesLength>;
+
 /// Data to represent the data of the project as recoreded by the respective Registry
 /// This might differ from the project owner's name/description and hence important to store
 #[derive(Clone, Encode, Decode, Eq, PartialEq, Debug, TypeInfo, MaxEncodedLen)]
@@ -159,7 +163,7 @@ pub struct ProjectCreateParams<T: pallet::Config> {
     pub description: LongStringOf<T>,
     // TODO : Improve this data type
     /// Location co-ordinates of thie project
-    pub location: [(u32, u32); 8],
+    pub location: LocationCoordinatesOf<T>,
     /// List of ipfs-hashes of images related to the project
     pub images: IpfsLinkListsOf<T>,
     /// List of ipfs-hashes of videos related to the project
@@ -193,7 +197,7 @@ pub struct ProjectDetail<T: pallet::Config> {
     pub description: LongStringOf<T>,
     // TODO : Improve this data type
     /// Location co-ordinates of thie project
-    pub location: [(u32, u32); 8],
+    pub location: LocationCoordinatesOf<T>,
     /// List of ipfs-hashes of images related to the project
     pub images: IpfsLinkListsOf<T>,
     /// List of ipfs-hashes of videos related to the project
