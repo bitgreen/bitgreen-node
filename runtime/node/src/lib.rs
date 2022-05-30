@@ -272,13 +272,14 @@ impl pallet_balances::Config for Runtime {
 
 // pallet Assets - ERC20
 // Asset pallet
+// TODO : Add cost for deposit/metadata set
 parameter_types! {
-    pub const ASSETDEPOSIT: Balance = 1 * DOLLARS;
-    pub const ASSETACCOUNTDEPOSIT: Balance = 1 * DOLLARS;
+    pub const ASSETDEPOSIT: Balance = 0;
+    pub const ASSETACCOUNTDEPOSIT: Balance = 0;
     pub const STRINGLIMIT: u32 = 8192;	// max metadata size in bytes
-    pub const METADATADEPOSITBASE: Balance= 1 * DOLLARS;
-    pub const METADATADEPOSITPERBYTE: Balance = 1 * CENTS;
-    pub const APPROVALDEPOSIT: Balance = 1 * DOLLARS;
+    pub const METADATADEPOSITBASE: Balance= 0;
+    pub const METADATADEPOSITPERBYTE: Balance = 0;
+    pub const APPROVALDEPOSIT: Balance = 0;
 }
 
 pub struct TestFreezer;
@@ -462,7 +463,7 @@ construct_runtime!(
         Assets: pallet_assets::{Pallet, Call, Storage, Event<T>} = 71,
         ImpactActions: pallet_impact_actions::{Pallet, Call, Storage, Event<T>} = 72,
         Bonds: pallet_bonds::{Pallet, Call, Storage, Event<T>} = 73,
-        VCU: pallet_vcu::{Pallet, Call, Storage, Event<T>} = 74,
+        VCU: pallet_vcu::{Pallet, Call, Storage, Config<T>, Event<T>} = 74,
         Bridge: pallet_bridge::{Pallet, Call, Storage, Event<T>, Config} = 75,
         Vesting: pallet_vesting::{Pallet, Call, Storage, Event<T>} = 76,
     }
