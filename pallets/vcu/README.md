@@ -8,32 +8,49 @@ Under the VCS Program, projects are issued unique carbon credits known as Verifi
 
 ### OnChain Representation
 
-The VCU pallet creates and retires VCU units that represent the VCUs on the Verra registry. These onchain vcu units can represent a single type of VCU or can build to represent a combination of different types of VCUs.  The VCUs are represented onchain as follows:
+ Credits in a project are represented in terms of batches, these batches are usually seperated in terms of 'vintages'. The vintage
+ refers to the `age` of the credit. So a batch could hold 500credits with 2020 vintage.
+ We use `issuance_year` to represent the vintage of the credit, this is important in minting and retirement options since in a project
+ with multiple vintages we always mint/retire tokens from the oldest vintage.
 
-```rust
-/// The VCUDetails as stored in pallet storage
-#[derive(Clone, Encode, Decode, Eq, PartialEq, Debug, TypeInfo, MaxEncodedLen)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub struct VCUDetail<AccountId, Balance, AssetId, VcuId, BundleList> {
-    /// The account that owns/controls the VCU class
-    pub originator: AccountId,
-    /// Count of current active units of VCU
-    pub supply: Balance,
-    /// Count of retired units of VCU
-    pub retired: Balance,
-    /// The AssetId that represents the Fungible class of VCU
-    pub asset_id: AssetId,
-    /// The type of VCU [Bundle, Single]
-    pub vcu_type: VCUType<VcuId, BundleList>,
+ When a project is created, we take the total supply of the credits available (entire supply in the registry), then as the originator
+ chooses, tokens can be minted for each credit at once or in a staggered manner. In every mint, the `minted` count is incremented and
+ when credit is retired, the `retired` count is incremented.
+
+```
+ Conditions :
+    - `minted` is always less than or equal to `total_supply`
+    - `retired` is always less than or equal to `minted`
+    
+```
+
+  Example : For a project that has a supply of 100 tokens, minted and retired 100 tokens, the struct will look as : `Batch {..., total_supply : 100, minted : 100, retired : 100 }`
+
+``` rust
+/// Onchain Representation of a single batch
+pub struct Batch<T: pallet::Config> {
+     /// Descriptive name for this batch of credits
+    pub name: ShortStringOf<T>,
+    /// UUID for this batch, usually provided by the registry
+    pub uuid: ShortStringOf<T>,
+    /// The year the associated credits were issued
+    pub issuance_year: u32,
+    /// start date for multi year batch
+    pub start_date: u32,
+    /// end date for multi year batch
+    pub end_date: u32,
+    /// The total_supply of the credits - this represents the total supply of the
+    /// credits in the registry.
+    pub total_supply: T::Balance,
+    /// The amount of tokens minted for this VCU
+    pub minted: T::Balance,
+    /// The amount of tokens minted for this VCU
+    pub retired: T::Balance,
 }
 ```
 
-### Example Workflow
-
-The VCU units are created by an account that controls VCU units on the Verra registry, represented in the pallet as the originator. The creation process will store the VCU details on the pallet storage and then mint the given amount of Vcu units using the Asset Handler like pallet-assets. These newly minted vcu units will be transferred to the recipient, this can be any address (for simplicity lets assume its the originator address). These units can then be sold/transferred to a buyer of carbon credits, these transactions can take place multiple times but the final goal of purchasing a Vcu unit is to retire them. The current holder of the vcu units can call the `retire_vcu` extrinsic to burn these tokens (erase from storage), this process will store a reference of the tokens burned.
-
-![vcu workflow](../../doc/images/vcuflow.svg "workflow")
-
+A project can represent VCUs from multiple batches. For example a project can have 100 tokens of 2019 vintage and 200 tokens of 2020 vintage. In this case the project can package these two vintages to create a vcu token that has a supply of 300 tokens. These vintages can be represented inside a batchgroup, in this case, it is important to remember that the minting and retirement always gives priority to the oldest vintage.
+Example : in the above case of 300 tokens, when the originator mints 100 tokens, we first mint the oldest (2019) credits and only once the supply is exhausted we move on the next vintage, same for retirement.
 ### Asset Handler
 
 The VCU pallet depends a fungible asset handler that implements the fungibles trait like pallet-assets. The VCU pallet creates an AssetClass for each `vcu_id` and mints the amount of tokens to the respective account. The `asset_id` in the VCUDetail represents the asset created by the Asset Handler.
@@ -43,53 +60,11 @@ We also rely on the Asset Handler to help the user manage these tokens, currentl
 
 ### Extrinsics
 
-- `force_add_authorized_account(origin: OriginFor<T>,account_id: T::AccountId)`
-
-	This extrinsic allows the Root to add a new authorised account to the list of permitted origins. Only authorised accounts are permitted to create new VCU units, this is to ensure the validity of VCU units.
-
-- `force_remove_authorized_account(origin: OriginFor<T>,account_id: T::AccountId)`
-
-	This extrinsic allows the Root to remove an authorised account from the list of permitted origins.
-- `create(origin: OriginFor<T>,project_id: ProjectId, params: VCUCreationParamsOf<T>)`
-
-	The create extrinsic performs three main functions,
-	1. Create a project/vcu entry in the pallet storage
-	2. Create an Asset Class with the originator as the admin
-	3. Mint amount of Asset (vcus) to the recipient account
-
-	The input params is expected in the below format :
-
-```rust
-/// The input params for creating a new VCU
-#[derive(Clone, Encode, Decode, Eq, PartialEq, Debug, TypeInfo, MaxEncodedLen)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub struct VCUCreationParams<AccountId, Balance, BundleList> {
-    /// The type of VCU used [Single, Bundle]
-    pub vcu_type: VCUType<BundleList>,
-    /// The account that owns/controls the VCU class
-    pub originator: AccountId,
-    /// The amount of VCU units to create
-    pub amount: Balance,
-    /// The account that receives the amount of VCU units
-    pub recipient: AccountId,
-}
-
-/// The types of VcuId, VCUs can be created from one single type or can be a mix
-/// of multiple different types called a Bundle
-#[derive(Clone, Encode, Decode, Eq, PartialEq, Debug, TypeInfo, MaxEncodedLen)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub enum VCUType<BundleList> {
-    /// Represents a list of different types of VCU units
-    Bundle(BundleList),
-    /// Represents a single type
-    Single(u32),
-}
-```
-
-- `retire(origin: OriginFor<T>, project_id: ProjectId,vcu_id: VcuId, amount: T::Balance)`
-
-	The retire vcu will burn the VCU units and update the `retired` field of the VCUDetail storage. It also stores the details in the RetiredVCUs storage.
-
-- `mint_into(origin: OriginFor<T>, project_id: ProjectId, vcu_id: VcuId, amount: T::Balance)`
-
-  The mint into function is used to mint more VCUs for an already existing asset.
+* `create`: Creates a new project onchain with details of batches of credits
+* `mint`: Mint a specified amount of token credits
+* `retire`: Burn a specified amount of token credits
+### Permissioned Functions
+* `force_add_authorized_account`: Adds a new_authorized_account to the list
+* `force_remove_authorized_account`: Removes an authorized_account from the list
+* `force_set_next_asset_id`: Set the NextAssetId in storage
+* `approve_project`: Set the project status to approved so minting can be executed

@@ -40,7 +40,10 @@ use frame_system::{
 };
 use orml_traits::parameter_type_with_key;
 pub use sp_consensus_aura::sr25519::AuthorityId as AuraId;
-pub use sp_runtime::{traits::Zero, MultiAddress, Perbill, Permill};
+pub use sp_runtime::{
+    traits::{AccountIdConversion, Zero},
+    MultiAddress, Perbill, Permill,
+};
 use sp_std::convert::TryInto;
 use weights::{BlockExecutionWeight, ExtrinsicBaseWeight, RocksDbWeight};
 use xcm_config::{XcmConfig, XcmOriginToTransactDispatchOrigin};
@@ -538,15 +541,29 @@ impl pallet_assets::Config for Runtime {
     type Extra = ();
 }
 
+parameter_types! {
+  pub MarketplaceEscrowAccount : AccountId =  PalletId(*b"bitg/mkp").into_account();
+  pub const VCUPalletId: PalletId = PalletId(*b"bitg/vcu");
+}
+
+// TODO : Ensure sensible values
 impl pallet_vcu::Config for Runtime {
     type Event = Event;
     type Balance = u128;
-    type AssetId = u32;
     type ProjectId = u32;
-    type VcuId = u32;
+    type AssetId = u32;
+    type Moment = u64;
+    type PalletId = VCUPalletId;
     type AssetHandler = Assets;
-    type MaxAuthorizedAccountCount = ConstU32<2>;
-    type MaxBundleSize = ConstU32<10>;
+    type MarketplaceEscrow = MarketplaceEscrowAccount;
+    type Time = Timestamp;
+    type MaxAuthorizedAccountCount = ConstU32<10>;
+    type MaxShortStringLength = ConstU32<300>;
+    type MaxLongStringLength = ConstU32<3000>;
+    type MaxIpfsReferenceLength = ConstU32<300>;
+    type MaxDocumentCount = ConstU32<10>;
+    type MaxGroupSize = ConstU32<10>;
+    type MaxRoyaltyRecipients = ConstU32<10>;
     type WeightInfo = ();
 }
 
