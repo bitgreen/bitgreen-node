@@ -68,7 +68,7 @@ pub struct SDGDetails<StringType> {
     /// Short description of how the project solves the SDG
     pub description: StringType,
     /// A reference to the project docs related to SDG
-    pub refrences: StringType,
+    pub references: StringType,
 }
 
 /// A project can address more than one SDG, this type stores the
@@ -175,7 +175,7 @@ pub struct ProjectCreateParams<T: pallet::Config> {
     // Price in USD for a single credit
     pub unit_price: T::Balance,
     /// The royalties to be paid when tokens are purchased
-    pub royalties: RoyaltyRecipientsOf<T>,
+    pub royalties: Option<RoyaltyRecipientsOf<T>>,
 }
 
 /// Details of the project stored on-chain
@@ -207,7 +207,7 @@ pub struct ProjectDetail<T: pallet::Config> {
     /// List of batches in the project
     pub batches: BatchGroupOf<T>,
     /// The royalties to be paid when tokens are purchased
-    pub royalties: RoyaltyRecipientsOf<T>,
+    pub royalties: Option<RoyaltyRecipientsOf<T>>,
 
     // origination details
     /// Creation time of project

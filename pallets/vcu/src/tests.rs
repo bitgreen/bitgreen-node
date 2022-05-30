@@ -25,7 +25,7 @@ fn get_default_sdg_details<T: Config>() -> SDGTypesListOf<T> {
     let sdg_details: SDGTypesListOf<T> = vec![SDGDetails {
         sdg_type: SdgType::LifeOnLand,
         description: "sdg_desp".as_bytes().to_vec().try_into().unwrap(),
-        refrences: "sdg_ref".as_bytes().to_vec().try_into().unwrap(),
+        references: "sdg_ref".as_bytes().to_vec().try_into().unwrap(),
     }]
     .try_into()
     .unwrap();
@@ -115,7 +115,7 @@ where
         registry_details: get_default_registry_details::<T>(),
         sdg_details: get_default_sdg_details::<T>(),
         batches: get_default_batch_group::<T>(),
-        royalties: vec![royalty].try_into().unwrap(),
+        royalties: Some(vec![royalty].try_into().unwrap()),
         unit_price: 100_u32.into(),
     };
 
@@ -358,7 +358,7 @@ fn mint_without_list_to_marketplace_works_for_single_batch() {
         // token minting params
         let amount_to_mint = 50;
         let list_to_marketplace = false;
-        let expected_asset_id = 0;
+        let expected_asset_id = 1000;
 
         // minting a non existent project should fail
         assert_noop!(
@@ -458,7 +458,7 @@ fn mint_without_list_to_marketplace_works_for_single_batch() {
         assert_eq!(batch_detail.retired, 0);
 
         // the next asset-id should be set correctly
-        assert_eq!(NextAssetId::<Test>::get(), 1);
+        assert_eq!(NextAssetId::<Test>::get(), 1001);
 
         // the originator should have the minted tokens
         assert_eq!(Assets::total_issuance(expected_asset_id), amount_to_mint);
@@ -510,7 +510,7 @@ fn mint_without_list_to_marketplace_works_for_multiple_batches() {
         // the amount will consume full of first batch and half of second batch
         let amount_to_mint = 150;
         let list_to_marketplace = false;
-        let expected_asset_id = 0;
+        let expected_asset_id = 1000;
 
         // create the project to approve
         let mut creation_params = get_default_creation_params::<Test>();
@@ -579,7 +579,7 @@ fn mint_without_list_to_marketplace_works_for_multiple_batches() {
         assert_eq!(oldest_batch.retired, 0);
 
         // the next asset-id should be set correctly
-        assert_eq!(NextAssetId::<Test>::get(), 1);
+        assert_eq!(NextAssetId::<Test>::get(), 1001);
 
         // the originator should have the minted tokens
         assert_eq!(Assets::total_issuance(expected_asset_id), amount_to_mint);
@@ -682,7 +682,7 @@ fn retire_for_single_batch() {
         let amount_to_mint = 100;
         let amount_to_retire = 50;
         let list_to_marketplace = false;
-        let expected_asset_id = 0;
+        let expected_asset_id = 1000;
 
         // retire a non existent project should fail
         assert_noop!(
