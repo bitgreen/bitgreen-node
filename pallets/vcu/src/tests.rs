@@ -3,7 +3,10 @@ use crate::{
     mock::*, Batch, BatchGroupOf, Config, Error, Event, NextAssetId, ProjectCreateParams, Projects,
     RegistryDetails, Royalty, SDGDetails, SDGTypesListOf, SdgType, ShortStringOf,
 };
-use frame_support::{assert_noop, assert_ok, traits::tokens::fungibles::Inspect};
+use frame_support::{
+    assert_noop, assert_ok,
+    traits::tokens::fungibles::{metadata::Inspect as MetadataInspect, Inspect},
+};
 use frame_system::RawOrigin;
 use sp_runtime::Percent;
 use sp_std::convert::TryInto;
@@ -458,6 +461,14 @@ fn mint_without_list_to_marketplace_works_for_single_batch() {
             Assets::balance(expected_asset_id, originator_account),
             amount_to_mint
         );
+
+        // the minted token metadata should be set correctly
+        assert_eq!(Assets::name(expected_asset_id), "name".as_bytes().to_vec());
+        assert_eq!(
+            Assets::symbol(expected_asset_id),
+            "1000".as_bytes().to_vec()
+        );
+        assert_eq!(Assets::decimals(expected_asset_id), 0_u8);
 
         // the originator can freely transfer the tokens
         assert_ok!(Assets::transfer(

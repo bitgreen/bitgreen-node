@@ -71,6 +71,7 @@ pub mod pallet {
         AccountIdConversion, AtLeast32Bit, AtLeast32BitUnsigned, CheckedAdd, Scale, Zero,
     };
     use sp_std::{cmp, convert::TryInto, vec, vec::Vec};
+    use codec::alloc::string::ToString;
 
     /// The parameters the VCU pallet depends on
     #[pallet::config]
@@ -107,7 +108,8 @@ pub mod pallet {
             + MaxEncodedLen
             + TypeInfo
             + From<u32>
-            + Into<u32>;
+            + Into<u32>
+            + sp_std::fmt::Display;
 
         /// Type used for expressing timestamp.
         type Moment: Parameter
@@ -465,7 +467,7 @@ pub mod pallet {
                         asset_id,
                         &Self::account_id(),
                         project.name.clone().into_inner(), // asset name
-                        project.name.clone().into_inner(), // asset symbol
+                        asset_id.to_string().as_bytes().to_vec(), // asset symbol
                         0,
                     )?;
 
