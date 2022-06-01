@@ -64,7 +64,6 @@ pub mod pallet {
         traits::{
             tokens::fungibles::{metadata::Mutate as MetadataMutate, Create, Mutate},
             tokens::nonfungibles::{Create as NFTCreate, Mutate as NFTMutate},
-            Time,
         },
         transactional, PalletId,
     };
@@ -219,8 +218,6 @@ pub mod pallet {
         }
     }
 
-    // Pallets use events to inform users when important changes are made.
-    // https://docs.substrate.io/v3/runtime/events-and-errors
     #[pallet::event]
     #[pallet::generate_deposit(pub(super) fn deposit_event)]
     pub enum Event<T: Config> {
@@ -256,6 +253,8 @@ pub mod pallet {
             account: T::AccountId,
             /// The amount of VCU units retired
             amount: T::Balance,
+            /// Details of the retired token
+            retire_data: BatchRetireDataList<T>,
         },
     }
 
@@ -294,6 +293,7 @@ pub mod pallet {
     #[pallet::call]
     impl<T: Config> Pallet<T> {
         /// Register a new project onchain
+        /// This new project can mint tokens after approval from an authorised account
         #[transactional]
         #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
         pub fn create(
@@ -389,6 +389,9 @@ pub mod pallet {
         /// TODO : Need an ext to resubmit
 
         /// Mint tokens for an approved project
+        /// The tokens are always minted in the ascending order of credits, for example, if the
+        /// `amount_to_mint` is 150 and the project has 100 tokens of 2019 and 2020 year. Then we mint
+        /// 100 from 2019 and 50 from 2020.
         #[transactional]
         #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
         pub fn mint(
@@ -507,6 +510,9 @@ pub mod pallet {
         }
 
         /// Retire existing vcus from owner
+        /// The tokens are always retired in the ascending order of credits, for example, if the
+        /// `amount` is 150 and the project has 100 tokens of 2019 and 2020 year. Then we retire
+        /// 100 from 2019 and 50 from 2020.
         #[transactional]
         #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
         pub fn retire(
@@ -624,8 +630,9 @@ pub mod pallet {
                 // form the retire vcu data
                 let retired_vcu_data = RetiredVcuData::<T> {
                     account: sender.clone(),
-                    retire_data: batch_retire_data_list,
+                    retire_data: batch_retire_data_list.clone(),
                     timestamp: now,
+                    count: amount,
                 };
 
                 //Store the details of retired batches in storage
@@ -636,6 +643,7 @@ pub mod pallet {
                     project_id,
                     account: sender,
                     amount,
+                    retire_data: batch_retire_data_list,
                 });
 
                 Ok(())

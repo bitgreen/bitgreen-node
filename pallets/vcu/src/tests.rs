@@ -1,13 +1,12 @@
 //! Tests for vcu pallet
 use crate::{
-    mock::*, Batch, BatchGroupOf, Config, Error, Event, NextAssetId, NextItemId,
-    ProjectCreateParams, Projects, RegistryDetails, RetiredVCUs, Royalty, SDGDetails,
-    SDGTypesListOf, SdgType, ShortStringOf,
+    mock::*, Batch, BatchGroupOf, Config, Error, NextAssetId, NextItemId, ProjectCreateParams,
+    Projects, RegistryDetails, RetiredVCUs, Royalty, SDGDetails, SDGTypesListOf, SdgType,
+    ShortStringOf,
 };
 use frame_support::{
     assert_noop, assert_ok,
     traits::tokens::fungibles::{metadata::Inspect as MetadataInspect, Inspect},
-    traits::tokens::nonfungibles::{Create as NFTCreate, InspectEnumerable, Mutate as NFTMutate},
     PalletId,
 };
 use frame_system::RawOrigin;
@@ -766,16 +765,6 @@ fn retire_for_single_batch() {
             amount_to_retire
         ));
 
-        assert_eq!(
-            last_event(),
-            VCUEvent::VCURetired {
-                project_id,
-                account: originator_account,
-                amount: amount_to_retire
-            }
-            .into()
-        );
-
         // Ensure the retirement happend correctly
         let stored_data = Projects::<Test>::get(project_id).unwrap();
         assert_eq!(stored_data.originator, originator_account);
@@ -836,6 +825,17 @@ fn retire_for_single_batch() {
         assert_eq!(retired_batch.issuance_year, 2020);
         assert_eq!(retired_batch.count, amount_to_retire);
         assert_eq!(stored_retired_data.timestamp, 1);
+
+        assert_eq!(
+            last_event(),
+            VCUEvent::VCURetired {
+                project_id,
+                account: originator_account,
+                amount: amount_to_retire,
+                retire_data: stored_retired_data.retire_data,
+            }
+            .into()
+        );
 
         // retire the remaining tokens
         assert_ok!(VCU::retire(
@@ -985,16 +985,6 @@ fn retire_for_multiple_batch() {
             amount_to_retire
         ));
 
-        assert_eq!(
-            last_event(),
-            VCUEvent::VCURetired {
-                project_id,
-                account: originator_account,
-                amount: amount_to_retire
-            }
-            .into()
-        );
-
         // Ensure the retirement happend correctly
         let mut stored_data = Projects::<Test>::get(project_id).unwrap();
         assert_eq!(stored_data.originator, originator_account);
@@ -1053,10 +1043,23 @@ fn retire_for_multiple_batch() {
         let mut stored_retired_data = RetiredVCUs::<Test>::get((expected_asset_id, 0)).unwrap();
         assert_eq!(stored_retired_data.account, originator_account);
         assert_eq!(stored_retired_data.retire_data.len(), 1);
+
+        assert_eq!(
+            last_event(),
+            VCUEvent::VCURetired {
+                project_id,
+                account: originator_account,
+                amount: amount_to_retire,
+                retire_data: stored_retired_data.retire_data.clone()
+            }
+            .into()
+        );
+
         let retired_batch = stored_retired_data.retire_data.pop().unwrap();
         assert_eq!(retired_batch.issuance_year, 2020);
         assert_eq!(retired_batch.count, amount_to_retire);
         assert_eq!(stored_retired_data.timestamp, 1);
+        assert_eq!(stored_retired_data.count, amount_to_retire);
 
         // retire the remaining tokens
         assert_ok!(VCU::retire(

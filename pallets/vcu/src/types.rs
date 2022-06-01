@@ -245,9 +245,13 @@ pub struct ProjectDetail<T: pallet::Config> {
 #[derive(frame_support::DebugNoBound)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct BatchRetireData<T: pallet::Config> {
+    /// Name of the batch
     pub name: ShortStringOf<T>,
+    /// uuid of the batch
     pub uuid: ShortStringOf<T>,
+    /// issuance_year of the batch
     pub issuance_year: u32,
+    /// The count of tokens retired
     pub count: T::Balance,
 }
 
@@ -255,14 +259,20 @@ pub struct BatchRetireData<T: pallet::Config> {
 pub type BatchRetireDataList<T> =
     BoundedVec<BatchRetireData<T>, <T as pallet::Config>::MaxGroupSize>;
 
-/// Details stored for a retirement event
+/// Details stored for a retirement event, this is linked to the NFT generated during retirement
+/// Every NFT represents a unique retirement event
 #[derive(Clone, Encode, Decode, Eq, PartialEq, TypeInfo, Default, MaxEncodedLen)]
 #[scale_info(skip_type_params(T))]
 #[codec(mel_bound(T: pallet::Config))]
 #[derive(frame_support::DebugNoBound)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct RetiredVcuData<T: pallet::Config> {
+    /// The AccountId that retired the credits
     pub account: T::AccountId,
+    /// The details of the batches the tokens were retired from
     pub retire_data: BatchRetireDataList<T>,
+    /// The 'BlockNumber' of retirement
     pub timestamp: T::BlockNumber,
+    /// The total count of credits retired
+    pub count: T::Balance,
 }
