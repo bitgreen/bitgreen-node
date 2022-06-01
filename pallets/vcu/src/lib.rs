@@ -63,6 +63,7 @@ pub mod pallet {
         pallet_prelude::*,
         traits::{
             tokens::fungibles::{metadata::Mutate as MetadataMutate, Create, Mutate},
+            tokens::nonfungibles::{Create as NFTCreate, Mutate as NFTMutate},
             Time,
         },
         transactional, PalletId,
@@ -111,14 +112,17 @@ pub mod pallet {
             + Into<u32>
             + sp_std::fmt::Display;
 
-        /// Type used for expressing timestamp.
-        type Moment: Parameter
+        /// Identifier for the individual instances of NFT
+        type ItemId: Member
+            + Parameter
             + Default
-            + AtLeast32Bit
-            + Scale<Self::BlockNumber, Output = Self::Moment>
             + Copy
+            + HasCompact
+            + MaybeSerializeDeserialize
             + MaxEncodedLen
-            + scale_info::StaticTypeInfo;
+            + TypeInfo
+            + From<u32>
+            + Into<u32>;
 
         /// The vcu pallet id
         #[pallet::constant]
@@ -128,10 +132,13 @@ pub mod pallet {
         type AssetHandler: Create<Self::AccountId, AssetId = Self::AssetId, Balance = Self::Balance>
             + Mutate<Self::AccountId>
             + MetadataMutate<Self::AccountId>;
+
+        // NFT handler config
+        type NFTHandler: NFTCreate<Self::AccountId, ClassId = Self::AssetId, InstanceId = Self::ItemId>
+            + NFTMutate<Self::AccountId>;
+
         /// Marketplace Escrow provider
         type MarketplaceEscrow: Get<Self::AccountId>;
-        /// Timestamp provider for the pallet
-        type Time: Time<Moment = Self::Moment>;
         /// Maximum amount of authorised accounts permitted
         type MaxAuthorizedAccountCount: Get<u32>;
         /// Maximum amount of royalty recipient accounts permitted
@@ -158,9 +165,13 @@ pub mod pallet {
 
     #[pallet::storage]
     #[pallet::getter(fn next_asset_id)]
-    // NextAssetId for the generated vcu_tokens, start from 1000
-    // TODO : Ensure starts from 1000
+    // NextAssetId for the generated vcu_tokens, start from 1000, set from genesis
     pub type NextAssetId<T: Config> = StorageValue<_, T::AssetId, ValueQuery>;
+
+    #[pallet::storage]
+    #[pallet::getter(fn next_item_id)]
+    // NextItemId for NFT tokens to be created by retiring `AssetId` vcu tokens
+    pub type NextItemId<T: Config> = StorageMap<_, Blake2_128Concat, T::AssetId, T::ItemId>;
 
     #[pallet::storage]
     #[pallet::getter(fn authorized_accounts)]
@@ -181,11 +192,10 @@ pub mod pallet {
     pub(super) type RetiredVCUs<T: Config> = StorageNMap<
         _,
         (
-            NMapKey<Blake2_128Concat, T::ProjectId>,
-            NMapKey<Blake2_128Concat, T::AccountId>,
+            NMapKey<Blake2_128Concat, T::AssetId>, // classid of the NFT
+            NMapKey<Blake2_128Concat, T::ItemId>,  // item id of the NFT
         ),
-        T::Balance,
-        ValueQuery,
+        RetiredVcuData<T>,
     >;
 
     #[pallet::genesis_config]
@@ -292,6 +302,7 @@ pub mod pallet {
             params: ProjectCreateParams<T>,
         ) -> DispatchResult {
             let sender = ensure_signed(origin)?;
+            let now = frame_system::Pallet::<T>::block_number();
 
             // the unit price should not be zero
             ensure!(
@@ -324,7 +335,7 @@ pub mod pallet {
                     sdg_details: params.sdg_details,
                     royalties: params.royalties,
                     batches: params.batches,
-                    created: T::Time::now(),
+                    created: now,
                     updated: None,
                     approved: false,
                     total_supply: batch_total_supply,
@@ -504,6 +515,7 @@ pub mod pallet {
             amount: T::Balance,
         ) -> DispatchResult {
             let sender = ensure_signed(origin)?;
+            let now = frame_system::Pallet::<T>::block_number();
 
             Projects::<T>::try_mutate(project_id, |project| -> DispatchResult {
                 // ensure the project exists
@@ -530,6 +542,8 @@ pub mod pallet {
                 let mut batch_list: Vec<_> = project.batches.clone().into_iter().collect();
                 // sort by issuance year so we retire from oldest batch
                 batch_list.sort_by(|x, y| x.issuance_year.cmp(&y.issuance_year));
+                // list to store retirement data
+                let mut batch_retire_data_list: BatchRetireDataList<T> = Default::default();
                 let mut remaining = amount;
                 for batch in batch_list.iter_mut() {
                     // lets retire from the older batches as much as possible
@@ -541,6 +555,19 @@ pub mod pallet {
                         .retired
                         .checked_add(&actual)
                         .ok_or(Error::<T>::Overflow)?;
+
+                    // create data of retired batch
+                    let batch_retire_data: BatchRetireData<T> = BatchRetireData {
+                        name: batch.name.clone(),
+                        uuid: batch.uuid.clone(),
+                        issuance_year: batch.issuance_year,
+                        count: actual,
+                    };
+
+                    // add to retired list
+                    batch_retire_data_list
+                        .try_push(batch_retire_data)
+                        .expect("this should not fail");
 
                     // this is safe since actual is <= remaining
                     remaining = remaining - actual;
@@ -568,19 +595,41 @@ pub mod pallet {
 
                 project.batches = batch_list
                     .try_into()
-                    .expect("This should not fail since we did not change the size. qed");
+                    .expect("This should not fail since the size is unchanged. qed");
 
-                // increment the retired vcus count
-                // TODO : Maybe add the NFT details
-                RetiredVCUs::<T>::try_mutate(
-                    (project_id, sender.clone()),
-                    |retired_vcu| -> DispatchResult {
-                        retired_vcu.checked_add(&amount);
-                        Ok(())
-                    },
-                )?;
+                // Get the item-id of the NFT to mint
+                let maybe_item_id = NextItemId::<T>::get(&asset_id);
 
-                // TODO : Mint an NFT with the burned vcu details
+                // handle the case of first retirement of proejct
+                let item_id = match maybe_item_id {
+                    None => {
+                        // If the item-id does not exist it implies this is the first retirement of project tokens
+                        // create a collection and use default item-id
+                        T::NFTHandler::create_class(
+                            asset_id,
+                            &Self::account_id(),
+                            &Self::account_id(),
+                        )?;
+                        Default::default()
+                    }
+                    Some(x) => x,
+                };
+
+                // mint the NFT to caller
+                T::NFTHandler::mint_into(asset_id, &item_id, &sender)?;
+                // Increment the NextItemId storage
+                let next_item_id: u32 = item_id.into() + 1_u32;
+                NextItemId::<T>::insert::<T::AssetId, T::ItemId>(*asset_id, next_item_id.into());
+
+                // form the retire vcu data
+                let retired_vcu_data = RetiredVcuData::<T> {
+                    account: sender.clone(),
+                    retire_data: batch_retire_data_list,
+                    timestamp: now,
+                };
+
+                //Store the details of retired batches in storage
+                RetiredVCUs::<T>::insert((asset_id, item_id), retired_vcu_data);
 
                 // emit event
                 Self::deposit_event(Event::VCURetired {
@@ -658,6 +707,8 @@ pub mod pallet {
             NextAssetId::<T>::set(asset_id);
             Ok(())
         }
+
+        // TODO : Ext to forceset/clear storage
     }
 
     impl<T: Config> Pallet<T> {

@@ -1,14 +1,14 @@
 use crate as pallet_vcu;
 use frame_support::{
     parameter_types,
-    traits::{ConstU32, Everything, GenesisBuild},
+    traits::{AsEnsureOriginWithArg, ConstU128, ConstU32, Everything, GenesisBuild},
     PalletId,
 };
 use frame_system as system;
 use sp_core::H256;
 use sp_runtime::{
     testing::Header,
-    traits::{BlakeTwo256, IdentityLookup},
+    traits::{AccountIdConversion, BlakeTwo256, IdentityLookup},
 };
 use sp_std::convert::{TryFrom, TryInto};
 
@@ -23,10 +23,11 @@ frame_support::construct_runtime!(
         UncheckedExtrinsic = UncheckedExtrinsic,
     {
         System: frame_system::{Pallet, Call, Config, Storage, Event<T>},
-        VCU: pallet_vcu::{Pallet, Call, Storage, Config<T>, Event<T>},
         Balances: pallet_balances::{Pallet, Call, Storage, Config<T>, Event<T>},
         Assets: pallet_assets::{Pallet, Call, Storage, Event<T>},
+        Uniques: pallet_uniques::{Pallet, Call, Storage, Event<T>},
         Timestamp: pallet_timestamp::{Pallet, Call, Storage, Inherent},
+        VCU: pallet_vcu::{Pallet, Call, Storage, Config<T>, Event<T>},
     }
 );
 
@@ -117,6 +118,7 @@ impl pallet_timestamp::Config for Test {
 parameter_types! {
   pub const MarketplaceEscrowAccount : u64 = 10;
   pub const VCUPalletId: PalletId = PalletId(*b"bitg/vcu");
+  pub VCUPalletAcccount : u64 = PalletId(*b"bitg/vcu").into_account();
 }
 
 impl pallet_vcu::Config for Test {
@@ -124,20 +126,41 @@ impl pallet_vcu::Config for Test {
     type Balance = u128;
     type ProjectId = u32;
     type AssetId = u32;
-    type Moment = u64;
     type PalletId = VCUPalletId;
     type AssetHandler = Assets;
     type MarketplaceEscrow = MarketplaceEscrowAccount;
-    type Time = Timestamp;
     type MaxAuthorizedAccountCount = ConstU32<2>;
     type MaxShortStringLength = ConstU32<20>;
     type MaxLongStringLength = ConstU32<100>;
     type MaxIpfsReferenceLength = ConstU32<20>;
     type MaxDocumentCount = ConstU32<2>;
     type MaxRoyaltyRecipients = ConstU32<5>;
+    type ItemId = u32;
+    type NFTHandler = Uniques;
     type MaxGroupSize = ConstU32<5>;
     type MaxCoordinatesLength = ConstU32<8>;
     type WeightInfo = ();
+}
+
+impl pallet_uniques::Config for Test {
+    type Event = Event;
+    type ClassId = u32;
+    type InstanceId = u32;
+    type Currency = Balances;
+    type CreateOrigin = AsEnsureOriginWithArg<frame_system::EnsureSigned<u64>>;
+    type ForceOrigin = frame_system::EnsureRoot<u64>;
+    type Locker = ();
+    type ClassDeposit = ConstU128<0>;
+    type InstanceDeposit = ConstU128<0>;
+    type MetadataDepositBase = ConstU128<1>;
+    type AttributeDepositBase = ConstU128<1>;
+    type DepositPerByte = ConstU128<1>;
+    type StringLimit = ConstU32<50>;
+    type KeyLimit = ConstU32<50>;
+    type ValueLimit = ConstU32<50>;
+    type WeightInfo = ();
+    #[cfg(feature = "runtime-benchmarks")]
+    type Helper = ();
 }
 
 // Build genesis storage according to the mock runtime.
