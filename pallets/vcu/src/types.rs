@@ -22,6 +22,10 @@ pub type IpfsLinkOf<T> = BoundedVec<u8, <T as pallet::Config>::MaxIpfsReferenceL
 /// Type for lists of ipfs links
 pub type IpfsLinkListsOf<T> = BoundedVec<IpfsLinkOf<T>, <T as pallet::Config>::MaxDocumentCount>;
 
+/// Type for storing location co-ordinates
+pub type LocationCoordinatesOf<T> =
+    BoundedVec<(u32, u32), <T as pallet::Config>::MaxCoordinatesLength>;
+
 /// Data to represent the data of the project as recoreded by the respective Registry
 /// This might differ from the project owner's name/description and hence important to store
 #[derive(Clone, Encode, Decode, Eq, PartialEq, Debug, TypeInfo, MaxEncodedLen)]
@@ -68,7 +72,7 @@ pub struct SDGDetails<StringType> {
     /// Short description of how the project solves the SDG
     pub description: StringType,
     /// A reference to the project docs related to SDG
-    pub refrences: StringType,
+    pub references: StringType,
 }
 
 /// A project can address more than one SDG, this type stores the
@@ -159,7 +163,7 @@ pub struct ProjectCreateParams<T: pallet::Config> {
     pub description: LongStringOf<T>,
     // TODO : Improve this data type
     /// Location co-ordinates of thie project
-    pub location: [(u32, u32); 8],
+    pub location: LocationCoordinatesOf<T>,
     /// List of ipfs-hashes of images related to the project
     pub images: IpfsLinkListsOf<T>,
     /// List of ipfs-hashes of videos related to the project
@@ -175,7 +179,7 @@ pub struct ProjectCreateParams<T: pallet::Config> {
     // Price in USD for a single credit
     pub unit_price: T::Balance,
     /// The royalties to be paid when tokens are purchased
-    pub royalties: RoyaltyRecipientsOf<T>,
+    pub royalties: Option<RoyaltyRecipientsOf<T>>,
 }
 
 /// Details of the project stored on-chain
@@ -193,7 +197,7 @@ pub struct ProjectDetail<T: pallet::Config> {
     pub description: LongStringOf<T>,
     // TODO : Improve this data type
     /// Location co-ordinates of thie project
-    pub location: [(u32, u32); 8],
+    pub location: LocationCoordinatesOf<T>,
     /// List of ipfs-hashes of images related to the project
     pub images: IpfsLinkListsOf<T>,
     /// List of ipfs-hashes of videos related to the project
@@ -207,7 +211,7 @@ pub struct ProjectDetail<T: pallet::Config> {
     /// List of batches in the project
     pub batches: BatchGroupOf<T>,
     /// The royalties to be paid when tokens are purchased
-    pub royalties: RoyaltyRecipientsOf<T>,
+    pub royalties: Option<RoyaltyRecipientsOf<T>>,
 
     // origination details
     /// Creation time of project

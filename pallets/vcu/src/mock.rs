@@ -1,7 +1,7 @@
 use crate as pallet_vcu;
 use frame_support::{
     parameter_types,
-    traits::{ConstU32, Everything},
+    traits::{ConstU32, Everything, GenesisBuild},
     PalletId,
 };
 use frame_system as system;
@@ -23,7 +23,7 @@ frame_support::construct_runtime!(
         UncheckedExtrinsic = UncheckedExtrinsic,
     {
         System: frame_system::{Pallet, Call, Config, Storage, Event<T>},
-        VCU: pallet_vcu::{Pallet, Call, Storage, Event<T>},
+        VCU: pallet_vcu::{Pallet, Call, Storage, Config<T>, Event<T>},
         Balances: pallet_balances::{Pallet, Call, Storage, Config<T>, Event<T>},
         Assets: pallet_assets::{Pallet, Call, Storage, Event<T>},
         Timestamp: pallet_timestamp::{Pallet, Call, Storage, Inherent},
@@ -79,11 +79,11 @@ impl pallet_balances::Config for Test {
 }
 
 parameter_types! {
-    pub const AssetDepositBase: u64 = 1;
-    pub const AssetDepositPerZombie: u64 = 1;
+    pub const AssetDepositBase: u64 = 0;
+    pub const AssetDepositPerZombie: u64 = 0;
     pub const StringLimit: u32 = 50;
-    pub const MetadataDepositBase: u64 = 1;
-    pub const MetadataDepositPerByte: u64 = 1;
+    pub const MetadataDepositBase: u64 = 0;
+    pub const MetadataDepositPerByte: u64 = 0;
 }
 
 impl pallet_assets::Config for Test {
@@ -136,14 +136,21 @@ impl pallet_vcu::Config for Test {
     type MaxDocumentCount = ConstU32<2>;
     type MaxRoyaltyRecipients = ConstU32<5>;
     type MaxGroupSize = ConstU32<5>;
+    type MaxCoordinatesLength = ConstU32<8>;
     type WeightInfo = ();
 }
 
 // Build genesis storage according to the mock runtime.
 pub fn new_test_ext() -> sp_io::TestExternalities {
-    let t = system::GenesisConfig::default()
+    let mut t = system::GenesisConfig::default()
         .build_storage::<Test>()
         .unwrap();
+
+    let config: pallet_vcu::GenesisConfig<Test> = pallet_vcu::GenesisConfig {
+        next_asset_id: 1000_u32.into(),
+    };
+
+    config.assimilate_storage(&mut t).unwrap();
     let mut ext: sp_io::TestExternalities = t.into();
     // set to block 1 to test events
     ext.execute_with(|| System::set_block_number(1));

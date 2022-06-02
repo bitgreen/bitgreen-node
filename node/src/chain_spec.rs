@@ -307,6 +307,9 @@ fn generate_genesis(
             balances: [].to_vec(),
         },
         nft: bitg_node_runtime::NftConfig { tokens: vec![] },
+        vcu: bitg_node_runtime::VCUConfig {
+            next_asset_id: 1000_u32.into(),
+        },
     }
 }
 

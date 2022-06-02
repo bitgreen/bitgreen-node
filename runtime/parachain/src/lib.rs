@@ -564,6 +564,7 @@ impl pallet_vcu::Config for Runtime {
     type MaxDocumentCount = ConstU32<10>;
     type MaxGroupSize = ConstU32<10>;
     type MaxRoyaltyRecipients = ConstU32<10>;
+    type MaxCoordinatesLength = ConstU32<8>;
     type WeightInfo = ();
 }
 
@@ -639,7 +640,7 @@ construct_runtime!(
 
         // Bitgreen pallets
         Assets: pallet_assets::{Pallet, Call, Storage, Event<T>} = 51,
-        VCU: pallet_vcu::{Pallet, Call, Storage, Event<T>} = 52,
+        VCU: pallet_vcu::{Pallet, Call, Storage, Config<T>, Event<T>} = 52,
         Vesting: pallet_vesting::{Pallet, Call, Storage, Event<T>} = 53,
         ImpactActions: pallet_impact_actions::{Pallet, Call, Storage, Event<T>} = 54,
         Bonds: pallet_bonds::{Pallet, Call, Storage, Event<T>} = 55,

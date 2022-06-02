@@ -3,7 +3,10 @@ use crate::{
     mock::*, Batch, BatchGroupOf, Config, Error, Event, NextAssetId, ProjectCreateParams, Projects,
     RegistryDetails, Royalty, SDGDetails, SDGTypesListOf, SdgType, ShortStringOf,
 };
-use frame_support::{assert_noop, assert_ok, traits::tokens::fungibles::Inspect};
+use frame_support::{
+    assert_noop, assert_ok,
+    traits::tokens::fungibles::{metadata::Inspect as MetadataInspect, Inspect},
+};
 use frame_system::RawOrigin;
 use sp_runtime::Percent;
 use sp_std::convert::TryInto;
@@ -25,7 +28,7 @@ fn get_default_sdg_details<T: Config>() -> SDGTypesListOf<T> {
     let sdg_details: SDGTypesListOf<T> = vec![SDGDetails {
         sdg_type: SdgType::LifeOnLand,
         description: "sdg_desp".as_bytes().to_vec().try_into().unwrap(),
-        refrences: "sdg_ref".as_bytes().to_vec().try_into().unwrap(),
+        references: "sdg_ref".as_bytes().to_vec().try_into().unwrap(),
     }]
     .try_into()
     .unwrap();
@@ -93,16 +96,7 @@ where
     let creation_params = ProjectCreateParams {
         name: "name".as_bytes().to_vec().try_into().unwrap(),
         description: "description".as_bytes().to_vec().try_into().unwrap(),
-        location: [
-            (1, 1),
-            (2, 2),
-            (3, 3),
-            (4, 4),
-            (0, 0),
-            (0, 0),
-            (0, 0),
-            (0, 0),
-        ],
+        location: vec![(1, 1), (2, 2), (3, 3), (4, 4)].try_into().unwrap(),
         images: vec!["image_link".as_bytes().to_vec().try_into().unwrap()]
             .try_into()
             .unwrap(),
@@ -115,7 +109,7 @@ where
         registry_details: get_default_registry_details::<T>(),
         sdg_details: get_default_sdg_details::<T>(),
         batches: get_default_batch_group::<T>(),
-        royalties: vec![royalty].try_into().unwrap(),
+        royalties: Some(vec![royalty].try_into().unwrap()),
         unit_price: 100_u32.into(),
     };
 
@@ -358,7 +352,7 @@ fn mint_without_list_to_marketplace_works_for_single_batch() {
         // token minting params
         let amount_to_mint = 50;
         let list_to_marketplace = false;
-        let expected_asset_id = 0;
+        let expected_asset_id = 1000;
 
         // minting a non existent project should fail
         assert_noop!(
@@ -458,7 +452,7 @@ fn mint_without_list_to_marketplace_works_for_single_batch() {
         assert_eq!(batch_detail.retired, 0);
 
         // the next asset-id should be set correctly
-        assert_eq!(NextAssetId::<Test>::get(), 1);
+        assert_eq!(NextAssetId::<Test>::get(), 1001);
 
         // the originator should have the minted tokens
         assert_eq!(Assets::total_issuance(expected_asset_id), amount_to_mint);
@@ -467,6 +461,14 @@ fn mint_without_list_to_marketplace_works_for_single_batch() {
             Assets::balance(expected_asset_id, originator_account),
             amount_to_mint
         );
+
+        // the minted token metadata should be set correctly
+        assert_eq!(Assets::name(expected_asset_id), "name".as_bytes().to_vec());
+        assert_eq!(
+            Assets::symbol(expected_asset_id),
+            "1000".as_bytes().to_vec()
+        );
+        assert_eq!(Assets::decimals(expected_asset_id), 0_u8);
 
         // the originator can freely transfer the tokens
         assert_ok!(Assets::transfer(
@@ -510,7 +512,7 @@ fn mint_without_list_to_marketplace_works_for_multiple_batches() {
         // the amount will consume full of first batch and half of second batch
         let amount_to_mint = 150;
         let list_to_marketplace = false;
-        let expected_asset_id = 0;
+        let expected_asset_id = 1000;
 
         // create the project to approve
         let mut creation_params = get_default_creation_params::<Test>();
@@ -579,7 +581,7 @@ fn mint_without_list_to_marketplace_works_for_multiple_batches() {
         assert_eq!(oldest_batch.retired, 0);
 
         // the next asset-id should be set correctly
-        assert_eq!(NextAssetId::<Test>::get(), 1);
+        assert_eq!(NextAssetId::<Test>::get(), 1001);
 
         // the originator should have the minted tokens
         assert_eq!(Assets::total_issuance(expected_asset_id), amount_to_mint);
@@ -682,7 +684,7 @@ fn retire_for_single_batch() {
         let amount_to_mint = 100;
         let amount_to_retire = 50;
         let list_to_marketplace = false;
-        let expected_asset_id = 0;
+        let expected_asset_id = 1000;
 
         // retire a non existent project should fail
         assert_noop!(

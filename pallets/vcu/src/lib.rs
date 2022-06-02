@@ -61,7 +61,7 @@ pub mod pallet {
     use frame_support::{
         pallet_prelude::*,
         traits::{
-            tokens::fungibles::{Create, Mutate},
+            tokens::fungibles::{metadata::Mutate as MetadataMutate, Create, Mutate},
             Time,
         },
         transactional, PalletId,
@@ -70,7 +70,8 @@ pub mod pallet {
     use sp_runtime::traits::{
         AccountIdConversion, AtLeast32Bit, AtLeast32BitUnsigned, CheckedAdd, Scale, Zero,
     };
-    use sp_std::{cmp, convert::TryInto, vec::Vec};
+    use sp_std::{cmp, convert::TryInto, vec, vec::Vec};
+    use codec::alloc::string::ToString;
 
     /// The parameters the VCU pallet depends on
     #[pallet::config]
@@ -107,7 +108,8 @@ pub mod pallet {
             + MaxEncodedLen
             + TypeInfo
             + From<u32>
-            + Into<u32>;
+            + Into<u32>
+            + sp_std::fmt::Display;
 
         /// Type used for expressing timestamp.
         type Moment: Parameter
@@ -124,7 +126,8 @@ pub mod pallet {
 
         // Asset manager config
         type AssetHandler: Create<Self::AccountId, AssetId = Self::AssetId, Balance = Self::Balance>
-            + Mutate<Self::AccountId>;
+            + Mutate<Self::AccountId>
+            + MetadataMutate<Self::AccountId>;
         /// Marketplace Escrow provider
         type MarketplaceEscrow: Get<Self::AccountId>;
         /// Timestamp provider for the pallet
@@ -143,6 +146,8 @@ pub mod pallet {
         type MaxDocumentCount: Get<u32>;
         /// Maximum amount of vcus in a bundle
         type MaxGroupSize: Get<u32>;
+        /// Maximum amount of location cordinates to store
+        type MaxCoordinatesLength: Get<u32>;
         /// Weight information for extrinsics in this pallet.
         type WeightInfo: WeightInfo;
     }
@@ -269,6 +274,8 @@ pub mod pallet {
         ProjectNotApproved,
         /// The tokens for the VCU have not been minted
         VCUNotMinted,
+        /// Cannot generate asset id
+        CannotGenerateAssetId,
     }
 
     #[pallet::hooks]
@@ -453,7 +460,16 @@ pub mod pallet {
                 // create the asset if not already existing
                 if project.asset_id.is_none() {
                     let asset_id = NextAssetId::<T>::get();
+                    // create the asset
                     T::AssetHandler::create(asset_id, Self::account_id(), true, 1_u32.into())?;
+                    // set metadata for the asset
+                    T::AssetHandler::set(
+                        asset_id,
+                        &Self::account_id(),
+                        project.name.clone().into_inner(), // asset name
+                        asset_id.to_string().as_bytes().to_vec(), // asset symbol
+                        0,
+                    )?;
 
                     //increment assetId counter
                     let next_asset_id: u32 = asset_id.into() + 1_u32;
@@ -463,10 +479,10 @@ pub mod pallet {
                     project.asset_id = Some(asset_id);
                 }
 
-                // mint the asset to the recipient
-                T::AssetHandler::mint_into(project.asset_id.unwrap(), &recipient, amount_to_mint)?;
+                let asset_id = project.asset_id.ok_or(Error::<T>::CannotGenerateAssetId)?;
 
-                // TODO : set metadata for the asset
+                // mint the asset to the recipient
+                T::AssetHandler::mint_into(asset_id, &recipient, amount_to_mint)?;
 
                 // emit event
                 Self::deposit_event(Event::VCUMinted {
