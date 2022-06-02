@@ -215,9 +215,9 @@ pub struct ProjectDetail<T: pallet::Config> {
 
     // origination details
     /// Creation time of project
-    pub created: T::Moment,
+    pub created: T::BlockNumber,
     /// Last updation time of project
-    pub updated: Option<T::Moment>,
+    pub updated: Option<T::BlockNumber>,
 
     /// approval status - a project can only mint tokens once approved
     pub approved: bool,
@@ -236,4 +236,43 @@ pub struct ProjectDetail<T: pallet::Config> {
     pub retired: T::Balance,
     // Price in USD for a single credit
     pub unit_price: T::Balance,
+}
+
+/// The details of a retired batch of VCU
+#[derive(Clone, Encode, Decode, Eq, PartialEq, TypeInfo, Default, MaxEncodedLen)]
+#[scale_info(skip_type_params(T))]
+#[codec(mel_bound(T: pallet::Config))]
+#[derive(frame_support::DebugNoBound)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct BatchRetireData<T: pallet::Config> {
+    /// Name of the batch
+    pub name: ShortStringOf<T>,
+    /// uuid of the batch
+    pub uuid: ShortStringOf<T>,
+    /// issuance_year of the batch
+    pub issuance_year: u32,
+    /// The count of tokens retired
+    pub count: T::Balance,
+}
+
+/// List of retired batches, this can go upto the size of the batch group
+pub type BatchRetireDataList<T> =
+    BoundedVec<BatchRetireData<T>, <T as pallet::Config>::MaxGroupSize>;
+
+/// Details stored for a retirement event, this is linked to the NFT generated during retirement
+/// Every NFT represents a unique retirement event
+#[derive(Clone, Encode, Decode, Eq, PartialEq, TypeInfo, Default, MaxEncodedLen)]
+#[scale_info(skip_type_params(T))]
+#[codec(mel_bound(T: pallet::Config))]
+#[derive(frame_support::DebugNoBound)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct RetiredVcuData<T: pallet::Config> {
+    /// The AccountId that retired the credits
+    pub account: T::AccountId,
+    /// The details of the batches the tokens were retired from
+    pub retire_data: BatchRetireDataList<T>,
+    /// The 'BlockNumber' of retirement
+    pub timestamp: T::BlockNumber,
+    /// The total count of credits retired
+    pub count: T::Balance,
 }

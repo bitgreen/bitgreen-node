@@ -1,13 +1,16 @@
 //! Tests for vcu pallet
 use crate::{
-    mock::*, Batch, BatchGroupOf, Config, Error, Event, NextAssetId, ProjectCreateParams, Projects,
-    RegistryDetails, Royalty, SDGDetails, SDGTypesListOf, SdgType, ShortStringOf,
+    mock::*, Batch, BatchGroupOf, Config, Error, NextAssetId, NextItemId, ProjectCreateParams,
+    Projects, RegistryDetails, RetiredVCUs, Royalty, SDGDetails, SDGTypesListOf, SdgType,
+    ShortStringOf,
 };
 use frame_support::{
     assert_noop, assert_ok,
     traits::tokens::fungibles::{metadata::Inspect as MetadataInspect, Inspect},
+    PalletId,
 };
 use frame_system::RawOrigin;
+use sp_runtime::traits::AccountIdConversion;
 use sp_runtime::Percent;
 use sp_std::convert::TryInto;
 
@@ -762,16 +765,6 @@ fn retire_for_single_batch() {
             amount_to_retire
         ));
 
-        assert_eq!(
-            last_event(),
-            VCUEvent::VCURetired {
-                project_id,
-                account: originator_account,
-                amount: amount_to_retire
-            }
-            .into()
-        );
-
         // Ensure the retirement happend correctly
         let stored_data = Projects::<Test>::get(project_id).unwrap();
         assert_eq!(stored_data.originator, originator_account);
@@ -800,7 +793,51 @@ fn retire_for_single_batch() {
             amount_to_mint - amount_to_retire
         );
 
-        // mint the remaining tokens
+        // Ensure the NFT is minted correctly
+        let vcu_pallet_account_id: u64 = PalletId(*b"bitg/vcu").into_account();
+        // the collection owner should be pallet
+        assert_eq!(
+            Uniques::class_owner(expected_asset_id).unwrap(),
+            vcu_pallet_account_id
+        );
+        // the originator should have received the item
+        assert_eq!(
+            Uniques::owner(expected_asset_id, 0).unwrap(),
+            originator_account
+        );
+
+        // Then NextItemId storage should be set correctly
+        assert_eq!(NextItemId::<Test>::get(expected_asset_id).unwrap(), 1);
+
+        // The retired data storage should be set correctly
+        let stored_retired_data = RetiredVCUs::<Test>::get((expected_asset_id, 0)).unwrap();
+        assert_eq!(stored_retired_data.account, originator_account);
+        assert_eq!(stored_retired_data.retire_data.len(), 1);
+        let retired_batch = stored_retired_data.retire_data.first().unwrap();
+        assert_eq!(
+            retired_batch.name,
+            creation_params.batches.first().unwrap().name
+        );
+        assert_eq!(
+            retired_batch.uuid,
+            creation_params.batches.first().unwrap().uuid
+        );
+        assert_eq!(retired_batch.issuance_year, 2020);
+        assert_eq!(retired_batch.count, amount_to_retire);
+        assert_eq!(stored_retired_data.timestamp, 1);
+
+        assert_eq!(
+            last_event(),
+            VCUEvent::VCURetired {
+                project_id,
+                account: originator_account,
+                amount: amount_to_retire,
+                retire_data: stored_retired_data.retire_data,
+            }
+            .into()
+        );
+
+        // retire the remaining tokens
         assert_ok!(VCU::retire(
             RawOrigin::Signed(originator_account).into(),
             project_id,
@@ -839,5 +876,267 @@ fn retire_for_single_batch() {
             ),
             Error::<Test>::AmountGreaterThanSupply
         );
+
+        // the collection owner should be pallet
+        assert_eq!(
+            Uniques::class_owner(expected_asset_id).unwrap(),
+            vcu_pallet_account_id
+        );
+        // the originator should have received the item
+        assert_eq!(
+            Uniques::owner(expected_asset_id, 1).unwrap(),
+            originator_account
+        );
+
+        // Then NextItemId storage should be set correctly
+        assert_eq!(NextItemId::<Test>::get(expected_asset_id).unwrap(), 2);
+        // The retired data storage should be set correctly
+        let stored_retired_data = RetiredVCUs::<Test>::get((expected_asset_id, 1)).unwrap();
+        assert_eq!(stored_retired_data.account, originator_account);
+        assert_eq!(stored_retired_data.retire_data.len(), 1);
+        let retired_batch = stored_retired_data.retire_data.first().unwrap();
+        assert_eq!(
+            retired_batch.name,
+            creation_params.batches.first().unwrap().name
+        );
+        assert_eq!(
+            retired_batch.uuid,
+            creation_params.batches.first().unwrap().uuid
+        );
+        assert_eq!(retired_batch.issuance_year, 2020);
+        assert_eq!(retired_batch.count, amount_to_retire);
+        assert_eq!(stored_retired_data.timestamp, 1);
+    });
+}
+
+#[test]
+fn retire_for_multiple_batch() {
+    new_test_ext().execute_with(|| {
+        let originator_account = 1;
+        let authorised_account = 10;
+        let project_id = 1001;
+        // token minting params
+        let amount_to_mint = 200;
+        let amount_to_retire = 50;
+        let list_to_marketplace = false;
+        let expected_asset_id = 1000;
+
+        // retire a non existent project should fail
+        assert_noop!(
+            VCU::retire(
+                RawOrigin::Signed(originator_account).into(),
+                project_id,
+                amount_to_mint,
+            ),
+            Error::<Test>::ProjectNotFound
+        );
+
+        // create the project to approve
+        let mut creation_params = get_default_creation_params::<Test>();
+        // replace the default with mutiple batches
+        let created_batch_list = get_multiple_batch_group::<Test>();
+        creation_params.batches = created_batch_list;
+
+        assert_ok!(VCU::create(
+            RawOrigin::Signed(originator_account).into(),
+            project_id,
+            creation_params.clone()
+        ));
+
+        // calling retire from a non minted project should fail
+        assert_noop!(
+            VCU::retire(RawOrigin::Signed(3).into(), project_id, amount_to_mint,),
+            Error::<Test>::VCUNotMinted
+        );
+
+        // approve project so minting can happen
+        assert_ok!(VCU::force_add_authorized_account(
+            RawOrigin::Root.into(),
+            authorised_account
+        ));
+        assert_ok!(VCU::approve_project(
+            RawOrigin::Signed(authorised_account).into(),
+            project_id,
+            true
+        ),);
+
+        // mint should work with all params correct
+        assert_ok!(VCU::mint(
+            RawOrigin::Signed(originator_account).into(),
+            project_id,
+            amount_to_mint,
+            list_to_marketplace
+        ));
+
+        // cannot retire more than holdings
+        assert_noop!(
+            VCU::retire(
+                RawOrigin::Signed(originator_account).into(),
+                project_id,
+                amount_to_mint + 1,
+            ),
+            pallet_assets::Error::<Test>::BalanceLow
+        );
+
+        // should work when amount less than holding
+        assert_ok!(VCU::retire(
+            RawOrigin::Signed(originator_account).into(),
+            project_id,
+            amount_to_retire
+        ));
+
+        // Ensure the retirement happend correctly
+        let mut stored_data = Projects::<Test>::get(project_id).unwrap();
+        assert_eq!(stored_data.originator, originator_account);
+        assert_eq!(stored_data.sdg_details, get_default_sdg_details::<Test>());
+        assert_eq!(stored_data.unit_price, 100_u32.into());
+        assert_eq!(stored_data.total_supply, amount_to_mint);
+        assert_eq!(stored_data.minted, amount_to_mint);
+        assert_eq!(stored_data.retired, amount_to_retire);
+        assert_eq!(stored_data.approved, true);
+        assert_eq!(stored_data.asset_id.unwrap(), expected_asset_id);
+
+        // the batch should be udpated correctly, should be retired from the oldest batch
+        // this should have been sorted so arranged in the ascending order of issuance date
+        // the newest should not have any retired
+        let batch_detail = stored_data.batches.pop().unwrap();
+        assert_eq!(batch_detail.total_supply, 100_u32.into());
+        assert_eq!(batch_detail.minted, 100);
+        assert_eq!(batch_detail.retired, 0);
+        assert_eq!(batch_detail.issuance_year, 2021);
+
+        // the oldest batch should have retired the amount
+        let batch_detail = stored_data.batches.pop().unwrap();
+        assert_eq!(batch_detail.total_supply, 100_u32.into());
+        assert_eq!(batch_detail.minted, 100);
+        assert_eq!(batch_detail.retired, amount_to_retire);
+        assert_eq!(batch_detail.issuance_year, 2020);
+
+        // the originator should have lost the supply of retired tokens
+        assert_eq!(
+            Assets::total_issuance(expected_asset_id),
+            amount_to_mint - amount_to_retire
+        );
+        assert_eq!(Assets::minimum_balance(expected_asset_id), 1);
+        assert_eq!(
+            Assets::balance(expected_asset_id, originator_account),
+            amount_to_mint - amount_to_retire
+        );
+
+        // Ensure the NFT is minted correctly
+        let vcu_pallet_account_id: u64 = PalletId(*b"bitg/vcu").into_account();
+        // the collection owner should be pallet
+        assert_eq!(
+            Uniques::class_owner(expected_asset_id).unwrap(),
+            vcu_pallet_account_id
+        );
+        // the originator should have received the item
+        assert_eq!(
+            Uniques::owner(expected_asset_id, 0).unwrap(),
+            originator_account
+        );
+
+        // Then NextItemId storage should be set correctly
+        assert_eq!(NextItemId::<Test>::get(expected_asset_id).unwrap(), 1);
+
+        // The retired data storage should be set correctly
+        let mut stored_retired_data = RetiredVCUs::<Test>::get((expected_asset_id, 0)).unwrap();
+        assert_eq!(stored_retired_data.account, originator_account);
+        assert_eq!(stored_retired_data.retire_data.len(), 1);
+
+        assert_eq!(
+            last_event(),
+            VCUEvent::VCURetired {
+                project_id,
+                account: originator_account,
+                amount: amount_to_retire,
+                retire_data: stored_retired_data.retire_data.clone()
+            }
+            .into()
+        );
+
+        let retired_batch = stored_retired_data.retire_data.pop().unwrap();
+        assert_eq!(retired_batch.issuance_year, 2020);
+        assert_eq!(retired_batch.count, amount_to_retire);
+        assert_eq!(stored_retired_data.timestamp, 1);
+        assert_eq!(stored_retired_data.count, amount_to_retire);
+
+        // retire the remaining tokens
+        assert_ok!(VCU::retire(
+            RawOrigin::Signed(originator_account).into(),
+            project_id,
+            amount_to_mint - amount_to_retire
+        ));
+
+        // Ensure the retirement happend correctly
+        let mut stored_data = Projects::<Test>::get(project_id).unwrap();
+        assert_eq!(stored_data.originator, originator_account);
+        assert_eq!(stored_data.sdg_details, get_default_sdg_details::<Test>());
+        assert_eq!(stored_data.unit_price, 100_u32.into());
+        assert_eq!(stored_data.total_supply, amount_to_mint);
+        assert_eq!(stored_data.minted, amount_to_mint);
+        assert_eq!(stored_data.retired, amount_to_mint);
+        assert_eq!(stored_data.approved, true);
+        assert_eq!(stored_data.asset_id.unwrap(), expected_asset_id);
+
+        // the batch should be udpated correctly, should be retired from the oldest batch
+        // this should have been sorted so arranged in the ascending order of issuance date
+        let batch_detail = stored_data.batches.pop().unwrap();
+        assert_eq!(batch_detail.total_supply, 100_u32.into());
+        assert_eq!(batch_detail.minted, 100);
+        assert_eq!(batch_detail.retired, 100);
+        assert_eq!(batch_detail.issuance_year, 2021);
+
+        // the oldest batch should have retired the amount
+        let batch_detail = stored_data.batches.pop().unwrap();
+        assert_eq!(batch_detail.total_supply, 100_u32.into());
+        assert_eq!(batch_detail.minted, 100);
+        assert_eq!(batch_detail.retired, 100);
+        assert_eq!(batch_detail.issuance_year, 2020);
+
+        // the originator should have lost the supply of retired tokens
+        assert_eq!(Assets::total_issuance(expected_asset_id), 0);
+        assert_eq!(Assets::minimum_balance(expected_asset_id), 1);
+        assert_eq!(Assets::balance(expected_asset_id, originator_account), 0);
+
+        // originator cannot mint more since the supply is exhausted
+        assert_noop!(
+            VCU::mint(
+                RawOrigin::Signed(originator_account).into(),
+                project_id,
+                amount_to_mint,
+                list_to_marketplace
+            ),
+            Error::<Test>::AmountGreaterThanSupply
+        );
+
+        // the collection owner should be pallet
+        assert_eq!(
+            Uniques::class_owner(expected_asset_id).unwrap(),
+            vcu_pallet_account_id
+        );
+        // the originator should have received the item
+        assert_eq!(
+            Uniques::owner(expected_asset_id, 1).unwrap(),
+            originator_account
+        );
+
+        // Then NextItemId storage should be set correctly
+        assert_eq!(NextItemId::<Test>::get(expected_asset_id).unwrap(), 2);
+
+        // The retired data storage should be set correctly
+        let mut stored_retired_data = RetiredVCUs::<Test>::get((expected_asset_id, 1)).unwrap();
+        assert_eq!(stored_retired_data.account, originator_account);
+        assert_eq!(stored_retired_data.retire_data.len(), 2);
+        // We retired a total of 150 tokens in the call, 50 of 2020 batch had been retired previously
+        // So in this retirement, we have 50 from 2020 and 100 from 2021
+        let retired_batch = stored_retired_data.retire_data.pop().unwrap();
+        assert_eq!(retired_batch.issuance_year, 2021);
+        assert_eq!(retired_batch.count, 100);
+        assert_eq!(stored_retired_data.timestamp, 1);
+        let retired_batch = stored_retired_data.retire_data.pop().unwrap();
+        assert_eq!(retired_batch.issuance_year, 2020);
+        assert_eq!(retired_batch.count, 50);
+        assert_eq!(stored_retired_data.timestamp, 1);
     });
 }

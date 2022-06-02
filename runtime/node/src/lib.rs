@@ -32,7 +32,8 @@ use frame_support::weights::ConstantMultiplier;
 pub use frame_support::{
     construct_runtime, parameter_types,
     traits::{
-        ConstU128, ConstU32, ConstU8, Contains, KeyOwnerProofSystem, Randomness, StorageInfo,
+        AsEnsureOriginWithArg, ConstU128, ConstU32, ConstU8, Contains, KeyOwnerProofSystem,
+        Randomness, StorageInfo,
     },
     weights::{
         constants::{BlockExecutionWeight, ExtrinsicBaseWeight, RocksDbWeight, WEIGHT_PER_SECOND},
@@ -344,11 +345,11 @@ impl pallet_vcu::Config for Runtime {
     type Balance = u128;
     type ProjectId = u32;
     type AssetId = u32;
-    type Moment = u64;
     type PalletId = VCUPalletId;
     type AssetHandler = Assets;
+    type ItemId = u32;
+    type NFTHandler = Uniques;
     type MarketplaceEscrow = MarketplaceEscrowAccount;
-    type Time = Timestamp;
     type MaxAuthorizedAccountCount = ConstU32<10>;
     type MaxShortStringLength = ConstU32<300>;
     type MaxLongStringLength = ConstU32<3000>;
@@ -358,6 +359,28 @@ impl pallet_vcu::Config for Runtime {
     type MaxRoyaltyRecipients = ConstU32<10>;
     type MaxCoordinatesLength = ConstU32<8>;
     type WeightInfo = ();
+}
+
+// TODO : Ensure sensible values
+impl pallet_uniques::Config for Runtime {
+    type Event = Event;
+    type ClassId = u32;
+    type InstanceId = u32;
+    type Currency = Balances;
+    type CreateOrigin = AsEnsureOriginWithArg<frame_system::EnsureSigned<AccountId>>;
+    type ForceOrigin = frame_system::EnsureRoot<AccountId>;
+    type Locker = ();
+    type ClassDeposit = ConstU128<0>;
+    type InstanceDeposit = ConstU128<0>;
+    type MetadataDepositBase = ConstU128<1>;
+    type AttributeDepositBase = ConstU128<1>;
+    type DepositPerByte = ConstU128<1>;
+    type StringLimit = ConstU32<50>;
+    type KeyLimit = ConstU32<50>;
+    type ValueLimit = ConstU32<50>;
+    type WeightInfo = ();
+    #[cfg(feature = "runtime-benchmarks")]
+    type Helper = ();
 }
 
 // Bonds management
@@ -467,6 +490,7 @@ construct_runtime!(
         VCU: pallet_vcu::{Pallet, Call, Storage, Config<T>, Event<T>} = 74,
         Bridge: pallet_bridge::{Pallet, Call, Storage, Event<T>, Config} = 75,
         Vesting: pallet_vesting::{Pallet, Call, Storage, Event<T>} = 76,
+        Uniques: pallet_uniques::{Pallet, Call, Storage, Event<T>} = 77,
     }
 );
 
