@@ -57,6 +57,7 @@ pub use types::*;
 #[frame_support::pallet]
 pub mod pallet {
     use super::*;
+    use codec::alloc::string::ToString;
     use codec::HasCompact;
     use frame_support::{
         pallet_prelude::*,
@@ -71,7 +72,6 @@ pub mod pallet {
         AccountIdConversion, AtLeast32Bit, AtLeast32BitUnsigned, CheckedAdd, Scale, Zero,
     };
     use sp_std::{cmp, convert::TryInto, vec, vec::Vec};
-    use codec::alloc::string::ToString;
 
     /// The parameters the VCU pallet depends on
     #[pallet::config]
