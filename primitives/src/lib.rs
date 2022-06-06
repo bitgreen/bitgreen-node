@@ -1,6 +1,4 @@
 #![cfg_attr(not(feature = "std"), no_std)]
-#![allow(clippy::unnecessary_cast)]
-#![allow(clippy::upper_case_acronyms)]
 
 use codec::{Decode, Encode, MaxEncodedLen};
 use scale_info::TypeInfo;
@@ -13,6 +11,9 @@ use sp_std::convert::{Into, TryFrom, TryInto};
 
 #[cfg(feature = "std")]
 use serde::{Deserialize, Serialize};
+
+mod vcu;
+pub use vcu::*;
 
 pub const BBB_TOKEN: u32 = 1;
 

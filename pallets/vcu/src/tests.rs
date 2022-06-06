@@ -1,8 +1,7 @@
 //! Tests for vcu pallet
 use crate::{
-    mock::*, Batch, BatchGroupOf, Config, Error, NextAssetId, NextItemId, ProjectCreateParams,
-    Projects, RegistryDetails, RetiredVCUs, Royalty, SDGDetails, SDGTypesListOf, SdgType,
-    ShortStringOf,
+    mock::*, BatchGroupOf, Config, Error, NextAssetId, NextItemId, ProjectCreateParams, Projects,
+    RetiredVCUs, SDGTypesListOf, ShortStringOf,
 };
 use frame_support::{
     assert_noop, assert_ok,
@@ -10,6 +9,7 @@ use frame_support::{
     PalletId,
 };
 use frame_system::RawOrigin;
+use primitives::{Batch, RegistryDetails, RegistryName, Royalty, SDGDetails, SdgType};
 use sp_runtime::traits::AccountIdConversion;
 use sp_runtime::Percent;
 use sp_std::convert::TryInto;
@@ -19,6 +19,7 @@ pub type VCUEvent = crate::Event<Test>;
 /// helper function to generate standard registry details
 fn get_default_registry_details<T: Config>() -> RegistryDetails<ShortStringOf<T>> {
     let registry_details = RegistryDetails {
+        registry: RegistryName::Verra,
         name: "reg_name".as_bytes().to_vec().try_into().unwrap(),
         id: "reg_id".as_bytes().to_vec().try_into().unwrap(),
         summary: "reg_summary".as_bytes().to_vec().try_into().unwrap(),
@@ -569,7 +570,7 @@ fn mint_without_list_to_marketplace_works_for_multiple_batches() {
         // we have a total supply of 200, with 100 in each batch
         // we minted 150 tokens so 100 should be minted from the oldest batch
         // and the rest 50 should be minted from the next batch
-        let mut stored_batches: Vec<Batch<Test>> = stored_data.batches.into_iter().collect();
+        let mut stored_batches: Vec<Batch<_, _>> = stored_data.batches.into_iter().collect();
         // this should have been sorted so arranged in the ascending order of issuance date
         let newest_batch = stored_batches.pop().unwrap();
         assert_eq!(newest_batch.issuance_year, 2021);
@@ -659,7 +660,7 @@ fn mint_without_list_to_marketplace_works_for_multiple_batches() {
         // we have a total supply of 200, with 100 in each batch
         // we minted 150 tokens in the previous run, 100 from oldest batch and 50 from newest batch
         // so the new 50 tokens should be minted from the newest batch
-        let mut stored_batches: Vec<Batch<Test>> = stored_data.batches.into_iter().collect();
+        let mut stored_batches: Vec<Batch<_, _>> = stored_data.batches.into_iter().collect();
         // this should have been sorted so arranged in the ascending order of issuance date
         let newest_batch = stored_batches.pop().unwrap();
         assert_eq!(newest_batch.issuance_year, 2021);

@@ -71,6 +71,7 @@ pub mod pallet {
     use sp_runtime::traits::{
         AccountIdConversion, AtLeast32Bit, AtLeast32BitUnsigned, CheckedAdd, Scale, Zero,
     };
+    use primitives::BatchRetireData;
     use sp_std::{cmp, convert::TryInto, vec, vec::Vec};
 
     /// The parameters the VCU pallet depends on
@@ -563,7 +564,7 @@ pub mod pallet {
                         .ok_or(Error::<T>::Overflow)?;
 
                     // create data of retired batch
-                    let batch_retire_data: BatchRetireData<T> = BatchRetireData {
+                    let batch_retire_data: BatchRetireDataOf<T> = BatchRetireData {
                         name: batch.name.clone(),
                         uuid: batch.uuid.clone(),
                         issuance_year: batch.issuance_year,
