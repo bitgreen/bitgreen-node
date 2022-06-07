@@ -11,6 +11,9 @@ pub use pallet::*;
 // #[cfg(feature = "runtime-benchmarks")]
 // mod benchmarking;
 
+mod types;
+pub use types::*;
+
 #[frame_support::pallet]
 pub mod pallet {
     use frame_support::{dispatch::DispatchResultWithPostInfo, pallet_prelude::*};
@@ -21,6 +24,16 @@ pub mod pallet {
     pub trait Config: frame_system::Config {
         /// Because this pallet emits events, it depends on the runtime's definition of an event.
         type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
+
+        type MaxRegistryListCount: Get<u32>;
+
+        type MaxIssuanceYearCount: Get<u32>;
+
+        type MaxProjectIdList: Get<u32>;
+
+        type MaxVCUProjectsInPool: Get<u32>;
+
+        type MaxAssetSymbolLength: Get<u32>;
     }
 
     #[pallet::pallet]
