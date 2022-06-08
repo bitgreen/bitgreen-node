@@ -1,11 +1,11 @@
 // Bitgreen block crawler
-// This program will listen for new blocks and store 
-// them in a local Postgresql database. 
+// This program will listen for new blocks and store
+// them in a local Postgresql database.
 
-// import required dependancies
-const { processBlock, initApi} = require("./src/methods")
-
-require('dotenv').config()
+// import required dependencies
+import "dotenv/config"
+import { processBlock, initApi } from "./methods"
+import { Header } from "@polkadot/types/interfaces"
 
 // main function (must be async)
 async function main () {
@@ -18,7 +18,7 @@ async function main () {
         api.rpc.system.version()
     ]);
 
-    // log message to console 
+    // log message to console
     console.log(`You are connected to chain ${chain} using ${nodeName} v${nodeVersion}`);
 
     // We only display a couple, then unsubscribe
@@ -27,11 +27,11 @@ async function main () {
     // Subscribe to the new headers on-chain. The callback is fired when new headers
     // are found, the call itself returns a promise with a subscription that can be
     // used to unsubscribe from the newHead subscription
-    const unsubscribe = await api.rpc.chain.subscribeNewHeads(async(header) => {
-        await processBlock(api, header.number)
+    const unsubscribe = await api.rpc.chain.subscribeNewHeads(async(header: Header) => {
+        await processBlock(api, header.number.toNumber())
 
         if (++count === 20) {
-            // unsubscribe();
+            unsubscribe();
             // process.exit(0);
         }
     });
