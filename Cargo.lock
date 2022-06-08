@@ -6326,6 +6326,7 @@ dependencies = [
  "pallet-balances",
  "pallet-timestamp",
  "pallet-uniques",
+ "pallet-vcu",
  "parity-scale-codec",
  "scale-info",
  "serde",

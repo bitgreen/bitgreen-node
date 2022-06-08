@@ -2,11 +2,11 @@
 
 pub use pallet::*;
 
-// #[cfg(test)]
-// mod mock;
+#[cfg(test)]
+mod mock;
 
-// #[cfg(test)]
-// mod tests;
+#[cfg(test)]
+mod tests;
 
 // #[cfg(feature = "runtime-benchmarks")]
 // mod benchmarking;
@@ -16,8 +16,16 @@ pub use types::*;
 
 #[frame_support::pallet]
 pub mod pallet {
-    use frame_support::{dispatch::DispatchResultWithPostInfo, pallet_prelude::*};
+    use super::*;
+    use codec::HasCompact;
+    use frame_support::{
+        dispatch::DispatchResultWithPostInfo,
+        pallet_prelude::*,
+        traits::tokens::fungibles::{metadata::Mutate as MetadataMutate, Create, Mutate},
+        transactional, PalletId,
+    };
     use frame_system::pallet_prelude::*;
+    use sp_runtime::traits::{AccountIdConversion, AtLeast32BitUnsigned};
     use sp_std::convert::TryInto;
 
     #[pallet::config]
@@ -25,91 +33,121 @@ pub mod pallet {
         /// Because this pallet emits events, it depends on the runtime's definition of an event.
         type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
 
+        /// The PoolId type for the pallet
+        type PoolId: Member
+            + Parameter
+            + Default
+            + Copy
+            + HasCompact
+            + MaybeSerializeDeserialize
+            + MaxEncodedLen
+            + TypeInfo;
+
+        /// The units in which we record balances.
+        type Balance: Member
+            + Parameter
+            + AtLeast32BitUnsigned
+            + Default
+            + Copy
+            + MaybeSerializeDeserialize
+            + MaxEncodedLen
+            + TypeInfo;
+
+        // Asset manager config
+        type AssetHandler: Create<Self::AccountId, AssetId = Self::PoolId, Balance = Self::Balance>
+            + Mutate<Self::AccountId>
+            + MetadataMutate<Self::AccountId>;
+
+        /// Maximum registrys allowed in the pool config
         type MaxRegistryListCount: Get<u32>;
-
+        /// Maximum issuance years allowed in the pool config
         type MaxIssuanceYearCount: Get<u32>;
-
+        /// Maximum projectIds allowed in the pool config
         type MaxProjectIdList: Get<u32>;
-
-        type MaxVCUProjectsInPool: Get<u32>;
-
+        /// Max length of pool asset symbol
         type MaxAssetSymbolLength: Get<u32>;
+        /// The vcu-pools pallet id
+        #[pallet::constant]
+        type PalletId: Get<PalletId>;
     }
 
     #[pallet::pallet]
     #[pallet::generate_store(pub(super) trait Store)]
     pub struct Pallet<T>(_);
 
-    // The pallet's runtime storage items.
-    // https://docs.substrate.io/v3/runtime/storage
     #[pallet::storage]
-    #[pallet::getter(fn something)]
-    // Learn more about declaring storage items:
-    // https://docs.substrate.io/v3/runtime/storage#declaring-storage-items
-    pub type Something<T> = StorageValue<_, u32>;
+    #[pallet::getter(fn pools)]
+    pub type Pools<T: Config> = StorageMap<_, Blake2_128Concat, T::PoolId, PoolOf<T>>;
 
-    // Pallets use events to inform users when important changes are made.
-    // https://docs.substrate.io/v3/runtime/events-and-errors
     #[pallet::event]
     #[pallet::generate_deposit(pub(super) fn deposit_event)]
     pub enum Event<T: Config> {
-        /// Event documentation should end with an array that provides descriptive names for event
-        /// parameters. [something, who]
-        SomethingStored(u32, T::AccountId),
+        /// A new pool was created
+        PoolCreated {
+            admin: T::AccountId,
+            id: T::PoolId,
+            config: PoolConfigOf<T>,
+        },
     }
 
     // Errors inform users that something went wrong.
     #[pallet::error]
     pub enum Error<T> {
-        /// Error names should be descriptive.
-        NoneValue,
-        /// Errors should have helpful documentation associated with them.
-        StorageOverflow,
+        /// PoolId is already being used
+        PoolIdInUse,
     }
 
     #[pallet::hooks]
     impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {}
 
-    // Dispatchable functions allows users to interact with the pallet and invoke state changes.
-    // These functions materialize as "extrinsics", which are often compared to transactions.
-    // Dispatchable functions must be annotated with a weight and must return a DispatchResult.
     #[pallet::call]
     impl<T: Config> Pallet<T> {
-        /// An example dispatchable that takes a singles value as a parameter, writes the value to
-        /// storage and emits an event. This function must be dispatched by a signed extrinsic.
+        /// Create a new vcu pool with given params
+        #[transactional]
         #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
-        pub fn do_something(origin: OriginFor<T>, something: u32) -> DispatchResultWithPostInfo {
-            // Check that the extrinsic was signed and get the signer.
-            // This function will return an error if the extrinsic is not signed.
-            // https://docs.substrate.io/v3/runtime/origins
+        pub fn create(
+            origin: OriginFor<T>,
+            id: T::PoolId,
+            config: PoolConfigOf<T>,
+            max_limit: Option<u32>,
+            asset_symbol: SymbolStringOf<T>,
+        ) -> DispatchResultWithPostInfo {
             let who = ensure_signed(origin)?;
 
-            // Update storage.
-            <Something<T>>::put(something);
+            // TODO : Check if the user is authorised to create pools
+
+            ensure!(!Pools::<T>::contains_key(id), Error::<T>::PoolIdInUse);
+
+            // insert to storage
+            <Pools<T>>::insert(
+                id,
+                Pool {
+                    admin: who.clone(),
+                    config: config.clone(),
+                    max_limit,
+                    asset_symbol,
+                    credits: Default::default(),
+                },
+            );
+
+            // create an asset collection to reserve asset-id
+            T::AssetHandler::create(id, Self::account_id(), true, 1_u32.into())?;
 
             // Emit an event.
-            Self::deposit_event(Event::SomethingStored(something, who));
-            // Return a successful DispatchResultWithPostInfo
+            Self::deposit_event(Event::PoolCreated {
+                admin: who,
+                id,
+                config,
+            });
+
             Ok(().into())
         }
+    }
 
-        /// An example dispatchable that may throw a custom error.
-        #[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
-        pub fn cause_error(origin: OriginFor<T>) -> DispatchResultWithPostInfo {
-            let _who = ensure_signed(origin)?;
-
-            // Read a value from storage.
-            match <Something<T>>::get() {
-                // Return an error if the value has not been set.
-                None => Err(Error::<T>::NoneValue)?,
-                Some(old) => {
-                    // Increment the value read from storage; will error in the event of overflow.
-                    let new = old.checked_add(1).ok_or(Error::<T>::StorageOverflow)?;
-                    // Update the value in storage with the incremented result.
-                    <Something<T>>::put(new);
-                    Ok(().into())
-                }
-            }
+    impl<T: Config> Pallet<T> {
+        /// The account ID of the vcu pallet
+        pub fn account_id() -> T::AccountId {
+            T::PalletId::get().into_account()
         }
     }
 }

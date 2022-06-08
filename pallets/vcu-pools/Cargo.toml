@@ -24,6 +24,7 @@ pallet-assets = { git = "https://github.com/paritytech/substrate.git", branch = 
 primitives = { package = 'bitg-primitives', path = '../../primitives', default-features = false }
 pallet-balances = { git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.22", default-features = false }
 pallet-uniques = { git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.22", default-features = false }
+pallet-vcu = { package = 'pallet-vcu', path = '../vcu', default-features = false }
 
 # Benchmarking
 frame-benchmarking = { git = "https://github.com/paritytech/substrate.git", default-features = false, optional = true, branch = "polkadot-v0.9.22" }
@@ -47,7 +48,8 @@ std = [
     'pallet-assets/std',
     'pallet-balances/std',
     'sp-runtime/std',
-    'pallet-uniques/std'
+    'pallet-uniques/std',
+    'pallet-vcu/std'
 ]
 runtime-benchmarks = [
   "frame-benchmarking/runtime-benchmarks",
