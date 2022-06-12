@@ -74,7 +74,7 @@ export async function processBlock(api: ApiPromise, block_number: BlockNumber | 
 	let signed_block: SignedBlock, block_events: any
 
     console.log(`Chain is at block: #${block_number}`);
-    console.log('Block Hash: ' + block_hash.toHex());
+    // console.log('Block Hash: ' + block_hash.toHex());
 
 	try {
 		[signed_block, block_events] = await Promise.all([
@@ -110,7 +110,7 @@ export async function processBlock(api: ApiPromise, block_number: BlockNumber | 
                 phase.isApplyExtrinsic &&
                 phase.asApplyExtrinsic.eq(index)
             )
-            .map(({event}: EventRecord) => {
+            .map(async({event}: EventRecord) => {
                 extrinsic_success = !!api.events.system.ExtrinsicSuccess.is(event);
 
 				// extract asset_id and assign it to a project
@@ -133,6 +133,7 @@ export async function processBlock(api: ApiPromise, block_number: BlockNumber | 
                 if (extrinsic_success) {
 					let event_section = event.section;
 					let event_method = event.method;
+					// console.log(`${event_section}:${event_method}`)
                     // console.log('Transaction Hash: ' + hash);
 
 					if (event_section === 'vcu') {
@@ -153,7 +154,7 @@ export async function processBlock(api: ApiPromise, block_number: BlockNumber | 
 								details.batches.map(async(batch: ProjectDetailsBatch) => {
 									batches.push({
 										name: hexToString(batch.name),
-										uuid: Number(hexToString(batch.uuid)),
+										uuid: hexToString(batch.uuid),
 										issuance_year: batch.issuanceYear,
 										start_date: String(batch.startDate),
 										end_date: String(batch.endDate),
@@ -226,14 +227,14 @@ export async function processBlock(api: ApiPromise, block_number: BlockNumber | 
 								if(project_id && details) {
 									await prisma.vcu_projects.create({
 										data: {
+											id: project_id,
 											block_number: block_number as number,
 											hash: hash,
-											project_id: project_id,
 											originator: details.originator,
 											name: hexToString(details.name),
 											description: hexToString(details.description),
 											registry_name: hexToString(details.registryDetails.name),
-											registry_id: Number(hexToString(details.registryDetails.id)),
+											registry_id: hexToString(details.registryDetails.id),
 											registry_summary: hexToString(details.registryDetails.summary),
 
 											total_supply: details.totalSupply,
@@ -288,7 +289,7 @@ export async function processBlock(api: ApiPromise, block_number: BlockNumber | 
 							try {
 								await prisma.vcu_projects.update({
 									where: {
-										project_id: project_id
+										id: project_id
 									},
 									data: {
 										approved: is_approved,
@@ -320,7 +321,7 @@ export async function processBlock(api: ApiPromise, block_number: BlockNumber | 
 								try {
 									await prisma.vcu_projects.update({
 										where: {
-											project_id: project_id
+											id: project_id
 										},
 										data: {
 											asset_id: new_asset_id,
@@ -334,6 +335,115 @@ export async function processBlock(api: ApiPromise, block_number: BlockNumber | 
 							}
 						}
 					}
+
+					if(event_section == 'assets') {
+						if(event_method == 'ForceCreated') {
+							let asset_id: number | undefined
+							let owner: string | undefined
+							event.data.map(async(arg: any, d: number) => {
+								if (d === 0) {
+									asset_id = arg.toNumber();
+								} else if (d === 1) {
+									owner = arg.toString();
+								}
+							});
+
+							try {
+								await prisma.assets.create({
+									data: {
+										id: asset_id as number,
+										block_number: block_number as number,
+										hash: hash as string,
+										owner: owner as string,
+										created_at: new Date(current_time).toISOString()
+									}
+								});
+							} catch (e) {
+								// @ts-ignore
+								console.log(`Error occurred: ${e.message}`)
+							}
+						}
+
+						if(event_method == 'MetadataSet') {
+							let asset_id: number | undefined
+							let name: string | undefined
+							let symbol: string | undefined
+							let decimals: number | undefined
+							let is_frozen: boolean | undefined
+							event.data.map(async(arg: any, d: number) => {
+								if (d === 0) {
+									asset_id = arg.toNumber();
+								} else if (d === 1) {
+									name = arg.toString();
+								} else if (d === 2) {
+									symbol = arg.toString();
+								} else if (d === 3) {
+									decimals = arg.toNumber();
+								} else if (d === 4) {
+									is_frozen = arg.toString() === 'true';
+								}
+							});
+
+							// wait half a second, prisma throws record not found if we do it too fast.
+							// investigate why await is not doing good job, maybe try/catch?
+							await new Promise(resolve => setTimeout(resolve, 500));
+
+							try {
+								await prisma.assets.update({
+									where: {
+										id: asset_id
+									},
+									data: {
+										name: hexToString(name),
+										symbol: hexToString(symbol),
+										decimals: decimals as number,
+										is_frozen: is_frozen as boolean,
+										updated_at: new Date(current_time).toISOString()
+									}
+								});
+							} catch (e) {
+								// @ts-ignore
+								console.log(`Error occurred: ${e.message}`)
+							}
+						}
+
+						if(event_method == 'Transferred') {
+							let asset_id: number | undefined
+							let sender: string | undefined
+							let recipient: string | undefined
+							let amount: number | undefined
+
+							event.data.map(async(arg: any, d: number) => {
+								if (d === 0) {
+									asset_id = arg.toNumber();
+								} else if (d === 1) {
+									sender = arg.toString();
+								} else if (d === 2) {
+									recipient = arg.toString();
+								} else if (d === 3) {
+									amount = arg.toNumber();
+								}
+							});
+
+							try {
+								await prisma.asset_transactions.create({
+									data: {
+										block_number: block_number as number,
+										hash: hash,
+										sender: sender as string,
+										recipient: recipient as string,
+										amount: amount as number,
+										asset_id: asset_id as number,
+										created_at: new Date(current_time).toISOString()
+									}
+								});
+							} catch (e) {
+								// @ts-ignore
+								console.log(`Error occurred: ${e.message}`)
+							}
+						}
+					}
+
 					if (section === 'balances' && (method === 'transferKeepAlive' || method === 'transfer')) {
 						if(event_section === 'balances' && event_method === 'Transfer') {
 							let sender: string | undefined
@@ -349,7 +459,7 @@ export async function processBlock(api: ApiPromise, block_number: BlockNumber | 
 								} else if (d === 1) {
 									recipient = arg.toString();
 								} else if (d === 2) {
-									amount = arg.toNumber();
+									amount = arg.toString();
 								}
 							});
 

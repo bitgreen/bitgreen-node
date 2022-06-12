@@ -18,31 +18,33 @@ model analyze_data {
 }
 
 model blocks {
-  id         Int      @id @default(autoincrement())
-  number     Int      @unique
+  number     Int      @id
   hash       String   @unique @db.VarChar(66)
   created_at DateTime @db.Timestamp(6)
 }
 
-model ft_assets {
-  id           Int      @id @default(autoincrement())
-  block_number Int
-  hash         String   @unique @db.VarChar(66)
-  signer       String   @db.VarChar(64)
-  owner        String   @db.VarChar(48)
-  max_zombies  Int
-  min_balance  Int
-  asset_id     Int
-  created_at   DateTime @db.Timestamp(6)
+model assets {
+  id	       		Int		@id
+  name       		String?
+  symbol       		String?
+  block_number 		Int?
+  hash         		String?  @unique @db.VarChar(66)
+  owner        		String?  @db.VarChar(48)
+  decimals  		Int?
+  is_sufficient		Boolean  @default(false)
+  is_frozen			Boolean  @default(false)
+
+  project			vcu_projects?
+
+  created_at		DateTime? @db.Timestamp(6)
+  updated_at		DateTime? @db.Timestamp(6)
 }
 
-model ft_transactions {
+model asset_transactions {
   id           Int      @id @default(autoincrement())
   block_number Int
   hash         String   @unique @db.VarChar(66)
-  signer       String   @db.VarChar(64)
   sender       String   @db.VarChar(48)
-  category     String   @db.VarChar(20)
   recipient    String   @db.VarChar(48)
   amount       Int
   asset_id     Int
@@ -165,16 +167,15 @@ model transactions {
 }
 
 model vcu_projects {
-  id               Int       @id @default(autoincrement())
+  id               Int       @id
   block_number     Int
   hash             String    @unique @db.VarChar(66)
-  project_id       Int       @unique
   asset_id         Int?
   originator       String    @db.VarChar(64)
   name             String?   @db.VarChar
   description      String?
   registry_name    String?   @db.VarChar
-  registry_id      Int?
+  registry_id      String?
   registry_summary String?
   approved         Boolean?  @default(false)
   total_supply     Int?
@@ -190,6 +191,8 @@ model vcu_projects {
   sdgs			   vcu_project_sdgs[]
   videos		   vcu_project_videos[]
 
+  asset			   assets? @relation(fields: [asset_id], references: [id])
+
   created_at       DateTime  @db.Timestamp(6)
   updated_at       DateTime? @db.Timestamp(6)
 }
@@ -198,7 +201,7 @@ model vcu_project_batches {
   id            Int       @id @default(autoincrement())
   project_id    Int
   name          String?   @db.VarChar
-  uuid          Int?
+  uuid          String?
   issuance_year Int?
   start_date    String?
   end_date      String?
