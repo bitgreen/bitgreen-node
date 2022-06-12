@@ -42,14 +42,30 @@ http://localhost:3000/assets
 
 ---
 
+### Get Specific Asset
+Returns _asset_ by _asset id_ **or** _project id_.
+```
+http://localhost:3000/asset
+```
+#### Params:
+```
+asset_id: asset id
+project_id: project id
+```
+
+---
+
 ### Get Assets Transactions
-Returns all _asset transactions_
+Returns all _asset transactions_.
+You can use **_asset_id_** or **_project_id_** to filter them out.
+Field **_project_id_** is ignored when **_asset_id_** is specified.
 ```
 http://localhost:3000/assets/transactions
 ```
 #### Params:
 ```
 asset_id: asset id
+project_id: project id
 account: account of sender or recipient
 date_start: date of transaction seen on chain (optional)
 date_end: date of transaction seen on chain (optional)
