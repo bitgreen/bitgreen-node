@@ -92,16 +92,6 @@ pub mod pallet {
             + MaxEncodedLen
             + TypeInfo;
 
-        /// Identifier for the project.
-        type ProjectId: Member
-            + Parameter
-            + Default
-            + Copy
-            + HasCompact
-            + MaybeSerializeDeserialize
-            + MaxEncodedLen
-            + TypeInfo;
-
         /// Identifier for the class of asset.
         type AssetId: Member
             + Parameter
@@ -113,7 +103,8 @@ pub mod pallet {
             + TypeInfo
             + From<u32>
             + Into<u32>
-            + sp_std::fmt::Display;
+            + sp_std::fmt::Display
+            + sp_std::cmp::PartialOrd;
 
         /// Identifier for the individual instances of NFT
         type ItemId: Member
@@ -158,6 +149,8 @@ pub mod pallet {
         type MaxGroupSize: Get<u32>;
         /// Maximum amount of location cordinates to store
         type MaxCoordinatesLength: Get<u32>;
+        /// Minimum value of AssetId for VCU
+        type MinProjectId: Get<Self::AssetId>;
         /// Weight information for extrinsics in this pallet.
         type WeightInfo: WeightInfo;
     }
@@ -165,11 +158,6 @@ pub mod pallet {
     #[pallet::pallet]
     #[pallet::generate_store(pub(super) trait Store)]
     pub struct Pallet<T>(_);
-
-    #[pallet::storage]
-    #[pallet::getter(fn next_asset_id)]
-    // NextAssetId for the generated vcu_tokens, start from 1000, set from genesis
-    pub type NextAssetId<T: Config> = StorageValue<_, T::AssetId, ValueQuery>;
 
     #[pallet::storage]
     #[pallet::getter(fn next_item_id)]
@@ -185,9 +173,8 @@ pub mod pallet {
     #[pallet::storage]
     #[pallet::getter(fn projects)]
     /// The details of a VCU
-    // TODO : Maybe another storage to act as a reverse lookup for assetid -> projectid
     pub(super) type Projects<T: Config> =
-        StorageMap<_, Blake2_128Concat, T::ProjectId, ProjectDetail<T>>;
+        StorageMap<_, Blake2_128Concat, T::AssetId, ProjectDetail<T>>;
 
     #[pallet::storage]
     #[pallet::getter(fn retired_vcus)]
@@ -201,27 +188,6 @@ pub mod pallet {
         RetiredVcuData<T>,
     >;
 
-    #[pallet::genesis_config]
-    pub struct GenesisConfig<T: Config> {
-        pub next_asset_id: T::AssetId,
-    }
-
-    #[cfg(feature = "std")]
-    impl<T: Config> Default for GenesisConfig<T> {
-        fn default() -> Self {
-            Self {
-                next_asset_id: 1000_u32.into(),
-            }
-        }
-    }
-
-    #[pallet::genesis_build]
-    impl<T: Config> GenesisBuild<T> for GenesisConfig<T> {
-        fn build(&self) {
-            <NextAssetId<T>>::put(&self.next_asset_id);
-        }
-    }
-
     #[pallet::event]
     #[pallet::generate_deposit(pub(super) fn deposit_event)]
     pub enum Event<T: Config> {
@@ -231,19 +197,19 @@ pub mod pallet {
         AuthorizedAccountRemoved { account_id: T::AccountId },
         /// A new VCU has been created
         ProjectCreated {
-            /// The T::ProjectId of the created project
-            project_id: T::ProjectId,
+            /// The T::AssetId of the created project
+            project_id: T::AssetId,
             /// The details of the created project
             details: ProjectDetail<T>,
         },
         ProjectApproved {
-            /// The T::ProjectId of the approved project
-            project_id: T::ProjectId,
+            /// The T::AssetId of the approved project
+            project_id: T::AssetId,
         },
         // An amount of VCUs was minted
         VCUMinted {
-            /// The T::ProjectId of the minted VCU
-            project_id: T::ProjectId,
+            /// The T::AssetId of the minted VCU
+            project_id: T::AssetId,
             /// The AccountId that received the minted VCU
             recipient: T::AccountId,
             /// The amount of VCU units minted
@@ -251,8 +217,8 @@ pub mod pallet {
         },
         // An existing VCU was retired
         VCURetired {
-            /// The T::ProjectId of the retired VCU
-            project_id: T::ProjectId,
+            /// The T::AssetId of the retired VCU
+            project_id: T::AssetId,
             /// The AccountId that retired the VCU
             account: T::AccountId,
             /// The amount of VCU units retired
@@ -285,10 +251,10 @@ pub mod pallet {
         UnitPriceIsZero,
         /// The project is not approved
         ProjectNotApproved,
-        /// The tokens for the VCU have not been minted
-        VCUNotMinted,
         /// Cannot generate asset id
         CannotGenerateAssetId,
+        /// ProjectId is lower than permitted
+        ProjectIdLowerThanPermitted,
     }
 
     #[pallet::hooks]
@@ -302,11 +268,16 @@ pub mod pallet {
         #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
         pub fn create(
             origin: OriginFor<T>,
-            project_id: T::ProjectId,
+            project_id: T::AssetId,
             params: ProjectCreateParams<T>,
         ) -> DispatchResult {
             let sender = ensure_signed(origin)?;
             let now = frame_system::Pallet::<T>::block_number();
+
+            ensure!(
+                project_id >= T::MinProjectId::get(),
+                Error::<T>::ProjectIdLowerThanPermitted
+            );
 
             // the unit price should not be zero
             ensure!(
@@ -345,11 +316,22 @@ pub mod pallet {
                     total_supply: batch_total_supply,
                     minted: Zero::zero(),
                     retired: Zero::zero(),
-                    asset_id: None,
                     unit_price: params.unit_price,
                 };
 
                 *project = Some(new_project.clone());
+
+                // create the asset
+                T::AssetHandler::create(project_id, Self::account_id(), true, 1_u32.into())?;
+
+                // set metadata for the asset
+                T::AssetHandler::set(
+                    project_id,
+                    &Self::account_id(),
+                    new_project.name.clone().into_inner(), // asset name
+                    project_id.to_string().as_bytes().to_vec(), // asset symbol
+                    0,
+                )?;
 
                 // emit event
                 Self::deposit_event(Event::ProjectCreated {
@@ -366,7 +348,7 @@ pub mod pallet {
         #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
         pub fn approve_project(
             origin: OriginFor<T>,
-            project_id: T::ProjectId,
+            project_id: T::AssetId,
             is_approved: bool,
         ) -> DispatchResult {
             let sender = ensure_signed(origin)?;
@@ -400,7 +382,7 @@ pub mod pallet {
         #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
         pub fn mint(
             origin: OriginFor<T>,
-            project_id: T::ProjectId,
+            project_id: T::AssetId,
             amount_to_mint: T::Balance,
             list_to_marketplace: bool,
         ) -> DispatchResult {
@@ -475,32 +457,30 @@ pub mod pallet {
                     Error::<T>::AmountGreaterThanSupply
                 );
 
-                // create the asset if not already existing
-                if project.asset_id.is_none() {
-                    let asset_id = NextAssetId::<T>::get();
-                    // create the asset
-                    T::AssetHandler::create(asset_id, Self::account_id(), true, 1_u32.into())?;
-                    // set metadata for the asset
-                    T::AssetHandler::set(
-                        asset_id,
-                        &Self::account_id(),
-                        project.name.clone().into_inner(), // asset name
-                        asset_id.to_string().as_bytes().to_vec(), // asset symbol
-                        0,
-                    )?;
+                // // create the asset if not already existing
+                // if project.asset_id.is_none() {
+                //     let asset_id = NextAssetId::<T>::get();
+                //     // create the asset
+                //     T::AssetHandler::create(asset_id, Self::account_id(), true, 1_u32.into())?;
+                //     // set metadata for the asset
+                //     T::AssetHandler::set(
+                //         asset_id,
+                //         &Self::account_id(),
+                //         project.name.clone().into_inner(), // asset name
+                //         asset_id.to_string().as_bytes().to_vec(), // asset symbol
+                //         0,
+                //     )?;
 
-                    //increment assetId counter
-                    let next_asset_id: u32 = asset_id.into() + 1_u32;
-                    NextAssetId::<T>::set(next_asset_id.into());
+                //     //increment assetId counter
+                //     let next_asset_id: u32 = asset_id.into() + 1_u32;
+                //     NextAssetId::<T>::set(next_asset_id.into());
 
-                    // set the new asset_id in storage
-                    project.asset_id = Some(asset_id);
-                }
-
-                let asset_id = project.asset_id.ok_or(Error::<T>::CannotGenerateAssetId)?;
+                //     // set the new asset_id in storage
+                //     project.asset_id = Some(asset_id);
+                // }
 
                 // mint the asset to the recipient
-                T::AssetHandler::mint_into(asset_id, &recipient, amount_to_mint)?;
+                T::AssetHandler::mint_into(project_id, &recipient, amount_to_mint)?;
 
                 // emit event
                 Self::deposit_event(Event::VCUMinted {
@@ -521,7 +501,7 @@ pub mod pallet {
         #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
         pub fn retire(
             origin: OriginFor<T>,
-            project_id: T::ProjectId,
+            project_id: T::AssetId,
             amount: T::Balance,
         ) -> DispatchResult {
             let sender = ensure_signed(origin)?;
@@ -577,21 +557,6 @@ pub mod pallet {
                 }
                 Ok(())
             })
-        }
-
-        /// Remove an account from the list of authorised accounts
-        #[transactional]
-        #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
-        pub fn force_set_next_asset_id(
-            origin: OriginFor<T>,
-            asset_id: T::AssetId,
-        ) -> DispatchResult {
-            // check for SUDO
-            // TODO : Remove tight coupling with sudo, make configurable from config
-            ensure_root(origin)?;
-            // remove the account_id from the list of authorized accounts if already exists
-            NextAssetId::<T>::set(asset_id);
-            Ok(())
         }
 
         // TODO : Ext to forceset/clear storage

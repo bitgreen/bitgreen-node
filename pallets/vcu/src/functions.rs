@@ -19,14 +19,14 @@ impl<T: Config> Pallet<T> {
     }
 
     // /// Get the project details from AssetId
-    // pub fn get_project_details(asset_id : T::AssetId) -> Option<ProjectDetail<T>> {
+    // pub fn get_project_details(project_id : T::AssetId) -> Option<ProjectDetail<T>> {
 
     // }
 
-    /// Retire vcus for given asset_id
+    /// Retire vcus for given project_id
     pub fn retire_vcus(
         from: T::AccountId,
-        project_id: T::ProjectId,
+        project_id: T::AssetId,
         amount: T::Balance,
     ) -> DispatchResult {
         let now = frame_system::Pallet::<T>::block_number();
@@ -35,10 +35,10 @@ impl<T: Config> Pallet<T> {
             // ensure the project exists
             let project = project.as_mut().ok_or(Error::<T>::ProjectNotFound)?;
 
-            let asset_id = project.asset_id.as_ref().ok_or(Error::<T>::VCUNotMinted)?;
+            // let project_id = project.project_id.as_ref().ok_or(Error::<T>::VCUNotMinted)?;
 
             // attempt to burn the tokens from the caller
-            T::AssetHandler::burn_from(*asset_id, &from.clone(), amount)?;
+            T::AssetHandler::burn_from(project_id, &from.clone(), amount)?;
 
             // reduce the supply of the vcu
             project.retired = project
@@ -112,7 +112,7 @@ impl<T: Config> Pallet<T> {
                 .expect("This should not fail since the size is unchanged. qed");
 
             // Get the item-id of the NFT to mint
-            let maybe_item_id = NextItemId::<T>::get(&asset_id);
+            let maybe_item_id = NextItemId::<T>::get(&project_id);
 
             // handle the case of first retirement of proejct
             let item_id = match maybe_item_id {
@@ -120,7 +120,7 @@ impl<T: Config> Pallet<T> {
                     // If the item-id does not exist it implies this is the first retirement of project tokens
                     // create a collection and use default item-id
                     T::NFTHandler::create_class(
-                        asset_id,
+                        &project_id,
                         &Self::account_id(),
                         &Self::account_id(),
                     )?;
@@ -130,10 +130,10 @@ impl<T: Config> Pallet<T> {
             };
 
             // mint the NFT to caller
-            T::NFTHandler::mint_into(asset_id, &item_id, &from)?;
+            T::NFTHandler::mint_into(&project_id, &item_id, &from)?;
             // Increment the NextItemId storage
             let next_item_id: u32 = item_id.into() + 1_u32;
-            NextItemId::<T>::insert::<T::AssetId, T::ItemId>(*asset_id, next_item_id.into());
+            NextItemId::<T>::insert::<T::AssetId, T::ItemId>(project_id, next_item_id.into());
 
             // form the retire vcu data
             let retired_vcu_data = RetiredVcuData::<T> {
@@ -144,7 +144,7 @@ impl<T: Config> Pallet<T> {
             };
 
             //Store the details of retired batches in storage
-            RetiredVCUs::<T>::insert((asset_id, item_id), retired_vcu_data);
+            RetiredVCUs::<T>::insert((project_id, item_id), retired_vcu_data);
 
             // emit event
             Self::deposit_event(Event::VCURetired {

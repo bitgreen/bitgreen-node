@@ -27,7 +27,7 @@ frame_support::construct_runtime!(
         Assets: pallet_assets::{Pallet, Call, Storage, Event<T>},
         Uniques: pallet_uniques::{Pallet, Call, Storage, Event<T>},
         Timestamp: pallet_timestamp::{Pallet, Call, Storage, Inherent},
-        VCU: pallet_vcu::{Pallet, Call, Storage, Config<T>, Event<T>},
+        VCU: pallet_vcu::{Pallet, Call, Storage, Event<T>},
     }
 );
 
@@ -124,7 +124,6 @@ parameter_types! {
 impl pallet_vcu::Config for Test {
     type Event = Event;
     type Balance = u128;
-    type ProjectId = u32;
     type AssetId = u32;
     type PalletId = VCUPalletId;
     type AssetHandler = Assets;
@@ -139,6 +138,7 @@ impl pallet_vcu::Config for Test {
     type NFTHandler = Uniques;
     type MaxGroupSize = ConstU32<5>;
     type MaxCoordinatesLength = ConstU32<8>;
+    type MinProjectId = ConstU32<1000>;
     type WeightInfo = ();
 }
 
@@ -169,11 +169,6 @@ pub fn new_test_ext() -> sp_io::TestExternalities {
         .build_storage::<Test>()
         .unwrap();
 
-    let config: pallet_vcu::GenesisConfig<Test> = pallet_vcu::GenesisConfig {
-        next_asset_id: 1000_u32.into(),
-    };
-
-    config.assimilate_storage(&mut t).unwrap();
     let mut ext: sp_io::TestExternalities = t.into();
     // set to block 1 to test events
     ext.execute_with(|| System::set_block_number(1));

@@ -124,8 +124,6 @@ pub struct ProjectDetail<T: pallet::Config> {
     pub approved: bool,
 
     // credits details
-    /// The asset_id for the project
-    pub asset_id: Option<T::AssetId>,
     /// The total_supply of the project, in case of a single batch
     /// this value is equal to the batch total_supply, in case of multiple
     /// batches (batch group) this value is the sum of all the total_supply of
