@@ -1,7 +1,9 @@
 use crate::pallet;
 use codec::{Decode, Encode, MaxEncodedLen};
 use frame_support::pallet_prelude::*;
-use primitives::{Batch, RegistryDetails, RegistryName, Royalty, SDGDetails, SdgType, BatchRetireData};
+use primitives::{
+    Batch, BatchRetireData, RegistryDetails, RegistryName, Royalty, SDGDetails, SdgType,
+};
 use sp_runtime::Percent;
 
 /// AuthorizedAccounts type of pallet
