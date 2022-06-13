@@ -1,6 +1,8 @@
 use super::*;
 use sp_runtime::Percent;
 
+pub type IssuanceYear = u32;
+
 /// The possible values for Registry Names
 #[derive(Clone, Encode, Decode, Eq, PartialEq, Debug, TypeInfo, MaxEncodedLen)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
@@ -101,7 +103,7 @@ pub struct Batch<StringType, Balance> {
     /// UUID for this batch, usually provided by the registry
     pub uuid: StringType,
     /// The year the associated credits were issued
-    pub issuance_year: u32,
+    pub issuance_year: IssuanceYear,
     /// start date for multi year batch
     pub start_date: u32,
     /// end date for multi year batch
@@ -124,7 +126,7 @@ pub struct BatchRetireData<StringType, Balance> {
     /// uuid of the batch
     pub uuid: StringType,
     /// issuance_year of the batch
-    pub issuance_year: u32,
+    pub issuance_year: IssuanceYear,
     /// The count of tokens retired
     pub count: Balance,
 }

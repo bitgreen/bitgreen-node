@@ -439,7 +439,7 @@ fn mint_without_list_to_marketplace_works_for_single_batch() {
         );
 
         // ensure minting worked correctly
-        let stored_data = Projects::<Test>::get(project_id).unwrap();
+        let stored_data = VCU::get_project_details(project_id).unwrap();
         assert_eq!(stored_data.originator, originator_account);
         assert_eq!(stored_data.sdg_details, get_default_sdg_details::<Test>());
         assert_eq!(stored_data.unit_price, 100_u32.into());

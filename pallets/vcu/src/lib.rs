@@ -46,7 +46,7 @@ pub use pallet::*;
 mod mock;
 
 #[cfg(test)]
-mod tests;
+pub mod tests;
 
 // #[cfg(feature = "runtime-benchmarks")]
 // mod benchmarking;
@@ -104,7 +104,8 @@ pub mod pallet {
             + From<u32>
             + Into<u32>
             + sp_std::fmt::Display
-            + sp_std::cmp::PartialOrd;
+            + sp_std::cmp::PartialOrd
+            + sp_std::cmp::Ord;
 
         /// Identifier for the individual instances of NFT
         type ItemId: Member

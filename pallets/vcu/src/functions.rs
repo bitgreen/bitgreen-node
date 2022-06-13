@@ -1,6 +1,6 @@
 use crate::{
-    BatchRetireDataList, BatchRetireDataOf, Config, Error, Event, NextItemId, Pallet, Projects,
-    RetiredVCUs, RetiredVcuData,
+    BatchRetireDataList, BatchRetireDataOf, Config, Error, Event, NextItemId, Pallet,
+    ProjectDetail, Projects, RetiredVCUs, RetiredVcuData,
 };
 use frame_support::pallet_prelude::DispatchResult;
 use frame_support::traits::fungibles::Mutate;
@@ -18,10 +18,24 @@ impl<T: Config> Pallet<T> {
         T::PalletId::get().into_account()
     }
 
-    // /// Get the project details from AssetId
-    // pub fn get_project_details(project_id : T::AssetId) -> Option<ProjectDetail<T>> {
+    /// Get the project details from AssetId
+    pub fn get_project_details(project_id: T::AssetId) -> Option<ProjectDetail<T>> {
+        Projects::<T>::get(project_id)
+    }
 
-    // }
+    /// Calculate the issuance year for a project
+    /// For a project with a single batch it's the issuance year of that batch
+    /// For a project with multiple batches, its the issuance year of the oldest batch
+    pub fn calculate_issuance_year(project: ProjectDetail<T>) -> u32 {
+        // single batch
+        if project.batches.len() == 1 {
+            return project.batches.first().unwrap().issuance_year
+        } else {
+            let mut batch_list = project.batches.clone();
+            batch_list.sort_by(|x, y| x.issuance_year.cmp(&y.issuance_year));
+            batch_list.first().unwrap().issuance_year
+        }
+    }
 
     /// Retire vcus for given project_id
     pub fn retire_vcus(
