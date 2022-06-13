@@ -59,8 +59,7 @@ const mainLoop = async () => {
 				...or
 			},
 			select: {
-				// id: true,
-				project_id: true,
+				id: true,
 				asset_id: true,
 				originator: true,
 				name: true,
@@ -188,15 +187,44 @@ const mainLoop = async () => {
 	})
 
 	app.get('/assets', async(req: Request, res: Response) => {
-		const assets = await prisma.ft_assets.findMany()
+		const assets = await prisma.assets.findMany()
 
 		res.json({
 			assets: assets
 		})
 	})
 
+	app.get('/asset', async(req: Request, res: Response) => {
+		const { asset_id, project_id } = req.query
+
+		let asset: any = {};
+
+		if(asset_id) {
+			asset = await prisma.assets.findUnique({
+				where: {
+					id: Number(asset_id)
+				}
+			})
+		} else if(project_id) {
+			let project = await prisma.vcu_projects.findUnique({
+				where: {
+					id: Number(project_id)
+				},
+				select: {
+					asset: true
+				},
+			})
+
+			asset = project?.asset
+		}
+
+		res.json({
+			asset: asset
+		})
+	})
+
 	app.get('/assets/transactions', async(req: Request, res: Response) => {
-		const { account = undefined, date_start = '2000-01-01', date_end = '2200-01-01', asset_id = undefined } = req.query
+		let { account = undefined, date_start = '2000-01-01', date_end = '2200-01-01', asset_id = undefined, project_id = undefined } = req.query
 
 		const account_query = account ? {
 			OR: [
@@ -204,6 +232,21 @@ const mainLoop = async () => {
 				{ recipient: account as string },
 			],
 		} : {};
+
+		// filter by project only if asset_id is not present
+		if(!asset_id && project_id) {
+			let project = await prisma.vcu_projects.findUnique({
+				where: {
+					id: Number(project_id)
+				},
+				select: {
+					asset: true
+				},
+			})
+
+			// @ts-ignore
+			asset_id = project?.asset?.id || asset_id
+		}
 
 		const asset_query = asset_id ? {
 			AND: [
@@ -213,7 +256,7 @@ const mainLoop = async () => {
 
 		let transactions
 		try {
-			transactions = await prisma.ft_transactions.findMany({
+			transactions = await prisma.asset_transactions.findMany({
 				where: {
 					created_at: {
 						gte: new Date(date_start as string) ,
@@ -235,7 +278,7 @@ const mainLoop = async () => {
 	app.get('/assets/transaction', async(req: Request, res: Response) => {
 		const { hash = '' } = req.query
 
-		const transaction = await prisma.ft_transactions.findUnique({
+		const transaction = await prisma.asset_transactions.findUnique({
 			where: {
 				hash: hash as string
 			}
