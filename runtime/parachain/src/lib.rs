@@ -550,7 +550,6 @@ parameter_types! {
 impl pallet_vcu::Config for Runtime {
     type Event = Event;
     type Balance = u128;
-    type ProjectId = u32;
     type AssetId = u32;
     type PalletId = VCUPalletId;
     type AssetHandler = Assets;
@@ -565,7 +564,25 @@ impl pallet_vcu::Config for Runtime {
     type MaxGroupSize = ConstU32<10>;
     type MaxRoyaltyRecipients = ConstU32<10>;
     type MaxCoordinatesLength = ConstU32<8>;
+    type MinProjectId = ConstU32<1000>;
     type WeightInfo = ();
+}
+
+parameter_types! {
+    pub const VCUPoolPalletId: PalletId = PalletId(*b"bit/vcup");
+}
+
+impl pallet_vcu_pools::Config for Runtime {
+    type Event = Event;
+    type PoolId = u32;
+    type AssetHandler = Assets;
+    type PalletId = VCUPoolPalletId;
+    type MaxRegistryListCount = ConstU32<2>;
+    type MaxIssuanceYearCount = ConstU32<20>;
+    type MaxProjectIdList = ConstU32<100>;
+    type MaxAssetSymbolLength = ConstU32<20>;
+    type MinPoolId = ConstU32<10000>;
+    //type WeightInfo = ();
 }
 
 // TODO : Ensure sensible values
@@ -662,13 +679,14 @@ construct_runtime!(
 
         // Bitgreen pallets
         Assets: pallet_assets::{Pallet, Call, Storage, Event<T>} = 51,
-        VCU: pallet_vcu::{Pallet, Call, Storage, Config<T>, Event<T>} = 52,
+        VCU: pallet_vcu::{Pallet, Call, Storage, Event<T>} = 52,
         Vesting: pallet_vesting::{Pallet, Call, Storage, Event<T>} = 53,
         ImpactActions: pallet_impact_actions::{Pallet, Call, Storage, Event<T>} = 54,
         Bonds: pallet_bonds::{Pallet, Call, Storage, Event<T>} = 55,
         Bridge: pallet_bridge::{Pallet, Call, Storage, Event<T>, Config} = 56,
         Sudo: pallet_sudo::{Pallet, Call, Storage, Config<T>, Event<T>} = 57,
         Uniques: pallet_uniques::{Pallet, Call, Storage, Event<T>} = 58,
+        VCUPools: pallet_vcu_pools::{Pallet, Call, Storage, Event<T>} = 59,
     }
 );
 

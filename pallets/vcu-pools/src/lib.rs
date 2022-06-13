@@ -28,7 +28,7 @@ pub mod pallet {
     use sp_runtime::traits::Zero;
     use sp_runtime::traits::{AccountIdConversion, AtLeast32BitUnsigned};
     use sp_std::convert::TryInto;
-    use std::convert::TryFrom;
+    use sp_std::convert::TryFrom;
 
     #[pallet::config]
     pub trait Config: frame_system::Config + pallet_vcu::Config {
@@ -151,7 +151,6 @@ pub mod pallet {
             );
 
             // TODO : Check if the user is authorised to create pools
-
             // TODO : add more checks for asset symbol
 
             ensure!(!Pools::<T>::contains_key(id), Error::<T>::PoolIdInUse);
@@ -209,6 +208,10 @@ pub mod pallet {
 
         /// Deposit VCU tokens to pool with `id`
         ///
+        /// Params:
+        /// pool_id : Id of the pool to deposit into
+        /// project_id : The project_id of the vcu being deposited
+        /// amount: The amount of VCU to deposit
         #[transactional]
         #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
         pub fn deposit(
@@ -297,8 +300,12 @@ pub mod pallet {
             })
         }
 
-        /// Retire Pool Tokens
+        /// Retire Pool Tokens - A user can retire pool tokens, this will look at the available vcu token supply in the pool and retire tokens
+        /// starting from the oldest issuance until the entire amount is retired.
         ///
+        /// Params:
+        /// pool_id : Id of the pooltokens to retire
+        /// amount: The amount of VCU to deposit
         #[transactional]
         #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
         pub fn retire(
@@ -358,8 +365,6 @@ pub mod pallet {
                             break;
                         }
                     }
-
-                    // TODO : If all from year are remove, remove year
                 }
 
                 pool.credits = CreditsMap::<T>::try_from(pool_credits_temp)

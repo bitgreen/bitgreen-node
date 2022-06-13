@@ -92,6 +92,7 @@ pallet-bonds ={ default-features = false, version = '0.1.0', path = "../../palle
 pallet-bridge ={ default-features = false, version = '0.1.0', path = "../../pallets/bridge"}
 pallet-vesting = { default-features = false, version = '0.1.0', path = "../../pallets/vesting"}
 pallet-vcu ={ default-features = false, version = '0.1.0', path = "../../pallets/vcu"}
+pallet-vcu-pools ={ default-features = false, version = '0.1.0', path = "../../pallets/vcu-pools"}
 
 [features]
 default = [
@@ -160,6 +161,7 @@ std = [
 	"pallet-bridge/std",
 	"pallet-vesting/std",
 	"pallet-vcu/std",
+	"pallet-vcu-pools/std"
 ]
 
 runtime-benchmarks = [
