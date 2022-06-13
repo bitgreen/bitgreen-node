@@ -1,5 +1,37 @@
-#![cfg_attr(not(feature = "std"), no_std)]
+// This file is part of BitGreen.
+// Copyright (C) 2022 BitGreen.
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+// 	http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
+//! ## VCU Pools Pallet
+//! The VCU Pools pallet lets users create and manage vcu pools. A vcu pool is a collection of vcu tokens of different types represented by a
+//! common pool token. A user holding any vcu tokens (subject to the VCU pool config) can deposit vcu tokens to the pool and receive equivalent
+//! pool tokens in return. These pool tokens can be transferred freely and can be retired. When retire function is called, the underlying vcu credits
+//! are retired starting from the oldest in the pool.
+//!
+//! ### Pool Config
+//! A pool creator can setup configs, these configs determine which type of tokens are accepted into the pool. Currently the owner can setup two configs for a pool
+//! 1. Registry List : This limits the pool to accept vcu's issued by the given registry's only
+//! 2. Project List : This limits the pool to accepts vcu's issued by specific project's only
+//!
+//! ## Interface
+//!
+//! ### Permissionless Functions
+//!
+//! * `create`: Creates a new pool with given config
+//! * `deposit`: Deposit some vcu tokens to generate pool tokens
+//! * `retire`: Burn a specified amount of pool tokens
+//!
+#![cfg_attr(not(feature = "std"), no_std)]
 pub use pallet::*;
 
 #[cfg(test)]
@@ -27,8 +59,8 @@ pub mod pallet {
     use frame_system::pallet_prelude::*;
     use sp_runtime::traits::Zero;
     use sp_runtime::traits::{AccountIdConversion, AtLeast32BitUnsigned};
-    use sp_std::convert::TryInto;
     use sp_std::convert::TryFrom;
+    use sp_std::convert::TryInto;
 
     #[pallet::config]
     pub trait Config: frame_system::Config + pallet_vcu::Config {
@@ -174,7 +206,6 @@ pub mod pallet {
                     admin: who.clone(),
                     config: config.clone(),
                     max_limit: actual_max_limit,
-                    asset_symbol: asset_symbol.clone(),
                     credits: Default::default(),
                 },
             );
