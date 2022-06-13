@@ -1,0 +1,265 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model analyze_data {
+  id           Int      @id @default(autoincrement())
+  block_number Int
+  block_hash   String   @db.VarChar(66)
+  tx_hash      String   @db.VarChar(66)
+  section      String   @db.VarChar
+  method       String   @db.VarChar
+  created_at   DateTime @default(now()) @db.Timestamp(6)
+}
+
+model blocks {
+  number     Int      @id
+  hash       String   @unique @db.VarChar(66)
+  created_at DateTime @db.Timestamp(6)
+}
+
+model assets {
+  id	       		Int		@id
+  name       		String?
+  symbol       		String?
+  block_number 		Int?
+  hash         		String?  @unique @db.VarChar(66)
+  owner        		String?  @db.VarChar(48)
+  decimals  		Int?
+  is_sufficient		Boolean  @default(false)
+  is_frozen			Boolean  @default(false)
+
+  project			vcu_projects?
+
+  created_at		DateTime? @db.Timestamp(6)
+  updated_at		DateTime? @db.Timestamp(6)
+}
+
+model asset_transactions {
+  id           Int      @id @default(autoincrement())
+  block_number Int
+  hash         String   @unique @db.VarChar(66)
+  sender       String   @db.VarChar(48)
+  recipient    String   @db.VarChar(48)
+  amount       Int
+  asset_id     Int
+  created_at   DateTime @db.Timestamp(6)
+}
+
+model impact_actions {
+  id                 Int      @id @default(autoincrement())
+  block_number       Int
+  hash               String   @unique @db.VarChar(66)
+  description        String   @db.VarChar(128)
+  category           Int
+  auditors           Int
+  block_start        Int
+  block_end          Int
+  rewards_token      Int
+  rewards_amount     Int
+  rewards_oracle     Int
+  rewards_auditors   Int
+  slashing_auditors  Int
+  max_errors_auditor Int
+  fields             String   @db.VarChar(8192)
+  signer             String   @db.VarChar(64)
+  date               DateTime @db.Timestamp(6)
+  created_at         DateTime @default(now()) @db.Timestamp(6)
+}
+
+model impact_actions_approval_requests {
+  id            Int       @id @default(autoincrement())
+  block_number  Int
+  hash          String    @unique @db.VarChar(66)
+  signer        String    @db.VarChar(64)
+  info          String    @db.VarChar(8192)
+  date          DateTime  @db.Timestamp(6)
+  date_approved DateTime? @db.Timestamp(6)
+  date_refused  DateTime? @db.Timestamp(6)
+  created_at    DateTime  @default(now()) @db.Timestamp(6)
+}
+
+model impact_actions_approval_requests_auditors {
+  id                  Int      @id @default(autoincrement())
+  block_number        Int
+  hash                String   @unique @db.VarChar(66)
+  signer              String   @db.VarChar(64)
+  auditor             String   @db.VarChar(64)
+  max_days            Int
+  approval_request_id Int
+  date                DateTime @db.Timestamp(6)
+  created_at          DateTime @default(now()) @db.Timestamp(6)
+}
+
+model impact_actions_approval_requests_auditors_votes {
+  id                  Int      @id @default(autoincrement())
+  block_number        Int
+  hash                String   @unique @db.VarChar(66)
+  signer              String   @db.VarChar(64)
+  vote                String   @db.VarChar(1)
+  other_info          String   @db.VarChar(66)
+  rewards             DateTime @db.Timestamp(6)
+  approval_request_id Int
+  date                DateTime @db.Timestamp(6)
+  created_at          DateTime @default(now()) @db.Timestamp(6)
+}
+
+model impact_actions_auditors {
+  id           Int      @id @default(autoincrement())
+  block_number Int
+  hash         String   @unique @db.VarChar(66)
+  description  String   @db.VarChar(128)
+  signer       String   @db.VarChar(64)
+  account      String   @db.VarChar(48)
+  categories   String   @db.VarChar(128)
+  area         String   @db.VarChar(64)
+  other_info   String   @db.VarChar(66)
+  date         DateTime @db.Timestamp(6)
+  created_at   DateTime @default(now()) @db.Timestamp(6)
+}
+
+model impact_actions_categories {
+  id           Int      @id @default(autoincrement())
+  block_number Int
+  hash         String   @unique @db.VarChar(66)
+  description  String   @db.VarChar(128)
+  signer       String   @db.VarChar(64)
+  date         DateTime @db.Timestamp(6)
+  created_at   DateTime @default(now()) @db.Timestamp(6)
+}
+
+model impact_actions_oracles {
+  id           Int      @id @default(autoincrement())
+  block_number Int
+  hash         String   @unique @db.VarChar(66)
+  description  String   @db.VarChar(128)
+  signer       String   @db.VarChar(64)
+  account      String   @db.VarChar(48)
+  other_info   String   @db.VarChar(66)
+  date         DateTime @db.Timestamp(6)
+  created_at   DateTime @default(now()) @db.Timestamp(6)
+}
+
+model impact_actions_proxies {
+  id           Int      @id @default(autoincrement())
+  block_number Int
+  hash         String   @unique @db.VarChar(66)
+  signer       String   @db.VarChar(64)
+  account      String   @db.VarChar(48)
+  date         DateTime @db.Timestamp(6)
+  created_at   DateTime @default(now()) @db.Timestamp(6)
+}
+
+model transactions {
+  id           Int      @id @default(autoincrement())
+  block_number Int
+  hash         String   @unique @db.VarChar(66)
+  sender       String   @db.VarChar(64)
+  recipient    String   @db.VarChar(64)
+  amount       Decimal  @db.Decimal(32, 0)
+  gas_fees     Decimal  @db.Decimal(32, 0) @default(0)
+  created_at   DateTime @db.Timestamp(6)
+}
+
+model vcu_projects {
+  id               Int       @id
+  block_number     Int
+  hash             String    @unique @db.VarChar(66)
+  asset_id         Int?
+  originator       String    @db.VarChar(64)
+  name             String?   @db.VarChar
+  description      String?
+  registry_name    String?   @db.VarChar
+  registry_id      String?
+  registry_summary String?
+  approved         Boolean?  @default(false)
+  total_supply     Int?
+  minted           Int?
+  retired          Int?
+  unit_price       Float?    @db.Real
+
+  batches		   vcu_project_batches[]
+  documents		   vcu_project_documents[]
+  images		   vcu_project_images[]
+  locations		   vcu_project_locations[]
+  royalties		   vcu_project_royalties[]
+  sdgs			   vcu_project_sdgs[]
+  videos		   vcu_project_videos[]
+
+  asset			   assets? @relation(fields: [asset_id], references: [id])
+
+  created_at       DateTime  @db.Timestamp(6)
+  updated_at       DateTime? @db.Timestamp(6)
+}
+
+model vcu_project_batches {
+  id            Int       @id @default(autoincrement())
+  project_id    Int
+  name          String?   @db.VarChar
+  uuid          String?
+  issuance_year Int?
+  start_date    String?
+  end_date      String?
+  total_supply  Int?
+  minted        Int?
+  retired       Int?
+
+  project       vcu_projects @relation(fields: [project_id], references: [id])
+}
+
+model vcu_project_documents {
+  id         Int     @id @default(autoincrement())
+  project_id Int
+  url        String?
+
+  project    vcu_projects @relation(fields: [project_id], references: [id])
+}
+
+model vcu_project_images {
+  id         Int     @id @default(autoincrement())
+  project_id Int
+  url        String?
+
+  project    vcu_projects @relation(fields: [project_id], references: [id])
+}
+
+model vcu_project_locations {
+  id         Int    @id @default(autoincrement())
+  project_id Int
+  latitude   Float? @db.Real
+  longitude  Float? @db.Real
+
+  project    vcu_projects @relation(fields: [project_id], references: [id])
+}
+
+model vcu_project_royalties {
+  id          Int    @id @default(autoincrement())
+  project_id  Int
+  account     String @db.VarChar(64)
+  fee_percent Float? @db.Real
+
+  project     vcu_projects @relation(fields: [project_id], references: [id])
+}
+
+model vcu_project_sdgs {
+  id          Int     @id @default(autoincrement())
+  project_id  Int
+  type        String?
+  description String?
+  references  String?
+
+  project    vcu_projects @relation(fields: [project_id], references: [id])
+}
+
+model vcu_project_videos {
+  id         Int     @id @default(autoincrement())
+  project_id Int
+  url        String?
+
+  project    vcu_projects @relation(fields: [project_id], references: [id])
+}

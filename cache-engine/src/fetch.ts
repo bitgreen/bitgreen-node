@@ -2,8 +2,10 @@
 // This program will process all blocks from X to Y
 // and store them in a local Postgresql database.
 
-const { program } = require('commander');
-const { initApi, processBlock } = require("./src/methods")
+import { Command } from 'commander';
+import { processBlock, initApi } from "./methods"
+
+const program = new Command();
 
 program
     .description('Bitgreen crawler to fetch custom blocks.')
@@ -23,12 +25,17 @@ async function main() {
 
     const block_start = !isNaN(options.blockStart) ? parseInt(options.blockStart) : 1;
     const block_end = !isNaN(options.blockEnd) && parseInt(options.blockEnd) >= block_start ? parseInt(options.blockEnd) : 99999999999999;
-    const analyze_only = options.analyzeOnly;
+
 
     console.log(`Blocks to fetch: ${block_start} to ${block_end}`);
 
     for(let block_number = block_start; block_number <= block_end; block_number++) {
-        await processBlock(api, block_number, analyze_only)
+        const block_processed = await processBlock(api, block_number)
+
+		if(!block_processed) {
+			// TODO: Subscribe here
+			break;
+		}
     }
 }
 
