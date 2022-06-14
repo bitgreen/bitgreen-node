@@ -181,10 +181,7 @@ pub mod pallet {
                 id >= T::MinPoolId::get(),
                 Error::<T>::PoolIdBelowExpectedMinimum
             );
-
-            // TODO : Check if the user is authorised to create pools
-            // TODO : add more checks for asset symbol
-
+            
             ensure!(!Pools::<T>::contains_key(id), Error::<T>::PoolIdInUse);
 
             // use default limit if limit not given by project owner
@@ -280,9 +277,7 @@ pub mod pallet {
                 let project_issuance_year =
                     pallet_vcu::Pallet::calculate_issuance_year(project_details);
 
-                // TODO : transfer the tokens to pool account
-
-                // create an asset collection to reserve asset-id
+                // transfer the tokens to pallet account
                 <T as pallet::Config>::AssetHandler::transfer(
                     project_id,
                     &who,
