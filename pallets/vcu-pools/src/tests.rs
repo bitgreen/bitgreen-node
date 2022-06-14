@@ -1,3 +1,7 @@
+// This file is part of BitGreen.
+// Copyright (C) 2022 BitGreen.
+// This code is licensed under MIT license (see LICENSE.txt for details)
+//
 //! Tests for vcu pool pallet
 use crate::{mock::*, Config, Error, Pools};
 use frame_support::{

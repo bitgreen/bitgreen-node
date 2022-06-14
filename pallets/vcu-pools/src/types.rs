@@ -1,7 +1,10 @@
+// This file is part of BitGreen.
+// Copyright (C) 2022 BitGreen.
+// This code is licensed under MIT license (see LICENSE.txt for details)
+//
+//! Types for vcu-pools
 use super::*;
 use codec::{Decode, Encode, MaxEncodedLen};
-use frame_support::pallet_prelude::DispatchResult;
-use frame_support::{ensure, traits::Contains};
 use frame_support::{BoundedBTreeMap, BoundedVec};
 use primitives::{IssuanceYear, RegistryName};
 use scale_info::TypeInfo;

@@ -335,7 +335,7 @@ impl pallet_vesting::Config for Runtime {
 }
 
 parameter_types! {
-  pub MarketplaceEscrowAccount : AccountId =  PalletId(*b"bitg/mkp").into_account();
+  pub MarketplaceEscrowAccount : AccountId =  PalletId(*b"bitg/mkp").into_account_truncating();
   pub const VCUPalletId: PalletId = PalletId(*b"bitg/vcu");
 }
 
@@ -381,14 +381,14 @@ impl pallet_vcu_pools::Config for Runtime {
 // TODO : Ensure sensible values
 impl pallet_uniques::Config for Runtime {
     type Event = Event;
-    type ClassId = u32;
-    type InstanceId = u32;
+    type CollectionId = u32;
+    type ItemId = u32;
     type Currency = Balances;
     type CreateOrigin = AsEnsureOriginWithArg<frame_system::EnsureSigned<AccountId>>;
     type ForceOrigin = frame_system::EnsureRoot<AccountId>;
     type Locker = ();
-    type ClassDeposit = ConstU128<0>;
-    type InstanceDeposit = ConstU128<0>;
+    type CollectionDeposit = ConstU128<0>;
+    type ItemDeposit = ConstU128<0>;
     type MetadataDepositBase = ConstU128<1>;
     type AttributeDepositBase = ConstU128<1>;
     type DepositPerByte = ConstU128<1>;
@@ -465,6 +465,8 @@ impl orml_tokens::Config for Runtime {
     type MaxLocks = MaxLocks;
     type MaxReserves = MaxLocks;
     type ReserveIdentifier = [u8; 8];
+    type OnNewTokenAccount = ();
+    type OnKilledTokenAccount = ();
     type DustRemovalWhitelist = DustRemovalWhitelist;
 }
 

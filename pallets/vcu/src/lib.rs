@@ -1,17 +1,7 @@
 // This file is part of BitGreen.
 // Copyright (C) 2022 BitGreen.
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
+// This code is licensed under MIT license (see LICENSE.txt for details)
 //
-// 	http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-
 //! VCU Pallet
 //! The VCU pallet creates and retires VCU units that represent the VCUs on the Verra registry. These onchain vcu units can represent a
 //! single type of VCU or can build to represent a combination of different types of VCUs.
@@ -129,7 +119,7 @@ pub mod pallet {
             + MetadataMutate<Self::AccountId>;
 
         // NFT handler config
-        type NFTHandler: NFTCreate<Self::AccountId, ClassId = Self::AssetId, InstanceId = Self::ItemId>
+        type NFTHandler: NFTCreate<Self::AccountId, CollectionId = Self::AssetId, ItemId = Self::ItemId>
             + NFTMutate<Self::AccountId>;
 
         /// Marketplace Escrow provider

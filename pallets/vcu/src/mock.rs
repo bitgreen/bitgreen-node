@@ -1,3 +1,6 @@
+// This file is part of BitGreen.
+// Copyright (C) 2022 BitGreen.
+// This code is licensed under MIT license (see LICENSE.txt for details)
 use crate as pallet_vcu;
 use frame_support::{
     parameter_types,

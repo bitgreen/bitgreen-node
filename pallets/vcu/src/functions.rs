@@ -1,3 +1,7 @@
+// This file is part of BitGreen.
+// Copyright (C) 2022 BitGreen.
+// This code is licensed under MIT license (see LICENSE.txt for details)
+//! VCU pallet helper functions
 use crate::{
     BatchRetireDataList, BatchRetireDataOf, Config, Error, Event, NextItemId, Pallet,
     ProjectDetail, Projects, RetiredVCUs, RetiredVcuData,
@@ -15,7 +19,7 @@ use sp_std::{cmp, convert::TryInto, vec, vec::Vec};
 impl<T: Config> Pallet<T> {
     /// The account ID of the vcu pallet
     pub fn account_id() -> T::AccountId {
-        T::PalletId::get().into_account()
+        T::PalletId::get().into_account_truncating()
     }
 
     /// Get the project details from AssetId
@@ -29,7 +33,7 @@ impl<T: Config> Pallet<T> {
     pub fn calculate_issuance_year(project: ProjectDetail<T>) -> u32 {
         // single batch
         if project.batches.len() == 1 {
-            return project.batches.first().unwrap().issuance_year
+            return project.batches.first().unwrap().issuance_year;
         } else {
             let mut batch_list = project.batches.clone();
             batch_list.sort_by(|x, y| x.issuance_year.cmp(&y.issuance_year));
@@ -133,7 +137,7 @@ impl<T: Config> Pallet<T> {
                 None => {
                     // If the item-id does not exist it implies this is the first retirement of project tokens
                     // create a collection and use default item-id
-                    T::NFTHandler::create_class(
+                    T::NFTHandler::create_collection(
                         &project_id,
                         &Self::account_id(),
                         &Self::account_id(),

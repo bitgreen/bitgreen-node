@@ -1,3 +1,6 @@
+// This file is part of BitGreen.
+// Copyright (C) 2022 BitGreen.
+// This code is licensed under MIT license (see LICENSE.txt for details)
 //! Tests for vcu pallet
 use crate::{
     mock::*, BatchGroupOf, Config, Error, NextItemId, ProjectCreateParams, Projects, RetiredVCUs,

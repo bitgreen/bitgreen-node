@@ -1,17 +1,7 @@
 // This file is part of BitGreen.
 // Copyright (C) 2022 BitGreen.
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
+// This code is licensed under MIT license (see LICENSE.txt for details)
 //
-// 	http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-
 //! ## VCU Pools Pallet
 //! The VCU Pools pallet lets users create and manage vcu pools. A vcu pool is a collection of vcu tokens of different types represented by a
 //! common pool token. A user holding any vcu tokens (subject to the VCU pool config) can deposit vcu tokens to the pool and receive equivalent
@@ -57,10 +47,8 @@ pub mod pallet {
         transactional, PalletId,
     };
     use frame_system::pallet_prelude::*;
-    use sp_runtime::traits::Zero;
-    use sp_runtime::traits::{AccountIdConversion, AtLeast32BitUnsigned};
-    use sp_std::convert::TryFrom;
-    use sp_std::convert::TryInto;
+    use sp_runtime::traits::{AccountIdConversion, Zero};
+    use sp_std::convert::{TryFrom, TryInto};
 
     #[pallet::config]
     pub trait Config: frame_system::Config + pallet_vcu::Config {
@@ -181,7 +169,7 @@ pub mod pallet {
                 id >= T::MinPoolId::get(),
                 Error::<T>::PoolIdBelowExpectedMinimum
             );
-            
+
             ensure!(!Pools::<T>::contains_key(id), Error::<T>::PoolIdInUse);
 
             // use default limit if limit not given by project owner
@@ -411,7 +399,7 @@ pub mod pallet {
     impl<T: Config> Pallet<T> {
         /// The account ID of the vcu pallet
         pub fn account_id() -> T::AccountId {
-            <T as pallet::Config>::PalletId::get().into_account()
+            <T as pallet::Config>::PalletId::get().into_account_truncating()
         }
     }
 }
