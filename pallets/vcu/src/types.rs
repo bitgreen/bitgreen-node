@@ -4,10 +4,7 @@
 use crate::pallet;
 use codec::{Decode, Encode, MaxEncodedLen};
 use frame_support::pallet_prelude::*;
-use primitives::{
-    Batch, BatchRetireData, RegistryDetails, RegistryName, Royalty, SDGDetails, SdgType,
-};
-use sp_runtime::Percent;
+use primitives::{Batch, BatchRetireData, RegistryDetails, Royalty, SDGDetails};
 
 /// AuthorizedAccounts type of pallet
 pub type AuthorizedAccountsListOf<T> = BoundedVec<

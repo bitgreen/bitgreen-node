@@ -4,7 +4,7 @@
 use crate as pallet_vcu;
 use frame_support::{
     parameter_types,
-    traits::{AsEnsureOriginWithArg, ConstU128, ConstU32, Everything, GenesisBuild},
+    traits::{AsEnsureOriginWithArg, ConstU128, ConstU32, Everything},
     PalletId,
 };
 use frame_system as system;
@@ -121,7 +121,7 @@ impl pallet_timestamp::Config for Test {
 parameter_types! {
   pub const MarketplaceEscrowAccount : u64 = 10;
   pub const VCUPalletId: PalletId = PalletId(*b"bitg/vcu");
-  pub VCUPalletAcccount : u64 = PalletId(*b"bitg/vcu").into_account();
+  pub VCUPalletAcccount : u64 = PalletId(*b"bitg/vcu").into_account_truncating();
 }
 
 impl pallet_vcu::Config for Test {
@@ -147,14 +147,14 @@ impl pallet_vcu::Config for Test {
 
 impl pallet_uniques::Config for Test {
     type Event = Event;
-    type ClassId = u32;
-    type InstanceId = u32;
+    type CollectionId = u32;
+    type ItemId = u32;
     type Currency = Balances;
     type CreateOrigin = AsEnsureOriginWithArg<frame_system::EnsureSigned<u64>>;
     type ForceOrigin = frame_system::EnsureRoot<u64>;
     type Locker = ();
-    type ClassDeposit = ConstU128<0>;
-    type InstanceDeposit = ConstU128<0>;
+    type CollectionDeposit = ConstU128<0>;
+    type ItemDeposit = ConstU128<0>;
     type MetadataDepositBase = ConstU128<1>;
     type AttributeDepositBase = ConstU128<1>;
     type DepositPerByte = ConstU128<1>;
@@ -168,7 +168,7 @@ impl pallet_uniques::Config for Test {
 
 // Build genesis storage according to the mock runtime.
 pub fn new_test_ext() -> sp_io::TestExternalities {
-    let mut t = system::GenesisConfig::default()
+    let t = system::GenesisConfig::default()
         .build_storage::<Test>()
         .unwrap();
 

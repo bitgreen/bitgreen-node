@@ -18,6 +18,7 @@
 //! ### Permissionless Functions
 //!
 //! * `create`: Creates a new project onchain with details of batches of credits
+//! * `resubmit`: Resubmit data for a project that has not been approved
 //! * `mint`: Mint a specified amount of token credits
 //! * `retire`: Burn a specified amount of token credits
 //!
@@ -50,7 +51,6 @@ pub use functions::*;
 #[frame_support::pallet]
 pub mod pallet {
     use super::*;
-    use codec::alloc::string::ToString;
     use codec::HasCompact;
     use frame_support::{
         pallet_prelude::*,
@@ -61,11 +61,8 @@ pub mod pallet {
         transactional, PalletId,
     };
     use frame_system::{pallet_prelude::*, WeightInfo};
-    use primitives::BatchRetireData;
-    use sp_runtime::traits::{
-        AccountIdConversion, AtLeast32Bit, AtLeast32BitUnsigned, CheckedAdd, Scale, Zero,
-    };
-    use sp_std::{cmp, convert::TryInto, vec, vec::Vec};
+    use sp_runtime::traits::{AtLeast32BitUnsigned, CheckedAdd, Zero};
+    use sp_std::{cmp, convert::TryInto, vec::Vec};
 
     /// The parameters the VCU pallet depends on
     #[pallet::config]
@@ -193,6 +190,13 @@ pub mod pallet {
             /// The details of the created project
             details: ProjectDetail<T>,
         },
+        /// A project details has been resubmitted
+        ProjectResubmitted {
+            /// The T::AssetId of the created project
+            project_id: T::AssetId,
+            /// The details of the created project
+            details: ProjectDetail<T>,
+        },
         ProjectApproved {
             /// The T::AssetId of the approved project
             project_id: T::AssetId,
@@ -246,6 +250,8 @@ pub mod pallet {
         CannotGenerateAssetId,
         /// ProjectId is lower than permitted
         ProjectIdLowerThanPermitted,
+        /// Cannot resubmit an approved project
+        CannotModifyApprovedProject,
     }
 
     #[pallet::hooks]
@@ -263,75 +269,20 @@ pub mod pallet {
             params: ProjectCreateParams<T>,
         ) -> DispatchResult {
             let sender = ensure_signed(origin)?;
-            let now = frame_system::Pallet::<T>::block_number();
+            Self::create_project(sender, project_id, params)
+        }
 
-            ensure!(
-                project_id >= T::MinProjectId::get(),
-                Error::<T>::ProjectIdLowerThanPermitted
-            );
-
-            // the unit price should not be zero
-            ensure!(
-                params.unit_price > Zero::zero(),
-                Error::<T>::UnitPriceIsZero
-            );
-
-            Projects::<T>::try_mutate(project_id, |project| -> DispatchResult {
-                ensure!(project.is_none(), Error::<T>::ProjectAlreadyExists);
-
-                // the total supply of project must match the supply of all batches
-                let batch_total_supply =
-                    params
-                        .batches
-                        .iter()
-                        .fold(Zero::zero(), |mut sum: T::Balance, batch| {
-                            sum += batch.total_supply;
-                            sum
-                        });
-
-                let new_project = ProjectDetail {
-                    originator: sender,
-                    name: params.name,
-                    description: params.description,
-                    location: params.location,
-                    images: params.images,
-                    videos: params.videos,
-                    documents: params.documents,
-                    registry_details: params.registry_details,
-                    sdg_details: params.sdg_details,
-                    royalties: params.royalties,
-                    batches: params.batches,
-                    created: now,
-                    updated: None,
-                    approved: false,
-                    total_supply: batch_total_supply,
-                    minted: Zero::zero(),
-                    retired: Zero::zero(),
-                    unit_price: params.unit_price,
-                };
-
-                *project = Some(new_project.clone());
-
-                // create the asset
-                T::AssetHandler::create(project_id, Self::account_id(), true, 1_u32.into())?;
-
-                // set metadata for the asset
-                T::AssetHandler::set(
-                    project_id,
-                    &Self::account_id(),
-                    new_project.name.clone().into_inner(), // asset name
-                    project_id.to_string().as_bytes().to_vec(), // asset symbol
-                    0,
-                )?;
-
-                // emit event
-                Self::deposit_event(Event::ProjectCreated {
-                    project_id,
-                    details: new_project,
-                });
-
-                Ok(())
-            })
+        /// Resubmit a approval rejected project data onchain
+        /// An approved project data cannot be resubmitted
+        #[transactional]
+        #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
+        pub fn resubmit(
+            origin: OriginFor<T>,
+            project_id: T::AssetId,
+            params: ProjectCreateParams<T>,
+        ) -> DispatchResult {
+            let sender = ensure_signed(origin)?;
+            Self::resubmit_project(sender, project_id, params)
         }
 
         /// Set the project status to approve/reject
@@ -362,8 +313,6 @@ pub mod pallet {
                 Ok(())
             })
         }
-
-        /// TODO : Need an ext to resubmit
 
         /// Mint tokens for an approved project
         /// The tokens are always minted in the ascending order of credits, for example, if the
@@ -447,28 +396,6 @@ pub mod pallet {
                     project.minted <= project.total_supply,
                     Error::<T>::AmountGreaterThanSupply
                 );
-
-                // // create the asset if not already existing
-                // if project.asset_id.is_none() {
-                //     let asset_id = NextAssetId::<T>::get();
-                //     // create the asset
-                //     T::AssetHandler::create(asset_id, Self::account_id(), true, 1_u32.into())?;
-                //     // set metadata for the asset
-                //     T::AssetHandler::set(
-                //         asset_id,
-                //         &Self::account_id(),
-                //         project.name.clone().into_inner(), // asset name
-                //         asset_id.to_string().as_bytes().to_vec(), // asset symbol
-                //         0,
-                //     )?;
-
-                //     //increment assetId counter
-                //     let next_asset_id: u32 = asset_id.into() + 1_u32;
-                //     NextAssetId::<T>::set(next_asset_id.into());
-
-                //     // set the new asset_id in storage
-                //     project.asset_id = Some(asset_id);
-                // }
 
                 // mint the asset to the recipient
                 T::AssetHandler::mint_into(project_id, &recipient, amount_to_mint)?;
