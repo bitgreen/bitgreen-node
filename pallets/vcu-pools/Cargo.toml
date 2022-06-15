@@ -3,8 +3,8 @@ authors = ['BitGreen <https://bitgreen.org>']
 edition = '2018'
 homepage = 'https://bitgreen.org'
 license = 'MIT'
-name = 'pallet-vcu'
-description = "Module to tokenize VCU"
+name = 'pallet-vcu-pools'
+description = "Create pools for VCU tokens"
 repository = 'https://github.com/bitgreen/bitg-node'
 version = '0.1.0'
 
@@ -24,6 +24,7 @@ pallet-assets = { git = "https://github.com/paritytech/substrate.git", branch = 
 primitives = { package = 'bitg-primitives', path = '../../primitives', default-features = false }
 pallet-balances = { git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.23", default-features = false }
 pallet-uniques = { git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.23", default-features = false }
+pallet-vcu = { package = 'pallet-vcu', path = '../vcu', default-features = false }
 
 # Benchmarking
 frame-benchmarking = { git = "https://github.com/paritytech/substrate.git", default-features = false, optional = true, branch = "polkadot-v0.9.23" }
@@ -47,7 +48,8 @@ std = [
     'pallet-assets/std',
     'pallet-balances/std',
     'sp-runtime/std',
-    'pallet-uniques/std'
+    'pallet-uniques/std',
+    'pallet-vcu/std'
 ]
 runtime-benchmarks = [
   "frame-benchmarking/runtime-benchmarks",

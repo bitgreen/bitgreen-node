@@ -484,6 +484,8 @@ impl orml_tokens::Config for Runtime {
     type MaxLocks = MaxLocks;
     type MaxReserves = MaxLocks;
     type ReserveIdentifier = [u8; 8];
+    type OnNewTokenAccount = ();
+    type OnKilledTokenAccount = ();
     type DustRemovalWhitelist = DustRemovalWhitelist;
 }
 
@@ -542,7 +544,7 @@ impl pallet_assets::Config for Runtime {
 }
 
 parameter_types! {
-  pub MarketplaceEscrowAccount : AccountId =  PalletId(*b"bitg/mkp").into_account();
+  pub MarketplaceEscrowAccount : AccountId =  PalletId(*b"bitg/mkp").into_account_truncating();
   pub const VCUPalletId: PalletId = PalletId(*b"bitg/vcu");
 }
 
@@ -550,7 +552,6 @@ parameter_types! {
 impl pallet_vcu::Config for Runtime {
     type Event = Event;
     type Balance = u128;
-    type ProjectId = u32;
     type AssetId = u32;
     type PalletId = VCUPalletId;
     type AssetHandler = Assets;
@@ -565,20 +566,38 @@ impl pallet_vcu::Config for Runtime {
     type MaxGroupSize = ConstU32<10>;
     type MaxRoyaltyRecipients = ConstU32<10>;
     type MaxCoordinatesLength = ConstU32<8>;
+    type MinProjectId = ConstU32<1000>;
     type WeightInfo = ();
+}
+
+parameter_types! {
+    pub const VCUPoolPalletId: PalletId = PalletId(*b"bit/vcup");
+}
+
+impl pallet_vcu_pools::Config for Runtime {
+    type Event = Event;
+    type PoolId = u32;
+    type AssetHandler = Assets;
+    type PalletId = VCUPoolPalletId;
+    type MaxRegistryListCount = ConstU32<2>;
+    type MaxIssuanceYearCount = ConstU32<20>;
+    type MaxProjectIdList = ConstU32<100>;
+    type MaxAssetSymbolLength = ConstU32<20>;
+    type MinPoolId = ConstU32<10000>;
+    //type WeightInfo = ();
 }
 
 // TODO : Ensure sensible values
 impl pallet_uniques::Config for Runtime {
     type Event = Event;
-    type ClassId = u32;
-    type InstanceId = u32;
+    type CollectionId = u32;
+    type ItemId = u32;
     type Currency = Balances;
     type CreateOrigin = AsEnsureOriginWithArg<frame_system::EnsureSigned<AccountId>>;
     type ForceOrigin = frame_system::EnsureRoot<AccountId>;
     type Locker = ();
-    type ClassDeposit = ConstU128<0>;
-    type InstanceDeposit = ConstU128<0>;
+    type CollectionDeposit = ConstU128<0>;
+    type ItemDeposit = ConstU128<0>;
     type MetadataDepositBase = ConstU128<1>;
     type AttributeDepositBase = ConstU128<1>;
     type DepositPerByte = ConstU128<1>;
@@ -594,35 +613,10 @@ parameter_types! {
   pub const NativeTokenId: u32 = primitives::BBB_TOKEN;
 }
 
-impl pallet_vesting::Config for Runtime {
-    type Event = Event;
-    type NativeTokenId = NativeTokenId;
-}
-
-impl pallet_impact_actions::Config for Runtime {
-    type Event = Event;
-    type Currency = Balances;
-}
-
-impl pallet_bonds::Config for Runtime {
-    type Event = Event;
-    type Currency = Balances;
-}
-
-impl pallet_bridge::Config for Runtime {
-    type Event = Event;
-}
-
 impl pallet_sudo::Config for Runtime {
     type Event = Event;
     type Call = Call;
 }
-
-// Claim pallet, to claim deposits from previous blockchain
-// impl pallet_claim::Config for Runtime {
-// 	type Event = Event;
-// 	type Currency = Balances;
-// }
 
 // Create the runtime by composing the FRAME pallets that were previously configured.
 construct_runtime!(
@@ -661,14 +655,11 @@ construct_runtime!(
         Nft: orml_nft::{Pallet, Call, Storage, Config<T>}= 42,
 
         // Bitgreen pallets
-        Assets: pallet_assets::{Pallet, Call, Storage, Event<T>} = 51,
-        VCU: pallet_vcu::{Pallet, Call, Storage, Config<T>, Event<T>} = 52,
-        Vesting: pallet_vesting::{Pallet, Call, Storage, Event<T>} = 53,
-        ImpactActions: pallet_impact_actions::{Pallet, Call, Storage, Event<T>} = 54,
-        Bonds: pallet_bonds::{Pallet, Call, Storage, Event<T>} = 55,
-        Bridge: pallet_bridge::{Pallet, Call, Storage, Event<T>, Config} = 56,
-        Sudo: pallet_sudo::{Pallet, Call, Storage, Config<T>, Event<T>} = 57,
-        Uniques: pallet_uniques::{Pallet, Call, Storage, Event<T>} = 58,
+        Sudo: pallet_sudo::{Pallet, Call, Storage, Config<T>, Event<T>} = 51,
+        Assets: pallet_assets::{Pallet, Call, Storage, Event<T>} = 52,
+        Uniques: pallet_uniques::{Pallet, Call, Storage, Event<T>} = 53,
+        VCU: pallet_vcu::{Pallet, Call, Storage, Event<T>} = 54,
+        VCUPools: pallet_vcu_pools::{Pallet, Call, Storage, Event<T>} = 55,
     }
 );
 

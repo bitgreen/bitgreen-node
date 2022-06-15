@@ -1,8 +1,10 @@
+// This file is part of BitGreen.
+// Copyright (C) 2022 BitGreen.
+// This code is licensed under MIT license (see LICENSE.txt for details)
 //! Tests for vcu pallet
 use crate::{
-    mock::*, Batch, BatchGroupOf, Config, Error, NextAssetId, NextItemId, ProjectCreateParams,
-    Projects, RegistryDetails, RetiredVCUs, Royalty, SDGDetails, SDGTypesListOf, SdgType,
-    ShortStringOf,
+    mock::*, BatchGroupOf, Config, Error, NextItemId, ProjectCreateParams, Projects, RetiredVCUs,
+    SDGTypesListOf, ShortStringOf,
 };
 use frame_support::{
     assert_noop, assert_ok,
@@ -10,6 +12,7 @@ use frame_support::{
     PalletId,
 };
 use frame_system::RawOrigin;
+use primitives::{Batch, RegistryDetails, RegistryName, Royalty, SDGDetails, SdgType};
 use sp_runtime::traits::AccountIdConversion;
 use sp_runtime::Percent;
 use sp_std::convert::TryInto;
@@ -19,6 +22,7 @@ pub type VCUEvent = crate::Event<Test>;
 /// helper function to generate standard registry details
 fn get_default_registry_details<T: Config>() -> RegistryDetails<ShortStringOf<T>> {
     let registry_details = RegistryDetails {
+        registry: RegistryName::Verra,
         name: "reg_name".as_bytes().to_vec().try_into().unwrap(),
         id: "reg_id".as_bytes().to_vec().try_into().unwrap(),
         summary: "reg_summary".as_bytes().to_vec().try_into().unwrap(),
@@ -355,7 +359,7 @@ fn mint_without_list_to_marketplace_works_for_single_batch() {
         // token minting params
         let amount_to_mint = 50;
         let list_to_marketplace = false;
-        let expected_asset_id = 1000;
+        let expected_asset_id = project_id;
 
         // minting a non existent project should fail
         assert_noop!(
@@ -438,7 +442,7 @@ fn mint_without_list_to_marketplace_works_for_single_batch() {
         );
 
         // ensure minting worked correctly
-        let stored_data = Projects::<Test>::get(project_id).unwrap();
+        let stored_data = VCU::get_project_details(project_id).unwrap();
         assert_eq!(stored_data.originator, originator_account);
         assert_eq!(stored_data.sdg_details, get_default_sdg_details::<Test>());
         assert_eq!(stored_data.unit_price, 100_u32.into());
@@ -446,7 +450,6 @@ fn mint_without_list_to_marketplace_works_for_single_batch() {
         assert_eq!(stored_data.minted, amount_to_mint);
         assert_eq!(stored_data.retired, 0_u32.into());
         assert_eq!(stored_data.approved, true);
-        assert_eq!(stored_data.asset_id.unwrap(), expected_asset_id);
 
         // the batch should also be updated with minted count
         let batch_detail = stored_data.batches.first().unwrap();
@@ -455,7 +458,6 @@ fn mint_without_list_to_marketplace_works_for_single_batch() {
         assert_eq!(batch_detail.retired, 0);
 
         // the next asset-id should be set correctly
-        assert_eq!(NextAssetId::<Test>::get(), 1001);
 
         // the originator should have the minted tokens
         assert_eq!(Assets::total_issuance(expected_asset_id), amount_to_mint);
@@ -469,7 +471,7 @@ fn mint_without_list_to_marketplace_works_for_single_batch() {
         assert_eq!(Assets::name(expected_asset_id), "name".as_bytes().to_vec());
         assert_eq!(
             Assets::symbol(expected_asset_id),
-            "1000".as_bytes().to_vec()
+            "1001".as_bytes().to_vec()
         );
         assert_eq!(Assets::decimals(expected_asset_id), 0_u8);
 
@@ -515,7 +517,7 @@ fn mint_without_list_to_marketplace_works_for_multiple_batches() {
         // the amount will consume full of first batch and half of second batch
         let amount_to_mint = 150;
         let list_to_marketplace = false;
-        let expected_asset_id = 1000;
+        let expected_asset_id = project_id;
 
         // create the project to approve
         let mut creation_params = get_default_creation_params::<Test>();
@@ -563,13 +565,12 @@ fn mint_without_list_to_marketplace_works_for_multiple_batches() {
         assert_eq!(stored_data.minted, amount_to_mint);
         assert_eq!(stored_data.retired, 0_u32.into());
         assert_eq!(stored_data.approved, true);
-        assert_eq!(stored_data.asset_id.unwrap(), expected_asset_id);
 
         // the batch should also be updated with minted count
         // we have a total supply of 200, with 100 in each batch
         // we minted 150 tokens so 100 should be minted from the oldest batch
         // and the rest 50 should be minted from the next batch
-        let mut stored_batches: Vec<Batch<Test>> = stored_data.batches.into_iter().collect();
+        let mut stored_batches: Vec<Batch<_, _>> = stored_data.batches.into_iter().collect();
         // this should have been sorted so arranged in the ascending order of issuance date
         let newest_batch = stored_batches.pop().unwrap();
         assert_eq!(newest_batch.issuance_year, 2021);
@@ -582,9 +583,6 @@ fn mint_without_list_to_marketplace_works_for_multiple_batches() {
         assert_eq!(oldest_batch.total_supply, 100);
         assert_eq!(oldest_batch.minted, 100);
         assert_eq!(oldest_batch.retired, 0);
-
-        // the next asset-id should be set correctly
-        assert_eq!(NextAssetId::<Test>::get(), 1001);
 
         // the originator should have the minted tokens
         assert_eq!(Assets::total_issuance(expected_asset_id), amount_to_mint);
@@ -653,13 +651,12 @@ fn mint_without_list_to_marketplace_works_for_multiple_batches() {
         assert_eq!(stored_data.minted, 200_u32.into());
         assert_eq!(stored_data.retired, 0_u32.into());
         assert_eq!(stored_data.approved, true);
-        assert_eq!(stored_data.asset_id.unwrap(), expected_asset_id);
 
         // the batch should also be updated with minted count
         // we have a total supply of 200, with 100 in each batch
         // we minted 150 tokens in the previous run, 100 from oldest batch and 50 from newest batch
         // so the new 50 tokens should be minted from the newest batch
-        let mut stored_batches: Vec<Batch<Test>> = stored_data.batches.into_iter().collect();
+        let mut stored_batches: Vec<Batch<_, _>> = stored_data.batches.into_iter().collect();
         // this should have been sorted so arranged in the ascending order of issuance date
         let newest_batch = stored_batches.pop().unwrap();
         assert_eq!(newest_batch.issuance_year, 2021);
@@ -687,7 +684,7 @@ fn retire_for_single_batch() {
         let amount_to_mint = 100;
         let amount_to_retire = 50;
         let list_to_marketplace = false;
-        let expected_asset_id = 1000;
+        let expected_asset_id = project_id;
 
         // retire a non existent project should fail
         assert_noop!(
@@ -710,7 +707,7 @@ fn retire_for_single_batch() {
         // calling retire from a non minted project should fail
         assert_noop!(
             VCU::retire(RawOrigin::Signed(3).into(), project_id, amount_to_mint,),
-            Error::<Test>::VCUNotMinted
+            pallet_assets::Error::<Test>::NoAccount
         );
 
         assert_noop!(
@@ -774,7 +771,6 @@ fn retire_for_single_batch() {
         assert_eq!(stored_data.minted, amount_to_mint);
         assert_eq!(stored_data.retired, amount_to_retire);
         assert_eq!(stored_data.approved, true);
-        assert_eq!(stored_data.asset_id.unwrap(), expected_asset_id);
 
         // the batch should also be updated with retired count
         let batch_detail = stored_data.batches.first().unwrap();
@@ -853,7 +849,6 @@ fn retire_for_single_batch() {
         assert_eq!(stored_data.minted, amount_to_mint);
         assert_eq!(stored_data.retired, amount_to_mint);
         assert_eq!(stored_data.approved, true);
-        assert_eq!(stored_data.asset_id.unwrap(), expected_asset_id);
 
         // the batch should also be updated with retired count
         let batch_detail = stored_data.batches.first().unwrap();
@@ -919,7 +914,7 @@ fn retire_for_multiple_batch() {
         let amount_to_mint = 200;
         let amount_to_retire = 50;
         let list_to_marketplace = false;
-        let expected_asset_id = 1000;
+        let expected_asset_id = project_id;
 
         // retire a non existent project should fail
         assert_noop!(
@@ -946,7 +941,7 @@ fn retire_for_multiple_batch() {
         // calling retire from a non minted project should fail
         assert_noop!(
             VCU::retire(RawOrigin::Signed(3).into(), project_id, amount_to_mint,),
-            Error::<Test>::VCUNotMinted
+            pallet_assets::Error::<Test>::NoAccount
         );
 
         // approve project so minting can happen
@@ -994,7 +989,6 @@ fn retire_for_multiple_batch() {
         assert_eq!(stored_data.minted, amount_to_mint);
         assert_eq!(stored_data.retired, amount_to_retire);
         assert_eq!(stored_data.approved, true);
-        assert_eq!(stored_data.asset_id.unwrap(), expected_asset_id);
 
         // the batch should be udpated correctly, should be retired from the oldest batch
         // this should have been sorted so arranged in the ascending order of issuance date
@@ -1077,7 +1071,6 @@ fn retire_for_multiple_batch() {
         assert_eq!(stored_data.minted, amount_to_mint);
         assert_eq!(stored_data.retired, amount_to_mint);
         assert_eq!(stored_data.approved, true);
-        assert_eq!(stored_data.asset_id.unwrap(), expected_asset_id);
 
         // the batch should be udpated correctly, should be retired from the oldest batch
         // this should have been sorted so arranged in the ascending order of issuance date

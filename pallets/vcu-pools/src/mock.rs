@@ -1,7 +1,8 @@
 // This file is part of BitGreen.
 // Copyright (C) 2022 BitGreen.
 // This code is licensed under MIT license (see LICENSE.txt for details)
-use crate as pallet_vcu;
+//
+use crate as pallet_vcu_pools;
 use frame_support::{
     parameter_types,
     traits::{AsEnsureOriginWithArg, ConstU128, ConstU32, Everything, GenesisBuild},
@@ -31,6 +32,7 @@ frame_support::construct_runtime!(
         Uniques: pallet_uniques::{Pallet, Call, Storage, Event<T>},
         Timestamp: pallet_timestamp::{Pallet, Call, Storage, Inherent},
         VCU: pallet_vcu::{Pallet, Call, Storage, Event<T>},
+        VCUPools: pallet_vcu_pools::{Pallet, Call, Storage, Event<T>},
     }
 );
 
@@ -164,6 +166,23 @@ impl pallet_uniques::Config for Test {
     type WeightInfo = ();
     #[cfg(feature = "runtime-benchmarks")]
     type Helper = ();
+}
+
+parameter_types! {
+    pub const VCUPoolPalletId: PalletId = PalletId(*b"bit/vcup");
+}
+
+impl pallet_vcu_pools::Config for Test {
+    type Event = Event;
+    type PoolId = u32;
+    type AssetHandler = Assets;
+    type PalletId = VCUPoolPalletId;
+    type MaxRegistryListCount = ConstU32<2>;
+    type MaxIssuanceYearCount = ConstU32<20>;
+    type MaxProjectIdList = ConstU32<100>;
+    type MaxAssetSymbolLength = ConstU32<20>;
+    type MinPoolId = ConstU32<10000>;
+    //type WeightInfo = ();
 }
 
 // Build genesis storage according to the mock runtime.
