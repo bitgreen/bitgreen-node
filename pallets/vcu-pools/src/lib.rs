@@ -21,6 +21,10 @@
 //! * `deposit`: Deposit some vcu tokens to generate pool tokens
 //! * `retire`: Burn a specified amount of pool tokens
 //!
+//! ### Permissioned Functions
+//!
+//! * `force_set_pool_storage`: Set the pool storage
+//!
 #![cfg_attr(not(feature = "std"), no_std)]
 pub use pallet::*;
 
@@ -74,6 +78,8 @@ pub mod pallet {
             + MetadataMutate<Self::AccountId>
             + Transfer<Self::AccountId>;
 
+        /// The origin which may forcibly perform privileged calls
+        type ForceOrigin: EnsureOrigin<Self::Origin>;
         /// Maximum registrys allowed in the pool config
         type MaxRegistryListCount: Get<u32>;
         /// Maximum issuance years allowed in the pool config
@@ -393,6 +399,19 @@ pub mod pallet {
 
                 Ok(().into())
             })
+        }
+
+        /// Force modify pool storage
+        #[transactional]
+        #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
+        pub fn force_set_pool_storage(
+            origin: OriginFor<T>,
+            pool_id: T::PoolId,
+            data: PoolOf<T>,
+        ) -> DispatchResult {
+            <T as pallet::Config>::ForceOrigin::ensure_origin(origin)?;
+            Pools::<T>::insert(pool_id, data);
+            Ok(())
         }
     }
 

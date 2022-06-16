@@ -28,6 +28,9 @@
 //! * `force_remove_authorized_account`: Removes an authorized_account from the list
 //! * `force_set_next_asset_id`: Set the NextAssetId in storage
 //! * `approve_project`: Set the project status to approved so minting can be executed
+//! * `force_set_project_storage` : Set the project storage
+//! * `force_set_next_item_id` : Set the NextItemId storage
+//! * `force_set_retired_vcu` : Set the RetiredVCU storage
 //!
 #![cfg_attr(not(feature = "std"), no_std)]
 
@@ -119,6 +122,8 @@ pub mod pallet {
         type NFTHandler: NFTCreate<Self::AccountId, CollectionId = Self::AssetId, ItemId = Self::ItemId>
             + NFTMutate<Self::AccountId>;
 
+        /// The origin which may forcibly set storage or add authorised accounts
+        type ForceOrigin: EnsureOrigin<Self::Origin>;
         /// Marketplace Escrow provider
         type MarketplaceEscrow: Get<Self::AccountId>;
         /// Maximum amount of authorised accounts permitted
@@ -434,9 +439,7 @@ pub mod pallet {
             origin: OriginFor<T>,
             account_id: T::AccountId,
         ) -> DispatchResult {
-            // check for SUDO
-            // TODO : Remove tight coupling with sudo, make configurable from config
-            ensure_root(origin)?;
+            T::ForceOrigin::ensure_origin(origin)?;
             // add the account_id to the list of authorized accounts
             AuthorizedAccounts::<T>::try_mutate(|account_list| -> DispatchResult {
                 ensure!(
@@ -461,9 +464,7 @@ pub mod pallet {
             origin: OriginFor<T>,
             account_id: T::AccountId,
         ) -> DispatchResult {
-            // check for SUDO
-            // TODO : Remove tight coupling with sudo, make configurable from config
-            ensure_root(origin)?;
+            T::ForceOrigin::ensure_origin(origin)?;
             // remove the account_id from the list of authorized accounts if already exists
             AuthorizedAccounts::<T>::try_mutate(|account_list| -> DispatchResult {
                 match account_list.binary_search(&account_id) {
@@ -477,6 +478,47 @@ pub mod pallet {
             })
         }
 
-        // TODO : Ext to forceset/clear storage
+        /// Force modify a project storage
+        /// Can only be called by ForceOrigin
+        #[transactional]
+        #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
+        pub fn force_set_project_storage(
+            origin: OriginFor<T>,
+            project_id: T::AssetId,
+            detail: ProjectDetail<T>,
+        ) -> DispatchResult {
+            T::ForceOrigin::ensure_origin(origin)?;
+            Projects::<T>::insert(project_id, detail);
+            Ok(())
+        }
+
+        /// Force modify NextItemId storage
+        /// Can only be called by ForceOrigin
+        #[transactional]
+        #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
+        pub fn force_set_next_item_id(
+            origin: OriginFor<T>,
+            project_id: T::AssetId,
+            item_id: T::ItemId,
+        ) -> DispatchResult {
+            T::ForceOrigin::ensure_origin(origin)?;
+            NextItemId::<T>::insert(project_id, item_id);
+            Ok(())
+        }
+
+        /// Force modify retired vcu storage
+        /// Can only be called by ForceOrigin
+        #[transactional]
+        #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
+        pub fn force_set_retired_vcu(
+            origin: OriginFor<T>,
+            project_id: T::AssetId,
+            item_id: T::ItemId,
+            vcu_data: RetiredVcuData<T>,
+        ) -> DispatchResult {
+            T::ForceOrigin::ensure_origin(origin)?;
+            RetiredVCUs::<T>::insert((project_id, item_id), vcu_data);
+            Ok(())
+        }
     }
 }

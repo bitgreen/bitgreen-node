@@ -6,6 +6,7 @@ use crate::{
     BatchRetireDataList, BatchRetireDataOf, Config, Error, Event, NextItemId, Pallet,
     ProjectCreateParams, ProjectDetail, Projects, RetiredVCUs, RetiredVcuData,
 };
+use codec::alloc::string::ToString;
 use frame_support::{
     ensure,
     pallet_prelude::*,
