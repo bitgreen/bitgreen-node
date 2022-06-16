@@ -398,8 +398,6 @@ impl pallet_uniques::Config for Runtime {
     type KeyLimit = ConstU32<50>;
     type ValueLimit = ConstU32<50>;
     type WeightInfo = ();
-    #[cfg(feature = "runtime-benchmarks")]
-    type Helper = ();
 }
 
 // Bonds management
@@ -556,6 +554,7 @@ mod benches {
         [frame_system, SystemBench::<Runtime>]
         [pallet_balances, Balances]
         [pallet_timestamp, Timestamp]
+        [pallet_vcu, VCU]
     );
 }
 

@@ -42,14 +42,17 @@ mod mock;
 #[cfg(test)]
 pub mod tests;
 
-// #[cfg(feature = "runtime-benchmarks")]
-// mod benchmarking;
+#[cfg(feature = "runtime-benchmarks")]
+mod benchmarking;
 
 mod types;
 pub use types::*;
 
 mod functions;
 pub use functions::*;
+
+mod weights;
+pub use weights::WeightInfo;
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -63,7 +66,7 @@ pub mod pallet {
         },
         transactional, PalletId,
     };
-    use frame_system::{pallet_prelude::*, WeightInfo};
+    use frame_system::pallet_prelude::*;
     use sp_runtime::traits::{AtLeast32BitUnsigned, CheckedAdd, Zero};
     use sp_std::{cmp, convert::TryInto, vec::Vec};
 
@@ -267,7 +270,7 @@ pub mod pallet {
         /// Register a new project onchain
         /// This new project can mint tokens after approval from an authorised account
         #[transactional]
-        #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
+        #[pallet::weight(T::WeightInfo::create())]
         pub fn create(
             origin: OriginFor<T>,
             project_id: T::AssetId,
@@ -280,7 +283,7 @@ pub mod pallet {
         /// Resubmit a approval rejected project data onchain
         /// An approved project data cannot be resubmitted
         #[transactional]
-        #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
+        #[pallet::weight(T::WeightInfo::resubmit())]
         pub fn resubmit(
             origin: OriginFor<T>,
             project_id: T::AssetId,
@@ -292,7 +295,7 @@ pub mod pallet {
 
         /// Set the project status to approve/reject
         #[transactional]
-        #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
+        #[pallet::weight(T::WeightInfo::approve_project())]
         pub fn approve_project(
             origin: OriginFor<T>,
             project_id: T::AssetId,
@@ -313,6 +316,7 @@ pub mod pallet {
                 project.approved = is_approved;
 
                 // emit event
+                // TODO : Emit rejected event if rejected?
                 Self::deposit_event(Event::ProjectApproved { project_id });
 
                 Ok(())
@@ -324,7 +328,7 @@ pub mod pallet {
         /// `amount_to_mint` is 150 and the project has 100 tokens of 2019 and 2020 year. Then we mint
         /// 100 from 2019 and 50 from 2020.
         #[transactional]
-        #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
+        #[pallet::weight(T::WeightInfo::mint())]
         pub fn mint(
             origin: OriginFor<T>,
             project_id: T::AssetId,
@@ -421,7 +425,7 @@ pub mod pallet {
         /// `amount` is 150 and the project has 100 tokens of 2019 and 2020 year. Then we retire
         /// 100 from 2019 and 50 from 2020.
         #[transactional]
-        #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
+        #[pallet::weight(T::WeightInfo::retire())]
         pub fn retire(
             origin: OriginFor<T>,
             project_id: T::AssetId,
@@ -434,7 +438,7 @@ pub mod pallet {
         /// Add a new account to the list of authorised Accounts
         /// The caller must be from a permitted origin
         #[transactional]
-        #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
+        #[pallet::weight(T::WeightInfo::force_add_authorized_account())]
         pub fn force_add_authorized_account(
             origin: OriginFor<T>,
             account_id: T::AccountId,
@@ -459,7 +463,7 @@ pub mod pallet {
 
         /// Remove an account from the list of authorised accounts
         #[transactional]
-        #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
+        #[pallet::weight(T::WeightInfo::force_remove_authorized_account())]
         pub fn force_remove_authorized_account(
             origin: OriginFor<T>,
             account_id: T::AccountId,
@@ -481,7 +485,7 @@ pub mod pallet {
         /// Force modify a project storage
         /// Can only be called by ForceOrigin
         #[transactional]
-        #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
+        #[pallet::weight(T::WeightInfo::force_set_project_storage())]
         pub fn force_set_project_storage(
             origin: OriginFor<T>,
             project_id: T::AssetId,
@@ -495,7 +499,7 @@ pub mod pallet {
         /// Force modify NextItemId storage
         /// Can only be called by ForceOrigin
         #[transactional]
-        #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
+        #[pallet::weight(T::WeightInfo::force_set_next_item_id())]
         pub fn force_set_next_item_id(
             origin: OriginFor<T>,
             project_id: T::AssetId,
@@ -509,7 +513,7 @@ pub mod pallet {
         /// Force modify retired vcu storage
         /// Can only be called by ForceOrigin
         #[transactional]
-        #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
+        #[pallet::weight(T::WeightInfo::force_set_retired_vcu())]
         pub fn force_set_retired_vcu(
             origin: OriginFor<T>,
             project_id: T::AssetId,
