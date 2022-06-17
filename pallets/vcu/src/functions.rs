@@ -4,17 +4,20 @@
 //! VCU pallet helper functions
 use crate::{
     BatchRetireDataList, BatchRetireDataOf, Config, Error, Event, NextItemId, Pallet,
-    ProjectDetail, Projects, RetiredVCUs, RetiredVcuData,
+    ProjectCreateParams, ProjectDetail, Projects, RetiredVCUs, RetiredVcuData,
 };
-use frame_support::pallet_prelude::DispatchResult;
-use frame_support::traits::fungibles::Mutate;
-use frame_support::traits::tokens::nonfungibles::{Create, Mutate as NFTMutate};
-use frame_support::{ensure, traits::Get};
+use frame_support::{
+    ensure,
+    pallet_prelude::*,
+    traits::{
+        tokens::fungibles::{metadata::Mutate as MetadataMutate, Create, Mutate},
+        tokens::nonfungibles::{Create as NFTCreate, Mutate as NFTMutate},
+        Get,
+    },
+};
 use primitives::BatchRetireData;
-use sp_runtime::traits::AccountIdConversion;
-use sp_runtime::traits::CheckedAdd;
-use sp_runtime::traits::Zero;
-use sp_std::{cmp, convert::TryInto, vec, vec::Vec};
+use sp_runtime::traits::{AccountIdConversion, CheckedAdd, Zero};
+use sp_std::{cmp, convert::TryInto, vec::Vec};
 
 impl<T: Config> Pallet<T> {
     /// The account ID of the vcu pallet
@@ -41,6 +44,145 @@ impl<T: Config> Pallet<T> {
         }
     }
 
+    /// Create a new project with `params`
+    pub fn create_project(
+        admin: T::AccountId,
+        project_id: T::AssetId,
+        params: ProjectCreateParams<T>,
+    ) -> DispatchResult {
+        let now = frame_system::Pallet::<T>::block_number();
+
+        ensure!(
+            project_id >= T::MinProjectId::get(),
+            Error::<T>::ProjectIdLowerThanPermitted
+        );
+
+        // the unit price should not be zero
+        ensure!(!params.unit_price.is_zero(), Error::<T>::UnitPriceIsZero);
+
+        Projects::<T>::try_mutate(project_id, |project| -> DispatchResult {
+            ensure!(project.is_none(), Error::<T>::ProjectAlreadyExists);
+
+            // the total supply of project must match the supply of all batches
+            let batch_total_supply =
+                params
+                    .batches
+                    .iter()
+                    .fold(Zero::zero(), |mut sum: T::Balance, batch| {
+                        sum += batch.total_supply;
+                        sum
+                    });
+
+            let new_project = ProjectDetail {
+                originator: admin,
+                name: params.name,
+                description: params.description,
+                location: params.location,
+                images: params.images,
+                videos: params.videos,
+                documents: params.documents,
+                registry_details: params.registry_details,
+                sdg_details: params.sdg_details,
+                royalties: params.royalties,
+                batches: params.batches,
+                created: now,
+                updated: None,
+                approved: false,
+                total_supply: batch_total_supply,
+                minted: Zero::zero(),
+                retired: Zero::zero(),
+                unit_price: params.unit_price,
+            };
+
+            *project = Some(new_project.clone());
+
+            // create the asset
+            T::AssetHandler::create(project_id, Self::account_id(), true, 1_u32.into())?;
+
+            // set metadata for the asset
+            T::AssetHandler::set(
+                project_id,
+                &Self::account_id(),
+                new_project.name.clone().into_inner(), // asset name
+                project_id.to_string().as_bytes().to_vec(), // asset symbol
+                0,
+            )?;
+
+            // emit event
+            Self::deposit_event(Event::ProjectCreated {
+                project_id,
+                details: new_project,
+            });
+
+            Ok(())
+        })
+    }
+
+    /// Resubmit a project after approval is rejected
+    pub fn resubmit_project(
+        admin: T::AccountId,
+        project_id: T::AssetId,
+        params: ProjectCreateParams<T>,
+    ) -> DispatchResult {
+        let now = frame_system::Pallet::<T>::block_number();
+
+        Projects::<T>::try_mutate(project_id, |project| -> DispatchResult {
+            let project = project.as_mut().ok_or(Error::<T>::ProjectNotFound)?;
+
+            // approved projects cannot be modified
+            ensure!(
+                project.approved == false,
+                Error::<T>::CannotModifyApprovedProject
+            );
+            // only originator can resubmit
+            ensure!(project.originator == admin, Error::<T>::NotAuthorised);
+
+            // the unit price should not be zero
+            ensure!(!params.unit_price.is_zero(), Error::<T>::UnitPriceIsZero);
+
+            // the total supply of project must match the supply of all batches
+            let batch_total_supply =
+                params
+                    .batches
+                    .iter()
+                    .fold(Zero::zero(), |mut sum: T::Balance, batch| {
+                        sum += batch.total_supply;
+                        sum
+                    });
+
+            let new_project = ProjectDetail {
+                originator: admin,
+                name: params.name,
+                description: params.description,
+                location: params.location,
+                images: params.images,
+                videos: params.videos,
+                documents: params.documents,
+                registry_details: params.registry_details,
+                sdg_details: params.sdg_details,
+                royalties: params.royalties,
+                batches: params.batches,
+                created: project.created,
+                updated: Some(now),
+                approved: false,
+                total_supply: batch_total_supply,
+                minted: Zero::zero(),
+                retired: Zero::zero(),
+                unit_price: params.unit_price,
+            };
+
+            *project = new_project.clone();
+
+            // emit event
+            Self::deposit_event(Event::ProjectResubmitted {
+                project_id,
+                details: new_project,
+            });
+
+            Ok(())
+        })
+    }
+
     /// Retire vcus for given project_id
     pub fn retire_vcus(
         from: T::AccountId,
@@ -52,8 +194,6 @@ impl<T: Config> Pallet<T> {
         Projects::<T>::try_mutate(project_id, |project| -> DispatchResult {
             // ensure the project exists
             let project = project.as_mut().ok_or(Error::<T>::ProjectNotFound)?;
-
-            // let project_id = project.project_id.as_ref().ok_or(Error::<T>::VCUNotMinted)?;
 
             // attempt to burn the tokens from the caller
             T::AssetHandler::burn_from(project_id, &from.clone(), amount)?;
