@@ -137,6 +137,7 @@ impl pallet_vcu::Config for Test {
     type MaxIpfsReferenceLength = ConstU32<20>;
     type MaxDocumentCount = ConstU32<2>;
     type MaxRoyaltyRecipients = ConstU32<5>;
+    type ForceOrigin = frame_system::EnsureRoot<u64>;
     type ItemId = u32;
     type NFTHandler = Uniques;
     type MaxGroupSize = ConstU32<5>;
