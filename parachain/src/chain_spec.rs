@@ -291,11 +291,5 @@ fn testnet_genesis(
             key: Some(get_account_id_from_seed::<sr25519::Public>("Alice")),
         },
         nft: bitg_parachain_runtime::NftConfig { tokens: vec![] },
-        bridge: bitg_parachain_runtime::BridgeConfig {
-            lockdown_status: false,
-        },
-        vcu: bitg_parachain_runtime::VCUConfig {
-            next_asset_id: 1000_u32.into(),
-        },
     }
 }
