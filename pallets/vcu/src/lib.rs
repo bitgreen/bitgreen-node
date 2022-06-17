@@ -283,7 +283,7 @@ pub mod pallet {
         /// Resubmit a approval rejected project data onchain
         /// An approved project data cannot be resubmitted
         #[transactional]
-        #[pallet::weight(T::WeightInfo::resubmit())]
+        #[pallet::weight(T::WeightInfo::create())]
         pub fn resubmit(
             origin: OriginFor<T>,
             project_id: T::AssetId,
