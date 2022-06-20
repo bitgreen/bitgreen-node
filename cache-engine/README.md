@@ -17,14 +17,25 @@ Edit `.env` file, and save it.
 
 ---
 
+### Build
+```
+npm run build
+```
+
+---
+
 ### Database
 **prisma** package is being used for `postgresql` database.
 
-To run migrations for this project run the command underneath. It will create all necessary tables and handle configuration.
+#### Run Migrations
+This will create all necessary tables and handle configuration.
+Run ``npx prisma migrate dev`` for development, or ``npx prisma migrate deploy`` for production environment.
+
+You can also reset the database, which will drop all schemas and remigrate:
 ```
-npx prisma generate
-npx prisma db push
+npx prisma migrate reset
 ```
+For more information: [Prisma Docs](https://www.prisma.io/docs/concepts/components/prisma-migrate)
 
 ---
 
