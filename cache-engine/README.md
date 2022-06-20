@@ -62,6 +62,11 @@ Run the following command for more details:
 npm run fetch -- --help
 ```
 
+_Important:_ in order process the old blocks, the node should run in "archive" mode by the additional parameter:
+```
+--pruning archive
+```
+
 ---
 
 ### Run API
