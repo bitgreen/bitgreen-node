@@ -2,6 +2,12 @@
 
 This is the BitGreen Node based on Substrate Framework 3.x
 
+This repository contains the Bitgreen node and associated tools to (1) issue Verified Carbon Credit (VCUs) in a decentralized and transparent web3 environment, (2) purchase VCUs for both the voluntary and mandatory markets, and (3) retire* those credits to remove them from circulation. 
+
+*Retiring a carbon credit is the act of consuming it for offset purposes. Each VCU may be purchased and sold multiple times, but retired only once. All VCUs are created for the purpose of being retired. 
+
+Bitgreen provides a convenient and easy-to-use platform for the aforementioned VCU management processes and our support staff is available if you require any assistance. Please contact us at [contact] if you need help or would like additional information. 
+
 ## New Features
 - Smart Contracts Support in native [!Ink language](https://substrate.dev/docs/en/knowledgebase/smart-contracts/ink-development) a Rust based embedded domain specific language.  
 - Smart Contracts in [Solidity language](https://docs.soliditylang.org/),compatible with Ethereum Dapps. You can create and execute a smart contract written for Ethereum without changes.
