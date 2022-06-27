@@ -127,5 +127,6 @@ runtime-benchmarks = [
 	"pallet-timestamp/runtime-benchmarks",
 	"sp-runtime/runtime-benchmarks",
 	"orml-authority/runtime-benchmarks",
-	"pallet-vcu/runtime-benchmarks"
+	"pallet-vcu/runtime-benchmarks",
+	"pallet-vcu-pools/runtime-benchmarks"
 ]

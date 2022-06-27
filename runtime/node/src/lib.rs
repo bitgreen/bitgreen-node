@@ -377,7 +377,7 @@ impl pallet_vcu_pools::Config for Runtime {
     type MaxProjectIdList = ConstU32<100>;
     type MaxAssetSymbolLength = ConstU32<20>;
     type MinPoolId = ConstU32<10000>;
-    //type WeightInfo = ();
+    type WeightInfo = ();
 }
 
 // TODO : Ensure sensible values
@@ -555,6 +555,7 @@ mod benches {
         [pallet_balances, Balances]
         [pallet_timestamp, Timestamp]
         [pallet_vcu, VCU]
+        [pallet_vcu_pools, VCUPools]
     );
 }
 
