@@ -6,6 +6,7 @@
 // pulling required libraries
 let express = require('express');
 const https = require("https");
+let RateLimit = require('express-rate-limit');
 let fs = require('fs');
 let mysql= require('mysql');
 const { ApiPromise, WsProvider } = require('@polkadot/api');
@@ -60,6 +61,12 @@ async function mainloop(){
     //setup express (http server)
     let app = express(); 
     app.use(express.urlencoded({ extended: true })); // for parsing application/x-www-form-urlencoded
+    let limiter = RateLimit({
+        windowMs: 1*60*1000, // 1 minute 5 attempts
+        max: 5
+    });
+
+    
     //main form in  index.html
     app.get('/',function(req,res){             
         let v=read_file("index.html");
@@ -423,14 +430,18 @@ function read_file(name){
       }
 }
 async function isAlphaNumeric(str) {
-    let code, i, len;
-    for (i = 0, len = str.length; i < len; i++) {
-      code = str.charCodeAt(i);
-      if (!(code > 47 && code < 58) && // numeric (0-9)
-          !(code > 64 && code < 91) && // upper alpha (A-Z)
-          !(code > 96 && code < 123)) { // lower alpha (a-z)
+    if (typeof str !== 'string' || str.indexOf("..") !== -1) {
         return false;
-      }
+    }else {
+        let code, i, len;
+        for (i = 0, len = str.length; i < len; i++) {
+        code = str.charCodeAt(i);
+        if (!(code > 47 && code < 58) && // numeric (0-9)
+            !(code > 64 && code < 91) && // upper alpha (A-Z)
+            !(code > 96 && code < 123)) { // lower alpha (a-z)
+            return false;
+        }
+        }
+        return true;
     }
-    return true;
   };

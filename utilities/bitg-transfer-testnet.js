@@ -9,6 +9,8 @@ const { ApiPromise, WsProvider } = require('@polkadot/api');
 const { Keyring } = require('@polkadot/keyring');
 const { decodeAddress, encodeAddress } = require('@polkadot/keyring');
 const { hexToU8a, isHex } = require('@polkadot/util');
+const RateLimit = require('express-rate-limit');
+
 
 
 //***************************************************************************************************
@@ -22,6 +24,11 @@ mainloop();
 async function mainloop(){
     //setup express (http server)
     let app = express(); 
+    let limiter = RateLimit({
+        windowMs: 1*60*1000, // 1 minute 5 attempts
+        max: 5
+    });
+    app.use(limiter);
     app.use(express.urlencoded({ extended: true })); // for parsing application/x-www-form-urlencoded
     //main form in  index.html
     app.get('/',function(req,res){             
