@@ -60,7 +60,6 @@ orml-nft = { git = "https://github.com/open-web3-stack/open-runtime-module-libra
 
 # Local Dependencies
 primitives = { package = "bitg-primitives", path = "../../primitives", default-features = false }
-pallet-claim ={ default-features = false, version = '0.1.0', path = "../../pallets/claim" }
 pallet-impact-actions ={ default-features = false, version = '0.1.0', path = "../../pallets/impact-actions"}
 pallet-bonds ={ default-features = false, version = '0.1.0', path = "../../pallets/bonds"}
 pallet-bridge ={ default-features = false, version = '0.1.0', path = "../../pallets/bridge"}
@@ -109,7 +108,6 @@ std = [
 
 	"primitives/std",
 	"pallet-assets/std",
-	"pallet-claim/std",
 	"pallet-impact-actions/std",
 	"pallet-bonds/std",
 	"pallet-bridge/std",

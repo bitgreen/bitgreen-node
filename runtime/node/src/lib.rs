@@ -309,12 +309,6 @@ impl pallet_assets::Config for Runtime {
     type Extra = ();
 }
 
-// Claim pallet, to claim deposits from previous blockchain
-impl pallet_claim::Config for Runtime {
-    type Event = Event;
-    type Currency = Balances;
-}
-
 // Impact Actions management
 impl pallet_impact_actions::Config for Runtime {
     type Event = Event;
@@ -497,10 +491,7 @@ construct_runtime!(
         Sudo: pallet_sudo,
 
         Tokens: orml_tokens::{Pallet, Storage, Event<T>, Config<T>} = 11,
-
-        // Claim Pallet
-        Claim: pallet_claim::{Pallet, Call, Storage, Event<T>} = 60,
-        Nft: orml_nft::{Pallet, Call, Storage, Config<T>}= 62,
+        Nft: orml_nft::{Pallet, Call, Storage, Config<T>}= 60,
 
         //Assets - ERC20 Tokens
         Assets: pallet_assets::{Pallet, Call, Storage, Event<T>} = 71,
