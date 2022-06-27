@@ -34,11 +34,14 @@ mod mock;
 #[cfg(test)]
 mod tests;
 
-// #[cfg(feature = "runtime-benchmarks")]
-// mod benchmarking;
+#[cfg(feature = "runtime-benchmarks")]
+mod benchmarking;
 
 mod types;
 pub use types::*;
+
+mod weights;
+pub use weights::WeightInfo;
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -93,6 +96,8 @@ pub mod pallet {
         /// The vcu-pools pallet id
         #[pallet::constant]
         type PalletId: Get<PalletId>;
+        /// Weight information for extrinsics in this pallet.
+        type WeightInfo: WeightInfo;
     }
 
     #[pallet::pallet]
@@ -161,7 +166,7 @@ pub mod pallet {
         /// max_limit : Limit of maximum project-ids the pool can support, default to T::MaxProjectIdLIst
         /// asset_symbol : Symbol for asset created for the pool
         #[transactional]
-        #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
+        #[pallet::weight(<T as pallet::Config>::WeightInfo::create())]
         pub fn create(
             origin: OriginFor<T>,
             id: T::PoolId,
@@ -235,7 +240,7 @@ pub mod pallet {
         /// project_id : The project_id of the vcu being deposited
         /// amount: The amount of VCU to deposit
         #[transactional]
-        #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
+        #[pallet::weight(<T as pallet::Config>::WeightInfo::deposit())]
         pub fn deposit(
             origin: OriginFor<T>,
             pool_id: T::PoolId,
@@ -327,7 +332,7 @@ pub mod pallet {
         /// pool_id : Id of the pooltokens to retire
         /// amount: The amount of VCU to deposit
         #[transactional]
-        #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
+        #[pallet::weight(<T as pallet::Config>::WeightInfo::retire())]
         pub fn retire(
             origin: OriginFor<T>,
             pool_id: T::PoolId,

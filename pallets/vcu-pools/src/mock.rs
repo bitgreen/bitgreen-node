@@ -165,8 +165,6 @@ impl pallet_uniques::Config for Test {
     type KeyLimit = ConstU32<50>;
     type ValueLimit = ConstU32<50>;
     type WeightInfo = ();
-    #[cfg(feature = "runtime-benchmarks")]
-    type Helper = ();
 }
 
 parameter_types! {
@@ -184,7 +182,7 @@ impl pallet_vcu_pools::Config for Test {
     type MaxAssetSymbolLength = ConstU32<20>;
     type MinPoolId = ConstU32<10000>;
     type ForceOrigin = frame_system::EnsureRoot<u64>;
-    //type WeightInfo = ();
+    type WeightInfo = ();
 }
 
 // Build genesis storage according to the mock runtime.
