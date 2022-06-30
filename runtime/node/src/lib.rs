@@ -309,12 +309,6 @@ impl pallet_assets::Config for Runtime {
     type Extra = ();
 }
 
-// Claim pallet, to claim deposits from previous blockchain
-impl pallet_claim::Config for Runtime {
-    type Event = Event;
-    type Currency = Balances;
-}
-
 // Impact Actions management
 impl pallet_impact_actions::Config for Runtime {
     type Event = Event;
@@ -348,6 +342,7 @@ impl pallet_vcu::Config for Runtime {
     type AssetHandler = Assets;
     type ItemId = u32;
     type NFTHandler = Uniques;
+    type ForceOrigin = EnsureRoot<AccountId>;
     type MarketplaceEscrow = MarketplaceEscrowAccount;
     type MaxAuthorizedAccountCount = ConstU32<10>;
     type MaxShortStringLength = ConstU32<300>;
@@ -370,12 +365,13 @@ impl pallet_vcu_pools::Config for Runtime {
     type PoolId = u32;
     type AssetHandler = Assets;
     type PalletId = VCUPoolPalletId;
+    type ForceOrigin = EnsureRoot<AccountId>;
     type MaxRegistryListCount = ConstU32<2>;
     type MaxIssuanceYearCount = ConstU32<20>;
     type MaxProjectIdList = ConstU32<100>;
     type MaxAssetSymbolLength = ConstU32<20>;
     type MinPoolId = ConstU32<10000>;
-    //type WeightInfo = ();
+    type WeightInfo = ();
 }
 
 // TODO : Ensure sensible values
@@ -396,8 +392,6 @@ impl pallet_uniques::Config for Runtime {
     type KeyLimit = ConstU32<50>;
     type ValueLimit = ConstU32<50>;
     type WeightInfo = ();
-    #[cfg(feature = "runtime-benchmarks")]
-    type Helper = ();
 }
 
 // Bonds management
@@ -497,10 +491,7 @@ construct_runtime!(
         Sudo: pallet_sudo,
 
         Tokens: orml_tokens::{Pallet, Storage, Event<T>, Config<T>} = 11,
-
-        // Claim Pallet
-        Claim: pallet_claim::{Pallet, Call, Storage, Event<T>} = 60,
-        Nft: orml_nft::{Pallet, Call, Storage, Config<T>}= 62,
+        Nft: orml_nft::{Pallet, Call, Storage, Config<T>}= 60,
 
         //Assets - ERC20 Tokens
         Assets: pallet_assets::{Pallet, Call, Storage, Event<T>} = 71,
@@ -554,6 +545,8 @@ mod benches {
         [frame_system, SystemBench::<Runtime>]
         [pallet_balances, Balances]
         [pallet_timestamp, Timestamp]
+        [pallet_vcu, VCU]
+        [pallet_vcu_pools, VCUPools]
     );
 }
 

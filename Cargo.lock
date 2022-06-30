@@ -584,7 +584,6 @@ dependencies = [
  "pallet-balances",
  "pallet-bonds",
  "pallet-bridge",
- "pallet-claim",
  "pallet-grandpa",
  "pallet-impact-actions",
  "pallet-randomness-collective-flip",
@@ -702,7 +701,7 @@ dependencies = [
  "frame-try-runtime",
  "hex",
  "hex-literal",
- "libsecp256k1 0.7.0",
+ "libsecp256k1",
  "orml-authority",
  "orml-benchmarking",
  "orml-nft",
@@ -4476,20 +4475,6 @@ dependencies = [
 
 [[package]]
 name = "libsecp256k1"
-version = "0.3.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1fc1e2c808481a63dc6da2074752fdd4336a3c8fcc68b83db6f1fd5224ae7962"
-dependencies = [
- "arrayref",
- "crunchy",
- "digest 0.8.1",
- "rand 0.7.3",
- "sha2 0.8.2",
- "subtle",
-]
-
-[[package]]
-name = "libsecp256k1"
 version = "0.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b0452aac8bab02242429380e9b2f94ea20cea2b37e2c1777a1358799bbe97f37"
@@ -5596,25 +5581,6 @@ dependencies = [
  "pallet-treasury",
  "parity-scale-codec",
  "scale-info",
- "sp-core",
- "sp-io",
- "sp-runtime",
- "sp-std",
-]
-
-[[package]]
-name = "pallet-claim"
-version = "0.1.0"
-dependencies = [
- "base64",
- "bs58",
- "frame-support",
- "frame-system",
- "libsecp256k1 0.3.5",
- "parity-scale-codec",
- "ripemd160",
- "scale-info",
- "sha2 0.9.9",
  "sp-core",
  "sp-io",
  "sp-runtime",
@@ -7604,7 +7570,7 @@ dependencies = [
  "frame-support",
  "frame-system",
  "impl-trait-for-tuples",
- "libsecp256k1 0.7.0",
+ "libsecp256k1",
  "log",
  "pallet-authorship",
  "pallet-babe",
@@ -8450,17 +8416,6 @@ dependencies = [
  "untrusted",
  "web-sys",
  "winapi",
-]
-
-[[package]]
-name = "ripemd160"
-version = "0.9.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2eca4ecc81b7f313189bf73ce724400a07da2a6dac19588b03c8bd76a2dcc251"
-dependencies = [
- "block-buffer 0.9.0",
- "digest 0.9.0",
- "opaque-debug 0.3.0",
 ]
 
 [[package]]
@@ -10384,7 +10339,7 @@ dependencies = [
  "hex",
  "impl-serde",
  "lazy_static",
- "libsecp256k1 0.7.0",
+ "libsecp256k1",
  "log",
  "merlin",
  "num-traits",
@@ -10507,7 +10462,7 @@ source = "git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.24#81
 dependencies = [
  "futures 0.3.21",
  "hash-db",
- "libsecp256k1 0.7.0",
+ "libsecp256k1",
  "log",
  "parity-scale-codec",
  "parking_lot 0.12.1",

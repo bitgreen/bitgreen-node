@@ -18,6 +18,7 @@
 //! ### Permissionless Functions
 //!
 //! * `create`: Creates a new project onchain with details of batches of credits
+//! * `resubmit`: Resubmit data for a project that has not been approved
 //! * `mint`: Mint a specified amount of token credits
 //! * `retire`: Burn a specified amount of token credits
 //!
@@ -27,6 +28,9 @@
 //! * `force_remove_authorized_account`: Removes an authorized_account from the list
 //! * `force_set_next_asset_id`: Set the NextAssetId in storage
 //! * `approve_project`: Set the project status to approved so minting can be executed
+//! * `force_set_project_storage` : Set the project storage
+//! * `force_set_next_item_id` : Set the NextItemId storage
+//! * `force_set_retired_vcu` : Set the RetiredVCU storage
 //!
 #![cfg_attr(not(feature = "std"), no_std)]
 
@@ -38,8 +42,8 @@ mod mock;
 #[cfg(test)]
 pub mod tests;
 
-// #[cfg(feature = "runtime-benchmarks")]
-// mod benchmarking;
+#[cfg(feature = "runtime-benchmarks")]
+mod benchmarking;
 
 mod types;
 pub use types::*;
@@ -47,10 +51,12 @@ pub use types::*;
 mod functions;
 pub use functions::*;
 
+mod weights;
+pub use weights::WeightInfo;
+
 #[frame_support::pallet]
 pub mod pallet {
     use super::*;
-    use codec::alloc::string::ToString;
     use codec::HasCompact;
     use frame_support::{
         pallet_prelude::*,
@@ -60,12 +66,9 @@ pub mod pallet {
         },
         transactional, PalletId,
     };
-    use frame_system::{pallet_prelude::*, WeightInfo};
-    use primitives::BatchRetireData;
-    use sp_runtime::traits::{
-        AccountIdConversion, AtLeast32Bit, AtLeast32BitUnsigned, CheckedAdd, Scale, Zero,
-    };
-    use sp_std::{cmp, convert::TryInto, vec, vec::Vec};
+    use frame_system::pallet_prelude::*;
+    use sp_runtime::traits::{AtLeast32BitUnsigned, CheckedAdd, Zero};
+    use sp_std::{cmp, convert::TryInto, vec::Vec};
 
     /// The parameters the VCU pallet depends on
     #[pallet::config]
@@ -122,6 +125,8 @@ pub mod pallet {
         type NFTHandler: NFTCreate<Self::AccountId, CollectionId = Self::AssetId, ItemId = Self::ItemId>
             + NFTMutate<Self::AccountId>;
 
+        /// The origin which may forcibly set storage or add authorised accounts
+        type ForceOrigin: EnsureOrigin<Self::Origin>;
         /// Marketplace Escrow provider
         type MarketplaceEscrow: Get<Self::AccountId>;
         /// Maximum amount of authorised accounts permitted
@@ -193,6 +198,13 @@ pub mod pallet {
             /// The details of the created project
             details: ProjectDetail<T>,
         },
+        /// A project details has been resubmitted
+        ProjectResubmitted {
+            /// The T::AssetId of the created project
+            project_id: T::AssetId,
+            /// The details of the created project
+            details: ProjectDetail<T>,
+        },
         ProjectApproved {
             /// The T::AssetId of the approved project
             project_id: T::AssetId,
@@ -246,6 +258,8 @@ pub mod pallet {
         CannotGenerateAssetId,
         /// ProjectId is lower than permitted
         ProjectIdLowerThanPermitted,
+        /// Cannot resubmit an approved project
+        CannotModifyApprovedProject,
     }
 
     #[pallet::hooks]
@@ -256,87 +270,32 @@ pub mod pallet {
         /// Register a new project onchain
         /// This new project can mint tokens after approval from an authorised account
         #[transactional]
-        #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
+        #[pallet::weight(T::WeightInfo::create())]
         pub fn create(
             origin: OriginFor<T>,
             project_id: T::AssetId,
             params: ProjectCreateParams<T>,
         ) -> DispatchResult {
             let sender = ensure_signed(origin)?;
-            let now = frame_system::Pallet::<T>::block_number();
+            Self::create_project(sender, project_id, params)
+        }
 
-            ensure!(
-                project_id >= T::MinProjectId::get(),
-                Error::<T>::ProjectIdLowerThanPermitted
-            );
-
-            // the unit price should not be zero
-            ensure!(
-                params.unit_price > Zero::zero(),
-                Error::<T>::UnitPriceIsZero
-            );
-
-            Projects::<T>::try_mutate(project_id, |project| -> DispatchResult {
-                ensure!(project.is_none(), Error::<T>::ProjectAlreadyExists);
-
-                // the total supply of project must match the supply of all batches
-                let batch_total_supply =
-                    params
-                        .batches
-                        .iter()
-                        .fold(Zero::zero(), |mut sum: T::Balance, batch| {
-                            sum += batch.total_supply;
-                            sum
-                        });
-
-                let new_project = ProjectDetail {
-                    originator: sender,
-                    name: params.name,
-                    description: params.description,
-                    location: params.location,
-                    images: params.images,
-                    videos: params.videos,
-                    documents: params.documents,
-                    registry_details: params.registry_details,
-                    sdg_details: params.sdg_details,
-                    royalties: params.royalties,
-                    batches: params.batches,
-                    created: now,
-                    updated: None,
-                    approved: false,
-                    total_supply: batch_total_supply,
-                    minted: Zero::zero(),
-                    retired: Zero::zero(),
-                    unit_price: params.unit_price,
-                };
-
-                *project = Some(new_project.clone());
-
-                // create the asset
-                T::AssetHandler::create(project_id, Self::account_id(), true, 1_u32.into())?;
-
-                // set metadata for the asset
-                T::AssetHandler::set(
-                    project_id,
-                    &Self::account_id(),
-                    new_project.name.clone().into_inner(), // asset name
-                    project_id.to_string().as_bytes().to_vec(), // asset symbol
-                    0,
-                )?;
-
-                // emit event
-                Self::deposit_event(Event::ProjectCreated {
-                    project_id,
-                    details: new_project,
-                });
-
-                Ok(())
-            })
+        /// Resubmit a approval rejected project data onchain
+        /// An approved project data cannot be resubmitted
+        #[transactional]
+        #[pallet::weight(T::WeightInfo::create())]
+        pub fn resubmit(
+            origin: OriginFor<T>,
+            project_id: T::AssetId,
+            params: ProjectCreateParams<T>,
+        ) -> DispatchResult {
+            let sender = ensure_signed(origin)?;
+            Self::resubmit_project(sender, project_id, params)
         }
 
         /// Set the project status to approve/reject
         #[transactional]
-        #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
+        #[pallet::weight(T::WeightInfo::approve_project())]
         pub fn approve_project(
             origin: OriginFor<T>,
             project_id: T::AssetId,
@@ -357,20 +316,19 @@ pub mod pallet {
                 project.approved = is_approved;
 
                 // emit event
+                // TODO : Emit rejected event if rejected?
                 Self::deposit_event(Event::ProjectApproved { project_id });
 
                 Ok(())
             })
         }
 
-        /// TODO : Need an ext to resubmit
-
         /// Mint tokens for an approved project
         /// The tokens are always minted in the ascending order of credits, for example, if the
         /// `amount_to_mint` is 150 and the project has 100 tokens of 2019 and 2020 year. Then we mint
         /// 100 from 2019 and 50 from 2020.
         #[transactional]
-        #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
+        #[pallet::weight(T::WeightInfo::mint())]
         pub fn mint(
             origin: OriginFor<T>,
             project_id: T::AssetId,
@@ -448,28 +406,6 @@ pub mod pallet {
                     Error::<T>::AmountGreaterThanSupply
                 );
 
-                // // create the asset if not already existing
-                // if project.asset_id.is_none() {
-                //     let asset_id = NextAssetId::<T>::get();
-                //     // create the asset
-                //     T::AssetHandler::create(asset_id, Self::account_id(), true, 1_u32.into())?;
-                //     // set metadata for the asset
-                //     T::AssetHandler::set(
-                //         asset_id,
-                //         &Self::account_id(),
-                //         project.name.clone().into_inner(), // asset name
-                //         asset_id.to_string().as_bytes().to_vec(), // asset symbol
-                //         0,
-                //     )?;
-
-                //     //increment assetId counter
-                //     let next_asset_id: u32 = asset_id.into() + 1_u32;
-                //     NextAssetId::<T>::set(next_asset_id.into());
-
-                //     // set the new asset_id in storage
-                //     project.asset_id = Some(asset_id);
-                // }
-
                 // mint the asset to the recipient
                 T::AssetHandler::mint_into(project_id, &recipient, amount_to_mint)?;
 
@@ -489,7 +425,7 @@ pub mod pallet {
         /// `amount` is 150 and the project has 100 tokens of 2019 and 2020 year. Then we retire
         /// 100 from 2019 and 50 from 2020.
         #[transactional]
-        #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
+        #[pallet::weight(T::WeightInfo::retire())]
         pub fn retire(
             origin: OriginFor<T>,
             project_id: T::AssetId,
@@ -502,14 +438,12 @@ pub mod pallet {
         /// Add a new account to the list of authorised Accounts
         /// The caller must be from a permitted origin
         #[transactional]
-        #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
+        #[pallet::weight(T::WeightInfo::force_add_authorized_account())]
         pub fn force_add_authorized_account(
             origin: OriginFor<T>,
             account_id: T::AccountId,
         ) -> DispatchResult {
-            // check for SUDO
-            // TODO : Remove tight coupling with sudo, make configurable from config
-            ensure_root(origin)?;
+            T::ForceOrigin::ensure_origin(origin)?;
             // add the account_id to the list of authorized accounts
             AuthorizedAccounts::<T>::try_mutate(|account_list| -> DispatchResult {
                 ensure!(
@@ -529,14 +463,12 @@ pub mod pallet {
 
         /// Remove an account from the list of authorised accounts
         #[transactional]
-        #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
+        #[pallet::weight(T::WeightInfo::force_remove_authorized_account())]
         pub fn force_remove_authorized_account(
             origin: OriginFor<T>,
             account_id: T::AccountId,
         ) -> DispatchResult {
-            // check for SUDO
-            // TODO : Remove tight coupling with sudo, make configurable from config
-            ensure_root(origin)?;
+            T::ForceOrigin::ensure_origin(origin)?;
             // remove the account_id from the list of authorized accounts if already exists
             AuthorizedAccounts::<T>::try_mutate(|account_list| -> DispatchResult {
                 match account_list.binary_search(&account_id) {
@@ -550,6 +482,47 @@ pub mod pallet {
             })
         }
 
-        // TODO : Ext to forceset/clear storage
+        /// Force modify a project storage
+        /// Can only be called by ForceOrigin
+        #[transactional]
+        #[pallet::weight(T::WeightInfo::force_set_project_storage())]
+        pub fn force_set_project_storage(
+            origin: OriginFor<T>,
+            project_id: T::AssetId,
+            detail: ProjectDetail<T>,
+        ) -> DispatchResult {
+            T::ForceOrigin::ensure_origin(origin)?;
+            Projects::<T>::insert(project_id, detail);
+            Ok(())
+        }
+
+        /// Force modify NextItemId storage
+        /// Can only be called by ForceOrigin
+        #[transactional]
+        #[pallet::weight(T::WeightInfo::force_set_next_item_id())]
+        pub fn force_set_next_item_id(
+            origin: OriginFor<T>,
+            project_id: T::AssetId,
+            item_id: T::ItemId,
+        ) -> DispatchResult {
+            T::ForceOrigin::ensure_origin(origin)?;
+            NextItemId::<T>::insert(project_id, item_id);
+            Ok(())
+        }
+
+        /// Force modify retired vcu storage
+        /// Can only be called by ForceOrigin
+        #[transactional]
+        #[pallet::weight(T::WeightInfo::force_set_retired_vcu())]
+        pub fn force_set_retired_vcu(
+            origin: OriginFor<T>,
+            project_id: T::AssetId,
+            item_id: T::ItemId,
+            vcu_data: RetiredVcuData<T>,
+        ) -> DispatchResult {
+            T::ForceOrigin::ensure_origin(origin)?;
+            RetiredVCUs::<T>::insert((project_id, item_id), vcu_data);
+            Ok(())
+        }
     }
 }

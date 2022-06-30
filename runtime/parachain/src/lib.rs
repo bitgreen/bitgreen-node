@@ -557,6 +557,7 @@ impl pallet_vcu::Config for Runtime {
     type AssetHandler = Assets;
     type ItemId = u32;
     type NFTHandler = Uniques;
+    type ForceOrigin = EnsureRoot<AccountId>;
     type MarketplaceEscrow = MarketplaceEscrowAccount;
     type MaxAuthorizedAccountCount = ConstU32<10>;
     type MaxShortStringLength = ConstU32<300>;
@@ -579,12 +580,13 @@ impl pallet_vcu_pools::Config for Runtime {
     type PoolId = u32;
     type AssetHandler = Assets;
     type PalletId = VCUPoolPalletId;
+    type ForceOrigin = EnsureRoot<AccountId>;
     type MaxRegistryListCount = ConstU32<2>;
     type MaxIssuanceYearCount = ConstU32<20>;
     type MaxProjectIdList = ConstU32<100>;
     type MaxAssetSymbolLength = ConstU32<20>;
     type MinPoolId = ConstU32<10000>;
-    //type WeightInfo = ();
+    type WeightInfo = ();
 }
 
 // TODO : Ensure sensible values

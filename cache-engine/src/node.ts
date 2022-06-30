@@ -31,7 +31,7 @@ async function main () {
         await processBlock(api, header.number.toNumber())
 
         if (++count === 20) {
-            unsubscribe();
+            // unsubscribe();
             // process.exit(0);
         }
     });

@@ -290,6 +290,90 @@ fn create_works_for_multiple_batch() {
 }
 
 #[test]
+fn resubmit_works() {
+    new_test_ext().execute_with(|| {
+        let originator_account = 1;
+        let authorised_account = 10;
+        let project_id = 1001;
+
+        let mut creation_params = get_default_creation_params::<Test>();
+        // replace the default with mutiple batches
+        creation_params.batches = get_multiple_batch_group::<Test>();
+
+        assert_ok!(VCU::create(
+            RawOrigin::Signed(originator_account).into(),
+            project_id,
+            creation_params.clone()
+        ));
+
+        // only originator can resubmit
+        assert_noop!(
+            VCU::resubmit(
+                RawOrigin::Signed(10).into(),
+                project_id,
+                creation_params.clone()
+            ),
+            Error::<Test>::NotAuthorised
+        );
+
+        creation_params.name = "Newname".as_bytes().to_vec().try_into().unwrap();
+        assert_ok!(VCU::resubmit(
+            RawOrigin::Signed(originator_account).into(),
+            project_id,
+            creation_params.clone()
+        ));
+
+        // ensure the storage is populated correctly
+        let stored_data = Projects::<Test>::get(project_id).unwrap();
+
+        assert_eq!(stored_data.originator, originator_account);
+        assert_eq!(stored_data.name, creation_params.name);
+        assert_eq!(
+            stored_data.registry_details,
+            get_default_registry_details::<Test>()
+        );
+        assert_eq!(stored_data.sdg_details, get_default_sdg_details::<Test>());
+        assert_eq!(stored_data.batches, get_multiple_batch_group::<Test>());
+        assert_eq!(stored_data.unit_price, 100_u32.into());
+        // the supply of both batches should be added correctly
+        assert_eq!(stored_data.total_supply, 200_u32.into());
+        assert_eq!(stored_data.minted, 0_u32.into());
+        assert_eq!(stored_data.retired, 0_u32.into());
+        assert_eq!(stored_data.approved, false);
+
+        assert_eq!(
+            last_event(),
+            VCUEvent::ProjectResubmitted {
+                project_id,
+                details: stored_data
+            }
+            .into()
+        );
+
+        // authorise the account
+        assert_ok!(VCU::force_add_authorized_account(
+            RawOrigin::Root.into(),
+            authorised_account
+        ));
+        assert_ok!(VCU::approve_project(
+            RawOrigin::Signed(authorised_account).into(),
+            project_id,
+            true
+        ),);
+
+        // approved project cannot be resubmitted
+        assert_noop!(
+            VCU::resubmit(
+                RawOrigin::Signed(originator_account).into(),
+                project_id,
+                creation_params.clone()
+            ),
+            Error::<Test>::CannotModifyApprovedProject
+        );
+    });
+}
+
+#[test]
 fn approve_project_works() {
     new_test_ext().execute_with(|| {
         let originator_account = 1;
@@ -790,10 +874,10 @@ fn retire_for_single_batch() {
         );
 
         // Ensure the NFT is minted correctly
-        let vcu_pallet_account_id: u64 = PalletId(*b"bitg/vcu").into_account();
+        let vcu_pallet_account_id: u64 = PalletId(*b"bitg/vcu").into_account_truncating();
         // the collection owner should be pallet
         assert_eq!(
-            Uniques::class_owner(expected_asset_id).unwrap(),
+            Uniques::collection_owner(expected_asset_id).unwrap(),
             vcu_pallet_account_id
         );
         // the originator should have received the item
@@ -874,7 +958,7 @@ fn retire_for_single_batch() {
 
         // the collection owner should be pallet
         assert_eq!(
-            Uniques::class_owner(expected_asset_id).unwrap(),
+            Uniques::collection_owner(expected_asset_id).unwrap(),
             vcu_pallet_account_id
         );
         // the originator should have received the item
@@ -1018,10 +1102,10 @@ fn retire_for_multiple_batch() {
         );
 
         // Ensure the NFT is minted correctly
-        let vcu_pallet_account_id: u64 = PalletId(*b"bitg/vcu").into_account();
+        let vcu_pallet_account_id: u64 = PalletId(*b"bitg/vcu").into_account_truncating();
         // the collection owner should be pallet
         assert_eq!(
-            Uniques::class_owner(expected_asset_id).unwrap(),
+            Uniques::collection_owner(expected_asset_id).unwrap(),
             vcu_pallet_account_id
         );
         // the originator should have received the item
@@ -1105,7 +1189,7 @@ fn retire_for_multiple_batch() {
 
         // the collection owner should be pallet
         assert_eq!(
-            Uniques::class_owner(expected_asset_id).unwrap(),
+            Uniques::collection_owner(expected_asset_id).unwrap(),
             vcu_pallet_account_id
         );
         // the originator should have received the item
