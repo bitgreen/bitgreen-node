@@ -1,3 +1,5 @@
+// SBP M2 review: compilation warnings.
+
 // This file is part of BitGreen.
 // Copyright (C) 2022 BitGreen.
 // This code is licensed under MIT license (see LICENSE.txt for details)
@@ -30,6 +32,10 @@ impl<T: Config> Pallet<T> {
     /// Calculate the issuance year for a project
     /// For a project with a single batch it's the issuance year of that batch
     /// For a project with multiple batches, its the issuance year of the oldest batch
+    // SBP M2 review: you can always sort a vector
+    // Then take the first value if EXISTS
+    // How about a situation when `batches` is empty?
+    // How about sorting batches on insert?
     pub fn calculate_issuance_year(project: ProjectDetail<T>) -> u32 {
         // single batch
         if project.batches.len() == 1 {
@@ -42,6 +48,9 @@ impl<T: Config> Pallet<T> {
     }
 
     /// Retire vcus for given project_id
+    // SBP M2 review: I suggest returning `DispatchResult` only in extrinsics
+    // IMHO non extrinsic function should return Result<_, Error>
+    // Also too long function, refactor needed
     pub fn retire_vcus(
         from: T::AccountId,
         project_id: T::AssetId,
@@ -71,12 +80,17 @@ impl<T: Config> Pallet<T> {
             );
 
             // Retire in the individual batches too
+            // SBP M2 review: try to avoid cloning vectors
+            // Maybe sorting on insert can help?
             let mut batch_list: Vec<_> = project.batches.clone().into_iter().collect();
             // sort by issuance year so we retire from oldest batch
+            // SBP M2 review: how about impl Ord trait
+            // like: https://stackoverflow.com/questions/29884402/how-do-i-implement-ord-for-a-struct
             batch_list.sort_by(|x, y| x.issuance_year.cmp(&y.issuance_year));
             // list to store retirement data
             let mut batch_retire_data_list: BatchRetireDataList<T> = Default::default();
             let mut remaining = amount;
+            // SBP M2 review: try to avoid iterations as much as possible
             for batch in batch_list.iter_mut() {
                 // lets retire from the older batches as much as possible
                 // this is safe since we ensure minted >= retired
@@ -99,6 +113,7 @@ impl<T: Config> Pallet<T> {
                 // add to retired list
                 batch_retire_data_list
                     .try_push(batch_retire_data)
+                    // SBP M2 review: add better error handling
                     .expect("this should not fail");
 
                 // this is safe since actual is <= remaining
@@ -150,7 +165,11 @@ impl<T: Config> Pallet<T> {
             // mint the NFT to caller
             T::NFTHandler::mint_into(&project_id, &item_id, &from)?;
             // Increment the NextItemId storage
+            // SBP M2 review: take care of overflows
+            // Check https://doc.rust-lang.org/std/primitive.u32.html#method.checked_add
             let next_item_id: u32 = item_id.into() + 1_u32;
+            // SBP M2 review: use try_mutate
+            // https://paritytech.github.io/substrate/master/frame_support/storage/trait.StorageMap.html#tymethod.try_mutate
             NextItemId::<T>::insert::<T::AssetId, T::ItemId>(project_id, next_item_id.into());
 
             // form the retire vcu data
@@ -165,6 +184,8 @@ impl<T: Config> Pallet<T> {
             RetiredVCUs::<T>::insert((project_id, item_id), retired_vcu_data);
 
             // emit event
+            // SBP M2 review: I suggest emitting events only in extrinsics
+            // not in helper functions
             Self::deposit_event(Event::VCURetired {
                 project_id,
                 account: from,

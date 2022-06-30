@@ -1,3 +1,5 @@
+// SBP M2 review: compilation warnings.
+
 //! Pallet to manage the impact actions on BitGreen Blockchain
 #![cfg_attr(not(feature = "std"), no_std)]
 pub use pallet::*;
@@ -8,6 +10,7 @@ pub use pallet::*;
 // You should refactor to use adequate Rust structs for data modeling, and rely
 // on SCALE encoding for efficient data encoding & storage.
 
+// SBP M2 review: M1 comments not applied
 #[cfg(test)]
 mod mock;
 

@@ -1,3 +1,6 @@
+// SBP M2 review: compilation warnings.
+// SBP M2 review: M1 comments not applied
+
 //! Pallet to manage the Bonds (Debit Market) on BitGreen Blockchain
 #![cfg_attr(not(feature = "std"), no_std)]
 #![recursion_limit = "256"]
@@ -716,6 +719,8 @@ pub mod pallet {
         /// key=="infodocuments" {"documents:[{"document":"xxxxdescription"},{"document":"xxxxdescription"}]}
         /// for example: [{"document":"Profit&Loss Previous year"},{"document":"Board Members/Director List"}]
         #[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
+        // SBP M2 review: Use BoundedVec instead of Vec
+        // It is a security issue
         pub fn create_change_settings(
             origin: OriginFor<T>,
             key: Vec<u8>,

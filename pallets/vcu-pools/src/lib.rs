@@ -30,6 +30,7 @@ mod mock;
 #[cfg(test)]
 mod tests;
 
+// SBP M2 review: benchmarks are required
 // #[cfg(feature = "runtime-benchmarks")]
 // mod benchmarking;
 
@@ -104,6 +105,9 @@ pub mod pallet {
         PoolCreated {
             admin: T::AccountId,
             id: T::PoolId,
+            // SBP M2 review: as in `vcu` pallet; corresponds to `config` field
+            // Events should inform that a change has occured, not to inform about the whole
+            // difference in state
             config: PoolConfigOf<T>,
         },
         /// A new deposit was added to pool
@@ -142,10 +146,12 @@ pub mod pallet {
         UnexpectedOverflow,
     }
 
+    // SBP M2 review: you can get rid of `hooks`
     #[pallet::hooks]
     impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {}
 
     #[pallet::call]
+    // SBP M2 review: weights are required for each extrinsic
     impl<T: Config> Pallet<T> {
         /// Create a new vcu pool with given params
         ///
@@ -170,6 +176,7 @@ pub mod pallet {
                 Error::<T>::PoolIdBelowExpectedMinimum
             );
 
+            // SBP M2 review: why do you pass an id instead of generating it in the extrinsic?
             ensure!(!Pools::<T>::contains_key(id), Error::<T>::PoolIdInUse);
 
             // use default limit if limit not given by project owner
@@ -238,6 +245,7 @@ pub mod pallet {
         ) -> DispatchResultWithPostInfo {
             let who = ensure_signed(origin)?;
 
+            // SBP M2 review: too long function, refactor needed
             Pools::<T>::try_mutate(pool_id, |pool| -> DispatchResultWithPostInfo {
                 let pool = pool.as_mut().ok_or(Error::<T>::InvalidPoolId)?;
 
@@ -277,6 +285,8 @@ pub mod pallet {
                 // add the project to the credits pool
                 let issuance_year_map = pool.credits.get_mut(&project_issuance_year);
 
+                // SBP M2 review: ugly if else construction
+                // think about pattern matching, etc.
                 if let Some(project_map) = issuance_year_map {
                     let project_details = project_map.get_mut(&project_id);
                     if let Some(existing_amount) = project_details {
@@ -329,6 +339,7 @@ pub mod pallet {
         ) -> DispatchResultWithPostInfo {
             let who = ensure_signed(origin)?;
 
+            // SBP M2 review: too long function, refactor needed
             Pools::<T>::try_mutate(pool_id, |pool| -> DispatchResultWithPostInfo {
                 let pool = pool.as_mut().ok_or(Error::<T>::InvalidPoolId)?;
 
@@ -340,6 +351,8 @@ pub mod pallet {
                 let mut pool_credits_temp = pool.credits.clone().into_inner();
 
                 // Retire tokens starting from oldest until `amount` is retired
+
+                // SBP M2 review: think about better data structure to avoid many iterations
                 for (_year, project_map) in pool_credits_temp.iter_mut() {
                     // the iterator is sorted by key (year), so retire all from year before moving to next year
                     // we dont care about the project order

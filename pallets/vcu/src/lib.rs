@@ -1,3 +1,5 @@
+// SBP M2 review: compilation warnings.
+
 // This file is part of BitGreen.
 // Copyright (C) 2022 BitGreen.
 // This code is licensed under MIT license (see LICENSE.txt for details)
@@ -38,6 +40,7 @@ mod mock;
 #[cfg(test)]
 pub mod tests;
 
+// SBP M2 review: benchmarking is required for the pallet
 // #[cfg(feature = "runtime-benchmarks")]
 // mod benchmarking;
 
@@ -170,6 +173,7 @@ pub mod pallet {
     #[pallet::storage]
     #[pallet::getter(fn retired_vcus)]
     /// The retired vcu record
+    //SBP M2 review: Why not StorageDoubleMap?
     pub(super) type RetiredVCUs<T: Config> = StorageNMap<
         _,
         (
@@ -191,6 +195,10 @@ pub mod pallet {
             /// The T::AssetId of the created project
             project_id: T::AssetId,
             /// The details of the created project
+            // SBP M2 review: I suggest not to include project details in the event
+            // If anyone interested, there should be a possibility to fetch project details by id
+            // Events should inform that a change has occured,
+            // but are not required to contain the whole state change
             details: ProjectDetail<T>,
         },
         ProjectApproved {
@@ -215,6 +223,7 @@ pub mod pallet {
             /// The amount of VCU units retired
             amount: T::Balance,
             /// Details of the retired token
+            // SBP M2 review: As previously, do not include all details in an event
             retire_data: BatchRetireDataList<T>,
         },
     }
@@ -248,10 +257,12 @@ pub mod pallet {
         ProjectIdLowerThanPermitted,
     }
 
+    // SBP M2 review: you can remove `hooks` part if it does not contain any function
     #[pallet::hooks]
     impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {}
 
     #[pallet::call]
+    // SBP M2 review: Benchmarks are required for the pallet
     impl<T: Config> Pallet<T> {
         /// Register a new project onchain
         /// This new project can mint tokens after approval from an authorised account
@@ -265,6 +276,7 @@ pub mod pallet {
             let sender = ensure_signed(origin)?;
             let now = frame_system::Pallet::<T>::block_number();
 
+            // SBP M2 review: project id should be calculated, not provided as a parameter
             ensure!(
                 project_id >= T::MinProjectId::get(),
                 Error::<T>::ProjectIdLowerThanPermitted
@@ -276,10 +288,13 @@ pub mod pallet {
                 Error::<T>::UnitPriceIsZero
             );
 
+            // SBP M2 review: you can extract it as a function that can be passed to `try_mutate`
             Projects::<T>::try_mutate(project_id, |project| -> DispatchResult {
                 ensure!(project.is_none(), Error::<T>::ProjectAlreadyExists);
 
                 // the total supply of project must match the supply of all batches
+
+                // SBP M2 review: How about extracting helper function for counting total supply?
                 let batch_total_supply =
                     params
                         .batches
@@ -289,6 +304,8 @@ pub mod pallet {
                             sum
                         });
 
+                // SBP M2 review: I suggest implementing ProjectDetail::new(sender, params, ...)
+                // It will be easier to read
                 let new_project = ProjectDetail {
                     originator: sender,
                     name: params.name,
@@ -344,6 +361,8 @@ pub mod pallet {
         ) -> DispatchResult {
             let sender = ensure_signed(origin)?;
 
+            // SBP M2 review: I suggest extracting authorized account check into separated function
+            // It can be used then in multiple functions
             let authorized_accounts = AuthorizedAccounts::<T>::get();
             ensure!(
                 authorized_accounts.contains(&sender),
@@ -379,6 +398,7 @@ pub mod pallet {
         ) -> DispatchResult {
             let sender = ensure_signed(origin)?;
 
+            // SBP M2 review: Extract as separated function
             Projects::<T>::try_mutate(project_id, |project| -> DispatchResult {
                 // ensure the project exists
                 let project = project.as_mut().ok_or(Error::<T>::ProjectNotFound)?;
@@ -388,6 +408,7 @@ pub mod pallet {
 
                 // ensure the caller is the originator
                 ensure!(
+                    // SBP M2 review: do not clone value only for check
                     sender == project.originator.clone(),
                     Error::<T>::NotAuthorised
                 );
@@ -404,8 +425,11 @@ pub mod pallet {
                 };
 
                 // Mint in the individual batches too
+                // SBP M2 review: try to avoid clonning data
                 let mut batch_list: Vec<_> = project.batches.clone().into_iter().collect();
                 // sort by issuance year so we mint from oldest batch
+                // SBP M2 review: Implement Ord trait as suggested in functions.rs
+                // SBP M2 review: how about ordering on insert?
                 batch_list.sort_by(|x, y| x.issuance_year.cmp(&y.issuance_year));
                 let mut remaining = amount_to_mint;
                 for batch in batch_list.iter_mut() {
@@ -447,6 +471,9 @@ pub mod pallet {
                     project.minted <= project.total_supply,
                     Error::<T>::AmountGreaterThanSupply
                 );
+
+                // SBP M2 review: unused code -> delete from the codebase
+                // Can be found later in commit history
 
                 // // create the asset if not already existing
                 // if project.asset_id.is_none() {
@@ -511,7 +538,10 @@ pub mod pallet {
             // TODO : Remove tight coupling with sudo, make configurable from config
             ensure_root(origin)?;
             // add the account_id to the list of authorized accounts
+            // SBP M2 review: the return value should be Result<_,_> instead of DispatchResult
             AuthorizedAccounts::<T>::try_mutate(|account_list| -> DispatchResult {
+                // SBP M2 review: I do not see a huge problem when you add the same existing value to a
+                // StorageMap. IMHO check + potential insert make higher transaction cost
                 ensure!(
                     !account_list.contains(&account_id),
                     Error::<T>::AuthorizedAccountAlreadyExists

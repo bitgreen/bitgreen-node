@@ -1,3 +1,5 @@
+// SBP M2 review: compilation warnings.
+
 #![warn(missing_docs)]
 
 mod chain_spec;

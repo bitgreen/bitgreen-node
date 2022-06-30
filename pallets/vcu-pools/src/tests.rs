@@ -1,3 +1,8 @@
+// SBP M2 review: General comments about tests:
+// 1) Tests are too complicated - each test should hava a single check (single operation chec
+// Other test should assume that the rest of code work properly - there are many copy paste c
+// 2) Add test initialization functions to avoid copy paste in each test initialization
+
 // This file is part of BitGreen.
 // Copyright (C) 2022 BitGreen.
 // This code is licensed under MIT license (see LICENSE.txt for details)

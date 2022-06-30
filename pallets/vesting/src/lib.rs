@@ -1,3 +1,5 @@
+// SBP M2 review: compilation warnings.
+// SBP M2 review: M1 comments not applied
 // This file is part of BitGreen.
 
 // Copyright (C) 2021 BitGreen.

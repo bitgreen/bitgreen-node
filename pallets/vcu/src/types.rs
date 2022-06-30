@@ -1,3 +1,5 @@
+// SBP M2 review: compilation warnings.
+
 // This file is part of BitGreen.
 // Copyright (C) 2022 BitGreen.
 // This code is licensed under MIT license (see LICENSE.txt for details)

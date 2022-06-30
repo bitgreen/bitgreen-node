@@ -1,3 +1,8 @@
+// SBP M2 review: General comments about tests:
+// 1) Tests are too complicated - each test should hava a single check (single operation check)
+// Other test should assume that the rest of code work properly - there are many copy paste checks
+// 2) Add test initialization functions to avoid copy paste in each test initialization
+
 // This file is part of BitGreen.
 // Copyright (C) 2022 BitGreen.
 // This code is licensed under MIT license (see LICENSE.txt for details)
@@ -180,6 +185,8 @@ fn force_remove_authorized_accounts_should_work() {
             RawOrigin::Root.into(),
             authorised_account_one,
         ));
+        // SBP M2 review: you do not need to check if `force_add_authorized_account` works properly
+        // As it is checked in the previous test
         assert_eq!(
             VCU::authorized_accounts().first(),
             Some(&authorised_account_one)
@@ -210,6 +217,8 @@ fn create_works_for_single_batch() {
 
         let creation_params = get_default_creation_params::<Test>();
 
+        // SBP M2 review: How about implementing Eq trait for Project struct?
+        // It will simplify some of tests
         assert_ok!(VCU::create(
             RawOrigin::Signed(originator_account).into(),
             project_id,
@@ -350,6 +359,9 @@ fn approve_project_works() {
     });
 }
 
+// SBP M2 review: too complicated test
+// Each test should check 1 scenario
+// It is easier to read, verify and find a bug
 #[test]
 fn mint_without_list_to_marketplace_works_for_single_batch() {
     new_test_ext().execute_with(|| {

@@ -1,3 +1,8 @@
+// SBP M2 review: Benchmarks are required for Milestone Deliverables
+// This module is not included in lib.rs
+// Extrinsics' weights are hardcoded
+// No weights module (auto-generated from Benchmarks)
+
 // This file is part of BitGreen.
 // Copyright (C) 2022 BitGreen.
 // This code is licensed under MIT license (see LICENSE.txt for details)

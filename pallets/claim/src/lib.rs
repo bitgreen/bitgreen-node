@@ -3,6 +3,7 @@
 pub use pallet::*;
 
 // SBP M1 review: missing documentation, tests & benchmarks.
+// SBP M2 review: M1 comments not applied
 
 #[cfg(test)]
 mod mock;
