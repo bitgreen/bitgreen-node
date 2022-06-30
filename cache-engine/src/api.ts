@@ -163,6 +163,9 @@ const mainLoop = async () => {
 					recipient: true,
 					amount: true,
 					created_at: true
+				},
+				orderBy: {
+					created_at: 'desc',
 				}
 			})
 		} catch (e) {
@@ -274,6 +277,9 @@ const mainLoop = async () => {
 					},
 					...account_query,
 					...asset_query
+				},
+				orderBy: {
+					created_at: 'desc',
 				}
 			})
 		} catch (e) {
