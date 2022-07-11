@@ -8,7 +8,6 @@ split-debuginfo = "unpacked"
 members = [
     'parachain',
     'runtime/*',
-    'node',
     'pallets/vcu',
     'pallets/vcu-pools',
     'primitives'
