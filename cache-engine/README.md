@@ -23,20 +23,6 @@ npm install
 
 ---
 
-#### Database
-**node-pg-migrate** package is being used for `postgresql` migrations.
-
-To run migrations for this project run the command underneath. It will create all necessary tables and handle configuration.
-```
-npm run migrate up
-```
-To revert migration:
-```
-npm run migrate down
-```
-
----
-
 ### Config
 Copy `.env.example` to `.env` and set environment variables.
 ```
@@ -44,6 +30,28 @@ cp .env.example .env
 nano .env
 ```
 Edit `.env` file, and save it.
+
+---
+
+### Build
+```
+npm run build
+```
+
+---
+
+### Database
+**prisma** package is being used for `postgresql` database.
+
+#### Run Migrations
+This will create all necessary tables and handle configuration.
+Run ``npx prisma migrate dev`` for development, or ``npx prisma migrate deploy`` for production environment.
+
+You can also reset the database, which will drop all schemas and remigrate:
+```
+npx prisma migrate reset
+```
+For more information: [Prisma Docs](https://www.prisma.io/docs/concepts/components/prisma-migrate)
 
 ---
 
@@ -68,6 +76,11 @@ npm run fetch -- --block-start=X -a
 Run the following command for more details:
 ```
 npm run fetch -- --help
+```
+
+_Important:_ in order process the old blocks, the node should run in "archive" mode by the additional parameter:
+```
+--pruning archive
 ```
 
 ---

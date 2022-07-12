@@ -2,16 +2,24 @@
 
 /* import packages */
 import express, { Express, Request, Response } from 'express'
+import cors, { CorsOptions } from 'cors'
 import { PrismaClient } from '@prisma/client'
 import * as dotenv from 'dotenv'
-import { initApi } from "./methods";
-import { BlockHash } from "@polkadot/types/interfaces";
+import { initApi } from "./methods"
+import { BlockHash } from "@polkadot/types/interfaces"
 
 /* config */
 dotenv.config();
 const port = process.env.API_PORT || 3000
 
 const prisma = new PrismaClient()
+
+// array of all allowed origins
+// TODO: Add list of origins
+const allowed_origins = ['*']
+const cors_options: CorsOptions = {
+	origin: allowed_origins
+};
 
 // main function
 const mainLoop = async () => {
@@ -20,6 +28,8 @@ const mainLoop = async () => {
 
 	app.use(express.urlencoded({extended: true}));
 	app.use(express.json());
+
+	app.use(cors());
 
 	app.get('/', function (req: Request, res: Response) {
 		res.send('Hello from BitGreen!');
@@ -153,6 +163,9 @@ const mainLoop = async () => {
 					recipient: true,
 					amount: true,
 					created_at: true
+				},
+				orderBy: {
+					created_at: 'desc',
 				}
 			})
 		} catch (e) {
@@ -264,6 +277,9 @@ const mainLoop = async () => {
 					},
 					...account_query,
 					...asset_query
+				},
+				orderBy: {
+					created_at: 'desc',
 				}
 			})
 		} catch (e) {

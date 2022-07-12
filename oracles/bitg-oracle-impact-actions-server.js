@@ -6,6 +6,7 @@
 // pulling required libraries
 let express = require('express');
 const https = require("https");
+let RateLimit = require('express-rate-limit');
 let fs = require('fs');
 let mysql= require('mysql');
 const { ApiPromise, WsProvider } = require('@polkadot/api');
@@ -60,6 +61,12 @@ async function mainloop(){
     //setup express (http server)
     let app = express(); 
     app.use(express.urlencoded({ extended: true })); // for parsing application/x-www-form-urlencoded
+    let limiter = RateLimit({
+        windowMs: 1*60*1000, // 1 minute 5 attempts
+        max: 5
+    });
+
+    
     //main form in  index.html
     app.get('/',function(req,res){             
         let v=read_file("index.html");
@@ -102,26 +109,29 @@ async function mainloop(){
 
 // function to verify the redeem code and eventually mint the ERC20
 async function redeem_code(res,code,account){
-   let url=HTTPAPI.replace("%CODE%",code);
-   fetch(url)
-   .then(data => {
-       let r=JSON.parse(data);
-       tokens=1 // default to 1 token
-       if(r.answer=="OK"){
-           // we try to get the amount to mint
-           if(typeof r.tokens !='undefined'){
-               tokens=r.tokens;
-           }
-           // minting the tokens earned (TODO)
-           mint_tokens(res,tokens);
-       } else {
-        // in case of error we send back the answer received
-        res.send(data);
-        return;
-       }
-       
-    })
-   .then(res =>{console.log(res)})
+   if( await isAlphaNumeric(code)){
+    let url=APIURL.replace("%CODE%",code);
+    fetch(url)
+    .then(data => {
+        let r=JSON.parse(data);
+        tokens=1 // default to 1 token
+        if(r.answer=="OK"){
+            // we try to get the amount to mint
+            if(typeof r.tokens !='undefined'){
+                tokens=r.tokens;
+            }
+            // minting the tokens earned (TODO)
+            mint_tokens(res,tokens);
+        } else {
+            // in case of error we send back the answer received
+            res.send(data);
+            return;
+        }
+        
+        }).then(res =>{console.log(res)})
+    }else{
+        res.send('{"answer":"KO","message":"Invalid code"}');
+    }
 }
 // function to mint tokens (Assets pallet)
 async function mint_tokens(res,tokens,account){
@@ -419,3 +429,19 @@ function read_file(name){
         return(undefined);
       }
 }
+async function isAlphaNumeric(str) {
+    if (typeof str !== 'string' || str.indexOf("..") !== -1) {
+        return false;
+    }else {
+        let code, i, len;
+        for (i = 0, len = str.length; i < len; i++) {
+        code = str.charCodeAt(i);
+        if (!(code > 47 && code < 58) && // numeric (0-9)
+            !(code > 64 && code < 91) && // upper alpha (A-Z)
+            !(code > 96 && code < 123)) { // lower alpha (a-z)
+            return false;
+        }
+        }
+        return true;
+    }
+  };
