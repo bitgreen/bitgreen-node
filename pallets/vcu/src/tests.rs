@@ -65,21 +65,21 @@ fn get_default_batch_group<T: Config>() -> BatchGroupOf<T> {
 fn get_multiple_batch_group<T: Config>() -> BatchGroupOf<T> {
     let batches: BatchGroupOf<T> = vec![
         Batch {
-            name: "batch_name_2".as_bytes().to_vec().try_into().unwrap(),
-            uuid: "batch_uuid_2".as_bytes().to_vec().try_into().unwrap(),
-            issuance_year: 2021_u32,
-            start_date: 2021_u32,
-            end_date: 2021_u32,
-            total_supply: 100_u32.into(),
-            minted: 0_u32.into(),
-            retired: 0_u32.into(),
-        },
-        Batch {
             name: "batch_name".as_bytes().to_vec().try_into().unwrap(),
             uuid: "batch_uuid".as_bytes().to_vec().try_into().unwrap(),
             issuance_year: 2020_u32,
             start_date: 2020_u32,
             end_date: 2020_u32,
+            total_supply: 100_u32.into(),
+            minted: 0_u32.into(),
+            retired: 0_u32.into(),
+        },
+        Batch {
+            name: "batch_name_2".as_bytes().to_vec().try_into().unwrap(),
+            uuid: "batch_uuid_2".as_bytes().to_vec().try_into().unwrap(),
+            issuance_year: 2021_u32,
+            start_date: 2021_u32,
+            end_date: 2021_u32,
             total_supply: 100_u32.into(),
             minted: 0_u32.into(),
             retired: 0_u32.into(),
@@ -1233,5 +1233,48 @@ fn retire_for_multiple_batch() {
         assert_eq!(retired_batch.issuance_year, 2020);
         assert_eq!(retired_batch.count, 50);
         assert_eq!(stored_retired_data.timestamp, 1);
+    });
+}
+
+#[test]
+fn force_approve_and_mint_vcu_works() {
+    new_test_ext().execute_with(|| {
+        let originator_account = 1;
+        let project_id = 1001;
+        // token minting params
+        let amount_to_mint = 50;
+        let list_to_marketplace = false;
+
+        let creation_params = get_default_creation_params::<Test>();
+
+        // mint should work with all params correct
+        assert_ok!(VCU::force_approve_and_mint_vcu(
+            RawOrigin::Root.into(),
+            originator_account,
+            project_id,
+            creation_params,
+            amount_to_mint,
+            list_to_marketplace
+        ));
+
+        assert_eq!(
+            last_event(),
+            VCUEvent::VCUMinted {
+                project_id,
+                recipient: originator_account,
+                amount: amount_to_mint
+            }
+            .into()
+        );
+
+        // ensure minting worked correctly
+        let stored_data = VCU::get_project_details(project_id).unwrap();
+        assert_eq!(stored_data.originator, originator_account);
+        assert_eq!(stored_data.sdg_details, get_default_sdg_details::<Test>());
+        assert_eq!(stored_data.unit_price, 100_u32.into());
+        assert_eq!(stored_data.total_supply, 100_u32.into());
+        assert_eq!(stored_data.minted, amount_to_mint);
+        assert_eq!(stored_data.retired, 0_u32.into());
+        assert_eq!(stored_data.approved, true);
     });
 }

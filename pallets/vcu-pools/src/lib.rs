@@ -299,7 +299,7 @@ pub mod pallet {
                     // If the project tokens have been previoulsy deposited to the
                     // pool, increment the counter
                     if let Some(existing_amount) = project_details {
-                        let new_amount = existing_amount + amount;
+                        let new_amount = *existing_amount + amount;
                         project_map
                             .try_insert(project_id, new_amount)
                             .map_err(|_| Error::<T>::UnexpectedOverflow)?;

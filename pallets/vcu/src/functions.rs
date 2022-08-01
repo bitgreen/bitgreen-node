@@ -40,24 +40,35 @@ impl<T: Config> Pallet<T> {
         }
     }
 
+    /// Approve/reject a project
+    pub fn do_approve_project(project_id: T::AssetId, is_approved: bool) -> DispatchResult {
+        Projects::<T>::try_mutate(project_id, |project| -> DispatchResult {
+            // ensure the Project exists
+            let project = project.as_mut().ok_or(Error::<T>::ProjectNotFound)?;
+
+            project.approved = is_approved;
+
+            // emit event
+            // TODO : Emit rejected event if rejected?
+            Self::deposit_event(Event::ProjectApproved { project_id });
+
+            Ok(())
+        })
+    }
+
     /// Calculate the issuance year for a project
     /// For a project with a single batch it's the issuance year of that batch
     /// For a project with multiple batches, its the issuance year of the oldest batch
     pub fn calculate_issuance_year(project: ProjectDetail<T>) -> Option<u32> {
-        project
-            .batches
-            .sort_by(|x, y| x.issuance_year.cmp(&y.issuance_year));
-        match batch_list.first() {
-            Some(x) => Some(x.issuance_year),
-            None => None,
-        }
+        // the data is stored sorted in ascending order of issuance year, hence first() will always return oldest batch
+        project.batches.first().map(|x| x.issuance_year)
     }
 
     /// Create a new project with `params`
     pub fn create_project(
         admin: T::AccountId,
         project_id: T::AssetId,
-        params: ProjectCreateParams<T>,
+        mut params: ProjectCreateParams<T>,
     ) -> DispatchResult {
         let now = frame_system::Pallet::<T>::block_number();
 
@@ -86,6 +97,11 @@ impl<T: Config> Pallet<T> {
                 batch_total_supply > Zero::zero(),
                 Error::<T>::CannotCreateProjectWithoutCredits
             );
+
+            // sort batch data in ascending order of issuance year
+            params
+                .batches
+                .sort_by(|x, y| x.issuance_year.cmp(&y.issuance_year));
 
             let new_project = ProjectDetail {
                 originator: admin,
@@ -136,7 +152,7 @@ impl<T: Config> Pallet<T> {
     pub fn resubmit_project(
         admin: T::AccountId,
         project_id: T::AssetId,
-        params: ProjectCreateParams<T>,
+        mut params: ProjectCreateParams<T>,
     ) -> DispatchResult {
         let now = frame_system::Pallet::<T>::block_number();
 
@@ -160,6 +176,11 @@ impl<T: Config> Pallet<T> {
                         sum += batch.total_supply;
                         sum
                     });
+
+            // sort batch data in ascending order of issuance year
+            params
+                .batches
+                .sort_by(|x, y| x.issuance_year.cmp(&y.issuance_year));
 
             let new_project = ProjectDetail {
                 originator: admin,
@@ -223,8 +244,7 @@ impl<T: Config> Pallet<T> {
 
             // Mint in the individual batches too
             let mut batch_list: Vec<_> = project.batches.clone().into_iter().collect();
-            // sort by issuance year so we mint from oldest batch
-            batch_list.sort_by(|x, y| x.issuance_year.cmp(&y.issuance_year));
+
             let mut remaining = amount_to_mint;
             for batch in batch_list.iter_mut() {
                 // lets mint from the older batches as much as possible
@@ -309,8 +329,7 @@ impl<T: Config> Pallet<T> {
 
             // Retire in the individual batches too
             let mut batch_list: Vec<_> = project.batches.clone().into_iter().collect();
-            // sort by issuance year so we retire from oldest batch
-            batch_list.sort_by(|x, y| x.issuance_year.cmp(&y.issuance_year));
+
             // list to store retirement data
             let mut batch_retire_data_list: BatchRetireDataList<T> = Default::default();
             let mut remaining = amount;

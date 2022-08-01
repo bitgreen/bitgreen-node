@@ -318,18 +318,7 @@ pub mod pallet {
                 Error::<T>::NotAuthorised
             );
 
-            Projects::<T>::try_mutate(project_id, |project| -> DispatchResult {
-                // ensure the Project exists
-                let project = project.as_mut().ok_or(Error::<T>::ProjectNotFound)?;
-
-                project.approved = is_approved;
-
-                // emit event
-                // TODO : Emit rejected event if rejected?
-                Self::deposit_event(Event::ProjectApproved { project_id });
-
-                Ok(())
-            })
+            Self::do_approve_project(project_id, is_approved)
         }
 
         /// Mint tokens for an approved project
@@ -450,6 +439,26 @@ pub mod pallet {
         ) -> DispatchResult {
             T::ForceOrigin::ensure_origin(origin)?;
             RetiredVCUs::<T>::insert(project_id, item_id, vcu_data);
+            Ok(())
+        }
+
+        /// Single function to create project, approve and mint vcus
+        /// Can only be called by ForceOrigin
+        #[transactional]
+        #[pallet::weight(T::WeightInfo::mint())]
+        pub fn force_approve_and_mint_vcu(
+            origin: OriginFor<T>,
+            sender: T::AccountId,
+            project_id: T::AssetId,
+            params: ProjectCreateParams<T>,
+            amount_to_mint: T::Balance,
+            list_to_marketplace: bool,
+        ) -> DispatchResult {
+            T::ForceOrigin::ensure_origin(origin)?;
+            Self::check_kyc_approval(&sender)?;
+            Self::create_project(sender.clone(), project_id, params)?;
+            Self::do_approve_project(project_id, true)?;
+            Self::mint_vcus(sender, project_id, amount_to_mint, list_to_marketplace)?;
             Ok(())
         }
     }
