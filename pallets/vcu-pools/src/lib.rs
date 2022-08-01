@@ -153,9 +153,6 @@ pub mod pallet {
         UnexpectedOverflow,
     }
 
-    #[pallet::hooks]
-    impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {}
-
     #[pallet::call]
     impl<T: Config> Pallet<T> {
         /// Create a new vcu pool with given params

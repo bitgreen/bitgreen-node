@@ -63,6 +63,7 @@ pub mod pallet {
         traits::{
             tokens::fungibles::{metadata::Mutate as MetadataMutate, Create, Mutate},
             tokens::nonfungibles::{Create as NFTCreate, Mutate as NFTMutate},
+            Contains,
         },
         transactional, PalletId,
     };
@@ -124,6 +125,9 @@ pub mod pallet {
         // NFT handler config
         type NFTHandler: NFTCreate<Self::AccountId, CollectionId = Self::AssetId, ItemId = Self::ItemId>
             + NFTMutate<Self::AccountId>;
+
+        /// KYC provider config
+        type KYCProvider: Contains<Self::AccountId>;
 
         /// The origin which may forcibly set storage or add authorised accounts
         type ForceOrigin: EnsureOrigin<Self::Origin>;
@@ -240,6 +244,8 @@ pub mod pallet {
         AuthorizedAccountAlreadyExists,
         /// Cannot create duplicate Projects
         ProjectAlreadyExists,
+        /// Account failed KYC checks
+        KYCAuthorisationFailed,
         /// The account is not authorised
         NotAuthorised,
         /// The given Project was not found in storage
@@ -262,9 +268,6 @@ pub mod pallet {
         CannotModifyApprovedProject,
     }
 
-    #[pallet::hooks]
-    impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {}
-
     #[pallet::call]
     impl<T: Config> Pallet<T> {
         /// Register a new project onchain
@@ -277,6 +280,7 @@ pub mod pallet {
             params: ProjectCreateParams<T>,
         ) -> DispatchResult {
             let sender = ensure_signed(origin)?;
+            Self::check_kyc_approval(&sender)?;
             Self::create_project(sender, project_id, params)
         }
 
@@ -290,6 +294,7 @@ pub mod pallet {
             params: ProjectCreateParams<T>,
         ) -> DispatchResult {
             let sender = ensure_signed(origin)?;
+            Self::check_kyc_approval(&sender)?;
             Self::resubmit_project(sender, project_id, params)
         }
 
@@ -336,6 +341,7 @@ pub mod pallet {
             list_to_marketplace: bool,
         ) -> DispatchResult {
             let sender = ensure_signed(origin)?;
+            Self::check_kyc_approval(&sender)?;
 
             Projects::<T>::try_mutate(project_id, |project| -> DispatchResult {
                 // ensure the project exists
@@ -432,6 +438,7 @@ pub mod pallet {
             amount: T::Balance,
         ) -> DispatchResult {
             let sender = ensure_signed(origin)?;
+            Self::check_kyc_approval(&sender)?;
             Self::retire_vcus(sender, project_id, amount)
         }
 

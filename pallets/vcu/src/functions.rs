@@ -13,7 +13,7 @@ use frame_support::{
     traits::{
         tokens::fungibles::{metadata::Mutate as MetadataMutate, Create, Mutate},
         tokens::nonfungibles::{Create as NFTCreate, Mutate as NFTMutate},
-        Get,
+        Contains, Get,
     },
 };
 use primitives::BatchRetireData;
@@ -29,6 +29,15 @@ impl<T: Config> Pallet<T> {
     /// Get the project details from AssetId
     pub fn get_project_details(project_id: T::AssetId) -> Option<ProjectDetail<T>> {
         Projects::<T>::get(project_id)
+    }
+
+    /// Checks if given account is kyc approved
+    pub fn check_kyc_approval(account_id: &T::AccountId) -> DispatchResult {
+        if !T::KYCProvider::contains(account_id) {
+            return Err(Error::<T>::KYCAuthorisationFailed.into());
+        } else {
+            Ok(())
+        }
     }
 
     /// Calculate the issuance year for a project
