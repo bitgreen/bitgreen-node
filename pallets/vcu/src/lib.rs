@@ -68,8 +68,8 @@ pub mod pallet {
         transactional, PalletId,
     };
     use frame_system::pallet_prelude::*;
-    use sp_runtime::traits::{AtLeast32BitUnsigned, CheckedAdd, Zero};
-    use sp_std::{cmp, convert::TryInto, vec::Vec};
+    use sp_runtime::traits::{AtLeast32BitUnsigned, CheckedAdd, One};
+    use sp_std::convert::TryInto;
 
     /// The parameters the VCU pallet depends on
     #[pallet::config]
@@ -110,6 +110,8 @@ pub mod pallet {
             + MaybeSerializeDeserialize
             + MaxEncodedLen
             + TypeInfo
+            + CheckedAdd
+            + One
             + From<u32>
             + Into<u32>;
 
@@ -179,12 +181,12 @@ pub mod pallet {
     #[pallet::storage]
     #[pallet::getter(fn retired_vcus)]
     /// The retired vcu record
-    pub(super) type RetiredVCUs<T: Config> = StorageNMap<
+    pub(super) type RetiredVCUs<T: Config> = StorageDoubleMap<
         _,
-        (
-            NMapKey<Blake2_128Concat, T::AssetId>, // classid of the NFT
-            NMapKey<Blake2_128Concat, T::ItemId>,  // item id of the NFT
-        ),
+        Blake2_128Concat,
+        T::AssetId,
+        Blake2_128Concat,
+        T::ItemId,
         RetiredVcuData<T>,
     >;
 
@@ -248,6 +250,8 @@ pub mod pallet {
         KYCAuthorisationFailed,
         /// The account is not authorised
         NotAuthorised,
+        /// The project cannot be created without vcus
+        CannotCreateProjectWithoutCredits,
         /// The given Project was not found in storage
         ProjectNotFound,
         /// The Amount of VCU units is greater than supply
@@ -342,88 +346,7 @@ pub mod pallet {
         ) -> DispatchResult {
             let sender = ensure_signed(origin)?;
             Self::check_kyc_approval(&sender)?;
-
-            Projects::<T>::try_mutate(project_id, |project| -> DispatchResult {
-                // ensure the project exists
-                let project = project.as_mut().ok_or(Error::<T>::ProjectNotFound)?;
-
-                // ensure the project is approved
-                ensure!(project.approved, Error::<T>::ProjectNotApproved);
-
-                // ensure the caller is the originator
-                ensure!(
-                    sender == project.originator.clone(),
-                    Error::<T>::NotAuthorised
-                );
-
-                // ensure the amount_to_mint does not exceed limit
-                ensure!(
-                    amount_to_mint + project.minted <= project.total_supply,
-                    Error::<T>::AmountGreaterThanSupply
-                );
-
-                let recipient = match list_to_marketplace {
-                    true => T::MarketplaceEscrow::get(),
-                    false => project.originator.clone(),
-                };
-
-                // Mint in the individual batches too
-                let mut batch_list: Vec<_> = project.batches.clone().into_iter().collect();
-                // sort by issuance year so we mint from oldest batch
-                batch_list.sort_by(|x, y| x.issuance_year.cmp(&y.issuance_year));
-                let mut remaining = amount_to_mint;
-                for batch in batch_list.iter_mut() {
-                    // lets mint from the older batches as much as possible
-                    let available_to_mint = batch.total_supply - batch.minted;
-                    let actual = cmp::min(available_to_mint, remaining);
-
-                    batch.minted = batch
-                        .minted
-                        .checked_add(&actual)
-                        .ok_or(Error::<T>::Overflow)?;
-
-                    // this is safe since actual is <= remaining
-                    remaining = remaining - actual;
-                    if remaining <= Zero::zero() {
-                        break;
-                    }
-                }
-
-                // this should not happen since total_supply = batches supply but
-                // lets be safe
-                ensure!(
-                    remaining == Zero::zero(),
-                    Error::<T>::AmountGreaterThanSupply
-                );
-
-                project.batches = batch_list
-                    .try_into()
-                    .expect("This should not fail since we did not change the size. qed");
-
-                // increase the minted count
-                project.minted = project
-                    .minted
-                    .checked_add(&amount_to_mint)
-                    .ok_or(Error::<T>::Overflow)?;
-
-                // another check to ensure accounting is correct
-                ensure!(
-                    project.minted <= project.total_supply,
-                    Error::<T>::AmountGreaterThanSupply
-                );
-
-                // mint the asset to the recipient
-                T::AssetHandler::mint_into(project_id, &recipient, amount_to_mint)?;
-
-                // emit event
-                Self::deposit_event(Event::VCUMinted {
-                    project_id,
-                    recipient,
-                    amount: amount_to_mint,
-                });
-
-                Ok(())
-            })
+            Self::mint_vcus(sender, project_id, amount_to_mint, list_to_marketplace)
         }
 
         /// Retire existing vcus from owner
@@ -478,13 +401,11 @@ pub mod pallet {
             T::ForceOrigin::ensure_origin(origin)?;
             // remove the account_id from the list of authorized accounts if already exists
             AuthorizedAccounts::<T>::try_mutate(|account_list| -> DispatchResult {
-                match account_list.binary_search(&account_id) {
-                    Ok(index) => {
-                        account_list.swap_remove(index);
-                        Self::deposit_event(Event::AuthorizedAccountRemoved { account_id });
-                    }
-                    Err(_) => {}
+                if let Ok(index) = account_list.binary_search(&account_id) {
+                    account_list.swap_remove(index);
+                    Self::deposit_event(Event::AuthorizedAccountRemoved { account_id });
                 }
+
                 Ok(())
             })
         }
@@ -528,7 +449,7 @@ pub mod pallet {
             vcu_data: RetiredVcuData<T>,
         ) -> DispatchResult {
             T::ForceOrigin::ensure_origin(origin)?;
-            RetiredVCUs::<T>::insert((project_id, item_id), vcu_data);
+            RetiredVCUs::<T>::insert(project_id, item_id, vcu_data);
             Ok(())
         }
     }

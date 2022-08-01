@@ -17,7 +17,7 @@ use frame_support::{
     },
 };
 use primitives::BatchRetireData;
-use sp_runtime::traits::{AccountIdConversion, CheckedAdd, Zero};
+use sp_runtime::traits::{AccountIdConversion, CheckedAdd, One, Zero};
 use sp_std::{cmp, convert::TryInto, vec::Vec};
 
 impl<T: Config> Pallet<T> {
@@ -34,7 +34,7 @@ impl<T: Config> Pallet<T> {
     /// Checks if given account is kyc approved
     pub fn check_kyc_approval(account_id: &T::AccountId) -> DispatchResult {
         if !T::KYCProvider::contains(account_id) {
-            return Err(Error::<T>::KYCAuthorisationFailed.into());
+            Err(Error::<T>::KYCAuthorisationFailed.into())
         } else {
             Ok(())
         }
@@ -43,14 +43,13 @@ impl<T: Config> Pallet<T> {
     /// Calculate the issuance year for a project
     /// For a project with a single batch it's the issuance year of that batch
     /// For a project with multiple batches, its the issuance year of the oldest batch
-    pub fn calculate_issuance_year(project: ProjectDetail<T>) -> u32 {
-        // single batch
-        if project.batches.len() == 1 {
-            return project.batches.first().unwrap().issuance_year;
-        } else {
-            let mut batch_list = project.batches.clone();
-            batch_list.sort_by(|x, y| x.issuance_year.cmp(&y.issuance_year));
-            batch_list.first().unwrap().issuance_year
+    pub fn calculate_issuance_year(project: ProjectDetail<T>) -> Option<u32> {
+        project
+            .batches
+            .sort_by(|x, y| x.issuance_year.cmp(&y.issuance_year));
+        match batch_list.first() {
+            Some(x) => Some(x.issuance_year),
+            None => None,
         }
     }
 
@@ -82,6 +81,11 @@ impl<T: Config> Pallet<T> {
                         sum += batch.total_supply;
                         sum
                     });
+
+            ensure!(
+                batch_total_supply > Zero::zero(),
+                Error::<T>::CannotCreateProjectWithoutCredits
+            );
 
             let new_project = ProjectDetail {
                 originator: admin,
@@ -140,10 +144,7 @@ impl<T: Config> Pallet<T> {
             let project = project.as_mut().ok_or(Error::<T>::ProjectNotFound)?;
 
             // approved projects cannot be modified
-            ensure!(
-                project.approved == false,
-                Error::<T>::CannotModifyApprovedProject
-            );
+            ensure!(!project.approved, Error::<T>::CannotModifyApprovedProject);
             // only originator can resubmit
             ensure!(project.originator == admin, Error::<T>::NotAuthorised);
 
@@ -193,6 +194,92 @@ impl<T: Config> Pallet<T> {
         })
     }
 
+    pub fn mint_vcus(
+        sender: T::AccountId,
+        project_id: T::AssetId,
+        amount_to_mint: T::Balance,
+        list_to_marketplace: bool,
+    ) -> DispatchResult {
+        Projects::<T>::try_mutate(project_id, |project| -> DispatchResult {
+            // ensure the project exists
+            let project = project.as_mut().ok_or(Error::<T>::ProjectNotFound)?;
+
+            // ensure the project is approved
+            ensure!(project.approved, Error::<T>::ProjectNotApproved);
+
+            // ensure the caller is the originator
+            ensure!(&sender == &project.originator, Error::<T>::NotAuthorised);
+
+            // ensure the amount_to_mint does not exceed limit
+            ensure!(
+                amount_to_mint + project.minted <= project.total_supply,
+                Error::<T>::AmountGreaterThanSupply
+            );
+
+            let recipient = match list_to_marketplace {
+                true => T::MarketplaceEscrow::get(),
+                false => project.originator.clone(),
+            };
+
+            // Mint in the individual batches too
+            let mut batch_list: Vec<_> = project.batches.clone().into_iter().collect();
+            // sort by issuance year so we mint from oldest batch
+            batch_list.sort_by(|x, y| x.issuance_year.cmp(&y.issuance_year));
+            let mut remaining = amount_to_mint;
+            for batch in batch_list.iter_mut() {
+                // lets mint from the older batches as much as possible
+                let available_to_mint = batch.total_supply - batch.minted;
+                let actual = cmp::min(available_to_mint, remaining);
+
+                batch.minted = batch
+                    .minted
+                    .checked_add(&actual)
+                    .ok_or(Error::<T>::Overflow)?;
+
+                // this is safe since actual is <= remaining
+                remaining -= actual;
+                if remaining <= Zero::zero() {
+                    break;
+                }
+            }
+
+            // this should not happen since total_supply = batches supply but
+            // lets be safe
+            ensure!(
+                remaining == Zero::zero(),
+                Error::<T>::AmountGreaterThanSupply
+            );
+
+            project.batches = batch_list
+                .try_into()
+                .expect("This should not fail since we did not change the size. qed");
+
+            // increase the minted count
+            project.minted = project
+                .minted
+                .checked_add(&amount_to_mint)
+                .ok_or(Error::<T>::Overflow)?;
+
+            // another check to ensure accounting is correct
+            ensure!(
+                project.minted <= project.total_supply,
+                Error::<T>::AmountGreaterThanSupply
+            );
+
+            // mint the asset to the recipient
+            T::AssetHandler::mint_into(project_id, &recipient, amount_to_mint)?;
+
+            // emit event
+            Self::deposit_event(Event::VCUMinted {
+                project_id,
+                recipient,
+                amount: amount_to_mint,
+            });
+
+            Ok(())
+        })
+    }
+
     /// Retire vcus for given project_id
     pub fn retire_vcus(
         from: T::AccountId,
@@ -206,7 +293,7 @@ impl<T: Config> Pallet<T> {
             let project = project.as_mut().ok_or(Error::<T>::ProjectNotFound)?;
 
             // attempt to burn the tokens from the caller
-            T::AssetHandler::burn_from(project_id, &from.clone(), amount)?;
+            T::AssetHandler::burn_from(project_id, &from, amount)?;
 
             // reduce the supply of the vcu
             project.retired = project
@@ -249,10 +336,10 @@ impl<T: Config> Pallet<T> {
                 // add to retired list
                 batch_retire_data_list
                     .try_push(batch_retire_data)
-                    .expect("this should not fail");
+                    .map_err(|_| Error::<T>::Overflow)?;
 
                 // this is safe since actual is <= remaining
-                remaining = remaining - actual;
+                remaining -= actual;
                 if remaining <= Zero::zero() {
                     break;
                 }
@@ -300,8 +387,10 @@ impl<T: Config> Pallet<T> {
             // mint the NFT to caller
             T::NFTHandler::mint_into(&project_id, &item_id, &from)?;
             // Increment the NextItemId storage
-            let next_item_id: u32 = item_id.into() + 1_u32;
-            NextItemId::<T>::insert::<T::AssetId, T::ItemId>(project_id, next_item_id.into());
+            let next_item_id: T::ItemId = item_id
+                .checked_add(&One::one())
+                .ok_or(Error::<T>::Overflow)?;
+            NextItemId::<T>::insert::<T::AssetId, T::ItemId>(project_id, next_item_id);
 
             // form the retire vcu data
             let retired_vcu_data = RetiredVcuData::<T> {
@@ -312,7 +401,7 @@ impl<T: Config> Pallet<T> {
             };
 
             //Store the details of retired batches in storage
-            RetiredVCUs::<T>::insert((project_id, item_id), retired_vcu_data);
+            RetiredVCUs::<T>::insert(project_id, item_id, retired_vcu_data);
 
             // emit event
             Self::deposit_event(Event::VCURetired {

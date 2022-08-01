@@ -108,6 +108,10 @@ pub mod pallet {
     #[pallet::getter(fn pools)]
     pub type Pools<T: Config> = StorageMap<_, Blake2_128Concat, T::PoolId, PoolOf<T>>;
 
+    #[pallet::storage]
+    #[pallet::getter(fn pool_credits)]
+    pub type PoolCredits<T: Config> = StorageMap<_, Blake2_128Concat, T::PoolId, PoolOf<T>>;
+
     #[pallet::event]
     #[pallet::generate_deposit(pub(super) fn deposit_event)]
     pub enum Event<T: Config> {
@@ -151,6 +155,8 @@ pub mod pallet {
         PoolIdBelowExpectedMinimum,
         /// Overflow happened during retire
         UnexpectedOverflow,
+        /// Cannot determine Credit issuance year
+        ProjectIssuanceYearError,
     }
 
     #[pallet::call]
@@ -271,7 +277,8 @@ pub mod pallet {
 
                 // calculate the issuance year for the project
                 let project_issuance_year =
-                    pallet_vcu::Pallet::calculate_issuance_year(project_details);
+                    pallet_vcu::Pallet::calculate_issuance_year(project_details)
+                        .ok_or(Error::<T>::ProjectIssuanceYearError)?;
 
                 // transfer the tokens to pallet account
                 <T as pallet::Config>::AssetHandler::transfer(
@@ -285,19 +292,29 @@ pub mod pallet {
                 // add the project to the credits pool
                 let issuance_year_map = pool.credits.get_mut(&project_issuance_year);
 
+                // If the issuance year tokens have been deposited to the pool previously
+                // insert the project details
                 if let Some(project_map) = issuance_year_map {
                     let project_details = project_map.get_mut(&project_id);
+                    // If the project tokens have been previoulsy deposited to the
+                    // pool, increment the counter
                     if let Some(existing_amount) = project_details {
-                        let new_amount = existing_amount.clone() + amount;
+                        let new_amount = existing_amount + amount;
                         project_map
                             .try_insert(project_id, new_amount)
                             .map_err(|_| Error::<T>::UnexpectedOverflow)?;
-                    } else {
+                    }
+                    // If the project tokens have been NOT been previoulsy deposited to the
+                    // pool, create a new entry
+                    else {
                         project_map
                             .try_insert(project_id, amount)
                             .map_err(|_| Error::<T>::UnexpectedOverflow)?;
                     }
-                } else {
+                }
+                // If the issuance year tokens have NOT been deposited to the pool previously
+                // create a new entry
+                else {
                     let mut project_map: ProjectDetails<T> = Default::default();
                     project_map
                         .try_insert(project_id, amount)
@@ -358,7 +375,7 @@ pub mod pallet {
 
                         if remaining <= *available_amount {
                             actual = remaining;
-                            *available_amount = *available_amount - actual;
+                            *available_amount -= actual;
                         } else {
                             actual = *available_amount;
                             *available_amount = 0_u32.into();
@@ -382,7 +399,7 @@ pub mod pallet {
                             .map_err(|_| Error::<T>::UnexpectedOverflow)?;
 
                         // this is safe since actual is <= remaining
-                        remaining = remaining - actual;
+                        remaining -= actual;
                         if remaining <= Zero::zero() {
                             break;
                         }

@@ -89,6 +89,7 @@ benchmarks! {
 
     where_clause { where
     T::PoolId: From<u32>,
+    T: pallet_membership::Config
 }
 
     create {
@@ -109,6 +110,7 @@ benchmarks! {
         // create a project and mint tokens
         let project_id = 10_000_u32.into();
         let creation_params = get_default_creation_params::<T>();
+        pallet_membership::Pallet::<T>::add_member(RawOrigin::Root.into(), caller.clone())?;
         pallet_vcu::Pallet::<T>::force_add_authorized_account(RawOrigin::Root.into(), caller.clone().into())?;
         pallet_vcu::Pallet::<T>::create(RawOrigin::Signed(caller.clone()).into(), project_id, creation_params)?;
         pallet_vcu::Pallet::<T>::approve_project(RawOrigin::Signed(caller.clone()).into(), project_id, true)?;
@@ -128,6 +130,7 @@ benchmarks! {
         // create a project and mint tokens
         let project_id = 10_000_u32.into();
         let creation_params = get_default_creation_params::<T>();
+        pallet_membership::Pallet::<T>::add_member(RawOrigin::Root.into(), caller.clone())?;
         pallet_vcu::Pallet::<T>::force_add_authorized_account(RawOrigin::Root.into(), caller.clone().into())?;
         pallet_vcu::Pallet::<T>::create(RawOrigin::Signed(caller.clone()).into(), project_id, creation_params)?;
         pallet_vcu::Pallet::<T>::approve_project(RawOrigin::Signed(caller.clone()).into(), project_id, true)?;
