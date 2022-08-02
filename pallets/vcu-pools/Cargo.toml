@@ -29,6 +29,7 @@ pallet-vcu = { package = 'pallet-vcu', path = '../vcu', default-features = false
 # Benchmarking
 frame-benchmarking = { git = "https://github.com/paritytech/substrate.git", default-features = false, optional = true, branch = "polkadot-v0.9.24" }
 pallet-timestamp = { git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.24", default-features = false }
+pallet-membership = { git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.24", default-features = false }
 sp-core = { git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.24", default-features = false }
 
 
@@ -49,7 +50,8 @@ std = [
     'pallet-balances/std',
     'sp-runtime/std',
     'pallet-uniques/std',
-    'pallet-vcu/std'
+    'pallet-vcu/std',
+    'pallet-membership/std'
 ]
 runtime-benchmarks = [
   "frame-benchmarking/runtime-benchmarks",

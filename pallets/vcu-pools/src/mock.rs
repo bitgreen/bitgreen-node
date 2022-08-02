@@ -4,11 +4,12 @@
 //
 use crate as pallet_vcu_pools;
 use frame_support::{
-    parameter_types,
+    bounded_vec, parameter_types,
     traits::{AsEnsureOriginWithArg, ConstU128, ConstU32, Everything, GenesisBuild},
     PalletId,
 };
 use frame_system as system;
+use frame_system::EnsureRoot;
 use sp_core::H256;
 use sp_runtime::{
     testing::Header,
@@ -28,6 +29,7 @@ frame_support::construct_runtime!(
     {
         System: frame_system::{Pallet, Call, Config, Storage, Event<T>},
         Balances: pallet_balances::{Pallet, Call, Storage, Config<T>, Event<T>},
+        KYCMembership: pallet_membership::{Pallet, Call, Storage, Config<T>, Event<T>},
         Assets: pallet_assets::{Pallet, Call, Storage, Event<T>},
         Uniques: pallet_uniques::{Pallet, Call, Storage, Event<T>},
         Timestamp: pallet_timestamp::{Pallet, Call, Storage, Inherent},
@@ -132,6 +134,7 @@ impl pallet_vcu::Config for Test {
     type AssetId = u32;
     type PalletId = VCUPalletId;
     type AssetHandler = Assets;
+    type KYCProvider = KYCMembership;
     type MarketplaceEscrow = MarketplaceEscrowAccount;
     type MaxAuthorizedAccountCount = ConstU32<2>;
     type MaxShortStringLength = ConstU32<20>;
@@ -167,6 +170,19 @@ impl pallet_uniques::Config for Test {
     type WeightInfo = ();
 }
 
+impl pallet_membership::Config for Test {
+    type Event = Event;
+    type AddOrigin = EnsureRoot<u64>;
+    type RemoveOrigin = EnsureRoot<u64>;
+    type SwapOrigin = EnsureRoot<u64>;
+    type ResetOrigin = EnsureRoot<u64>;
+    type PrimeOrigin = EnsureRoot<u64>;
+    type MembershipInitialized = ();
+    type MembershipChanged = ();
+    type MaxMembers = ConstU32<10>;
+    type WeightInfo = ();
+}
+
 parameter_types! {
     pub const VCUPoolPalletId: PalletId = PalletId(*b"bit/vcup");
 }
@@ -190,6 +206,13 @@ pub fn new_test_ext() -> sp_io::TestExternalities {
     let mut t = system::GenesisConfig::default()
         .build_storage::<Test>()
         .unwrap();
+
+    pallet_membership::GenesisConfig::<Test> {
+        members: bounded_vec![1, 3, 10],
+        ..Default::default()
+    }
+    .assimilate_storage(&mut t)
+    .unwrap();
 
     let mut ext: sp_io::TestExternalities = t.into();
     // set to block 1 to test events

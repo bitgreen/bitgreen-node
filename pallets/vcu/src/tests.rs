@@ -65,16 +65,6 @@ fn get_default_batch_group<T: Config>() -> BatchGroupOf<T> {
 fn get_multiple_batch_group<T: Config>() -> BatchGroupOf<T> {
     let batches: BatchGroupOf<T> = vec![
         Batch {
-            name: "batch_name_2".as_bytes().to_vec().try_into().unwrap(),
-            uuid: "batch_uuid_2".as_bytes().to_vec().try_into().unwrap(),
-            issuance_year: 2021_u32,
-            start_date: 2021_u32,
-            end_date: 2021_u32,
-            total_supply: 100_u32.into(),
-            minted: 0_u32.into(),
-            retired: 0_u32.into(),
-        },
-        Batch {
             name: "batch_name".as_bytes().to_vec().try_into().unwrap(),
             uuid: "batch_uuid".as_bytes().to_vec().try_into().unwrap(),
             issuance_year: 2020_u32,
@@ -84,11 +74,73 @@ fn get_multiple_batch_group<T: Config>() -> BatchGroupOf<T> {
             minted: 0_u32.into(),
             retired: 0_u32.into(),
         },
+        Batch {
+            name: "batch_name_2".as_bytes().to_vec().try_into().unwrap(),
+            uuid: "batch_uuid_2".as_bytes().to_vec().try_into().unwrap(),
+            issuance_year: 2021_u32,
+            start_date: 2021_u32,
+            end_date: 2021_u32,
+            total_supply: 100_u32.into(),
+            minted: 0_u32.into(),
+            retired: 0_u32.into(),
+        },
     ]
     .try_into()
     .unwrap();
 
     batches
+}
+
+/// helper function to create and approve tokens
+fn create_and_approve_project(project_id: u32, originator_account: u64, authorised_account: u64) {
+    // create the project to approve
+    let creation_params = get_default_creation_params::<Test>();
+    assert_ok!(VCU::create(
+        RawOrigin::Signed(originator_account).into(),
+        project_id,
+        creation_params.clone()
+    ));
+
+    // approve project so minting can happen
+    assert_ok!(VCU::force_add_authorized_account(
+        RawOrigin::Root.into(),
+        authorised_account
+    ));
+    assert_ok!(VCU::approve_project(
+        RawOrigin::Signed(authorised_account).into(),
+        project_id,
+        true
+    ),);
+}
+
+/// helper function to create and approve tokens in batch config
+fn create_and_approve_project_batch(
+    project_id: u32,
+    originator_account: u64,
+    authorised_account: u64,
+) {
+    // create the project to approve
+    let mut creation_params = get_default_creation_params::<Test>();
+    // replace the default with mutiple batches
+    let created_batch_list = get_multiple_batch_group::<Test>();
+    creation_params.batches = created_batch_list;
+
+    assert_ok!(VCU::create(
+        RawOrigin::Signed(originator_account).into(),
+        project_id,
+        creation_params.clone()
+    ));
+
+    // approve project so minting can happen
+    assert_ok!(VCU::force_add_authorized_account(
+        RawOrigin::Root.into(),
+        authorised_account
+    ));
+    assert_ok!(VCU::approve_project(
+        RawOrigin::Signed(authorised_account).into(),
+        project_id,
+        true
+    ),);
 }
 
 /// helper function to generate standard creation details
@@ -435,26 +487,24 @@ fn approve_project_works() {
 }
 
 #[test]
-fn mint_without_list_to_marketplace_works_for_single_batch() {
+fn mint_non_existent_project_should_fail() {
+    new_test_ext().execute_with(|| {
+        // minting a non existent project should fail
+        assert_noop!(
+            VCU::mint(RawOrigin::Signed(1).into(), 1001, 100, false),
+            Error::<Test>::ProjectNotFound
+        );
+    });
+}
+
+#[test]
+fn mint_non_approved_project_should_fail() {
     new_test_ext().execute_with(|| {
         let originator_account = 1;
-        let authorised_account = 10;
         let project_id = 1001;
         // token minting params
         let amount_to_mint = 50;
         let list_to_marketplace = false;
-        let expected_asset_id = project_id;
-
-        // minting a non existent project should fail
-        assert_noop!(
-            VCU::mint(
-                RawOrigin::Signed(originator_account).into(),
-                project_id,
-                amount_to_mint,
-                list_to_marketplace
-            ),
-            Error::<Test>::ProjectNotFound
-        );
 
         // create the project to approve
         let creation_params = get_default_creation_params::<Test>();
@@ -473,17 +523,21 @@ fn mint_without_list_to_marketplace_works_for_single_batch() {
             ),
             Error::<Test>::ProjectNotApproved
         );
+    });
+}
 
-        // approve project so minting can happen
-        assert_ok!(VCU::force_add_authorized_account(
-            RawOrigin::Root.into(),
-            authorised_account
-        ));
-        assert_ok!(VCU::approve_project(
-            RawOrigin::Signed(authorised_account).into(),
-            project_id,
-            true
-        ),);
+#[test]
+fn test_only_project_originator_can_mint_tokens() {
+    new_test_ext().execute_with(|| {
+        let originator_account = 1;
+        let project_id = 1001;
+        // token minting params
+        let amount_to_mint = 50;
+        let authorised_account = 10;
+        let list_to_marketplace = false;
+
+        // create the project to approve
+        create_and_approve_project(project_id, originator_account, authorised_account);
 
         // only originator can mint tokens
         assert_noop!(
@@ -495,6 +549,20 @@ fn mint_without_list_to_marketplace_works_for_single_batch() {
             ),
             Error::<Test>::NotAuthorised
         );
+    });
+}
+
+#[test]
+fn test_cannot_mint_more_than_supply() {
+    new_test_ext().execute_with(|| {
+        let originator_account = 1;
+        let project_id = 1001;
+        // token minting params
+        let authorised_account = 10;
+        let list_to_marketplace = false;
+
+        // create the project to approve
+        create_and_approve_project(project_id, originator_account, authorised_account);
 
         // cannot mint more than supply
         assert_noop!(
@@ -506,6 +574,21 @@ fn mint_without_list_to_marketplace_works_for_single_batch() {
             ),
             Error::<Test>::AmountGreaterThanSupply
         );
+    });
+}
+
+#[test]
+fn mint_without_list_to_marketplace_works_for_single_batch() {
+    new_test_ext().execute_with(|| {
+        let originator_account = 1;
+        let authorised_account = 10;
+        let project_id = 1001;
+        // token minting params
+        let amount_to_mint = 50;
+        let list_to_marketplace = false;
+        let expected_asset_id = project_id;
+
+        create_and_approve_project(project_id, originator_account, authorised_account);
 
         // mint should work with all params correct
         assert_ok!(VCU::mint(
@@ -540,8 +623,6 @@ fn mint_without_list_to_marketplace_works_for_single_batch() {
         assert_eq!(batch_detail.total_supply, 100_u32.into());
         assert_eq!(batch_detail.minted, amount_to_mint);
         assert_eq!(batch_detail.retired, 0);
-
-        // the next asset-id should be set correctly
 
         // the originator should have the minted tokens
         assert_eq!(Assets::total_issuance(expected_asset_id), amount_to_mint);
@@ -603,24 +684,7 @@ fn mint_without_list_to_marketplace_works_for_multiple_batches() {
         let list_to_marketplace = false;
         let expected_asset_id = project_id;
 
-        // create the project to approve
-        let mut creation_params = get_default_creation_params::<Test>();
-        creation_params.batches = get_multiple_batch_group::<Test>();
-        assert_ok!(VCU::create(
-            RawOrigin::Signed(originator_account).into(),
-            project_id,
-            creation_params.clone()
-        ));
-        // approve project so minting can happen
-        assert_ok!(VCU::force_add_authorized_account(
-            RawOrigin::Root.into(),
-            authorised_account
-        ));
-        assert_ok!(VCU::approve_project(
-            RawOrigin::Signed(authorised_account).into(),
-            project_id,
-            true
-        ),);
+        create_and_approve_project_batch(project_id, originator_account, authorised_account);
 
         // mint should work with all params correct
         assert_ok!(VCU::mint(
@@ -759,7 +823,40 @@ fn mint_without_list_to_marketplace_works_for_multiple_batches() {
 // TODO : Add tests for list_marketplace true
 
 #[test]
-fn retire_for_single_batch() {
+fn retire_non_existent_project_should_fail() {
+    new_test_ext().execute_with(|| {
+        // retire a non existent project should fail
+        assert_noop!(
+            VCU::retire(RawOrigin::Signed(10).into(), 1001, 100,),
+            Error::<Test>::ProjectNotFound
+        );
+    });
+}
+
+#[test]
+fn test_retire_non_minted_project_should_fail() {
+    new_test_ext().execute_with(|| {
+        let originator_account = 1;
+        let project_id = 1001;
+
+        // create the project
+        let creation_params = get_default_creation_params::<Test>();
+        assert_ok!(VCU::create(
+            RawOrigin::Signed(originator_account).into(),
+            project_id,
+            creation_params.clone()
+        ));
+
+        // calling retire from a non minted project should fail
+        assert_noop!(
+            VCU::retire(RawOrigin::Signed(3).into(), project_id, 100,),
+            pallet_assets::Error::<Test>::NoAccount
+        );
+    });
+}
+
+#[test]
+fn test_retire_for_single_batch() {
     new_test_ext().execute_with(|| {
         let originator_account = 1;
         let authorised_account = 10;
@@ -770,50 +867,7 @@ fn retire_for_single_batch() {
         let list_to_marketplace = false;
         let expected_asset_id = project_id;
 
-        // retire a non existent project should fail
-        assert_noop!(
-            VCU::retire(
-                RawOrigin::Signed(originator_account).into(),
-                project_id,
-                amount_to_mint,
-            ),
-            Error::<Test>::ProjectNotFound
-        );
-
-        // create the project to approve
-        let creation_params = get_default_creation_params::<Test>();
-        assert_ok!(VCU::create(
-            RawOrigin::Signed(originator_account).into(),
-            project_id,
-            creation_params.clone()
-        ));
-
-        // calling retire from a non minted project should fail
-        assert_noop!(
-            VCU::retire(RawOrigin::Signed(3).into(), project_id, amount_to_mint,),
-            pallet_assets::Error::<Test>::NoAccount
-        );
-
-        assert_noop!(
-            VCU::mint(
-                RawOrigin::Signed(originator_account).into(),
-                project_id,
-                amount_to_mint,
-                list_to_marketplace
-            ),
-            Error::<Test>::ProjectNotApproved
-        );
-
-        // approve project so minting can happen
-        assert_ok!(VCU::force_add_authorized_account(
-            RawOrigin::Root.into(),
-            authorised_account
-        ));
-        assert_ok!(VCU::approve_project(
-            RawOrigin::Signed(authorised_account).into(),
-            project_id,
-            true
-        ),);
+        create_and_approve_project(project_id, originator_account, authorised_account);
 
         // mint should work with all params correct
         assert_ok!(VCU::mint(
@@ -890,7 +944,8 @@ fn retire_for_single_batch() {
         assert_eq!(NextItemId::<Test>::get(expected_asset_id).unwrap(), 1);
 
         // The retired data storage should be set correctly
-        let stored_retired_data = RetiredVCUs::<Test>::get((expected_asset_id, 0)).unwrap();
+        let creation_params = get_default_creation_params::<Test>();
+        let stored_retired_data = RetiredVCUs::<Test>::get(expected_asset_id, 0).unwrap();
         assert_eq!(stored_retired_data.account, originator_account);
         assert_eq!(stored_retired_data.retire_data.len(), 1);
         let retired_batch = stored_retired_data.retire_data.first().unwrap();
@@ -970,7 +1025,7 @@ fn retire_for_single_batch() {
         // Then NextItemId storage should be set correctly
         assert_eq!(NextItemId::<Test>::get(expected_asset_id).unwrap(), 2);
         // The retired data storage should be set correctly
-        let stored_retired_data = RetiredVCUs::<Test>::get((expected_asset_id, 1)).unwrap();
+        let stored_retired_data = RetiredVCUs::<Test>::get(expected_asset_id, 1).unwrap();
         assert_eq!(stored_retired_data.account, originator_account);
         assert_eq!(stored_retired_data.retire_data.len(), 1);
         let retired_batch = stored_retired_data.retire_data.first().unwrap();
@@ -1000,44 +1055,7 @@ fn retire_for_multiple_batch() {
         let list_to_marketplace = false;
         let expected_asset_id = project_id;
 
-        // retire a non existent project should fail
-        assert_noop!(
-            VCU::retire(
-                RawOrigin::Signed(originator_account).into(),
-                project_id,
-                amount_to_mint,
-            ),
-            Error::<Test>::ProjectNotFound
-        );
-
-        // create the project to approve
-        let mut creation_params = get_default_creation_params::<Test>();
-        // replace the default with mutiple batches
-        let created_batch_list = get_multiple_batch_group::<Test>();
-        creation_params.batches = created_batch_list;
-
-        assert_ok!(VCU::create(
-            RawOrigin::Signed(originator_account).into(),
-            project_id,
-            creation_params.clone()
-        ));
-
-        // calling retire from a non minted project should fail
-        assert_noop!(
-            VCU::retire(RawOrigin::Signed(3).into(), project_id, amount_to_mint,),
-            pallet_assets::Error::<Test>::NoAccount
-        );
-
-        // approve project so minting can happen
-        assert_ok!(VCU::force_add_authorized_account(
-            RawOrigin::Root.into(),
-            authorised_account
-        ));
-        assert_ok!(VCU::approve_project(
-            RawOrigin::Signed(authorised_account).into(),
-            project_id,
-            true
-        ),);
+        create_and_approve_project_batch(project_id, originator_account, authorised_account);
 
         // mint should work with all params correct
         assert_ok!(VCU::mint(
@@ -1118,7 +1136,7 @@ fn retire_for_multiple_batch() {
         assert_eq!(NextItemId::<Test>::get(expected_asset_id).unwrap(), 1);
 
         // The retired data storage should be set correctly
-        let mut stored_retired_data = RetiredVCUs::<Test>::get((expected_asset_id, 0)).unwrap();
+        let mut stored_retired_data = RetiredVCUs::<Test>::get(expected_asset_id, 0).unwrap();
         assert_eq!(stored_retired_data.account, originator_account);
         assert_eq!(stored_retired_data.retire_data.len(), 1);
 
@@ -1202,7 +1220,7 @@ fn retire_for_multiple_batch() {
         assert_eq!(NextItemId::<Test>::get(expected_asset_id).unwrap(), 2);
 
         // The retired data storage should be set correctly
-        let mut stored_retired_data = RetiredVCUs::<Test>::get((expected_asset_id, 1)).unwrap();
+        let mut stored_retired_data = RetiredVCUs::<Test>::get(expected_asset_id, 1).unwrap();
         assert_eq!(stored_retired_data.account, originator_account);
         assert_eq!(stored_retired_data.retire_data.len(), 2);
         // We retired a total of 150 tokens in the call, 50 of 2020 batch had been retired previously
@@ -1215,5 +1233,48 @@ fn retire_for_multiple_batch() {
         assert_eq!(retired_batch.issuance_year, 2020);
         assert_eq!(retired_batch.count, 50);
         assert_eq!(stored_retired_data.timestamp, 1);
+    });
+}
+
+#[test]
+fn force_approve_and_mint_vcu_works() {
+    new_test_ext().execute_with(|| {
+        let originator_account = 1;
+        let project_id = 1001;
+        // token minting params
+        let amount_to_mint = 50;
+        let list_to_marketplace = false;
+
+        let creation_params = get_default_creation_params::<Test>();
+
+        // mint should work with all params correct
+        assert_ok!(VCU::force_approve_and_mint_vcu(
+            RawOrigin::Root.into(),
+            originator_account,
+            project_id,
+            creation_params,
+            amount_to_mint,
+            list_to_marketplace
+        ));
+
+        assert_eq!(
+            last_event(),
+            VCUEvent::VCUMinted {
+                project_id,
+                recipient: originator_account,
+                amount: amount_to_mint
+            }
+            .into()
+        );
+
+        // ensure minting worked correctly
+        let stored_data = VCU::get_project_details(project_id).unwrap();
+        assert_eq!(stored_data.originator, originator_account);
+        assert_eq!(stored_data.sdg_details, get_default_sdg_details::<Test>());
+        assert_eq!(stored_data.unit_price, 100_u32.into());
+        assert_eq!(stored_data.total_supply, 100_u32.into());
+        assert_eq!(stored_data.minted, amount_to_mint);
+        assert_eq!(stored_data.retired, 0_u32.into());
+        assert_eq!(stored_data.approved, true);
     });
 }

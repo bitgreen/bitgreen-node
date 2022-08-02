@@ -504,9 +504,6 @@ pub const MILLICENTS: Balance = 1_000_000_000;
 pub const CENTS: Balance = 1_000 * MILLICENTS;
 pub const DOLLARS: Balance = 100 * CENTS;
 
-const fn deposit(items: u32, bytes: u32) -> Balance {
-    items as Balance * 15 * CENTS + (bytes as Balance) * 6 * CENTS
-}
 // Asset pallet
 parameter_types! {
     pub const ASSETDEPOSIT: Balance = 1 * DOLLARS;
@@ -543,6 +540,19 @@ impl pallet_assets::Config for Runtime {
     type Extra = ();
 }
 
+impl pallet_membership::Config for Runtime {
+    type Event = Event;
+    type AddOrigin = EnsureRoot<AccountId>;
+    type RemoveOrigin = EnsureRoot<AccountId>;
+    type SwapOrigin = EnsureRoot<AccountId>;
+    type ResetOrigin = EnsureRoot<AccountId>;
+    type PrimeOrigin = EnsureRoot<AccountId>;
+    type MembershipInitialized = ();
+    type MembershipChanged = ();
+    type MaxMembers = ConstU32<100_000>;
+    type WeightInfo = ();
+}
+
 parameter_types! {
   pub MarketplaceEscrowAccount : AccountId =  PalletId(*b"bitg/mkp").into_account_truncating();
   pub const VCUPalletId: PalletId = PalletId(*b"bitg/vcu");
@@ -557,6 +567,7 @@ impl pallet_vcu::Config for Runtime {
     type AssetHandler = Assets;
     type ItemId = u32;
     type NFTHandler = Uniques;
+    type KYCProvider = KYCMembership;
     type ForceOrigin = EnsureRoot<AccountId>;
     type MarketplaceEscrow = MarketplaceEscrowAccount;
     type MaxAuthorizedAccountCount = ConstU32<10>;
@@ -607,8 +618,6 @@ impl pallet_uniques::Config for Runtime {
     type KeyLimit = ConstU32<50>;
     type ValueLimit = ConstU32<50>;
     type WeightInfo = ();
-    #[cfg(feature = "runtime-benchmarks")]
-    type Helper = ();
 }
 
 parameter_types! {
@@ -657,6 +666,7 @@ construct_runtime!(
         Nft: orml_nft::{Pallet, Call, Storage, Config<T>}= 42,
 
         // Bitgreen pallets
+        KYCMembership: pallet_membership::{Pallet, Call, Storage, Config<T>, Event<T>} = 50,
         Sudo: pallet_sudo::{Pallet, Call, Storage, Config<T>, Event<T>} = 51,
         Assets: pallet_assets::{Pallet, Call, Storage, Event<T>} = 52,
         Uniques: pallet_uniques::{Pallet, Call, Storage, Event<T>} = 53,

@@ -7,12 +7,10 @@ use crate::{mock::*, Config, Error, Pools};
 use frame_support::{
     assert_noop, assert_ok,
     traits::tokens::fungibles::{metadata::Inspect as MetadataInspect, Inspect},
-    PalletId,
 };
 use frame_system::RawOrigin;
-use pallet_vcu::{BatchGroupOf, NextItemId, ProjectCreateParams, SDGTypesListOf, ShortStringOf};
+use pallet_vcu::{BatchGroupOf, ProjectCreateParams, SDGTypesListOf, ShortStringOf};
 use primitives::{Batch, RegistryDetails, RegistryName, Royalty, SDGDetails, SdgType};
-use sp_runtime::traits::AccountIdConversion;
 use sp_runtime::Percent;
 use sp_std::convert::TryInto;
 
@@ -126,8 +124,14 @@ pub fn create_project_and_mint<T: Config>(
     project_id: u32,
     originator_account: u64,
     amount_to_mint: u32,
+    batch: bool,
 ) {
-    let creation_params = get_default_creation_params::<Test>();
+    let mut creation_params = get_default_creation_params::<Test>();
+    if batch {
+        // replace the default with mutiple batches
+        let created_batch_list = get_multiple_batch_group::<Test>();
+        creation_params.batches = created_batch_list;
+    }
 
     let authorised_account = 10;
 
@@ -158,14 +162,11 @@ pub fn create_project_and_mint<T: Config>(
 }
 
 #[test]
-fn create_new_pools() {
+fn test_cannot_create_pools_below_min_id() {
     new_test_ext().execute_with(|| {
-        let authorised_account_one = 1;
-        let project_id = 10_000;
-
         assert_noop!(
             VCUPools::create(
-                RawOrigin::Signed(authorised_account_one).into(),
+                RawOrigin::Signed(1).into(),
                 10,
                 Default::default(),
                 None,
@@ -173,6 +174,14 @@ fn create_new_pools() {
             ),
             Error::<Test>::PoolIdBelowExpectedMinimum
         );
+    });
+}
+
+#[test]
+fn create_new_pools() {
+    new_test_ext().execute_with(|| {
+        let authorised_account_one = 1;
+        let project_id = 10_000;
 
         assert_ok!(VCUPools::create(
             RawOrigin::Signed(authorised_account_one).into(),
@@ -229,7 +238,12 @@ fn deposit_works() {
             "pool_xyz".as_bytes().to_vec().try_into().unwrap(),
         ));
 
-        create_project_and_mint::<Test>(project_id, authorised_account_one, project_tokens_to_mint);
+        create_project_and_mint::<Test>(
+            project_id,
+            authorised_account_one,
+            project_tokens_to_mint,
+            false,
+        );
 
         // deposit to pool should work
         assert_ok!(VCUPools::deposit(
@@ -276,6 +290,74 @@ fn deposit_works() {
 }
 
 #[test]
+fn deposit_works_for_batch_vcus() {
+    new_test_ext().execute_with(|| {
+        let authorised_account_one = 1;
+        let project_id = 1_000;
+        let pool_id = 10_000;
+        let project_tokens_to_mint = 100;
+        let project_tokens_to_deposit = 99;
+
+        assert_ok!(VCUPools::create(
+            RawOrigin::Signed(authorised_account_one).into(),
+            pool_id,
+            Default::default(),
+            None,
+            "pool_xyz".as_bytes().to_vec().try_into().unwrap(),
+        ));
+
+        create_project_and_mint::<Test>(
+            project_id,
+            authorised_account_one,
+            project_tokens_to_mint,
+            true,
+        );
+
+        // deposit to pool should work
+        assert_ok!(VCUPools::deposit(
+            RawOrigin::Signed(authorised_account_one).into(),
+            pool_id,
+            project_id,
+            project_tokens_to_deposit
+        ));
+
+        assert_eq!(
+            last_event(),
+            VCUPoolEvent::Deposit {
+                who: authorised_account_one,
+                project_id: project_id,
+                pool_id: pool_id,
+                amount: project_tokens_to_deposit
+            }
+            .into()
+        );
+
+        // The pool account should have the balance
+        assert_eq!(
+            Assets::total_issuance(project_id),
+            project_tokens_to_mint.into()
+        );
+        assert_eq!(Assets::minimum_balance(project_id), 1);
+
+        // The depositor should have lost the balance
+        assert_eq!(Assets::balance(project_id, authorised_account_one), 1_u128);
+
+        // The depositor should have gained equal pool tokens
+        assert_eq!(
+            Assets::balance(pool_id, authorised_account_one),
+            project_tokens_to_deposit
+        );
+
+        // ensure storage updated correctly
+        let stored_pool = Pools::<Test>::get(pool_id).unwrap();
+        // the issuance date is the issuance date of oldest batch
+        let stored_issuance_map = stored_pool.credits.get(&2020).unwrap();
+        let amount = stored_issuance_map.get(&project_id).unwrap();
+        assert_eq!(amount, &project_tokens_to_deposit);
+    });
+}
+
+#[test]
 fn retire_works() {
     new_test_ext().execute_with(|| {
         let authorised_account_one = 1;
@@ -292,7 +374,12 @@ fn retire_works() {
             "pool_xyz".as_bytes().to_vec().try_into().unwrap(),
         ));
 
-        create_project_and_mint::<Test>(project_id, authorised_account_one, project_tokens_to_mint);
+        create_project_and_mint::<Test>(
+            project_id,
+            authorised_account_one,
+            project_tokens_to_mint,
+            false,
+        );
 
         // deposit to pool should work
         assert_ok!(VCUPools::deposit(

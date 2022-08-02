@@ -89,12 +89,14 @@ benchmarks! {
     where_clause { where
     T::AssetId: From<u32>,
     T::ItemId: From<u32>,
+    T: pallet_membership::Config
 }
 
     create {
         let caller : T::AccountId = account("account_id", 0, 0);
         let project_id = 10_000_u32.into();
         let creation_params = get_default_creation_params::<T>();
+        pallet_membership::Pallet::<T>::add_member(RawOrigin::Root.into(), caller.clone())?;
     }: _(RawOrigin::Signed(caller.into()), project_id, creation_params.into())
     verify {
         assert!(Projects::<T>::get(project_id).is_some());
@@ -105,6 +107,7 @@ benchmarks! {
         let project_id = 10_000_u32.into();
         let creation_params = get_default_creation_params::<T>();
         VCU::<T>::force_add_authorized_account(RawOrigin::Root.into(), caller.clone().into())?;
+        pallet_membership::Pallet::<T>::add_member(RawOrigin::Root.into(), caller.clone())?;
         VCU::<T>::create(RawOrigin::Signed(caller.clone()).into(), project_id, creation_params)?;
     }: _(RawOrigin::Signed(caller.into()), project_id, true)
     verify {
@@ -115,6 +118,7 @@ benchmarks! {
         let caller : T::AccountId = account("account_id", 0, 0);
         let project_id = 10_000_u32.into();
         let creation_params = get_default_creation_params::<T>();
+        pallet_membership::Pallet::<T>::add_member(RawOrigin::Root.into(), caller.clone())?;
         VCU::<T>::force_add_authorized_account(RawOrigin::Root.into(), caller.clone().into())?;
         VCU::<T>::create(RawOrigin::Signed(caller.clone()).into(), project_id, creation_params)?;
         VCU::<T>::approve_project(RawOrigin::Signed(caller.clone()).into(), project_id, true)?;
@@ -127,6 +131,7 @@ benchmarks! {
         let caller : T::AccountId = account("account_id", 0, 0);
         let project_id = 10_000_u32.into();
         let creation_params = get_default_creation_params::<T>();
+        pallet_membership::Pallet::<T>::add_member(RawOrigin::Root.into(), caller.clone())?;
         VCU::<T>::force_add_authorized_account(RawOrigin::Root.into(), caller.clone().into())?;
         VCU::<T>::create(RawOrigin::Signed(caller.clone()).into(), project_id, creation_params)?;
         VCU::<T>::approve_project(RawOrigin::Signed(caller.clone()).into(), project_id, true)?;
@@ -134,7 +139,7 @@ benchmarks! {
     }: _(RawOrigin::Signed(caller.clone()), project_id, 10_u32.into())
     verify {
         let item_id : T::ItemId = 0_u32.into();
-        let retire_data = RetiredVCUs::<T>::get((project_id, item_id)).unwrap();
+        let retire_data = RetiredVCUs::<T>::get(project_id, item_id).unwrap();
         assert_last_event::<T>(Event::VCURetired { project_id, account : caller, amount : 10_u32.into(), retire_data :retire_data.retire_data }.into());
     }
 
@@ -209,7 +214,7 @@ benchmarks! {
         };
     }: _(RawOrigin::Root, project_id, item_id, new_retire_data)
     verify {
-        assert!(RetiredVCUs::<T>::get((project_id, item_id)).is_some());
+        assert!(RetiredVCUs::<T>::get(project_id, item_id).is_some());
     }
 
     impl_benchmark_test_suite!(VCU, crate::mock::new_test_ext(), crate::mock::Test);
