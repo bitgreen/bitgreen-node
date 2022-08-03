@@ -33,6 +33,9 @@ pub type LocationCoordinatesOf<T> =
 /// list of SDGs the project addresses, upper bound is max number of existing SDGs
 pub type SDGTypesListOf<T> = BoundedVec<SDGDetails<ShortStringOf<T>>, ConstU32<17>>;
 
+/// List of registrys the projects are included in
+pub type RegistryListOf<T> = BoundedVec<SDGDetails<ShortStringOf<T>>, ConstU32<5>>;
+
 /// List of royalty recipients for a project
 pub type RoyaltyRecipientsOf<T> = BoundedVec<
     Royalty<<T as frame_system::Config>::AccountId>,
@@ -72,7 +75,7 @@ pub struct ProjectCreateParams<T: pallet::Config> {
     /// List of ipfs-hashes of documents related to the project
     pub documents: IpfsLinkListsOf<T>,
     /// Details of the project as represented in registry
-    pub registry_details: RegistryDetails<ShortStringOf<T>>,
+    pub registry_details: RegistryListOf<T>,
     /// SDG details
     pub sdg_details: SDGTypesListOf<T>,
     /// List of batches in the project
@@ -106,7 +109,7 @@ pub struct ProjectDetail<T: pallet::Config> {
     /// List of ipfs-hashes of documents related to the project
     pub documents: IpfsLinkListsOf<T>,
     /// Details of the project as represented in registry
-    pub registry_details: RegistryDetails<ShortStringOf<T>>,
+    pub registry_details: RegistryListOf<T>,
     /// SDG details
     pub sdg_details: SDGTypesListOf<T>,
     /// List of batches in the project
