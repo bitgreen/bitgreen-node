@@ -261,13 +261,18 @@ pub mod pallet {
                         .ok_or(Error::<T>::ProjectNotFound)?;
 
                 // ensure the project_id passes the pool config
-                // TODO : Rework this check depending on how to filter registries
-                // if let Some(registry_list) = &pool.config.registry_list {
-                //     ensure!(
-                //         registry_list.contains(&project_details.registry_details.registry),
-                //         Error::<T>::RegistryNotPermitted
-                //     );
-                // }
+                if let Some(registry_list) = &pool.config.registry_list {
+                    // only project from the same registry will be approved
+                    // hence its enough to check the first registry for the project
+                    let project_registry = project_details
+                        .registry_details
+                        .first()
+                        .ok_or(Error::<T>::ProjectNotFound)?;
+                    ensure!(
+                        registry_list.contains(&project_registry.registry),
+                        Error::<T>::RegistryNotPermitted
+                    );
+                }
 
                 if let Some(project_id_list) = &pool.config.project_id_list {
                     ensure!(

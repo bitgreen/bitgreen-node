@@ -311,13 +311,7 @@ pub mod pallet {
             is_approved: bool,
         ) -> DispatchResult {
             let sender = ensure_signed(origin)?;
-
-            let authorized_accounts = AuthorizedAccounts::<T>::get();
-            ensure!(
-                authorized_accounts.contains(&sender),
-                Error::<T>::NotAuthorised
-            );
-
+            Self::check_authorized_account(&sender)?;
             Self::do_approve_project(project_id, is_approved)
         }
 
@@ -334,7 +328,8 @@ pub mod pallet {
             list_to_marketplace: bool,
         ) -> DispatchResult {
             let sender = ensure_signed(origin)?;
-            Self::check_kyc_approval(&sender)?;
+            Self::check_authorized_account(&sender)?;
+            // Self::check_kyc_approval(&sender)?;
             Self::mint_vcus(sender, project_id, amount_to_mint, list_to_marketplace)
         }
 

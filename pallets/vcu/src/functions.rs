@@ -3,8 +3,8 @@
 // This code is licensed under MIT license (see LICENSE.txt for details)
 //! VCU pallet helper functions
 use crate::{
-    BatchRetireDataList, BatchRetireDataOf, Config, Error, Event, NextItemId, Pallet,
-    ProjectCreateParams, ProjectDetail, Projects, RetiredVCUs, RetiredVcuData,
+    AuthorizedAccounts, BatchRetireDataList, BatchRetireDataOf, Config, Error, Event, NextItemId,
+    Pallet, ProjectCreateParams, ProjectDetail, Projects, RetiredVCUs, RetiredVcuData,
 };
 use codec::alloc::string::ToString;
 use frame_support::{
@@ -35,6 +35,16 @@ impl<T: Config> Pallet<T> {
     pub fn check_kyc_approval(account_id: &T::AccountId) -> DispatchResult {
         if !T::KYCProvider::contains(account_id) {
             Err(Error::<T>::KYCAuthorisationFailed.into())
+        } else {
+            Ok(())
+        }
+    }
+
+    /// Checks if the given account_id is part of authorized account list
+    pub fn check_authorized_account(account_id: &T::AccountId) -> DispatchResult {
+        let authorized_accounts = AuthorizedAccounts::<T>::get();
+        if !authorized_accounts.contains(account_id) {
+            Err(Error::<T>::NotAuthorised.into())
         } else {
             Ok(())
         }
@@ -216,7 +226,7 @@ impl<T: Config> Pallet<T> {
     }
 
     pub fn mint_vcus(
-        sender: T::AccountId,
+        _sender: T::AccountId,
         project_id: T::AssetId,
         amount_to_mint: T::Balance,
         list_to_marketplace: bool,
@@ -227,9 +237,6 @@ impl<T: Config> Pallet<T> {
 
             // ensure the project is approved
             ensure!(project.approved, Error::<T>::ProjectNotApproved);
-
-            // ensure the caller is the originator
-            ensure!(&sender == &project.originator, Error::<T>::NotAuthorised);
 
             // ensure the amount_to_mint does not exceed limit
             ensure!(

@@ -34,7 +34,7 @@ pub type LocationCoordinatesOf<T> =
 pub type SDGTypesListOf<T> = BoundedVec<SDGDetails<ShortStringOf<T>>, ConstU32<17>>;
 
 /// List of registrys the projects are included in
-pub type RegistryListOf<T> = BoundedVec<SDGDetails<ShortStringOf<T>>, ConstU32<5>>;
+pub type RegistryListOf<T> = BoundedVec<RegistryDetails<ShortStringOf<T>>, ConstU32<5>>;
 
 /// List of royalty recipients for a project
 pub type RoyaltyRecipientsOf<T> = BoundedVec<

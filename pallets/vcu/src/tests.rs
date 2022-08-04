@@ -3,8 +3,8 @@
 // This code is licensed under MIT license (see LICENSE.txt for details)
 //! Tests for vcu pallet
 use crate::{
-    mock::*, BatchGroupOf, Config, Error, NextItemId, ProjectCreateParams, Projects, RetiredVCUs,
-    SDGTypesListOf, ShortStringOf,
+    mock::*, BatchGroupOf, Config, Error, NextItemId, ProjectCreateParams, Projects,
+    RegistryListOf, RetiredVCUs, SDGTypesListOf,
 };
 use frame_support::{
     assert_noop, assert_ok,
@@ -20,14 +20,14 @@ use sp_std::convert::TryInto;
 pub type VCUEvent = crate::Event<Test>;
 
 /// helper function to generate standard registry details
-fn get_default_registry_details<T: Config>() -> RegistryDetails<ShortStringOf<T>> {
+fn get_default_registry_details<T: Config>() -> RegistryListOf<T> {
     let registry_details = RegistryDetails {
         registry: RegistryName::Verra,
         name: "reg_name".as_bytes().to_vec().try_into().unwrap(),
         id: "reg_id".as_bytes().to_vec().try_into().unwrap(),
         summary: "reg_summary".as_bytes().to_vec().try_into().unwrap(),
     };
-    registry_details
+    vec![registry_details].try_into().unwrap()
 }
 
 /// helper function to generate standard sdg details
@@ -111,6 +111,15 @@ fn create_and_approve_project(project_id: u32, originator_account: u64, authoris
         project_id,
         true
     ),);
+}
+
+/// helper function to add authorised account
+fn add_authorised_account(authorised_account: u64) {
+    // authorise the account
+    assert_ok!(VCU::force_add_authorized_account(
+        RawOrigin::Root.into(),
+        authorised_account
+    ));
 }
 
 /// helper function to create and approve tokens in batch config
@@ -487,8 +496,20 @@ fn approve_project_works() {
 }
 
 #[test]
+fn mint_non_authorised_account_should_fail() {
+    new_test_ext().execute_with(|| {
+        assert_noop!(
+            VCU::mint(RawOrigin::Signed(1).into(), 1001, 100, false),
+            Error::<Test>::NotAuthorised
+        );
+    });
+}
+
+#[test]
 fn mint_non_existent_project_should_fail() {
     new_test_ext().execute_with(|| {
+        add_authorised_account(1);
+
         // minting a non existent project should fail
         assert_noop!(
             VCU::mint(RawOrigin::Signed(1).into(), 1001, 100, false),
@@ -514,9 +535,10 @@ fn mint_non_approved_project_should_fail() {
             creation_params.clone()
         ));
 
+        add_authorised_account(10);
         assert_noop!(
             VCU::mint(
-                RawOrigin::Signed(originator_account).into(),
+                RawOrigin::Signed(10).into(),
                 project_id,
                 amount_to_mint,
                 list_to_marketplace
@@ -526,31 +548,31 @@ fn mint_non_approved_project_should_fail() {
     });
 }
 
-#[test]
-fn test_only_project_originator_can_mint_tokens() {
-    new_test_ext().execute_with(|| {
-        let originator_account = 1;
-        let project_id = 1001;
-        // token minting params
-        let amount_to_mint = 50;
-        let authorised_account = 10;
-        let list_to_marketplace = false;
+// #[test]
+// fn test_only_project_originator_can_mint_tokens() {
+//     new_test_ext().execute_with(|| {
+//         let originator_account = 1;
+//         let project_id = 1001;
+//         // token minting params
+//         let amount_to_mint = 50;
+//         let authorised_account = 10;
+//         let list_to_marketplace = false;
 
-        // create the project to approve
-        create_and_approve_project(project_id, originator_account, authorised_account);
+//         // create the project to approve
+//         create_and_approve_project(project_id, originator_account, authorised_account);
 
-        // only originator can mint tokens
-        assert_noop!(
-            VCU::mint(
-                RawOrigin::Signed(authorised_account).into(),
-                project_id,
-                amount_to_mint,
-                list_to_marketplace
-            ),
-            Error::<Test>::NotAuthorised
-        );
-    });
-}
+//         // only originator can mint tokens
+//         assert_noop!(
+//             VCU::mint(
+//                 RawOrigin::Signed(authorised_account).into(),
+//                 project_id,
+//                 amount_to_mint,
+//                 list_to_marketplace
+//             ),
+//             Error::<Test>::NotAuthorised
+//         );
+//     });
+// }
 
 #[test]
 fn test_cannot_mint_more_than_supply() {
@@ -567,7 +589,7 @@ fn test_cannot_mint_more_than_supply() {
         // cannot mint more than supply
         assert_noop!(
             VCU::mint(
-                RawOrigin::Signed(originator_account).into(),
+                RawOrigin::Signed(authorised_account).into(),
                 project_id,
                 10_000,
                 list_to_marketplace
@@ -592,7 +614,7 @@ fn mint_without_list_to_marketplace_works_for_single_batch() {
 
         // mint should work with all params correct
         assert_ok!(VCU::mint(
-            RawOrigin::Signed(originator_account).into(),
+            RawOrigin::Signed(authorised_account).into(),
             project_id,
             amount_to_mint,
             list_to_marketplace
@@ -688,7 +710,7 @@ fn mint_without_list_to_marketplace_works_for_multiple_batches() {
 
         // mint should work with all params correct
         assert_ok!(VCU::mint(
-            RawOrigin::Signed(originator_account).into(),
+            RawOrigin::Signed(authorised_account).into(),
             project_id,
             amount_to_mint,
             list_to_marketplace
@@ -774,7 +796,7 @@ fn mint_without_list_to_marketplace_works_for_multiple_batches() {
         // mint another 150, should fail with no supply error
         assert_noop!(
             VCU::mint(
-                RawOrigin::Signed(originator_account).into(),
+                RawOrigin::Signed(authorised_account).into(),
                 project_id,
                 amount_to_mint,
                 list_to_marketplace
@@ -784,7 +806,7 @@ fn mint_without_list_to_marketplace_works_for_multiple_batches() {
 
         // mint remaining 50 to exhaust supply
         assert_ok!(VCU::mint(
-            RawOrigin::Signed(originator_account).into(),
+            RawOrigin::Signed(authorised_account).into(),
             project_id,
             50,
             list_to_marketplace
@@ -871,7 +893,7 @@ fn test_retire_for_single_batch() {
 
         // mint should work with all params correct
         assert_ok!(VCU::mint(
-            RawOrigin::Signed(originator_account).into(),
+            RawOrigin::Signed(authorised_account).into(),
             project_id,
             amount_to_mint,
             list_to_marketplace
@@ -1003,7 +1025,7 @@ fn test_retire_for_single_batch() {
         // originator cannot mint more since the supply is exhausted
         assert_noop!(
             VCU::mint(
-                RawOrigin::Signed(originator_account).into(),
+                RawOrigin::Signed(authorised_account).into(),
                 project_id,
                 amount_to_mint,
                 list_to_marketplace
@@ -1059,7 +1081,7 @@ fn retire_for_multiple_batch() {
 
         // mint should work with all params correct
         assert_ok!(VCU::mint(
-            RawOrigin::Signed(originator_account).into(),
+            RawOrigin::Signed(authorised_account).into(),
             project_id,
             amount_to_mint,
             list_to_marketplace
@@ -1197,7 +1219,7 @@ fn retire_for_multiple_batch() {
         // originator cannot mint more since the supply is exhausted
         assert_noop!(
             VCU::mint(
-                RawOrigin::Signed(originator_account).into(),
+                RawOrigin::Signed(authorised_account).into(),
                 project_id,
                 amount_to_mint,
                 list_to_marketplace
