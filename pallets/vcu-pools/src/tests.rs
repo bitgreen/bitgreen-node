@@ -9,7 +9,7 @@ use frame_support::{
     traits::tokens::fungibles::{metadata::Inspect as MetadataInspect, Inspect},
 };
 use frame_system::RawOrigin;
-use pallet_vcu::{BatchGroupOf, ProjectCreateParams, SDGTypesListOf, ShortStringOf};
+use pallet_vcu::{BatchGroupOf, ProjectCreateParams, RegistryListOf, SDGTypesListOf};
 use primitives::{Batch, RegistryDetails, RegistryName, Royalty, SDGDetails, SdgType};
 use sp_runtime::Percent;
 use sp_std::convert::TryInto;
@@ -17,14 +17,14 @@ use sp_std::convert::TryInto;
 pub type VCUPoolEvent = crate::Event<Test>;
 
 /// helper function to generate standard registry details
-fn get_default_registry_details<T: Config>() -> RegistryDetails<ShortStringOf<T>> {
+fn get_default_registry_details<T: Config>() -> RegistryListOf<T> {
     let registry_details = RegistryDetails {
         registry: RegistryName::Verra,
         name: "reg_name".as_bytes().to_vec().try_into().unwrap(),
         id: "reg_id".as_bytes().to_vec().try_into().unwrap(),
         summary: "reg_summary".as_bytes().to_vec().try_into().unwrap(),
     };
-    registry_details
+    vec![registry_details].try_into().unwrap()
 }
 
 /// helper function to generate standard sdg details
@@ -154,7 +154,7 @@ pub fn create_project_and_mint<T: Config>(
 
     // mint should work with all params correct
     assert_ok!(VCU::mint(
-        RawOrigin::Signed(originator_account).into(),
+        RawOrigin::Signed(authorised_account).into(),
         project_id,
         amount_to_mint.into(),
         false
