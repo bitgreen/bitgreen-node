@@ -87,8 +87,8 @@ orml-nft = { git = "https://github.com/open-web3-stack/open-runtime-module-libra
 
 # Local Dependencies
 primitives = { package = "bitg-primitives", path = "../../primitives", default-features = false }
-pallet-vcu ={ default-features = false, version = '0.1.0', path = "../../pallets/vcu"}
-pallet-vcu-pools ={ default-features = false, version = '0.1.0', path = "../../pallets/vcu-pools"}
+pallet-carbon-credits ={ default-features = false, version = '0.1.0', path = "../../pallets/carbon-credits"}
+pallet-carbon-credits-pool ={ default-features = false, version = '0.1.0', path = "../../pallets/carbon-credits-pool"}
 
 [features]
 default = [
@@ -152,8 +152,8 @@ std = [
 
 	"primitives/std",
 	"pallet-assets/std",
-	"pallet-vcu/std",
-	"pallet-vcu-pools/std"
+	"pallet-carbon-credits/std",
+	"pallet-carbon-credits-pool/std"
 ]
 
 runtime-benchmarks = [
@@ -170,6 +170,6 @@ runtime-benchmarks = [
 	"xcm-builder/runtime-benchmarks",
 	"cumulus-pallet-session-benchmarking/runtime-benchmarks",
 	"cumulus-pallet-xcmp-queue/runtime-benchmarks",
-	"pallet-vcu/runtime-benchmarks",
+	"pallet-carbon-credits/runtime-benchmarks",
 	"orml-authority/runtime-benchmarks",
 ]

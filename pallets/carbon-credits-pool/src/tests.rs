@@ -2,14 +2,14 @@
 // Copyright (C) 2022 BitGreen.
 // This code is licensed under MIT license (see LICENSE.txt for details)
 //
-//! Tests for vcu pool pallet
+//! Tests for CarbonCredits pool pallet
 use crate::{mock::*, Config, Error, Pools};
 use frame_support::{
     assert_noop, assert_ok,
     traits::tokens::fungibles::{metadata::Inspect as MetadataInspect, Inspect},
 };
 use frame_system::RawOrigin;
-use pallet_vcu::{BatchGroupOf, ProjectCreateParams, RegistryListOf, SDGTypesListOf};
+use pallet_carbon_credits::{BatchGroupOf, ProjectCreateParams, RegistryListOf, SDGTypesListOf};
 use primitives::{Batch, RegistryDetails, RegistryName, Royalty, SDGDetails, SdgType};
 use sp_runtime::Percent;
 use sp_std::convert::TryInto;
@@ -135,25 +135,25 @@ pub fn create_project_and_mint<T: Config>(
 
     let authorised_account = 10;
 
-    assert_ok!(VCU::create(
+    assert_ok!(CarbonCredits::create(
         RawOrigin::Signed(originator_account).into(),
         project_id,
         creation_params.clone()
     ));
 
     // approve project so minting can happen
-    assert_ok!(VCU::force_add_authorized_account(
+    assert_ok!(CarbonCredits::force_add_authorized_account(
         RawOrigin::Root.into(),
         authorised_account
     ));
-    assert_ok!(VCU::approve_project(
+    assert_ok!(CarbonCredits::approve_project(
         RawOrigin::Signed(authorised_account).into(),
         project_id,
         true
     ),);
 
     // mint should work with all params correct
-    assert_ok!(VCU::mint(
+    assert_ok!(CarbonCredits::mint(
         RawOrigin::Signed(authorised_account).into(),
         project_id,
         amount_to_mint.into(),
@@ -444,7 +444,8 @@ fn retire_works() {
         assert_eq!(amount, &9_u128);
 
         // the equivalent project tokens should have been retired
-        let stored_data = pallet_vcu::Pallet::<Test>::get_project_details(project_id).unwrap();
+        let stored_data =
+            pallet_carbon_credits::Pallet::<Test>::get_project_details(project_id).unwrap();
         assert_eq!(stored_data.minted, 100_u32.into());
         assert_eq!(stored_data.retired, 90_u32.into());
     });

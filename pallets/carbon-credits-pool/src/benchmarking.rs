@@ -1,14 +1,14 @@
 // This file is part of BitGreen.
 // Copyright (C) 2022 BitGreen.
 // This code is licensed under MIT license (see LICENSE.txt for details)
-//! VCU Pools pallet benchmarking
+//! CarbonCredits Pools pallet benchmarking
 #![cfg(feature = "runtime-benchmarks")]
 
 use super::*;
 use crate::Pallet as VCUPools;
 use frame_benchmarking::{account, benchmarks, vec};
 use frame_system::RawOrigin;
-use pallet_vcu::{BatchGroupOf, ProjectCreateParams, SDGTypesListOf, ShortStringOf};
+use pallet_carbon_credits::{BatchGroupOf, ProjectCreateParams, RegistryListOf, SDGTypesListOf};
 use primitives::{Batch, RegistryDetails, RegistryName, SDGDetails, SdgType};
 use sp_std::convert::TryInto;
 
@@ -17,14 +17,14 @@ fn assert_last_event<T: Config>(generic_event: <T as Config>::Event) {
 }
 
 /// helper function to generate standard registry details
-fn get_default_registry_details<T: Config>() -> RegistryDetails<ShortStringOf<T>> {
+fn get_default_registry_details<T: Config>() -> RegistryListOf<T> {
     let registry_details = RegistryDetails {
         registry: RegistryName::Verra,
         name: "reg_name".as_bytes().to_vec().try_into().unwrap(),
         id: "reg_id".as_bytes().to_vec().try_into().unwrap(),
         summary: "reg_summary".as_bytes().to_vec().try_into().unwrap(),
     };
-    registry_details
+    vec![registry_details].try_into().unwrap()
 }
 
 /// helper function to generate standard sdg details
@@ -111,10 +111,10 @@ benchmarks! {
         let project_id = 10_000_u32.into();
         let creation_params = get_default_creation_params::<T>();
         pallet_membership::Pallet::<T>::add_member(RawOrigin::Root.into(), caller.clone())?;
-        pallet_vcu::Pallet::<T>::force_add_authorized_account(RawOrigin::Root.into(), caller.clone().into())?;
-        pallet_vcu::Pallet::<T>::create(RawOrigin::Signed(caller.clone()).into(), project_id, creation_params)?;
-        pallet_vcu::Pallet::<T>::approve_project(RawOrigin::Signed(caller.clone()).into(), project_id, true)?;
-        pallet_vcu::Pallet::<T>::mint(RawOrigin::Signed(caller.clone()).into(), project_id, 100_u32.into(), false)?;
+        pallet_carbon_credits::Pallet::<T>::force_add_authorized_account(RawOrigin::Root.into(), caller.clone().into())?;
+        pallet_carbon_credits::Pallet::<T>::create(RawOrigin::Signed(caller.clone()).into(), project_id, creation_params)?;
+        pallet_carbon_credits::Pallet::<T>::approve_project(RawOrigin::Signed(caller.clone()).into(), project_id, true)?;
+        pallet_carbon_credits::Pallet::<T>::mint(RawOrigin::Signed(caller.clone()).into(), project_id, 100_u32.into(), false)?;
 
         // create a pool
         let pool_id = 10_001_u32.into();
@@ -131,10 +131,10 @@ benchmarks! {
         let project_id = 10_000_u32.into();
         let creation_params = get_default_creation_params::<T>();
         pallet_membership::Pallet::<T>::add_member(RawOrigin::Root.into(), caller.clone())?;
-        pallet_vcu::Pallet::<T>::force_add_authorized_account(RawOrigin::Root.into(), caller.clone().into())?;
-        pallet_vcu::Pallet::<T>::create(RawOrigin::Signed(caller.clone()).into(), project_id, creation_params)?;
-        pallet_vcu::Pallet::<T>::approve_project(RawOrigin::Signed(caller.clone()).into(), project_id, true)?;
-        pallet_vcu::Pallet::<T>::mint(RawOrigin::Signed(caller.clone()).into(), project_id, 100_u32.into(), false)?;
+        pallet_carbon_credits::Pallet::<T>::force_add_authorized_account(RawOrigin::Root.into(), caller.clone().into())?;
+        pallet_carbon_credits::Pallet::<T>::create(RawOrigin::Signed(caller.clone()).into(), project_id, creation_params)?;
+        pallet_carbon_credits::Pallet::<T>::approve_project(RawOrigin::Signed(caller.clone()).into(), project_id, true)?;
+        pallet_carbon_credits::Pallet::<T>::mint(RawOrigin::Signed(caller.clone()).into(), project_id, 100_u32.into(), false)?;
 
         // create a pool and deposit tokens
         let pool_id = 10_001_u32.into();

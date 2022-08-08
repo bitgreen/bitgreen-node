@@ -1,10 +1,10 @@
-# VCU Pallet
+# Carbon Credits Pallet
 
-The VCU pallet manages the creation and retirement of VCU units for the bitgreen runtime.
+The Carbon Credits pallet manages the creation and retirement of Carbon Credits units for the bitgreen runtime.
 
-### Background on VCUs
+### Background on Carbon Credits
 
-Under the VCS Program, projects are issued unique carbon credits known as Verified Carbon Units or VCUs. Each VCU represents a reduction or removal of one tonne of carbon dioxide equivalent (CO2e) achieved by a project. VCUs are characterized by a number of quality assurance principles which are confirmed through the project validation and verification process. VCUs are ultimately purchased and retired by an end user as a means of offsetting their emissions. All VCU issuance and retirement records are publicly available on the [Verra Registry](https://registry.verra.org/).
+Each Carbon Credits represents a reduction or removal of one tonne of carbon dioxide equivalent (CO2e) achieved by a project. Carbon Creditss are characterized by a number of quality assurance principles which are confirmed through the project validation and verification process. Carbon Credits are ultimately purchased and retired by an end user as a means of offsetting their emissions.
 
 ### OnChain Representation
 
@@ -42,20 +42,20 @@ pub struct Batch<T: pallet::Config> {
     /// The total_supply of the credits - this represents the total supply of the
     /// credits in the registry.
     pub total_supply: T::Balance,
-    /// The amount of tokens minted for this VCU
+    /// The amount of tokens minted for this Carbon Credits
     pub minted: T::Balance,
-    /// The amount of tokens minted for this VCU
+    /// The amount of tokens minted for this Carbon Credits
     pub retired: T::Balance,
 }
 ```
 
-A project can represent VCUs from multiple batches. For example a project can have 100 tokens of 2019 vintage and 200 tokens of 2020 vintage. In this case the project can package these two vintages to create a vcu token that has a supply of 300 tokens. These vintages can be represented inside a batchgroup, in this case, it is important to remember that the minting and retirement always gives priority to the oldest vintage.
+A project can represent Carbon Creditss from multiple batches. For example a project can have 100 tokens of 2019 vintage and 200 tokens of 2020 vintage. In this case the project can package these two vintages to create a Carbon Credits token that has a supply of 300 tokens. These vintages can be represented inside a batchgroup, in this case, it is important to remember that the minting and retirement always gives priority to the oldest vintage.
 Example : in the above case of 300 tokens, when the originator mints 100 tokens, we first mint the oldest (2019) credits and only once the supply is exhausted we move on the next vintage, same for retirement.
 ### Asset Handler
 
-The VCU pallet depends a fungible asset handler that implements the fungibles trait like pallet-assets. The VCU pallet creates an AssetClass for each `vcu_id` and mints the amount of tokens to the respective account. The `asset_id` in the VCUDetail represents the asset created by the Asset Handler.
+The Carbon Credits pallet depends a fungible asset handler that implements the fungibles trait like pallet-assets. The Carbon Credits pallet creates an AssetClass for each `Carbon Credits_id` and mints the amount of tokens to the respective account. The `asset_id` in the Carbon CreditsDetail represents the asset created by the Asset Handler.
 
-We also rely on the Asset Handler to help the user manage these tokens, currently the user can only transfer these tokens, the other functions like burn/mint are gated to only be performed by the vcu pallet, this is to ensure the retired and supply count is always updated.
+We also rely on the Asset Handler to help the user manage these tokens, currently the user can only transfer these tokens, the other functions like burn/mint are gated to only be performed by the Carbon Credits pallet, this is to ensure the retired and supply count is always updated.
 
 
 ### Extrinsics

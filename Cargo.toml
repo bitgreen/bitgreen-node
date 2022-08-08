@@ -8,8 +8,8 @@ split-debuginfo = "unpacked"
 members = [
     'parachain',
     'runtime/*',
-    'pallets/vcu',
-    'pallets/vcu-pools',
+    'pallets/carbon-credits',
+    'pallets/carbon-credits-pool',
     'primitives'
 ]
 exclude = ['rpc']

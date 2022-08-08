@@ -3,8 +3,8 @@ authors = ['BitGreen <https://bitgreen.org>']
 edition = '2018'
 homepage = 'https://bitgreen.org'
 license = 'MIT'
-name = 'pallet-vcu'
-description = "Module to tokenize VCU"
+name = 'pallet-carbon-credits'
+description = "Module to tokenize carbon credits"
 repository = 'https://github.com/bitgreen/bitg-node'
 version = '0.1.0'
 

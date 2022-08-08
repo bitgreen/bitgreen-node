@@ -1,10 +1,10 @@
 // This file is part of BitGreen.
 // Copyright (C) 2022 BitGreen.
 // This code is licensed under MIT license (see LICENSE.txt for details)
-//! Tests for vcu pallet
+//! Tests for CarbonCredits pallet
 use crate::{
     mock::*, BatchGroupOf, Config, Error, NextItemId, ProjectCreateParams, Projects,
-    RegistryListOf, RetiredVCUs, SDGTypesListOf,
+    RegistryListOf, RetiredCredits, SDGTypesListOf,
 };
 use frame_support::{
     assert_noop, assert_ok,
@@ -95,18 +95,18 @@ fn get_multiple_batch_group<T: Config>() -> BatchGroupOf<T> {
 fn create_and_approve_project(project_id: u32, originator_account: u64, authorised_account: u64) {
     // create the project to approve
     let creation_params = get_default_creation_params::<Test>();
-    assert_ok!(VCU::create(
+    assert_ok!(CarbonCredits::create(
         RawOrigin::Signed(originator_account).into(),
         project_id,
         creation_params.clone()
     ));
 
     // approve project so minting can happen
-    assert_ok!(VCU::force_add_authorized_account(
+    assert_ok!(CarbonCredits::force_add_authorized_account(
         RawOrigin::Root.into(),
         authorised_account
     ));
-    assert_ok!(VCU::approve_project(
+    assert_ok!(CarbonCredits::approve_project(
         RawOrigin::Signed(authorised_account).into(),
         project_id,
         true
@@ -116,7 +116,7 @@ fn create_and_approve_project(project_id: u32, originator_account: u64, authoris
 /// helper function to add authorised account
 fn add_authorised_account(authorised_account: u64) {
     // authorise the account
-    assert_ok!(VCU::force_add_authorized_account(
+    assert_ok!(CarbonCredits::force_add_authorized_account(
         RawOrigin::Root.into(),
         authorised_account
     ));
@@ -134,18 +134,18 @@ fn create_and_approve_project_batch(
     let created_batch_list = get_multiple_batch_group::<Test>();
     creation_params.batches = created_batch_list;
 
-    assert_ok!(VCU::create(
+    assert_ok!(CarbonCredits::create(
         RawOrigin::Signed(originator_account).into(),
         project_id,
         creation_params.clone()
     ));
 
     // approve project so minting can happen
-    assert_ok!(VCU::force_add_authorized_account(
+    assert_ok!(CarbonCredits::force_add_authorized_account(
         RawOrigin::Root.into(),
         authorised_account
     ));
-    assert_ok!(VCU::approve_project(
+    assert_ok!(CarbonCredits::approve_project(
         RawOrigin::Signed(authorised_account).into(),
         project_id,
         true
@@ -190,7 +190,7 @@ fn add_new_authorized_accounts_should_work() {
         let authorised_account_one = 1;
         let authorised_account_two = 2;
         let authorised_account_three = 3;
-        assert_ok!(VCU::force_add_authorized_account(
+        assert_ok!(CarbonCredits::force_add_authorized_account(
             RawOrigin::Root.into(),
             authorised_account_one,
         ));
@@ -204,22 +204,28 @@ fn add_new_authorized_accounts_should_work() {
         );
 
         assert_eq!(
-            VCU::authorized_accounts().first(),
+            CarbonCredits::authorized_accounts().first(),
             Some(&authorised_account_one)
         );
 
         assert_noop!(
-            VCU::force_add_authorized_account(RawOrigin::Root.into(), authorised_account_one,),
+            CarbonCredits::force_add_authorized_account(
+                RawOrigin::Root.into(),
+                authorised_account_one,
+            ),
             Error::<Test>::AuthorizedAccountAlreadyExists
         );
 
-        assert_ok!(VCU::force_add_authorized_account(
+        assert_ok!(CarbonCredits::force_add_authorized_account(
             RawOrigin::Root.into(),
             authorised_account_two,
         ));
 
         assert_noop!(
-            VCU::force_add_authorized_account(RawOrigin::Root.into(), authorised_account_three,),
+            CarbonCredits::force_add_authorized_account(
+                RawOrigin::Root.into(),
+                authorised_account_three,
+            ),
             Error::<Test>::TooManyAuthorizedAccounts
         );
 
@@ -237,16 +243,16 @@ fn add_new_authorized_accounts_should_work() {
 fn force_remove_authorized_accounts_should_work() {
     new_test_ext().execute_with(|| {
         let authorised_account_one = 1;
-        assert_ok!(VCU::force_add_authorized_account(
+        assert_ok!(CarbonCredits::force_add_authorized_account(
             RawOrigin::Root.into(),
             authorised_account_one,
         ));
         assert_eq!(
-            VCU::authorized_accounts().first(),
+            CarbonCredits::authorized_accounts().first(),
             Some(&authorised_account_one)
         );
 
-        assert_ok!(VCU::force_remove_authorized_account(
+        assert_ok!(CarbonCredits::force_remove_authorized_account(
             RawOrigin::Root.into(),
             authorised_account_one,
         ));
@@ -259,7 +265,7 @@ fn force_remove_authorized_accounts_should_work() {
             .into()
         );
 
-        assert_eq!(VCU::authorized_accounts().len(), 0);
+        assert_eq!(CarbonCredits::authorized_accounts().len(), 0);
     });
 }
 
@@ -271,7 +277,7 @@ fn create_works_for_single_batch() {
 
         let creation_params = get_default_creation_params::<Test>();
 
-        assert_ok!(VCU::create(
+        assert_ok!(CarbonCredits::create(
             RawOrigin::Signed(originator_account).into(),
             project_id,
             creation_params.clone()
@@ -315,7 +321,7 @@ fn create_works_for_multiple_batch() {
         // replace the default with mutiple batches
         creation_params.batches = get_multiple_batch_group::<Test>();
 
-        assert_ok!(VCU::create(
+        assert_ok!(CarbonCredits::create(
             RawOrigin::Signed(originator_account).into(),
             project_id,
             creation_params.clone()
@@ -361,7 +367,7 @@ fn resubmit_works() {
         // replace the default with mutiple batches
         creation_params.batches = get_multiple_batch_group::<Test>();
 
-        assert_ok!(VCU::create(
+        assert_ok!(CarbonCredits::create(
             RawOrigin::Signed(originator_account).into(),
             project_id,
             creation_params.clone()
@@ -369,7 +375,7 @@ fn resubmit_works() {
 
         // only originator can resubmit
         assert_noop!(
-            VCU::resubmit(
+            CarbonCredits::resubmit(
                 RawOrigin::Signed(10).into(),
                 project_id,
                 creation_params.clone()
@@ -378,7 +384,7 @@ fn resubmit_works() {
         );
 
         creation_params.name = "Newname".as_bytes().to_vec().try_into().unwrap();
-        assert_ok!(VCU::resubmit(
+        assert_ok!(CarbonCredits::resubmit(
             RawOrigin::Signed(originator_account).into(),
             project_id,
             creation_params.clone()
@@ -412,11 +418,11 @@ fn resubmit_works() {
         );
 
         // authorise the account
-        assert_ok!(VCU::force_add_authorized_account(
+        assert_ok!(CarbonCredits::force_add_authorized_account(
             RawOrigin::Root.into(),
             authorised_account
         ));
-        assert_ok!(VCU::approve_project(
+        assert_ok!(CarbonCredits::approve_project(
             RawOrigin::Signed(authorised_account).into(),
             project_id,
             true
@@ -424,7 +430,7 @@ fn resubmit_works() {
 
         // approved project cannot be resubmitted
         assert_noop!(
-            VCU::resubmit(
+            CarbonCredits::resubmit(
                 RawOrigin::Signed(originator_account).into(),
                 project_id,
                 creation_params.clone()
@@ -443,7 +449,7 @@ fn approve_project_works() {
 
         // non authorised account should trigger an error
         assert_noop!(
-            VCU::approve_project(
+            CarbonCredits::approve_project(
                 RawOrigin::Signed(authorised_account).into(),
                 project_id,
                 true
@@ -452,20 +458,24 @@ fn approve_project_works() {
         );
 
         // authorise the account
-        assert_ok!(VCU::force_add_authorized_account(
+        assert_ok!(CarbonCredits::force_add_authorized_account(
             RawOrigin::Root.into(),
             authorised_account
         ));
 
         // non existent project should throw error
         assert_noop!(
-            VCU::approve_project(RawOrigin::Signed(authorised_account).into(), 1234, true),
+            CarbonCredits::approve_project(
+                RawOrigin::Signed(authorised_account).into(),
+                1234,
+                true
+            ),
             Error::<Test>::ProjectNotFound
         );
 
         // create the project to approve
         let creation_params = get_default_creation_params::<Test>();
-        assert_ok!(VCU::create(
+        assert_ok!(CarbonCredits::create(
             RawOrigin::Signed(originator_account).into(),
             project_id,
             creation_params.clone()
@@ -478,7 +488,7 @@ fn approve_project_works() {
         assert_eq!(stored_data.approved, false);
 
         // approve should work now
-        assert_ok!(VCU::approve_project(
+        assert_ok!(CarbonCredits::approve_project(
             RawOrigin::Signed(authorised_account).into(),
             project_id,
             true
@@ -499,7 +509,7 @@ fn approve_project_works() {
 fn mint_non_authorised_account_should_fail() {
     new_test_ext().execute_with(|| {
         assert_noop!(
-            VCU::mint(RawOrigin::Signed(1).into(), 1001, 100, false),
+            CarbonCredits::mint(RawOrigin::Signed(1).into(), 1001, 100, false),
             Error::<Test>::NotAuthorised
         );
     });
@@ -512,7 +522,7 @@ fn mint_non_existent_project_should_fail() {
 
         // minting a non existent project should fail
         assert_noop!(
-            VCU::mint(RawOrigin::Signed(1).into(), 1001, 100, false),
+            CarbonCredits::mint(RawOrigin::Signed(1).into(), 1001, 100, false),
             Error::<Test>::ProjectNotFound
         );
     });
@@ -529,7 +539,7 @@ fn mint_non_approved_project_should_fail() {
 
         // create the project to approve
         let creation_params = get_default_creation_params::<Test>();
-        assert_ok!(VCU::create(
+        assert_ok!(CarbonCredits::create(
             RawOrigin::Signed(originator_account).into(),
             project_id,
             creation_params.clone()
@@ -537,7 +547,7 @@ fn mint_non_approved_project_should_fail() {
 
         add_authorised_account(10);
         assert_noop!(
-            VCU::mint(
+            CarbonCredits::mint(
                 RawOrigin::Signed(10).into(),
                 project_id,
                 amount_to_mint,
@@ -563,7 +573,7 @@ fn mint_non_approved_project_should_fail() {
 
 //         // only originator can mint tokens
 //         assert_noop!(
-//             VCU::mint(
+//             CarbonCredits::mint(
 //                 RawOrigin::Signed(authorised_account).into(),
 //                 project_id,
 //                 amount_to_mint,
@@ -588,7 +598,7 @@ fn test_cannot_mint_more_than_supply() {
 
         // cannot mint more than supply
         assert_noop!(
-            VCU::mint(
+            CarbonCredits::mint(
                 RawOrigin::Signed(authorised_account).into(),
                 project_id,
                 10_000,
@@ -613,7 +623,7 @@ fn mint_without_list_to_marketplace_works_for_single_batch() {
         create_and_approve_project(project_id, originator_account, authorised_account);
 
         // mint should work with all params correct
-        assert_ok!(VCU::mint(
+        assert_ok!(CarbonCredits::mint(
             RawOrigin::Signed(authorised_account).into(),
             project_id,
             amount_to_mint,
@@ -631,7 +641,7 @@ fn mint_without_list_to_marketplace_works_for_single_batch() {
         );
 
         // ensure minting worked correctly
-        let stored_data = VCU::get_project_details(project_id).unwrap();
+        let stored_data = CarbonCredits::get_project_details(project_id).unwrap();
         assert_eq!(stored_data.originator, originator_account);
         assert_eq!(stored_data.sdg_details, get_default_sdg_details::<Test>());
         assert_eq!(stored_data.unit_price, 100_u32.into());
@@ -709,7 +719,7 @@ fn mint_without_list_to_marketplace_works_for_multiple_batches() {
         create_and_approve_project_batch(project_id, originator_account, authorised_account);
 
         // mint should work with all params correct
-        assert_ok!(VCU::mint(
+        assert_ok!(CarbonCredits::mint(
             RawOrigin::Signed(authorised_account).into(),
             project_id,
             amount_to_mint,
@@ -795,7 +805,7 @@ fn mint_without_list_to_marketplace_works_for_multiple_batches() {
 
         // mint another 150, should fail with no supply error
         assert_noop!(
-            VCU::mint(
+            CarbonCredits::mint(
                 RawOrigin::Signed(authorised_account).into(),
                 project_id,
                 amount_to_mint,
@@ -805,7 +815,7 @@ fn mint_without_list_to_marketplace_works_for_multiple_batches() {
         );
 
         // mint remaining 50 to exhaust supply
-        assert_ok!(VCU::mint(
+        assert_ok!(CarbonCredits::mint(
             RawOrigin::Signed(authorised_account).into(),
             project_id,
             50,
@@ -849,7 +859,7 @@ fn retire_non_existent_project_should_fail() {
     new_test_ext().execute_with(|| {
         // retire a non existent project should fail
         assert_noop!(
-            VCU::retire(RawOrigin::Signed(10).into(), 1001, 100,),
+            CarbonCredits::retire(RawOrigin::Signed(10).into(), 1001, 100,),
             Error::<Test>::ProjectNotFound
         );
     });
@@ -863,7 +873,7 @@ fn test_retire_non_minted_project_should_fail() {
 
         // create the project
         let creation_params = get_default_creation_params::<Test>();
-        assert_ok!(VCU::create(
+        assert_ok!(CarbonCredits::create(
             RawOrigin::Signed(originator_account).into(),
             project_id,
             creation_params.clone()
@@ -871,7 +881,7 @@ fn test_retire_non_minted_project_should_fail() {
 
         // calling retire from a non minted project should fail
         assert_noop!(
-            VCU::retire(RawOrigin::Signed(3).into(), project_id, 100,),
+            CarbonCredits::retire(RawOrigin::Signed(3).into(), project_id, 100,),
             pallet_assets::Error::<Test>::NoAccount
         );
     });
@@ -892,7 +902,7 @@ fn test_retire_for_single_batch() {
         create_and_approve_project(project_id, originator_account, authorised_account);
 
         // mint should work with all params correct
-        assert_ok!(VCU::mint(
+        assert_ok!(CarbonCredits::mint(
             RawOrigin::Signed(authorised_account).into(),
             project_id,
             amount_to_mint,
@@ -901,13 +911,13 @@ fn test_retire_for_single_batch() {
 
         // calling retire from an account that holds no token should fail
         assert_noop!(
-            VCU::retire(RawOrigin::Signed(3).into(), project_id, amount_to_mint,),
+            CarbonCredits::retire(RawOrigin::Signed(3).into(), project_id, amount_to_mint,),
             pallet_assets::Error::<Test>::NoAccount
         );
 
         // cannot retire more than holdings
         assert_noop!(
-            VCU::retire(
+            CarbonCredits::retire(
                 RawOrigin::Signed(originator_account).into(),
                 project_id,
                 amount_to_mint + 1,
@@ -916,7 +926,7 @@ fn test_retire_for_single_batch() {
         );
 
         // should work when amount less than holding
-        assert_ok!(VCU::retire(
+        assert_ok!(CarbonCredits::retire(
             RawOrigin::Signed(originator_account).into(),
             project_id,
             amount_to_retire
@@ -967,7 +977,7 @@ fn test_retire_for_single_batch() {
 
         // The retired data storage should be set correctly
         let creation_params = get_default_creation_params::<Test>();
-        let stored_retired_data = RetiredVCUs::<Test>::get(expected_asset_id, 0).unwrap();
+        let stored_retired_data = RetiredCredits::<Test>::get(expected_asset_id, 0).unwrap();
         assert_eq!(stored_retired_data.account, originator_account);
         assert_eq!(stored_retired_data.retire_data.len(), 1);
         let retired_batch = stored_retired_data.retire_data.first().unwrap();
@@ -995,7 +1005,7 @@ fn test_retire_for_single_batch() {
         );
 
         // retire the remaining tokens
-        assert_ok!(VCU::retire(
+        assert_ok!(CarbonCredits::retire(
             RawOrigin::Signed(originator_account).into(),
             project_id,
             amount_to_mint - amount_to_retire
@@ -1024,7 +1034,7 @@ fn test_retire_for_single_batch() {
 
         // originator cannot mint more since the supply is exhausted
         assert_noop!(
-            VCU::mint(
+            CarbonCredits::mint(
                 RawOrigin::Signed(authorised_account).into(),
                 project_id,
                 amount_to_mint,
@@ -1047,7 +1057,7 @@ fn test_retire_for_single_batch() {
         // Then NextItemId storage should be set correctly
         assert_eq!(NextItemId::<Test>::get(expected_asset_id).unwrap(), 2);
         // The retired data storage should be set correctly
-        let stored_retired_data = RetiredVCUs::<Test>::get(expected_asset_id, 1).unwrap();
+        let stored_retired_data = RetiredCredits::<Test>::get(expected_asset_id, 1).unwrap();
         assert_eq!(stored_retired_data.account, originator_account);
         assert_eq!(stored_retired_data.retire_data.len(), 1);
         let retired_batch = stored_retired_data.retire_data.first().unwrap();
@@ -1080,7 +1090,7 @@ fn retire_for_multiple_batch() {
         create_and_approve_project_batch(project_id, originator_account, authorised_account);
 
         // mint should work with all params correct
-        assert_ok!(VCU::mint(
+        assert_ok!(CarbonCredits::mint(
             RawOrigin::Signed(authorised_account).into(),
             project_id,
             amount_to_mint,
@@ -1089,7 +1099,7 @@ fn retire_for_multiple_batch() {
 
         // cannot retire more than holdings
         assert_noop!(
-            VCU::retire(
+            CarbonCredits::retire(
                 RawOrigin::Signed(originator_account).into(),
                 project_id,
                 amount_to_mint + 1,
@@ -1098,7 +1108,7 @@ fn retire_for_multiple_batch() {
         );
 
         // should work when amount less than holding
-        assert_ok!(VCU::retire(
+        assert_ok!(CarbonCredits::retire(
             RawOrigin::Signed(originator_account).into(),
             project_id,
             amount_to_retire
@@ -1158,7 +1168,7 @@ fn retire_for_multiple_batch() {
         assert_eq!(NextItemId::<Test>::get(expected_asset_id).unwrap(), 1);
 
         // The retired data storage should be set correctly
-        let mut stored_retired_data = RetiredVCUs::<Test>::get(expected_asset_id, 0).unwrap();
+        let mut stored_retired_data = RetiredCredits::<Test>::get(expected_asset_id, 0).unwrap();
         assert_eq!(stored_retired_data.account, originator_account);
         assert_eq!(stored_retired_data.retire_data.len(), 1);
 
@@ -1180,7 +1190,7 @@ fn retire_for_multiple_batch() {
         assert_eq!(stored_retired_data.count, amount_to_retire);
 
         // retire the remaining tokens
-        assert_ok!(VCU::retire(
+        assert_ok!(CarbonCredits::retire(
             RawOrigin::Signed(originator_account).into(),
             project_id,
             amount_to_mint - amount_to_retire
@@ -1218,7 +1228,7 @@ fn retire_for_multiple_batch() {
 
         // originator cannot mint more since the supply is exhausted
         assert_noop!(
-            VCU::mint(
+            CarbonCredits::mint(
                 RawOrigin::Signed(authorised_account).into(),
                 project_id,
                 amount_to_mint,
@@ -1242,7 +1252,7 @@ fn retire_for_multiple_batch() {
         assert_eq!(NextItemId::<Test>::get(expected_asset_id).unwrap(), 2);
 
         // The retired data storage should be set correctly
-        let mut stored_retired_data = RetiredVCUs::<Test>::get(expected_asset_id, 1).unwrap();
+        let mut stored_retired_data = RetiredCredits::<Test>::get(expected_asset_id, 1).unwrap();
         assert_eq!(stored_retired_data.account, originator_account);
         assert_eq!(stored_retired_data.retire_data.len(), 2);
         // We retired a total of 150 tokens in the call, 50 of 2020 batch had been retired previously
@@ -1270,7 +1280,7 @@ fn force_approve_and_mint_vcu_works() {
         let creation_params = get_default_creation_params::<Test>();
 
         // mint should work with all params correct
-        assert_ok!(VCU::force_approve_and_mint_vcu(
+        assert_ok!(CarbonCredits::force_approve_and_mint_vcu(
             RawOrigin::Root.into(),
             originator_account,
             project_id,
@@ -1290,7 +1300,7 @@ fn force_approve_and_mint_vcu_works() {
         );
 
         // ensure minting worked correctly
-        let stored_data = VCU::get_project_details(project_id).unwrap();
+        let stored_data = CarbonCredits::get_project_details(project_id).unwrap();
         assert_eq!(stored_data.originator, originator_account);
         assert_eq!(stored_data.sdg_details, get_default_sdg_details::<Test>());
         assert_eq!(stored_data.unit_price, 100_u32.into());

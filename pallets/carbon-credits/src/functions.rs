@@ -1,10 +1,10 @@
 // This file is part of BitGreen.
 // Copyright (C) 2022 BitGreen.
 // This code is licensed under MIT license (see LICENSE.txt for details)
-//! VCU pallet helper functions
+//! CarbonCredits pallet helper functions
 use crate::{
     AuthorizedAccounts, BatchRetireDataList, BatchRetireDataOf, Config, Error, Event, NextItemId,
-    Pallet, ProjectCreateParams, ProjectDetail, Projects, RetiredVCUs, RetiredVcuData,
+    Pallet, ProjectCreateParams, ProjectDetail, Projects, RetiredCredits, RetiredVcuData,
 };
 use codec::alloc::string::ToString;
 use frame_support::{
@@ -21,7 +21,7 @@ use sp_runtime::traits::{AccountIdConversion, CheckedAdd, One, Zero};
 use sp_std::{cmp, convert::TryInto, vec::Vec};
 
 impl<T: Config> Pallet<T> {
-    /// The account ID of the vcu pallet
+    /// The account ID of the CarbonCredits pallet
     pub fn account_id() -> T::AccountId {
         T::PalletId::get().into_account_truncating()
     }
@@ -308,7 +308,7 @@ impl<T: Config> Pallet<T> {
     }
 
     /// Retire vcus for given project_id
-    pub fn retire_vcus(
+    pub fn retire_carbon_credits(
         from: T::AccountId,
         project_id: T::AssetId,
         amount: T::Balance,
@@ -322,7 +322,7 @@ impl<T: Config> Pallet<T> {
             // attempt to burn the tokens from the caller
             T::AssetHandler::burn_from(project_id, &from, amount)?;
 
-            // reduce the supply of the vcu
+            // reduce the supply of the CarbonCredits
             project.retired = project
                 .retired
                 .checked_add(&amount)
@@ -418,7 +418,7 @@ impl<T: Config> Pallet<T> {
                 .ok_or(Error::<T>::Overflow)?;
             NextItemId::<T>::insert::<T::AssetId, T::ItemId>(project_id, next_item_id);
 
-            // form the retire vcu data
+            // form the retire CarbonCredits data
             let retired_vcu_data = RetiredVcuData::<T> {
                 account: from.clone(),
                 retire_data: batch_retire_data_list.clone(),
@@ -427,7 +427,7 @@ impl<T: Config> Pallet<T> {
             };
 
             //Store the details of retired batches in storage
-            RetiredVCUs::<T>::insert(project_id, item_id, retired_vcu_data);
+            RetiredCredits::<T>::insert(project_id, item_id, retired_vcu_data);
 
             // emit event
             Self::deposit_event(Event::VCURetired {
