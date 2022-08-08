@@ -11,8 +11,8 @@ use sp_std::convert::TryFrom;
 #[cfg(feature = "std")]
 use serde::{Deserialize, Serialize};
 
-mod vcu;
-pub use vcu::*;
+mod carbon_credits;
+pub use carbon_credits::*;
 
 pub const BBB_TOKEN: u32 = 1;
 
@@ -115,18 +115,20 @@ pub use sp_runtime::OpaqueExtrinsic as UncheckedExtrinsic;
     TypeInfo,
 )]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
-pub enum TokenSymbol {
-    BBB = 0,
-    USDG = 1,
+pub enum CurrencyId {
+    DOT = 0,
+    ACA = 1,
+    AUSD = 2,
 }
 
-impl TryFrom<u8> for TokenSymbol {
+impl TryFrom<u8> for CurrencyId {
     type Error = ();
 
     fn try_from(v: u8) -> Result<Self, Self::Error> {
         match v {
-            0 => Ok(TokenSymbol::BBB),
-            1 => Ok(TokenSymbol::USDG),
+            0 => Ok(CurrencyId::DOT),
+            1 => Ok(CurrencyId::ACA),
+            2 => Ok(CurrencyId::AUSD),
             _ => Err(()),
         }
     }
