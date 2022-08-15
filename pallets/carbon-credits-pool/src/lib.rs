@@ -2,23 +2,23 @@
 // Copyright (C) 2022 BitGreen.
 // This code is licensed under MIT license (see LICENSE.txt for details)
 //
-//! ## VCU Pools Pallet
-//! The VCU Pools pallet lets users create and manage vcu pools. A vcu pool is a collection of vcu tokens of different types represented by a
-//! common pool token. A user holding any vcu tokens (subject to the VCU pool config) can deposit vcu tokens to the pool and receive equivalent
-//! pool tokens in return. These pool tokens can be transferred freely and can be retired. When retire function is called, the underlying vcu credits
+//! ## CarbonCredits Pools Pallet
+//! The CarbonCredits Pools pallet lets users create and manage CarbonCredits pools. A CarbonCredits pool is a collection of CarbonCredits tokens of different types represented by a
+//! common pool token. A user holding any CarbonCredits tokens (subject to the CarbonCredits pool config) can deposit CarbonCredits tokens to the pool and receive equivalent
+//! pool tokens in return. These pool tokens can be transferred freely and can be retired. When retire function is called, the underlying CarbonCredits credits
 //! are retired starting from the oldest in the pool.
 //!
 //! ### Pool Config
 //! A pool creator can setup configs, these configs determine which type of tokens are accepted into the pool. Currently the owner can setup two configs for a pool
-//! 1. Registry List : This limits the pool to accept vcu's issued by the given registry's only
-//! 2. Project List : This limits the pool to accepts vcu's issued by specific project's only
+//! 1. Registry List : This limits the pool to accept CarbonCredits's issued by the given registry's only
+//! 2. Project List : This limits the pool to accepts CarbonCredits's issued by specific project's only
 //!
 //! ## Interface
 //!
 //! ### Permissionless Functions
 //!
 //! * `create`: Creates a new pool with given config
-//! * `deposit`: Deposit some vcu tokens to generate pool tokens
+//! * `deposit`: Deposit some CarbonCredits tokens to generate pool tokens
 //! * `retire`: Burn a specified amount of pool tokens
 //!
 //! ### Permissioned Functions
@@ -58,7 +58,7 @@ pub mod pallet {
     use sp_std::convert::{TryFrom, TryInto};
 
     #[pallet::config]
-    pub trait Config: frame_system::Config + pallet_vcu::Config {
+    pub trait Config: frame_system::Config + pallet_carbon_credits::Config {
         /// Because this pallet emits events, it depends on the runtime's definition of an event.
         type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
 
@@ -93,7 +93,7 @@ pub mod pallet {
         type MaxAssetSymbolLength: Get<u32>;
         /// Min permitted value for PoolId
         type MinPoolId: Get<Self::PoolId>;
-        /// The vcu-pools pallet id
+        /// The CarbonCredits-pools pallet id
         #[pallet::constant]
         type PalletId: Get<PalletId>;
         /// Weight information for extrinsics in this pallet.
@@ -161,7 +161,7 @@ pub mod pallet {
 
     #[pallet::call]
     impl<T: Config> Pallet<T> {
-        /// Create a new vcu pool with given params
+        /// Create a new CarbonCredits pool with given params
         ///
         /// Params:
         /// id : Id of the new pool
@@ -236,12 +236,12 @@ pub mod pallet {
             Ok(().into())
         }
 
-        /// Deposit VCU tokens to pool with `id`
+        /// Deposit CarbonCredits tokens to pool with `id`
         ///
         /// Params:
         /// pool_id : Id of the pool to deposit into
-        /// project_id : The project_id of the vcu being deposited
-        /// amount: The amount of VCU to deposit
+        /// project_id : The project_id of the CarbonCredits being deposited
+        /// amount: The amount of CarbonCredits to deposit
         #[transactional]
         #[pallet::weight(<T as pallet::Config>::WeightInfo::deposit())]
         pub fn deposit(
@@ -256,8 +256,8 @@ pub mod pallet {
                 let pool = pool.as_mut().ok_or(Error::<T>::InvalidPoolId)?;
 
                 // get the details of project
-                let project_details: pallet_vcu::ProjectDetail<T> =
-                    pallet_vcu::Pallet::get_project_details(project_id)
+                let project_details: pallet_carbon_credits::ProjectDetail<T> =
+                    pallet_carbon_credits::Pallet::get_project_details(project_id)
                         .ok_or(Error::<T>::ProjectNotFound)?;
 
                 // ensure the project_id passes the pool config
@@ -283,7 +283,7 @@ pub mod pallet {
 
                 // calculate the issuance year for the project
                 let project_issuance_year =
-                    pallet_vcu::Pallet::calculate_issuance_year(project_details)
+                    pallet_carbon_credits::Pallet::calculate_issuance_year(project_details)
                         .ok_or(Error::<T>::ProjectIssuanceYearError)?;
 
                 // transfer the tokens to pallet account
@@ -345,12 +345,12 @@ pub mod pallet {
             })
         }
 
-        /// Retire Pool Tokens - A user can retire pool tokens, this will look at the available vcu token supply in the pool and retire tokens
+        /// Retire Pool Tokens - A user can retire pool tokens, this will look at the available CarbonCredits token supply in the pool and retire tokens
         /// starting from the oldest issuance until the entire amount is retired.
         ///
         /// Params:
         /// pool_id : Id of the pooltokens to retire
-        /// amount: The amount of VCU to deposit
+        /// amount: The amount of CarbonCredits to deposit
         #[transactional]
         #[pallet::weight(<T as pallet::Config>::WeightInfo::retire())]
         pub fn retire(
@@ -387,7 +387,7 @@ pub mod pallet {
                             *available_amount = 0_u32.into();
                         }
 
-                        // transfer the vcu tokens to caller
+                        // transfer the CarbonCredits tokens to caller
                         <T as pallet::Config>::AssetHandler::transfer(
                             *project_id,
                             &Self::account_id(),
@@ -396,7 +396,11 @@ pub mod pallet {
                             true,
                         )?;
                         // Retire the transferred tokens
-                        pallet_vcu::Pallet::<T>::retire_vcus(who.clone(), *project_id, actual)?;
+                        pallet_carbon_credits::Pallet::<T>::retire_carbon_credits(
+                            who.clone(),
+                            *project_id,
+                            actual,
+                        )?;
 
                         // Update value in storage
                         // TODO : Remove entry if value is zero
@@ -441,7 +445,7 @@ pub mod pallet {
     }
 
     impl<T: Config> Pallet<T> {
-        /// The account ID of the vcu pallet
+        /// The account ID of the CarbonCredits pallet
         pub fn account_id() -> T::AccountId {
             <T as pallet::Config>::PalletId::get().into_account_truncating()
         }

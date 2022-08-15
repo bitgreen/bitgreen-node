@@ -1,12 +1,12 @@
 // This file is part of BitGreen.
 // Copyright (C) 2022 BitGreen.
 // This code is licensed under MIT license (see LICENSE.txt for details)
-//! VCU pallet benchmarking
+//! Carbon Credits pallet benchmarking
 #![cfg(feature = "runtime-benchmarks")]
 
 use super::*;
 use crate::Event;
-use crate::Pallet as VCU;
+use crate::Pallet as CarbonCredits;
 use frame_benchmarking::{account, benchmarks, vec};
 use frame_system::RawOrigin;
 use primitives::{Batch, RegistryDetails, RegistryName, SDGDetails, SdgType};
@@ -16,14 +16,14 @@ fn assert_last_event<T: Config>(generic_event: <T as Config>::Event) {
 }
 
 /// helper function to generate standard registry details
-fn get_default_registry_details<T: Config>() -> RegistryDetails<ShortStringOf<T>> {
+fn get_default_registry_details<T: Config>() -> RegistryListOf<T> {
     let registry_details = RegistryDetails {
         registry: RegistryName::Verra,
         name: "reg_name".as_bytes().to_vec().try_into().unwrap(),
         id: "reg_id".as_bytes().to_vec().try_into().unwrap(),
         summary: "reg_summary".as_bytes().to_vec().try_into().unwrap(),
     };
-    registry_details
+    vec![registry_details].try_into().unwrap()
 }
 
 /// helper function to generate standard sdg details
@@ -106,9 +106,9 @@ benchmarks! {
         let caller : T::AccountId = account("account_id", 0, 0);
         let project_id = 10_000_u32.into();
         let creation_params = get_default_creation_params::<T>();
-        VCU::<T>::force_add_authorized_account(RawOrigin::Root.into(), caller.clone().into())?;
+        CarbonCredits::<T>::force_add_authorized_account(RawOrigin::Root.into(), caller.clone().into())?;
         pallet_membership::Pallet::<T>::add_member(RawOrigin::Root.into(), caller.clone())?;
-        VCU::<T>::create(RawOrigin::Signed(caller.clone()).into(), project_id, creation_params)?;
+        CarbonCredits::<T>::create(RawOrigin::Signed(caller.clone()).into(), project_id, creation_params)?;
     }: _(RawOrigin::Signed(caller.into()), project_id, true)
     verify {
         assert_last_event::<T>(Event::ProjectApproved { project_id }.into());
@@ -119,9 +119,9 @@ benchmarks! {
         let project_id = 10_000_u32.into();
         let creation_params = get_default_creation_params::<T>();
         pallet_membership::Pallet::<T>::add_member(RawOrigin::Root.into(), caller.clone())?;
-        VCU::<T>::force_add_authorized_account(RawOrigin::Root.into(), caller.clone().into())?;
-        VCU::<T>::create(RawOrigin::Signed(caller.clone()).into(), project_id, creation_params)?;
-        VCU::<T>::approve_project(RawOrigin::Signed(caller.clone()).into(), project_id, true)?;
+        CarbonCredits::<T>::force_add_authorized_account(RawOrigin::Root.into(), caller.clone().into())?;
+        CarbonCredits::<T>::create(RawOrigin::Signed(caller.clone()).into(), project_id, creation_params)?;
+        CarbonCredits::<T>::approve_project(RawOrigin::Signed(caller.clone()).into(), project_id, true)?;
     }: _(RawOrigin::Signed(caller.clone()), project_id, 100_u32.into(), false)
     verify {
         assert_last_event::<T>(Event::VCUMinted { project_id, recipient : caller, amount : 100_u32.into() }.into());
@@ -132,14 +132,14 @@ benchmarks! {
         let project_id = 10_000_u32.into();
         let creation_params = get_default_creation_params::<T>();
         pallet_membership::Pallet::<T>::add_member(RawOrigin::Root.into(), caller.clone())?;
-        VCU::<T>::force_add_authorized_account(RawOrigin::Root.into(), caller.clone().into())?;
-        VCU::<T>::create(RawOrigin::Signed(caller.clone()).into(), project_id, creation_params)?;
-        VCU::<T>::approve_project(RawOrigin::Signed(caller.clone()).into(), project_id, true)?;
-        VCU::<T>::mint(RawOrigin::Signed(caller.clone()).into(), project_id, 100_u32.into(), false)?;
+        CarbonCredits::<T>::force_add_authorized_account(RawOrigin::Root.into(), caller.clone().into())?;
+        CarbonCredits::<T>::create(RawOrigin::Signed(caller.clone()).into(), project_id, creation_params)?;
+        CarbonCredits::<T>::approve_project(RawOrigin::Signed(caller.clone()).into(), project_id, true)?;
+        CarbonCredits::<T>::mint(RawOrigin::Signed(caller.clone()).into(), project_id, 100_u32.into(), false)?;
     }: _(RawOrigin::Signed(caller.clone()), project_id, 10_u32.into())
     verify {
         let item_id : T::ItemId = 0_u32.into();
-        let retire_data = RetiredVCUs::<T>::get(project_id, item_id).unwrap();
+        let retire_data = RetiredCredits::<T>::get(project_id, item_id).unwrap();
         assert_last_event::<T>(Event::VCURetired { project_id, account : caller, amount : 10_u32.into(), retire_data :retire_data.retire_data }.into());
     }
 
@@ -148,18 +148,18 @@ benchmarks! {
     }: _(RawOrigin::Root, account_id.clone().into())
     verify {
         assert_eq!(
-            VCU::<T>::authorized_accounts().len(),
+            CarbonCredits::<T>::authorized_accounts().len(),
             1
         );
     }
 
     force_remove_authorized_account {
         let account_id : T::AccountId = account("account_id", 0, 0);
-        VCU::<T>::force_add_authorized_account(RawOrigin::Root.into(), account_id.clone().into())?;
+        CarbonCredits::<T>::force_add_authorized_account(RawOrigin::Root.into(), account_id.clone().into())?;
     }: _(RawOrigin::Root, account_id.clone().into())
     verify {
         assert_eq!(
-            VCU::<T>::authorized_accounts().len(),
+            CarbonCredits::<T>::authorized_accounts().len(),
             0
         );
     }
@@ -214,8 +214,8 @@ benchmarks! {
         };
     }: _(RawOrigin::Root, project_id, item_id, new_retire_data)
     verify {
-        assert!(RetiredVCUs::<T>::get(project_id, item_id).is_some());
+        assert!(RetiredCredits::<T>::get(project_id, item_id).is_some());
     }
 
-    impl_benchmark_test_suite!(VCU, crate::mock::new_test_ext(), crate::mock::Test);
+    impl_benchmark_test_suite!(CarbonCredits, crate::mock::new_test_ext(), crate::mock::Test);
 }

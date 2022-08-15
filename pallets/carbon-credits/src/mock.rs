@@ -1,8 +1,7 @@
 // This file is part of BitGreen.
 // Copyright (C) 2022 BitGreen.
 // This code is licensed under MIT license (see LICENSE.txt for details)
-//
-use crate as pallet_vcu_pools;
+use crate as pallet_carbon_credits;
 use frame_support::{
     bounded_vec, parameter_types,
     traits::{AsEnsureOriginWithArg, ConstU128, ConstU32, Everything, GenesisBuild},
@@ -33,8 +32,7 @@ frame_support::construct_runtime!(
         Assets: pallet_assets::{Pallet, Call, Storage, Event<T>},
         Uniques: pallet_uniques::{Pallet, Call, Storage, Event<T>},
         Timestamp: pallet_timestamp::{Pallet, Call, Storage, Inherent},
-        VCU: pallet_vcu::{Pallet, Call, Storage, Event<T>},
-        VCUPools: pallet_vcu_pools::{Pallet, Call, Storage, Event<T>},
+        CarbonCredits: pallet_carbon_credits::{Pallet, Call, Storage, Event<T>},
     }
 );
 
@@ -128,7 +126,7 @@ parameter_types! {
   pub VCUPalletAcccount : u64 = PalletId(*b"bitg/vcu").into_account_truncating();
 }
 
-impl pallet_vcu::Config for Test {
+impl pallet_carbon_credits::Config for Test {
     type Event = Event;
     type Balance = u128;
     type AssetId = u32;
@@ -180,24 +178,6 @@ impl pallet_membership::Config for Test {
     type MembershipInitialized = ();
     type MembershipChanged = ();
     type MaxMembers = ConstU32<10>;
-    type WeightInfo = ();
-}
-
-parameter_types! {
-    pub const VCUPoolPalletId: PalletId = PalletId(*b"bit/vcup");
-}
-
-impl pallet_vcu_pools::Config for Test {
-    type Event = Event;
-    type PoolId = u32;
-    type AssetHandler = Assets;
-    type PalletId = VCUPoolPalletId;
-    type MaxRegistryListCount = ConstU32<2>;
-    type MaxIssuanceYearCount = ConstU32<20>;
-    type MaxProjectIdList = ConstU32<100>;
-    type MaxAssetSymbolLength = ConstU32<20>;
-    type MinPoolId = ConstU32<10000>;
-    type ForceOrigin = frame_system::EnsureRoot<u64>;
     type WeightInfo = ();
 }
 

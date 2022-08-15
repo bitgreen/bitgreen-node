@@ -2,15 +2,15 @@
 // Copyright (C) 2022 BitGreen.
 // This code is licensed under MIT license (see LICENSE.txt for details)
 //
-//! VCU Pallet
-//! The VCU pallet creates and retires VCU units that represent the VCUs on the Verra registry. These onchain vcu units can represent a
-//! single type of VCU or can build to represent a combination of different types of VCUs.
+//! CarbonCredits Pallet
+//! The CarbonCredits pallet creates and retires CarbonCredits units that represent the VCUs on the Verra registry. These onchain CarbonCredits units can represent a
+//! single type of CarbonCredits or can build to represent a combination of different types of VCUs.
 //!
-//! The VCU units are created by an account that controls VCU units on the Verra registry, represented in the pallet as the originator.
-//! The creation process will store the VCU details on the pallet storage and then mint the given amount of Vcu units using the Asset Handler
-//! like pallet-assets. These newly minted vcu units will be transferred to the recipient, this can be any address.
+//! The CarbonCredits units are created by an account that controls CarbonCredits units on the Verra registry, represented in the pallet as the originator.
+//! The creation process will store the CarbonCredits details on the pallet storage and then mint the given amount of CarbonCredits units using the Asset Handler
+//! like pallet-assets. These newly minted CarbonCredits units will be transferred to the recipient, this can be any address.
 //! These units can then be sold/transferred to a buyer of carbon credits, these transactions can take place multiple times but the final goal
-//! of purchasing a Vcu unit is to retire them. The current holder of the vcu units can call the `retire` extrinsic to burn these
+//! of purchasing a CarbonCredits unit is to retire them. The current holder of the CarbonCredits units can call the `retire` extrinsic to burn these
 //! tokens (erase from storage), this process will store a reference of the tokens burned.
 //!
 //! ## Interface
@@ -71,7 +71,7 @@ pub mod pallet {
     use sp_runtime::traits::{AtLeast32BitUnsigned, CheckedAdd, One};
     use sp_std::convert::TryInto;
 
-    /// The parameters the VCU pallet depends on
+    /// The parameters the CarbonCredits pallet depends on
     #[pallet::config]
     pub trait Config: frame_system::Config {
         /// Because this pallet emits events, it depends on the runtime's definition of an event.
@@ -115,7 +115,7 @@ pub mod pallet {
             + From<u32>
             + Into<u32>;
 
-        /// The vcu pallet id
+        /// The CarbonCredits pallet id
         #[pallet::constant]
         type PalletId: Get<PalletId>;
 
@@ -151,7 +151,7 @@ pub mod pallet {
         type MaxGroupSize: Get<u32>;
         /// Maximum amount of location cordinates to store
         type MaxCoordinatesLength: Get<u32>;
-        /// Minimum value of AssetId for VCU
+        /// Minimum value of AssetId for CarbonCredits
         type MinProjectId: Get<Self::AssetId>;
         /// Weight information for extrinsics in this pallet.
         type WeightInfo: WeightInfo;
@@ -163,7 +163,7 @@ pub mod pallet {
 
     #[pallet::storage]
     #[pallet::getter(fn next_item_id)]
-    // NextItemId for NFT tokens to be created by retiring `AssetId` vcu tokens
+    // NextItemId for NFT tokens to be created by retiring `AssetId` CarbonCredits tokens
     pub type NextItemId<T: Config> = StorageMap<_, Blake2_128Concat, T::AssetId, T::ItemId>;
 
     #[pallet::storage]
@@ -174,14 +174,14 @@ pub mod pallet {
 
     #[pallet::storage]
     #[pallet::getter(fn projects)]
-    /// The details of a VCU
+    /// The details of a CarbonCredits
     pub(super) type Projects<T: Config> =
         StorageMap<_, Blake2_128Concat, T::AssetId, ProjectDetail<T>>;
 
     #[pallet::storage]
     #[pallet::getter(fn retired_vcus)]
-    /// The retired vcu record
-    pub(super) type RetiredVCUs<T: Config> = StorageDoubleMap<
+    /// The retired CarbonCredits record
+    pub(super) type RetiredCredits<T: Config> = StorageDoubleMap<
         _,
         Blake2_128Concat,
         T::AssetId,
@@ -197,7 +197,7 @@ pub mod pallet {
         AuthorizedAccountAdded { account_id: T::AccountId },
         /// An AuthorizedAccount has been removed
         AuthorizedAccountRemoved { account_id: T::AccountId },
-        /// A new VCU has been created
+        /// A new CarbonCredits has been created
         ProjectCreated {
             /// The T::AssetId of the created project
             project_id: T::AssetId,
@@ -217,20 +217,20 @@ pub mod pallet {
         },
         // An amount of VCUs was minted
         VCUMinted {
-            /// The T::AssetId of the minted VCU
+            /// The T::AssetId of the minted CarbonCredits
             project_id: T::AssetId,
-            /// The AccountId that received the minted VCU
+            /// The AccountId that received the minted CarbonCredits
             recipient: T::AccountId,
-            /// The amount of VCU units minted
+            /// The amount of CarbonCredits units minted
             amount: T::Balance,
         },
-        // An existing VCU was retired
+        // An existing CarbonCredits was retired
         VCURetired {
-            /// The T::AssetId of the retired VCU
+            /// The T::AssetId of the retired CarbonCredits
             project_id: T::AssetId,
-            /// The AccountId that retired the VCU
+            /// The AccountId that retired the CarbonCredits
             account: T::AccountId,
-            /// The amount of VCU units retired
+            /// The amount of CarbonCredits units retired
             amount: T::Balance,
             /// Details of the retired token
             retire_data: BatchRetireDataList<T>,
@@ -254,13 +254,13 @@ pub mod pallet {
         CannotCreateProjectWithoutCredits,
         /// The given Project was not found in storage
         ProjectNotFound,
-        /// The Amount of VCU units is greater than supply
+        /// The Amount of CarbonCredits units is greater than supply
         AmountGreaterThanSupply,
         /// Calculcation triggered an Overflow
         Overflow,
         /// The token accounting generated an error
         SupplyAmountMismatch,
-        /// The unit price for vcu cannot be zero
+        /// The unit price for CarbonCredits cannot be zero
         UnitPriceIsZero,
         /// The project is not approved
         ProjectNotApproved,
@@ -346,7 +346,7 @@ pub mod pallet {
         ) -> DispatchResult {
             let sender = ensure_signed(origin)?;
             Self::check_kyc_approval(&sender)?;
-            Self::retire_vcus(sender, project_id, amount)
+            Self::retire_carbon_credits(sender, project_id, amount)
         }
 
         /// Add a new account to the list of authorised Accounts
@@ -422,7 +422,7 @@ pub mod pallet {
             Ok(())
         }
 
-        /// Force modify retired vcu storage
+        /// Force modify retired CarbonCredits storage
         /// Can only be called by ForceOrigin
         #[transactional]
         #[pallet::weight(T::WeightInfo::force_set_retired_vcu())]
@@ -433,7 +433,7 @@ pub mod pallet {
             vcu_data: RetiredVcuData<T>,
         ) -> DispatchResult {
             T::ForceOrigin::ensure_origin(origin)?;
-            RetiredVCUs::<T>::insert(project_id, item_id, vcu_data);
+            RetiredCredits::<T>::insert(project_id, item_id, vcu_data);
             Ok(())
         }
 

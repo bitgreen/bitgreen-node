@@ -2,7 +2,7 @@
 // Copyright (C) 2022 BitGreen.
 // This code is licensed under MIT license (see LICENSE.txt for details)
 //
-//! Types for vcu-pools
+//! Types for CarbonCredits-pools
 use super::*;
 use codec::{Decode, Encode, MaxEncodedLen};
 use frame_support::{BoundedBTreeMap, BoundedVec};
@@ -14,7 +14,7 @@ pub type RegistryNameList<T> = BoundedVec<RegistryName, <T as Config>::MaxRegist
 
 /// List of whitelisted project ids
 pub type MaxProjectIdList<T> =
-    BoundedVec<<T as pallet_vcu::Config>::AssetId, <T as Config>::MaxProjectIdList>;
+    BoundedVec<<T as pallet_carbon_credits::Config>::AssetId, <T as Config>::MaxProjectIdList>;
 
 /// type to receive symbol data
 pub type SymbolStringOf<T> = BoundedVec<u8, <T as Config>::MaxAssetSymbolLength>;
@@ -30,8 +30,8 @@ pub struct PoolConfig<RegistryList, MaxProjectIdList> {
 /// Map storing the details of a given project in a pool
 /// ProjectId => Amount of tokens in pool
 pub type ProjectDetails<T> = BoundedBTreeMap<
-    <T as pallet_vcu::Config>::AssetId,
-    <T as pallet_vcu::Config>::Balance,
+    <T as pallet_carbon_credits::Config>::AssetId,
+    <T as pallet_carbon_credits::Config>::Balance,
     <T as Config>::MaxProjectIdList,
 >;
 
@@ -54,7 +54,7 @@ pub struct Pool<AccountId, PoolConfig, CreditsMap> {
     pub credits: CreditsMap,
 }
 
-/// Pool config for vcu pools pallet
+/// Pool config for CarbonCredits pools pallet
 pub type PoolConfigOf<T> = PoolConfig<RegistryNameList<T>, MaxProjectIdList<T>>;
 
 /// Pool for this pallet

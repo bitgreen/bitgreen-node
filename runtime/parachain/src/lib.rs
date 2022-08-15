@@ -562,7 +562,7 @@ parameter_types! {
 }
 
 // TODO : Ensure sensible values
-impl pallet_vcu::Config for Runtime {
+impl pallet_carbon_credits::Config for Runtime {
     type Event = Event;
     type Balance = u128;
     type AssetId = u32;
@@ -589,7 +589,7 @@ parameter_types! {
     pub const VCUPoolPalletId: PalletId = PalletId(*b"bit/vcup");
 }
 
-impl pallet_vcu_pools::Config for Runtime {
+impl pallet_carbon_credits_pool::Config for Runtime {
     type Event = Event;
     type PoolId = u32;
     type AssetHandler = Assets;
@@ -673,8 +673,8 @@ construct_runtime!(
         Sudo: pallet_sudo::{Pallet, Call, Storage, Config<T>, Event<T>} = 51,
         Assets: pallet_assets::{Pallet, Call, Storage, Event<T>} = 52,
         Uniques: pallet_uniques::{Pallet, Call, Storage, Event<T>} = 53,
-        VCU: pallet_vcu::{Pallet, Call, Storage, Event<T>} = 54,
-        VCUPools: pallet_vcu_pools::{Pallet, Call, Storage, Event<T>} = 55,
+        VCU: pallet_carbon_credits::{Pallet, Call, Storage, Event<T>} = 54,
+        VCUPools: pallet_carbon_credits_pool::{Pallet, Call, Storage, Event<T>} = 55,
     }
 );
 
@@ -691,7 +691,7 @@ mod benches {
         [pallet_timestamp, Timestamp]
         [pallet_collator_selection, CollatorSelection]
         [cumulus_pallet_xcmp_queue, XcmpQueue]
-        [pallet_vcu, VCU]
+        [pallet_carbon_credits, VCU]
     );
 }
 
