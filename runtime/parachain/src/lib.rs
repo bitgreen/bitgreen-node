@@ -49,7 +49,7 @@ use sp_std::convert::TryInto;
 use weights::{BlockExecutionWeight, ExtrinsicBaseWeight, RocksDbWeight};
 use xcm_config::{XcmConfig, XcmOriginToTransactDispatchOrigin};
 
-pub use primitives::{Amount, TokenSymbol};
+pub use primitives::Amount;
 
 #[cfg(any(feature = "std", test))]
 pub use sp_runtime::BuildStorage;
@@ -464,7 +464,8 @@ impl pallet_collator_selection::Config for Runtime {
 
 // orml pallets
 parameter_type_with_key! {
-    pub ExistentialDeposits: |_currency_id: u32| -> Balance {
+    pub ExistentialDeposits: |_currency_id: primitives::CurrencyId| -> Balance {
+        // TODO : Calculate correct ED before launch
         Zero::zero()
     };
 }
@@ -480,7 +481,7 @@ impl orml_tokens::Config for Runtime {
     type Event = Event;
     type Balance = Balance;
     type Amount = Amount;
-    type CurrencyId = u32;
+    type CurrencyId = primitives::CurrencyId;
     type WeightInfo = ();
     type ExistentialDeposits = ExistentialDeposits;
     type OnDust = orml_tokens::BurnDust<Runtime>;
