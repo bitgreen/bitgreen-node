@@ -37,3 +37,9 @@ jobs:
       - name: Check Build
         run: |
           SKIP_WASM_BUILD=1 cargo check --release
+
+      - name: Run clippy
+        run: cargo clippy --all-targets --workspace -- --deny warnings
+
+      - name: Unit tests
+        run: cargo test --features runtime-benchmarks
