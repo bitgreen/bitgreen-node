@@ -36,7 +36,6 @@ frame-try-runtime = { git = "https://github.com/paritytech/substrate", default-f
 pallet-aura = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.26" }
 pallet-authorship = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.26" }
 pallet-balances = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.26" }
-pallet-assets = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.26" }
 pallet-session = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.26" }
 pallet-sudo = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.26" }
 pallet-timestamp = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.26" }
@@ -89,6 +88,7 @@ orml-nft = { git = "https://github.com/open-web3-stack/open-runtime-module-libra
 primitives = { package = "bitg-primitives", path = "../../primitives", default-features = false }
 pallet-carbon-credits ={ default-features = false, version = '0.1.0', path = "../../pallets/carbon-credits"}
 pallet-carbon-credits-pool ={ default-features = false, version = '0.1.0', path = "../../pallets/carbon-credits-pool"}
+pallet-assets = { default-features = false, version = '4.0.0-dev', path = "../../pallets/assets"}
 
 [features]
 default = [
