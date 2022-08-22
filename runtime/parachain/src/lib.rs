@@ -510,12 +510,12 @@ pub const DOLLARS: Balance = 100 * CENTS;
 
 // Asset pallet
 parameter_types! {
-    pub const ASSETDEPOSIT: Balance = 1 * DOLLARS;
-    pub const ASSETACCOUNTDEPOSIT: Balance = 1 * DOLLARS;
+    pub const ASSETDEPOSIT: Balance = DOLLARS;
+    pub const ASSETACCOUNTDEPOSIT: Balance = DOLLARS;
     pub const STRINGLIMIT: u32 = 8192;	// max metadata size in bytes
-    pub const METADATADEPOSITBASE: Balance= 1 * DOLLARS;
-    pub const METADATADEPOSITPERBYTE: Balance = 1 * CENTS;
-    pub const APPROVALDEPOSIT: Balance = 1 * DOLLARS;
+    pub const METADATADEPOSITBASE: Balance= DOLLARS;
+    pub const METADATADEPOSITPERBYTE: Balance =CENTS;
+    pub const APPROVALDEPOSIT: Balance = DOLLARS;
 }
 
 pub struct TestFreezer;
