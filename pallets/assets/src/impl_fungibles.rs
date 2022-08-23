@@ -44,7 +44,7 @@ impl<T: Config<I>, I: 'static> fungibles::Inspect<<T as SystemConfig>::AccountId
         who: &<T as SystemConfig>::AccountId,
         keep_alive: bool,
     ) -> Self::Balance {
-        Pallet::<T, I>::reducible_balance(asset, who, keep_alive).unwrap_or(Zero::zero())
+        Pallet::<T, I>::reducible_balance(asset, who, keep_alive).unwrap_or_else(|_| Zero::zero())
     }
 
     fn can_deposit(
@@ -166,7 +166,8 @@ impl<T: Config<I>, I: 'static> fungibles::Unbalanced<T::AccountId> for Pallet<T,
             keep_alive: false,
             best_effort: true,
         };
-        Self::decrease_balance(asset, who, amount, f, |_, _| Ok(())).unwrap_or(Zero::zero())
+        Self::decrease_balance(asset, who, amount, f, |_, _| Ok(()))
+            .unwrap_or_else(|_| Zero::zero())
     }
     fn increase_balance(
         asset: T::AssetId,
