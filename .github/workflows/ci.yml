@@ -25,9 +25,9 @@ jobs:
       - name: Set-Up
         run: sudo apt install -y cmake pkg-config libssl-dev git build-essential clang libclang-dev curl
 
-     - name: Install toolchain
-        uses: actions-rs/toolchain@master
-        with:
+      -  name: Install toolchain
+         uses: actions-rs/toolchain@master
+         with:
           profile: minimal
           toolchain: nightly
           target: wasm32-unknown-unknown
