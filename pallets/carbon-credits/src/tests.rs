@@ -98,7 +98,7 @@ fn create_and_approve_project(project_id: u32, originator_account: u64, authoris
     assert_ok!(CarbonCredits::create(
         RawOrigin::Signed(originator_account).into(),
         project_id,
-        creation_params.clone()
+        creation_params
     ));
 
     // approve project so minting can happen
@@ -137,7 +137,7 @@ fn create_and_approve_project_batch(
     assert_ok!(CarbonCredits::create(
         RawOrigin::Signed(originator_account).into(),
         project_id,
-        creation_params.clone()
+        creation_params
     ));
 
     // approve project so minting can happen
@@ -298,7 +298,7 @@ fn create_works_for_single_batch() {
         assert_eq!(stored_data.total_supply, 100_u32.into());
         assert_eq!(stored_data.minted, 0_u32.into());
         assert_eq!(stored_data.retired, 0_u32.into());
-        assert_eq!(stored_data.approved, false);
+        assert!(!stored_data.approved);
 
         assert_eq!(
             last_event(),
@@ -343,7 +343,7 @@ fn create_works_for_multiple_batch() {
         assert_eq!(stored_data.total_supply, 200_u32.into());
         assert_eq!(stored_data.minted, 0_u32.into());
         assert_eq!(stored_data.retired, 0_u32.into());
-        assert_eq!(stored_data.approved, false);
+        assert!(!stored_data.approved);
 
         assert_eq!(
             last_event(),
@@ -406,7 +406,7 @@ fn resubmit_works() {
         assert_eq!(stored_data.total_supply, 200_u32.into());
         assert_eq!(stored_data.minted, 0_u32.into());
         assert_eq!(stored_data.retired, 0_u32.into());
-        assert_eq!(stored_data.approved, false);
+        assert!(!stored_data.approved);
 
         assert_eq!(
             last_event(),
@@ -433,7 +433,7 @@ fn resubmit_works() {
             CarbonCredits::resubmit(
                 RawOrigin::Signed(originator_account).into(),
                 project_id,
-                creation_params.clone()
+                creation_params
             ),
             Error::<Test>::CannotModifyApprovedProject
         );
@@ -478,14 +478,14 @@ fn approve_project_works() {
         assert_ok!(CarbonCredits::create(
             RawOrigin::Signed(originator_account).into(),
             project_id,
-            creation_params.clone()
+            creation_params
         ));
 
         // ensure the storage is populated correctly
         let stored_data = Projects::<Test>::get(project_id).unwrap();
 
         // sanity check
-        assert_eq!(stored_data.approved, false);
+        assert!(!stored_data.approved);
 
         // approve should work now
         assert_ok!(CarbonCredits::approve_project(
@@ -496,7 +496,7 @@ fn approve_project_works() {
 
         // ensure storage changed correctly
         let stored_data = Projects::<Test>::get(project_id).unwrap();
-        assert_eq!(stored_data.approved, true);
+        assert!(stored_data.approved);
 
         assert_eq!(
             last_event(),
@@ -542,7 +542,7 @@ fn mint_non_approved_project_should_fail() {
         assert_ok!(CarbonCredits::create(
             RawOrigin::Signed(originator_account).into(),
             project_id,
-            creation_params.clone()
+            creation_params
         ));
 
         add_authorised_account(10);
@@ -648,7 +648,7 @@ fn mint_without_list_to_marketplace_works_for_single_batch() {
         assert_eq!(stored_data.total_supply, 100_u32.into());
         assert_eq!(stored_data.minted, amount_to_mint);
         assert_eq!(stored_data.retired, 0_u32.into());
-        assert_eq!(stored_data.approved, true);
+        assert!(stored_data.approved);
 
         // the batch should also be updated with minted count
         let batch_detail = stored_data.batches.first().unwrap();
@@ -744,7 +744,7 @@ fn mint_without_list_to_marketplace_works_for_multiple_batches() {
         assert_eq!(stored_data.total_supply, 200_u32.into());
         assert_eq!(stored_data.minted, amount_to_mint);
         assert_eq!(stored_data.retired, 0_u32.into());
-        assert_eq!(stored_data.approved, true);
+        assert!(stored_data.approved);
 
         // the batch should also be updated with minted count
         // we have a total supply of 200, with 100 in each batch
@@ -830,7 +830,7 @@ fn mint_without_list_to_marketplace_works_for_multiple_batches() {
         assert_eq!(stored_data.total_supply, 200_u32.into());
         assert_eq!(stored_data.minted, 200_u32.into());
         assert_eq!(stored_data.retired, 0_u32.into());
-        assert_eq!(stored_data.approved, true);
+        assert!(stored_data.approved);
 
         // the batch should also be updated with minted count
         // we have a total supply of 200, with 100 in each batch
@@ -876,7 +876,7 @@ fn test_retire_non_minted_project_should_fail() {
         assert_ok!(CarbonCredits::create(
             RawOrigin::Signed(originator_account).into(),
             project_id,
-            creation_params.clone()
+            creation_params
         ));
 
         // calling retire from a non minted project should fail
@@ -940,7 +940,7 @@ fn test_retire_for_single_batch() {
         assert_eq!(stored_data.total_supply, 100_u32.into());
         assert_eq!(stored_data.minted, amount_to_mint);
         assert_eq!(stored_data.retired, amount_to_retire);
-        assert_eq!(stored_data.approved, true);
+        assert!(stored_data.approved);
 
         // the batch should also be updated with retired count
         let batch_detail = stored_data.batches.first().unwrap();
@@ -1019,7 +1019,7 @@ fn test_retire_for_single_batch() {
         assert_eq!(stored_data.total_supply, 100_u32.into());
         assert_eq!(stored_data.minted, amount_to_mint);
         assert_eq!(stored_data.retired, amount_to_mint);
-        assert_eq!(stored_data.approved, true);
+        assert!(stored_data.approved);
 
         // the batch should also be updated with retired count
         let batch_detail = stored_data.batches.first().unwrap();
@@ -1122,7 +1122,7 @@ fn retire_for_multiple_batch() {
         assert_eq!(stored_data.total_supply, amount_to_mint);
         assert_eq!(stored_data.minted, amount_to_mint);
         assert_eq!(stored_data.retired, amount_to_retire);
-        assert_eq!(stored_data.approved, true);
+        assert!(stored_data.approved);
 
         // the batch should be udpated correctly, should be retired from the oldest batch
         // this should have been sorted so arranged in the ascending order of issuance date
@@ -1204,7 +1204,7 @@ fn retire_for_multiple_batch() {
         assert_eq!(stored_data.total_supply, amount_to_mint);
         assert_eq!(stored_data.minted, amount_to_mint);
         assert_eq!(stored_data.retired, amount_to_mint);
-        assert_eq!(stored_data.approved, true);
+        assert!(stored_data.approved);
 
         // the batch should be udpated correctly, should be retired from the oldest batch
         // this should have been sorted so arranged in the ascending order of issuance date
@@ -1307,6 +1307,6 @@ fn force_approve_and_mint_vcu_works() {
         assert_eq!(stored_data.total_supply, 100_u32.into());
         assert_eq!(stored_data.minted, amount_to_mint);
         assert_eq!(stored_data.retired, 0_u32.into());
-        assert_eq!(stored_data.approved, true);
+        assert!(stored_data.approved);
     });
 }

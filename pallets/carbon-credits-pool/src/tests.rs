@@ -138,7 +138,7 @@ pub fn create_project_and_mint<T: Config>(
     assert_ok!(CarbonCredits::create(
         RawOrigin::Signed(originator_account).into(),
         project_id,
-        creation_params.clone()
+        creation_params
     ));
 
     // approve project so minting can happen
@@ -257,8 +257,8 @@ fn deposit_works() {
             last_event(),
             VCUPoolEvent::Deposit {
                 who: authorised_account_one,
-                project_id: project_id,
-                pool_id: pool_id,
+                project_id,
+                pool_id,
                 amount: project_tokens_to_deposit
             }
             .into()
@@ -325,8 +325,8 @@ fn deposit_works_for_batch_vcus() {
             last_event(),
             VCUPoolEvent::Deposit {
                 who: authorised_account_one,
-                project_id: project_id,
-                pool_id: pool_id,
+                project_id,
+                pool_id,
                 amount: project_tokens_to_deposit
             }
             .into()
@@ -427,7 +427,7 @@ fn retire_works() {
             last_event(),
             VCUPoolEvent::Retired {
                 who: authorised_account_one,
-                pool_id: pool_id,
+                pool_id,
                 amount: 90
             }
             .into()

@@ -1,5 +1,5 @@
 //! Service and ServiceFactory implementation. Specialized wrapper over substrate service.
-
+#![allow(clippy::all)]
 // std
 use std::{sync::Arc, time::Duration};
 

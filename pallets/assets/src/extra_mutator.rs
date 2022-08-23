@@ -78,6 +78,7 @@ impl<T: Config<I>, I: 'static> ExtraMutator<T, I> {
     }
 
     /// Commit any changes to storage.
+    #[allow(clippy::result_unit_err)]
     pub fn commit(&mut self) -> Result<(), ()> {
         if let Some(extra) = self.pending.take() {
             Account::<T, I>::try_mutate(self.id, self.who.borrow(), |maybe_account| {
@@ -92,6 +93,7 @@ impl<T: Config<I>, I: 'static> ExtraMutator<T, I> {
     }
 
     /// Revert any changes, even those already committed by `self` and drop self.
+    #[allow(clippy::result_unit_err)]
     pub fn revert(mut self) -> Result<(), ()> {
         self.pending = None;
         Account::<T, I>::try_mutate(self.id, self.who.borrow(), |maybe_account| {

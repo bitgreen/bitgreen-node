@@ -1,3 +1,4 @@
+#![allow(clippy::all)]
 use std::net::SocketAddr;
 
 use bitg_parachain_runtime::{Block, RuntimeApi};
