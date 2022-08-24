@@ -27,13 +27,13 @@ use frame_support::{
 };
 use frame_system::EnsureSignedBy;
 use orml_traits::parameter_type_with_key;
-use primitives::{Amount, Balance, CurrencyId, TokenSymbol};
+use primitives::{Amount, Balance, CurrencyId};
 use sp_core::H256;
 use sp_runtime::{testing::Header, traits::IdentityLookup};
 
 pub type AccountId = u128;
 pub const ALICE: AccountId = 1;
-pub const AUSD: CurrencyId = CurrencyId::Token(TokenSymbol::AUSD);
+pub const AUSD: CurrencyId = CurrencyId::AUSD;
 
 mod transaction_pause {
     pub use super::super::*;
