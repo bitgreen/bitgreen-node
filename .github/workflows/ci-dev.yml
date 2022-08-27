@@ -1,0 +1,63 @@
+name: CI_DEV
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
+
+jobs:
+  check:
+    # The type of runner that the job will run on
+    runs-on: ubuntu-20.04
+
+    # cancel concurrent builds on the same branch
+    concurrency:
+      group: ${{ github.head_ref || github.run_id }}
+      cancel-in-progress: true
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Install toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: nightly-2022-04-24
+          components: rustfmt
+          target: wasm32-unknown-unknown
+          default: true
+
+      - name: Cache restore
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Cargo format
+        run: cargo fmt --all -- --check
+
+      - name: Cargo check
+        run: SKIP_WASM_BUILD=1 cargo check --release
+
+      - name: Cargo test
+        run: cargo test
+
+      - name: Check check benchmarking
+        run: >
+          pushd node &&
+          cargo check --features=runtime-benchmarks --release
+
+      # Run cargo build release on github runner and cache it for next run to speed up the builds
+      - name: Cargo build release
+        run: |
+          cargo build --release
+
