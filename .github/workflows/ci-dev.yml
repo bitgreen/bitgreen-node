@@ -61,9 +61,7 @@ jobs:
         run: cargo test
 
       - name: Check check benchmarking
-        run: >
-          pushd node &&
-          cargo check --features=runtime-benchmarks --release
+        run: cargo check --features=runtime-benchmarks --release
 
       # Run cargo build release on github runner and cache it for next run to speed up the builds
       - name: Cargo build release
