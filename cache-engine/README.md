@@ -3,7 +3,7 @@
 The Bitgreen Caching Engine makes on-chain actions and function results available with REST API calls, and provides a JSON response (Javascript Object Notation). This simplifies the process of querying the Bitgreen chain, making it accessible to anyone with an Internet connection, and does not require a node or other blockchain related deployments. You can use the example links below to see the data returned when the cache engine is queried.
 
 
-Examples: 
+Examples:
 
 http://157.90.126.46:3000/vcu/projects/?originator=5G6M646srfn77x6uzwReRhCsVdBDRtYMd74nQuHkxvZX1SLC
 
@@ -14,7 +14,15 @@ http://157.90.126.46:3000/asset?asset_id=1000
 
 If you require any assistance using these features, or this repo, please contact us at [contact], we are happy to assist.
 
-Additional, detailed technical information regarding the use and response of the caching engine can be found below. 
+Additional, detailed technical information regarding the use and response of the caching engine can be found below.
+
+### Getting Started
+
+The following commands starts all the services required to run the caching engine:
+
+```bash
+docker compose up
+```
 
 ### Installation
 ```
