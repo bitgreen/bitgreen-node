@@ -90,6 +90,9 @@ pallet-carbon-credits ={ default-features = false, version = '0.1.0', path = "..
 pallet-carbon-credits-pool ={ default-features = false, version = '0.1.0', path = "../../pallets/carbon-credits-pool"}
 pallet-assets = { default-features = false, version = '4.0.0-dev', path = "../../pallets/assets"}
 
+# Local Dependencies
+pallet-generalstorage = { version = "4.0.0-dev", default-features = false, path = "../../pallets/generalstorage" }
+
 [features]
 default = [
 	"std",
@@ -153,7 +156,8 @@ std = [
 	"primitives/std",
 	"pallet-assets/std",
 	"pallet-carbon-credits/std",
-	"pallet-carbon-credits-pool/std"
+	"pallet-carbon-credits-pool/std",
+	"pallet-generalstorage/std"
 ]
 
 runtime-benchmarks = [
@@ -172,4 +176,5 @@ runtime-benchmarks = [
 	"cumulus-pallet-xcmp-queue/runtime-benchmarks",
 	"pallet-carbon-credits/runtime-benchmarks",
 	"orml-authority/runtime-benchmarks",
+	"pallet-generalstorage/runtime-benchmarks",
 ]

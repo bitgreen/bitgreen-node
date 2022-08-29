@@ -624,6 +624,7 @@ dependencies = [
  "pallet-carbon-credits",
  "pallet-carbon-credits-pool",
  "pallet-collator-selection",
+ "pallet-generalstorage",
  "pallet-membership",
  "pallet-session",
  "pallet-sudo",
@@ -5425,6 +5426,21 @@ dependencies = [
  "sp-core",
  "sp-io",
  "sp-npos-elections",
+ "sp-runtime",
+ "sp-std",
+]
+
+[[package]]
+name = "pallet-generalstorage"
+version = "4.0.0-dev"
+dependencies = [
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "parity-scale-codec",
+ "scale-info",
+ "sp-core",
+ "sp-io",
  "sp-runtime",
  "sp-std",
 ]

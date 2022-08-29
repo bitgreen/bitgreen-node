@@ -49,6 +49,9 @@ use sp_std::convert::TryInto;
 use weights::{BlockExecutionWeight, ExtrinsicBaseWeight, RocksDbWeight};
 use xcm_config::{XcmConfig, XcmOriginToTransactDispatchOrigin};
 
+// Import the generalstorage pallet.
+//pub use pallet_generalstorage;
+
 pub use primitives::Amount;
 
 #[cfg(any(feature = "std", test))]
@@ -633,6 +636,10 @@ impl pallet_sudo::Config for Runtime {
     type Call = Call;
 }
 
+// Configure the pallet-generalstorage in pallets/generalstorage.
+/*impl pallet_generalstorage::Config for Runtime {
+	type Event = Event;
+}*/
 // Create the runtime by composing the FRAME pallets that were previously configured.
 construct_runtime!(
     pub enum Runtime where
@@ -676,6 +683,9 @@ construct_runtime!(
         Uniques: pallet_uniques::{Pallet, Call, Storage, Event<T>} = 53,
         VCU: pallet_carbon_credits::{Pallet, Call, Storage, Event<T>} = 54,
         VCUPools: pallet_carbon_credits_pool::{Pallet, Call, Storage, Event<T>} = 55,
+        // General Storage Pallet
+        //GeneralStorage: pallet_generalstorage::{Pallet, Call, Storage, Event<T>} = 56
+
     }
 );
 
@@ -693,6 +703,7 @@ mod benches {
         [pallet_collator_selection, CollatorSelection]
         [cumulus_pallet_xcmp_queue, XcmpQueue]
         [pallet_carbon_credits, VCU]
+        //[pallet_generalstorage, GeneralstorageModule]
     );
 }
 

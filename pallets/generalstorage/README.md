@@ -1,0 +1,1 @@
+# General Storage Pallet
