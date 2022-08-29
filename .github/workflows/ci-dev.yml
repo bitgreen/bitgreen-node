@@ -22,7 +22,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
       - name: Cleard Build space Script
-        run: ls -alh ../bitgreen-node/ && ../bitgreen-node/scripts/free_disk_space.sh
+        run: scripts/free_disk_space.sh
       - name: Maximize build space
         uses: easimon/maximize-build-space@master
         with:
@@ -62,7 +62,7 @@ jobs:
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
 
       - name: Cargo format
-        run: cargo fmt --all -- --check
+        run: pwd && cargo fmt --all -- --check
 
       - name: Cargo check
         run: SKIP_WASM_BUILD=1 cargo check --release
