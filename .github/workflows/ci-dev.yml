@@ -19,6 +19,14 @@ jobs:
       cancel-in-progress: true
 
     steps:
+      - name: Maximize build space
+        uses: easimon/maximize-build-space@master
+        with:
+          root-reserve-mb: 512
+          swap-size-mb: 1024
+          remove-dotnet: 'true'
+          remove-haskell: 'true'
+          remove-android: 'true'
       - name: Checkout code
         uses: actions/checkout@v3
       - name: Set-Up
