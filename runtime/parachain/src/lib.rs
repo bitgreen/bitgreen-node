@@ -633,12 +633,6 @@ impl pallet_sudo::Config for Runtime {
     type Call = Call;
 }
 
-impl pallet_transaction_pause::Config for Runtime {
-    type Event = Event;
-    type UpdateOrigin = frame_system::EnsureRoot<AccountId>;
-    type WeightInfo = ();
-}
-
 // Create the runtime by composing the FRAME pallets that were previously configured.
 construct_runtime!(
     pub enum Runtime where
@@ -682,7 +676,6 @@ construct_runtime!(
         Uniques: pallet_uniques::{Pallet, Call, Storage, Event<T>} = 53,
         VCU: pallet_carbon_credits::{Pallet, Call, Storage, Event<T>} = 54,
         VCUPools: pallet_carbon_credits_pool::{Pallet, Call, Storage, Event<T>} = 55,
-        TransactionPause: pallet_transaction_pause::{Pallet, Call, Storage, Event<T>} = 56,
     }
 );
 
