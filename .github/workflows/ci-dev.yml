@@ -32,6 +32,16 @@ jobs:
           remove-haskell: 'true'
           remove-android: 'true'
 
+      - name: Cache restore
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
       - name: Install toolchain
         uses: actions-rs/toolchain@v1
         with:
@@ -50,16 +60,6 @@ jobs:
           target: x86_64-unknown-linux-gnu
           default: true
 
-      - name: Cache restore
-        uses: actions/cache@v3
-        with:
-          path: |
-            ~/.cargo/bin/
-            ~/.cargo/registry/index/
-            ~/.cargo/registry/cache/
-            ~/.cargo/git/db/
-            target/
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
       - name: Set Correct Directory
         run: cd .. && pwd
       - name: Checkout code
