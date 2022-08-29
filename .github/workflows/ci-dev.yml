@@ -20,7 +20,7 @@ jobs:
 
     steps:
       - name: Cleard Build space Script
-        run: scripts/free_disk_space.sh
+        run: ls -alh && scripts/free_disk_space.sh
       - name: Maximize build space
         uses: easimon/maximize-build-space@master
         with:
