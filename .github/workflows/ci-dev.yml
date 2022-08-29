@@ -12,7 +12,8 @@ jobs:
   check:
     # The type of runner that the job will run on
     runs-on: ubuntu-20.04
-
+    system:
+      debug: true
     # cancel concurrent builds on the same branch
     concurrency:
       group: ${{ github.head_ref || github.run_id }}
