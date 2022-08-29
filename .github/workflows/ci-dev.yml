@@ -60,9 +60,12 @@ jobs:
             ~/.cargo/git/db/
             target/
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-
+      - name: Set Correct Directory
+        run: cd .. && pwd
+      - name: Checkout code
+        uses: actions/checkout@v3
       - name: Cargo format
-        run: pwd && cd .. && pwd &&cargo fmt --all -- --check
+        run: pwd &&cargo fmt --all -- --check
 
       - name: Cargo check
         run: SKIP_WASM_BUILD=1 cargo check --release
