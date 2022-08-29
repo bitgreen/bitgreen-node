@@ -19,6 +19,8 @@ jobs:
       cancel-in-progress: true
 
     steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
       - name: Cleard Build space Script
         run: ls -alh ../bitgreen-node/ && ../bitgreen-node/scripts/free_disk_space.sh
       - name: Maximize build space
@@ -29,8 +31,6 @@ jobs:
           remove-dotnet: 'true'
           remove-haskell: 'true'
           remove-android: 'true'
-      - name: Checkout code
-        uses: actions/checkout@v3
 
       - name: Install toolchain
         uses: actions-rs/toolchain@v1
