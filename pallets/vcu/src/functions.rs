@@ -187,6 +187,11 @@ impl<T: Config> Pallet<T> {
                         sum
                     });
 
+            ensure!(
+                batch_total_supply > Zero::zero(),
+                Error::<T>::CannotCreateProjectWithoutCredits
+            );
+
             // sort batch data in ascending order of issuance year
             params
                 .batches
@@ -283,7 +288,7 @@ impl<T: Config> Pallet<T> {
 
             project.batches = batch_list
                 .try_into()
-                .expect("This should not fail since we did not change the size. qed");
+                .map_err(|_| Error::<T>::Overflow)?;
 
             // increase the minted count
             project.minted = project
@@ -398,7 +403,7 @@ impl<T: Config> Pallet<T> {
 
             project.batches = batch_list
                 .try_into()
-                .expect("This should not fail since the size is unchanged. qed");
+                .map_err(|_| Error::<T>::Overflow)?;
 
             // Get the item-id of the NFT to mint
             let maybe_item_id = NextItemId::<T>::get(&project_id);
