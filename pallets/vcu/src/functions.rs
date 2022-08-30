@@ -69,7 +69,7 @@ impl<T: Config> Pallet<T> {
     /// Calculate the issuance year for a project
     /// For a project with a single batch it's the issuance year of that batch
     /// For a project with multiple batches, its the issuance year of the oldest batch
-    pub fn calculate_issuance_year(project: ProjectDetail<T>) -> Option<u32> {
+    pub fn calculate_issuance_year(project: ProjectDetail<T>) -> Option<u16> {
         // the data is stored sorted in ascending order of issuance year, hence first() will always return oldest batch
         project.batches.first().map(|x| x.issuance_year)
     }
@@ -231,6 +231,10 @@ impl<T: Config> Pallet<T> {
         amount_to_mint: T::Balance,
         list_to_marketplace: bool,
     ) -> DispatchResult {
+        if amount_to_mint.is_zero() {
+            return Ok(());
+        }
+
         Projects::<T>::try_mutate(project_id, |project| -> DispatchResult {
             // ensure the project exists
             let project = project.as_mut().ok_or(Error::<T>::ProjectNotFound)?;
