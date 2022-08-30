@@ -292,7 +292,7 @@ pub mod pallet {
                     &who,
                     &Self::account_id(),
                     amount,
-                    true,
+                    false,
                 )?;
 
                 // add the project to the credits pool
@@ -393,7 +393,7 @@ pub mod pallet {
                             &Self::account_id(),
                             &who,
                             actual,
-                            true,
+                            false,
                         )?;
                         // Retire the transferred tokens
                         pallet_vcu::Pallet::<T>::retire_vcus(who.clone(), *project_id, actual)?;
