@@ -61,7 +61,7 @@ jobs:
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
 
       - name: Cargo format
-        run: pwd &&cargo fmt --all -- --check
+        run: pwd && cargo fmt --all -- --check
 
       - name: Cargo check
         run: SKIP_WASM_BUILD=1 cargo check --release
