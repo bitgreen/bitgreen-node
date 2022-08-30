@@ -245,6 +245,16 @@ fn deposit_works() {
             false,
         );
 
+        assert_noop!(
+            VCUPools::deposit(
+                RawOrigin::Signed(authorised_account_one).into(),
+                pool_id,
+                project_id,
+                0
+            ),
+            Error::<Test>::InvalidAmount
+        );
+
         // deposit to pool should work
         assert_ok!(VCUPools::deposit(
             RawOrigin::Signed(authorised_account_one).into(),
@@ -414,6 +424,11 @@ fn retire_works() {
                 10_000
             ),
             pallet_assets::Error::<Test>::BalanceLow
+        );
+
+        assert_noop!(
+            VCUPools::retire(RawOrigin::Signed(authorised_account_one).into(), pool_id, 0),
+            Error::<Test>::InvalidAmount
         );
 
         // retire should work

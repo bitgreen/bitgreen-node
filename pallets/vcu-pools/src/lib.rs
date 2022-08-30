@@ -157,6 +157,8 @@ pub mod pallet {
         UnexpectedOverflow,
         /// Cannot determine Credit issuance year
         ProjectIssuanceYearError,
+        /// Invalid deposit amount
+        InvalidAmount,
     }
 
     #[pallet::call]
@@ -251,6 +253,8 @@ pub mod pallet {
             amount: T::Balance,
         ) -> DispatchResultWithPostInfo {
             let who = ensure_signed(origin)?;
+
+            ensure!(!amount.is_zero(), Error::<T>::InvalidAmount);
 
             Pools::<T>::try_mutate(pool_id, |pool| -> DispatchResultWithPostInfo {
                 let pool = pool.as_mut().ok_or(Error::<T>::InvalidPoolId)?;
@@ -359,6 +363,8 @@ pub mod pallet {
             amount: T::Balance,
         ) -> DispatchResultWithPostInfo {
             let who = ensure_signed(origin)?;
+
+            ensure!(!amount.is_zero(), Error::<T>::InvalidAmount);
 
             Pools::<T>::try_mutate(pool_id, |pool| -> DispatchResultWithPostInfo {
                 let pool = pool.as_mut().ok_or(Error::<T>::InvalidPoolId)?;

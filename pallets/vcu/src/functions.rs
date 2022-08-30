@@ -315,6 +315,10 @@ impl<T: Config> Pallet<T> {
     ) -> DispatchResult {
         let now = frame_system::Pallet::<T>::block_number();
 
+        if amount.is_zero() {
+            return Ok(());
+        }
+
         Projects::<T>::try_mutate(project_id, |project| -> DispatchResult {
             // ensure the project exists
             let project = project.as_mut().ok_or(Error::<T>::ProjectNotFound)?;
