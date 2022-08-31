@@ -122,15 +122,15 @@ impl pallet_timestamp::Config for Test {
 
 parameter_types! {
   pub const MarketplaceEscrowAccount : u64 = 10;
-  pub const VCUPalletId: PalletId = PalletId(*b"bitg/vcu");
-  pub VCUPalletAcccount : u64 = PalletId(*b"bitg/vcu").into_account_truncating();
+  pub const CarbonCreditsPalletId: PalletId = PalletId(*b"bitg/ccp");
+  pub CarbonCreditsPalletAcccount : u64 = PalletId(*b"bitg/ccp").into_account_truncating();
 }
 
 impl pallet_carbon_credits::Config for Test {
     type Event = Event;
     type Balance = u128;
     type AssetId = u32;
-    type PalletId = VCUPalletId;
+    type PalletId = CarbonCreditsPalletId;
     type AssetHandler = Assets;
     type KYCProvider = KYCMembership;
     type MarketplaceEscrow = MarketplaceEscrowAccount;

@@ -4,7 +4,7 @@
 //! CarbonCredits pallet helper functions
 use crate::{
     AuthorizedAccounts, BatchRetireDataList, BatchRetireDataOf, Config, Error, Event, NextItemId,
-    Pallet, ProjectCreateParams, ProjectDetail, Projects, RetiredCredits, RetiredVcuData,
+    Pallet, ProjectCreateParams, ProjectDetail, Projects, RetiredCarbonCreditsData, RetiredCredits,
 };
 use codec::alloc::string::ToString;
 use frame_support::{
@@ -225,7 +225,7 @@ impl<T: Config> Pallet<T> {
         })
     }
 
-    pub fn mint_vcus(
+    pub fn mint_carbon_credits(
         _sender: T::AccountId,
         project_id: T::AssetId,
         amount_to_mint: T::Balance,
@@ -297,7 +297,7 @@ impl<T: Config> Pallet<T> {
             T::AssetHandler::mint_into(project_id, &recipient, amount_to_mint)?;
 
             // emit event
-            Self::deposit_event(Event::VCUMinted {
+            Self::deposit_event(Event::CarbonCreditMinted {
                 project_id,
                 recipient,
                 amount: amount_to_mint,
@@ -307,7 +307,7 @@ impl<T: Config> Pallet<T> {
         })
     }
 
-    /// Retire vcus for given project_id
+    /// Retire carbon credits for given project_id
     pub fn retire_carbon_credits(
         from: T::AccountId,
         project_id: T::AssetId,
@@ -419,7 +419,7 @@ impl<T: Config> Pallet<T> {
             NextItemId::<T>::insert::<T::AssetId, T::ItemId>(project_id, next_item_id);
 
             // form the retire CarbonCredits data
-            let retired_vcu_data = RetiredVcuData::<T> {
+            let retired_carbon_credit_data = RetiredCarbonCreditsData::<T> {
                 account: from.clone(),
                 retire_data: batch_retire_data_list.clone(),
                 timestamp: now,
@@ -427,10 +427,10 @@ impl<T: Config> Pallet<T> {
             };
 
             //Store the details of retired batches in storage
-            RetiredCredits::<T>::insert(project_id, item_id, retired_vcu_data);
+            RetiredCredits::<T>::insert(project_id, item_id, retired_carbon_credit_data);
 
             // emit event
-            Self::deposit_event(Event::VCURetired {
+            Self::deposit_event(Event::CarbonCreditRetired {
                 project_id,
                 account: from,
                 amount,

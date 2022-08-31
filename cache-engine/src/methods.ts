@@ -319,8 +319,8 @@ export async function processBlock(api: ApiPromise, block_number: BlockNumber | 
 							}
 						}
 
-						if (event_method === "VCUMinted") {
-							// console.log(api.events.vcu.VCUMinted.is(event))
+						if (event_method === "CarbonCreditMinted") {
+							// console.log(api.events.vcu.CarbonCreditMinted.is(event))
 							let project_id, account, amount;
 
 							event.data.map(async (arg: any, d: number) => {

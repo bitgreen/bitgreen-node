@@ -5,7 +5,7 @@
 #![cfg(feature = "runtime-benchmarks")]
 
 use super::*;
-use crate::Pallet as VCUPools;
+use crate::Pallet as CarbonCreditPools;
 use frame_benchmarking::{account, benchmarks, vec};
 use frame_system::RawOrigin;
 use pallet_carbon_credits::{BatchGroupOf, ProjectCreateParams, RegistryListOf, SDGTypesListOf};
@@ -101,7 +101,7 @@ benchmarks! {
     }: _(RawOrigin::Signed(account_id), pool_id, Default::default(), None, asset_symbol)
     verify {
         assert!(
-            VCUPools::<T>::pools(pool_id).is_some()
+            CarbonCreditPools::<T>::pools(pool_id).is_some()
         );
     }
 
@@ -119,7 +119,7 @@ benchmarks! {
         // create a pool
         let pool_id = 10_001_u32.into();
         let asset_symbol =  "pool_xyz".as_bytes().to_vec().try_into().unwrap();
-        VCUPools::<T>::create(RawOrigin::Signed(caller.clone()).into(), pool_id, Default::default(), None, asset_symbol).unwrap();
+        CarbonCreditPools::<T>::create(RawOrigin::Signed(caller.clone()).into(), pool_id, Default::default(), None, asset_symbol).unwrap();
     }: _(RawOrigin::Signed(caller.clone()), pool_id, project_id, 1_u32.into())
     verify {
         assert_last_event::<T>(Event::Deposit { project_id, who : caller, amount : 1_u32.into(), pool_id }.into());
@@ -139,12 +139,12 @@ benchmarks! {
         // create a pool and deposit tokens
         let pool_id = 10_001_u32.into();
         let asset_symbol =  "pool_xyz".as_bytes().to_vec().try_into().unwrap();
-        VCUPools::<T>::create(RawOrigin::Signed(caller.clone()).into(), pool_id, Default::default(), None, asset_symbol).unwrap();
-        VCUPools::<T>::deposit(RawOrigin::Signed(caller.clone()).into(), pool_id, project_id, 10_u32.into()).unwrap();
+        CarbonCreditPools::<T>::create(RawOrigin::Signed(caller.clone()).into(), pool_id, Default::default(), None, asset_symbol).unwrap();
+        CarbonCreditPools::<T>::deposit(RawOrigin::Signed(caller.clone()).into(), pool_id, project_id, 10_u32.into()).unwrap();
     }: _(RawOrigin::Signed(caller.clone()), pool_id, 1_u32.into())
     verify {
         assert_last_event::<T>(Event::Retired { pool_id, who : caller, amount : 1_u32.into() }.into());
     }
 
-    impl_benchmark_test_suite!(VCUPools, crate::mock::new_test_ext(), crate::mock::Test);
+    impl_benchmark_test_suite!(CarbonCreditPools, crate::mock::new_test_ext(), crate::mock::Test);
 }

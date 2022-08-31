@@ -14,7 +14,7 @@ use primitives::{Batch, RegistryDetails, RegistryName, Royalty, SDGDetails, SdgT
 use sp_runtime::Percent;
 use sp_std::convert::TryInto;
 
-pub type VCUPoolEvent = crate::Event<Test>;
+pub type CarbonCreditPoolEvent = crate::Event<Test>;
 
 /// helper function to generate standard registry details
 fn get_default_registry_details<T: Config>() -> RegistryListOf<T> {
@@ -165,7 +165,7 @@ pub fn create_project_and_mint<T: Config>(
 fn test_cannot_create_pools_below_min_id() {
     new_test_ext().execute_with(|| {
         assert_noop!(
-            VCUPools::create(
+            CarbonCreditPools::create(
                 RawOrigin::Signed(1).into(),
                 10,
                 Default::default(),
@@ -183,7 +183,7 @@ fn create_new_pools() {
         let authorised_account_one = 1;
         let project_id = 10_000;
 
-        assert_ok!(VCUPools::create(
+        assert_ok!(CarbonCreditPools::create(
             RawOrigin::Signed(authorised_account_one).into(),
             project_id,
             Default::default(),
@@ -193,7 +193,7 @@ fn create_new_pools() {
 
         assert_eq!(
             last_event(),
-            VCUPoolEvent::PoolCreated {
+            CarbonCreditPoolEvent::PoolCreated {
                 admin: authorised_account_one,
                 id: project_id,
                 config: Default::default()
@@ -209,7 +209,7 @@ fn create_new_pools() {
         assert_eq!(Assets::decimals(project_id), 0_u8);
 
         assert_noop!(
-            VCUPools::create(
+            CarbonCreditPools::create(
                 RawOrigin::Signed(authorised_account_one).into(),
                 10_000,
                 Default::default(),
@@ -230,7 +230,7 @@ fn deposit_works() {
         let project_tokens_to_mint = 100;
         let project_tokens_to_deposit = 99;
 
-        assert_ok!(VCUPools::create(
+        assert_ok!(CarbonCreditPools::create(
             RawOrigin::Signed(authorised_account_one).into(),
             pool_id,
             Default::default(),
@@ -246,7 +246,7 @@ fn deposit_works() {
         );
 
         // deposit to pool should work
-        assert_ok!(VCUPools::deposit(
+        assert_ok!(CarbonCreditPools::deposit(
             RawOrigin::Signed(authorised_account_one).into(),
             pool_id,
             project_id,
@@ -255,7 +255,7 @@ fn deposit_works() {
 
         assert_eq!(
             last_event(),
-            VCUPoolEvent::Deposit {
+            CarbonCreditPoolEvent::Deposit {
                 who: authorised_account_one,
                 project_id,
                 pool_id,
@@ -290,7 +290,7 @@ fn deposit_works() {
 }
 
 #[test]
-fn deposit_works_for_batch_vcus() {
+fn deposit_works_for_batch_credits() {
     new_test_ext().execute_with(|| {
         let authorised_account_one = 1;
         let project_id = 1_000;
@@ -298,7 +298,7 @@ fn deposit_works_for_batch_vcus() {
         let project_tokens_to_mint = 100;
         let project_tokens_to_deposit = 99;
 
-        assert_ok!(VCUPools::create(
+        assert_ok!(CarbonCreditPools::create(
             RawOrigin::Signed(authorised_account_one).into(),
             pool_id,
             Default::default(),
@@ -314,7 +314,7 @@ fn deposit_works_for_batch_vcus() {
         );
 
         // deposit to pool should work
-        assert_ok!(VCUPools::deposit(
+        assert_ok!(CarbonCreditPools::deposit(
             RawOrigin::Signed(authorised_account_one).into(),
             pool_id,
             project_id,
@@ -323,7 +323,7 @@ fn deposit_works_for_batch_vcus() {
 
         assert_eq!(
             last_event(),
-            VCUPoolEvent::Deposit {
+            CarbonCreditPoolEvent::Deposit {
                 who: authorised_account_one,
                 project_id,
                 pool_id,
@@ -366,7 +366,7 @@ fn retire_works() {
         let project_tokens_to_mint = 100;
         let project_tokens_to_deposit = 99;
 
-        assert_ok!(VCUPools::create(
+        assert_ok!(CarbonCreditPools::create(
             RawOrigin::Signed(authorised_account_one).into(),
             pool_id,
             Default::default(),
@@ -382,7 +382,7 @@ fn retire_works() {
         );
 
         // deposit to pool should work
-        assert_ok!(VCUPools::deposit(
+        assert_ok!(CarbonCreditPools::deposit(
             RawOrigin::Signed(authorised_account_one).into(),
             pool_id,
             project_id,
@@ -408,7 +408,7 @@ fn retire_works() {
 
         // retire more than balance should fail
         assert_noop!(
-            VCUPools::retire(
+            CarbonCreditPools::retire(
                 RawOrigin::Signed(authorised_account_one).into(),
                 pool_id,
                 10_000
@@ -417,7 +417,7 @@ fn retire_works() {
         );
 
         // retire should work
-        assert_ok!(VCUPools::retire(
+        assert_ok!(CarbonCreditPools::retire(
             RawOrigin::Signed(authorised_account_one).into(),
             pool_id,
             90
@@ -425,7 +425,7 @@ fn retire_works() {
 
         assert_eq!(
             last_event(),
-            VCUPoolEvent::Retired {
+            CarbonCreditPoolEvent::Retired {
                 who: authorised_account_one,
                 pool_id,
                 amount: 90

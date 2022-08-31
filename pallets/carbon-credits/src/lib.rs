@@ -3,10 +3,10 @@
 // This code is licensed under MIT license (see LICENSE.txt for details)
 //
 //! CarbonCredits Pallet
-//! The CarbonCredits pallet creates and retires CarbonCredits units that represent the VCUs on the Verra registry. These onchain CarbonCredits units can represent a
-//! single type of CarbonCredits or can build to represent a combination of different types of VCUs.
+//! The CarbonCredits pallet creates and retires CarbonCredits units that represent the Carbon Credits. These onchain CarbonCredits units can represent a
+//! single type of CarbonCredits or can build to represent a combination of different types of Carbon Credits.
 //!
-//! The CarbonCredits units are created by an account that controls CarbonCredits units on the Verra registry, represented in the pallet as the originator.
+//! The CarbonCredits units are created by an account that controls CarbonCredit units, represented in the pallet as the originator.
 //! The creation process will store the CarbonCredits details on the pallet storage and then mint the given amount of CarbonCredits units using the Asset Handler
 //! like pallet-assets. These newly minted CarbonCredits units will be transferred to the recipient, this can be any address.
 //! These units can then be sold/transferred to a buyer of carbon credits, these transactions can take place multiple times but the final goal
@@ -30,7 +30,7 @@
 //! * `approve_project`: Set the project status to approved so minting can be executed
 //! * `force_set_project_storage` : Set the project storage
 //! * `force_set_next_item_id` : Set the NextItemId storage
-//! * `force_set_retired_vcu` : Set the RetiredVCU storage
+//! * `force_set_retired_carbon_credit` : Set the RetiredCarbonCredits storage
 //!
 #![cfg_attr(not(feature = "std"), no_std)]
 
@@ -147,7 +147,7 @@ pub mod pallet {
         type MaxIpfsReferenceLength: Get<u32>;
         /// Maximum count of documents for one type
         type MaxDocumentCount: Get<u32>;
-        /// Maximum amount of vcus in a bundle
+        /// Maximum amount of carbon credits in a bundle
         type MaxGroupSize: Get<u32>;
         /// Maximum amount of location cordinates to store
         type MaxCoordinatesLength: Get<u32>;
@@ -179,7 +179,7 @@ pub mod pallet {
         StorageMap<_, Blake2_128Concat, T::AssetId, ProjectDetail<T>>;
 
     #[pallet::storage]
-    #[pallet::getter(fn retired_vcus)]
+    #[pallet::getter(fn retired_carbon_credits)]
     /// The retired CarbonCredits record
     pub(super) type RetiredCredits<T: Config> = StorageDoubleMap<
         _,
@@ -187,7 +187,7 @@ pub mod pallet {
         T::AssetId,
         Blake2_128Concat,
         T::ItemId,
-        RetiredVcuData<T>,
+        RetiredCarbonCreditsData<T>,
     >;
 
     #[pallet::event]
@@ -215,8 +215,8 @@ pub mod pallet {
             /// The T::AssetId of the approved project
             project_id: T::AssetId,
         },
-        // An amount of VCUs was minted
-        VCUMinted {
+        // An amount of Carbon Credits was minted
+        CarbonCreditMinted {
             /// The T::AssetId of the minted CarbonCredits
             project_id: T::AssetId,
             /// The AccountId that received the minted CarbonCredits
@@ -225,7 +225,7 @@ pub mod pallet {
             amount: T::Balance,
         },
         // An existing CarbonCredits was retired
-        VCURetired {
+        CarbonCreditRetired {
             /// The T::AssetId of the retired CarbonCredits
             project_id: T::AssetId,
             /// The AccountId that retired the CarbonCredits
@@ -250,7 +250,7 @@ pub mod pallet {
         KYCAuthorisationFailed,
         /// The account is not authorised
         NotAuthorised,
-        /// The project cannot be created without vcus
+        /// The project cannot be created without credits
         CannotCreateProjectWithoutCredits,
         /// The given Project was not found in storage
         ProjectNotFound,
@@ -330,10 +330,10 @@ pub mod pallet {
             let sender = ensure_signed(origin)?;
             Self::check_authorized_account(&sender)?;
             // Self::check_kyc_approval(&sender)?;
-            Self::mint_vcus(sender, project_id, amount_to_mint, list_to_marketplace)
+            Self::mint_carbon_credits(sender, project_id, amount_to_mint, list_to_marketplace)
         }
 
-        /// Retire existing vcus from owner
+        /// Retire existing credits from owner
         /// The tokens are always retired in the ascending order of credits, for example, if the
         /// `amount` is 150 and the project has 100 tokens of 2019 and 2020 year. Then we retire
         /// 100 from 2019 and 50 from 2020.
@@ -425,23 +425,23 @@ pub mod pallet {
         /// Force modify retired CarbonCredits storage
         /// Can only be called by ForceOrigin
         #[transactional]
-        #[pallet::weight(T::WeightInfo::force_set_retired_vcu())]
-        pub fn force_set_retired_vcu(
+        #[pallet::weight(T::WeightInfo::force_set_retired_carbon_credit())]
+        pub fn force_set_retired_carbon_credit(
             origin: OriginFor<T>,
             project_id: T::AssetId,
             item_id: T::ItemId,
-            vcu_data: RetiredVcuData<T>,
+            credits_data: RetiredCarbonCreditsData<T>,
         ) -> DispatchResult {
             T::ForceOrigin::ensure_origin(origin)?;
-            RetiredCredits::<T>::insert(project_id, item_id, vcu_data);
+            RetiredCredits::<T>::insert(project_id, item_id, credits_data);
             Ok(())
         }
 
-        /// Single function to create project, approve and mint vcus
+        /// Single function to create project, approve and mint credits
         /// Can only be called by ForceOrigin
         #[transactional]
         #[pallet::weight(T::WeightInfo::mint())]
-        pub fn force_approve_and_mint_vcu(
+        pub fn force_approve_and_mint_credits(
             origin: OriginFor<T>,
             sender: T::AccountId,
             project_id: T::AssetId,
@@ -453,7 +453,7 @@ pub mod pallet {
             Self::check_kyc_approval(&sender)?;
             Self::create_project(sender.clone(), project_id, params)?;
             Self::do_approve_project(project_id, true)?;
-            Self::mint_vcus(sender, project_id, amount_to_mint, list_to_marketplace)?;
+            Self::mint_carbon_credits(sender, project_id, amount_to_mint, list_to_marketplace)?;
             Ok(())
         }
     }
