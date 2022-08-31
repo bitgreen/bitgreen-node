@@ -17,7 +17,7 @@ use frame_support::{
     },
 };
 use primitives::BatchRetireData;
-use sp_runtime::traits::{AccountIdConversion, CheckedAdd, One, Zero};
+use sp_runtime::traits::{AccountIdConversion, CheckedAdd, CheckedSub, One, Zero};
 use sp_std::{cmp, convert::TryInto, vec::Vec};
 
 impl<T: Config> Pallet<T> {
@@ -94,13 +94,15 @@ impl<T: Config> Pallet<T> {
             ensure!(project.is_none(), Error::<T>::ProjectAlreadyExists);
 
             // the total supply of project must match the supply of all batches
-            let mut batch_total_supply = Zero::zero();
+            let mut batch_total_supply: T::Balance = Zero::zero();
             for batch in params.batches.iter() {
                 ensure!(
                     batch.total_supply > Zero::zero(),
                     Error::<T>::CannotCreateProjectWithoutCredits
                 );
-                batch_total_supply += batch.total_supply
+                batch_total_supply = batch_total_supply
+                    .checked_add(&batch.total_supply)
+                    .ok_or(Error::<T>::Overflow)?;
             }
 
             ensure!(
@@ -178,13 +180,15 @@ impl<T: Config> Pallet<T> {
             ensure!(!params.unit_price.is_zero(), Error::<T>::UnitPriceIsZero);
 
             // the total supply of project must match the supply of all batches
-            let mut batch_total_supply = Zero::zero();
+            let mut batch_total_supply: T::Balance = Zero::zero();
             for batch in params.batches.iter() {
                 ensure!(
                     batch.total_supply > Zero::zero(),
                     Error::<T>::CannotCreateProjectWithoutCredits
                 );
-                batch_total_supply += batch.total_supply
+                batch_total_supply = batch_total_supply
+                    .checked_add(&batch.total_supply)
+                    .ok_or(Error::<T>::Overflow)?;
             }
 
             ensure!(
@@ -248,8 +252,12 @@ impl<T: Config> Pallet<T> {
             ensure!(project.approved, Error::<T>::ProjectNotApproved);
 
             // ensure the amount_to_mint does not exceed limit
+            let projected_total_supply = amount_to_mint
+                .checked_add(&project.minted)
+                .ok_or(Error::<T>::Overflow)?;
+
             ensure!(
-                amount_to_mint + project.minted <= project.total_supply,
+                projected_total_supply <= project.total_supply,
                 Error::<T>::AmountGreaterThanSupply
             );
 
@@ -264,7 +272,11 @@ impl<T: Config> Pallet<T> {
             let mut remaining = amount_to_mint;
             for batch in batch_list.iter_mut() {
                 // lets mint from the older batches as much as possible
-                let available_to_mint = batch.total_supply - batch.minted;
+                let available_to_mint = batch
+                    .total_supply
+                    .checked_sub(&batch.minted)
+                    .ok_or(Error::<T>::Overflow)?;
+
                 let actual = cmp::min(available_to_mint, remaining);
 
                 batch.minted = batch
@@ -273,7 +285,8 @@ impl<T: Config> Pallet<T> {
                     .ok_or(Error::<T>::Overflow)?;
 
                 // this is safe since actual is <= remaining
-                remaining -= actual;
+                remaining = remaining.checked_sub(&actual).ok_or(Error::<T>::Overflow)?;
+
                 if remaining <= Zero::zero() {
                     break;
                 }
@@ -341,7 +354,7 @@ impl<T: Config> Pallet<T> {
 
             // another check to ensure accounting is correct
             ensure!(
-                project.retired <= project.total_supply,
+                project.retired <= project.minted,
                 Error::<T>::AmountGreaterThanSupply
             );
 
@@ -354,7 +367,10 @@ impl<T: Config> Pallet<T> {
             for batch in batch_list.iter_mut() {
                 // lets retire from the older batches as much as possible
                 // this is safe since we ensure minted >= retired
-                let available_to_retire = batch.minted - batch.retired;
+                let available_to_retire = batch
+                    .minted
+                    .checked_sub(&batch.retired)
+                    .ok_or(Error::<T>::Overflow)?;
                 let actual = cmp::min(available_to_retire, remaining);
 
                 batch.retired = batch
@@ -376,7 +392,7 @@ impl<T: Config> Pallet<T> {
                     .map_err(|_| Error::<T>::Overflow)?;
 
                 // this is safe since actual is <= remaining
-                remaining -= actual;
+                remaining = remaining.checked_sub(&actual).ok_or(Error::<T>::Overflow)?;
                 if remaining <= Zero::zero() {
                     break;
                 }

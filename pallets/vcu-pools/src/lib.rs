@@ -54,7 +54,7 @@ pub mod pallet {
         transactional, PalletId,
     };
     use frame_system::pallet_prelude::*;
-    use sp_runtime::traits::{AccountIdConversion, Zero};
+    use sp_runtime::traits::{AccountIdConversion, CheckedAdd, CheckedSub, Zero};
     use sp_std::convert::{TryFrom, TryInto};
 
     #[pallet::config]
@@ -309,7 +309,9 @@ pub mod pallet {
                     // If the project tokens have been previoulsy deposited to the
                     // pool, increment the counter
                     if let Some(existing_amount) = project_details {
-                        let new_amount = *existing_amount + amount;
+                        let new_amount = existing_amount
+                            .checked_add(&amount)
+                            .ok_or(Error::<T>::UnexpectedOverflow)?;
                         project_map
                             .try_insert(project_id, new_amount)
                             .map_err(|_| Error::<T>::UnexpectedOverflow)?;
@@ -387,7 +389,9 @@ pub mod pallet {
 
                         if remaining <= *available_amount {
                             actual = remaining;
-                            *available_amount -= actual;
+                            *available_amount = available_amount
+                                .checked_sub(&actual)
+                                .ok_or(Error::<T>::UnexpectedOverflow)?;
                         } else {
                             actual = *available_amount;
                             *available_amount = 0_u32.into();
@@ -411,7 +415,9 @@ pub mod pallet {
                             .map_err(|_| Error::<T>::UnexpectedOverflow)?;
 
                         // this is safe since actual is <= remaining
-                        remaining -= actual;
+                        remaining = remaining
+                            .checked_sub(&actual)
+                            .ok_or(Error::<T>::UnexpectedOverflow)?;
                         if remaining <= Zero::zero() {
                             break;
                         }
