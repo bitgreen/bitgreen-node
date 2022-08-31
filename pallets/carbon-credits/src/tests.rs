@@ -17,7 +17,7 @@ use sp_runtime::traits::AccountIdConversion;
 use sp_runtime::Percent;
 use sp_std::convert::TryInto;
 
-pub type VCUEvent = crate::Event<Test>;
+pub type CarbonCreditsEvent = crate::Event<Test>;
 
 /// helper function to generate standard registry details
 fn get_default_registry_details<T: Config>() -> RegistryListOf<T> {
@@ -197,7 +197,7 @@ fn add_new_authorized_accounts_should_work() {
 
         assert_eq!(
             last_event(),
-            VCUEvent::AuthorizedAccountAdded {
+            CarbonCreditsEvent::AuthorizedAccountAdded {
                 account_id: authorised_account_one
             }
             .into()
@@ -231,7 +231,7 @@ fn add_new_authorized_accounts_should_work() {
 
         assert_eq!(
             last_event(),
-            VCUEvent::AuthorizedAccountAdded {
+            CarbonCreditsEvent::AuthorizedAccountAdded {
                 account_id: authorised_account_two
             }
             .into()
@@ -259,7 +259,7 @@ fn force_remove_authorized_accounts_should_work() {
 
         assert_eq!(
             last_event(),
-            VCUEvent::AuthorizedAccountRemoved {
+            CarbonCreditsEvent::AuthorizedAccountRemoved {
                 account_id: authorised_account_one
             }
             .into()
@@ -302,7 +302,7 @@ fn create_works_for_single_batch() {
 
         assert_eq!(
             last_event(),
-            VCUEvent::ProjectCreated {
+            CarbonCreditsEvent::ProjectCreated {
                 project_id,
                 details: stored_data
             }
@@ -347,7 +347,7 @@ fn create_works_for_multiple_batch() {
 
         assert_eq!(
             last_event(),
-            VCUEvent::ProjectCreated {
+            CarbonCreditsEvent::ProjectCreated {
                 project_id,
                 details: stored_data
             }
@@ -410,7 +410,7 @@ fn resubmit_works() {
 
         assert_eq!(
             last_event(),
-            VCUEvent::ProjectResubmitted {
+            CarbonCreditsEvent::ProjectResubmitted {
                 project_id,
                 details: stored_data
             }
@@ -500,7 +500,7 @@ fn approve_project_works() {
 
         assert_eq!(
             last_event(),
-            VCUEvent::ProjectApproved { project_id }.into()
+            CarbonCreditsEvent::ProjectApproved { project_id }.into()
         );
     });
 }
@@ -632,7 +632,7 @@ fn mint_without_list_to_marketplace_works_for_single_batch() {
 
         assert_eq!(
             last_event(),
-            VCUEvent::VCUMinted {
+            CarbonCreditsEvent::CarbonCreditMinted {
                 project_id,
                 recipient: originator_account,
                 amount: amount_to_mint
@@ -728,7 +728,7 @@ fn mint_without_list_to_marketplace_works_for_multiple_batches() {
 
         assert_eq!(
             last_event(),
-            VCUEvent::VCUMinted {
+            CarbonCreditsEvent::CarbonCreditMinted {
                 project_id,
                 recipient: originator_account,
                 amount: amount_to_mint
@@ -960,11 +960,12 @@ fn test_retire_for_single_batch() {
         );
 
         // Ensure the NFT is minted correctly
-        let vcu_pallet_account_id: u64 = PalletId(*b"bitg/vcu").into_account_truncating();
+        let carbon_credits_pallet_account_id: u64 =
+            PalletId(*b"bitg/ccp").into_account_truncating();
         // the collection owner should be pallet
         assert_eq!(
             Uniques::collection_owner(expected_asset_id).unwrap(),
-            vcu_pallet_account_id
+            carbon_credits_pallet_account_id
         );
         // the originator should have received the item
         assert_eq!(
@@ -995,7 +996,7 @@ fn test_retire_for_single_batch() {
 
         assert_eq!(
             last_event(),
-            VCUEvent::VCURetired {
+            CarbonCreditsEvent::CarbonCreditRetired {
                 project_id,
                 account: originator_account,
                 amount: amount_to_retire,
@@ -1046,7 +1047,7 @@ fn test_retire_for_single_batch() {
         // the collection owner should be pallet
         assert_eq!(
             Uniques::collection_owner(expected_asset_id).unwrap(),
-            vcu_pallet_account_id
+            carbon_credits_pallet_account_id
         );
         // the originator should have received the item
         assert_eq!(
@@ -1152,11 +1153,12 @@ fn retire_for_multiple_batch() {
         );
 
         // Ensure the NFT is minted correctly
-        let vcu_pallet_account_id: u64 = PalletId(*b"bitg/vcu").into_account_truncating();
+        let carbon_credits_pallet_account_id: u64 =
+            PalletId(*b"bitg/ccp").into_account_truncating();
         // the collection owner should be pallet
         assert_eq!(
             Uniques::collection_owner(expected_asset_id).unwrap(),
-            vcu_pallet_account_id
+            carbon_credits_pallet_account_id
         );
         // the originator should have received the item
         assert_eq!(
@@ -1174,7 +1176,7 @@ fn retire_for_multiple_batch() {
 
         assert_eq!(
             last_event(),
-            VCUEvent::VCURetired {
+            CarbonCreditsEvent::CarbonCreditRetired {
                 project_id,
                 account: originator_account,
                 amount: amount_to_retire,
@@ -1240,7 +1242,7 @@ fn retire_for_multiple_batch() {
         // the collection owner should be pallet
         assert_eq!(
             Uniques::collection_owner(expected_asset_id).unwrap(),
-            vcu_pallet_account_id
+            carbon_credits_pallet_account_id
         );
         // the originator should have received the item
         assert_eq!(
@@ -1269,7 +1271,7 @@ fn retire_for_multiple_batch() {
 }
 
 #[test]
-fn force_approve_and_mint_vcu_works() {
+fn force_approve_and_mint_credits_works() {
     new_test_ext().execute_with(|| {
         let originator_account = 1;
         let project_id = 1001;
@@ -1280,7 +1282,7 @@ fn force_approve_and_mint_vcu_works() {
         let creation_params = get_default_creation_params::<Test>();
 
         // mint should work with all params correct
-        assert_ok!(CarbonCredits::force_approve_and_mint_vcu(
+        assert_ok!(CarbonCredits::force_approve_and_mint_credits(
             RawOrigin::Root.into(),
             originator_account,
             project_id,
@@ -1291,7 +1293,7 @@ fn force_approve_and_mint_vcu_works() {
 
         assert_eq!(
             last_event(),
-            VCUEvent::VCUMinted {
+            CarbonCreditsEvent::CarbonCreditMinted {
                 project_id,
                 recipient: originator_account,
                 amount: amount_to_mint
