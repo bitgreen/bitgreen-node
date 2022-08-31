@@ -124,7 +124,7 @@ export async function processBlock(api: ApiPromise, block_number: BlockNumber | 
 
 				// extract asset_id and assign it to a project
 				if (
-					section === "vcu" &&
+					section === "carbon-credits" &&
 					method === "mint" &&
 					event.section === "assets" &&
 					event.method === "ForceCreated"
@@ -150,7 +150,7 @@ export async function processBlock(api: ApiPromise, block_number: BlockNumber | 
 					// console.log(`${event_section}:${event_method}`)
 					// console.log('Transaction Hash: ' + hash);
 
-					if (event_section === "vcu") {
+					if (event_section === "carbon-credits") {
 						if (event_method === "ProjectCreated") {
 							let project_id: number | undefined, details: ProjectDetails | undefined;
 
