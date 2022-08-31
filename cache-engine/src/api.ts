@@ -55,7 +55,7 @@ const mainLoop = async () => {
 
 	// app.get('/analyze-data', db.getAnalyzeData)
 
-	app.get("/vcu/projects", async (req: Request, res: Response) => {
+	app.get("/carbon-credits/projects", async (req: Request, res: Response) => {
 		const { originator = undefined } = req.query;
 
 		const or = originator
