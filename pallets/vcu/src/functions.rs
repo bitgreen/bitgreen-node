@@ -94,14 +94,14 @@ impl<T: Config> Pallet<T> {
             ensure!(project.is_none(), Error::<T>::ProjectAlreadyExists);
 
             // the total supply of project must match the supply of all batches
-            let batch_total_supply =
-                params
-                    .batches
-                    .iter()
-                    .fold(Zero::zero(), |mut sum: T::Balance, batch| {
-                        sum += batch.total_supply;
-                        sum
-                    });
+            let mut batch_total_supply = Zero::zero();
+            for batch in params.batches.iter() {
+                ensure!(
+                    batch.total_supply > Zero::zero(),
+                    Error::<T>::CannotCreateProjectWithoutCredits
+                );
+                batch_total_supply += batch.total_supply
+            }
 
             ensure!(
                 batch_total_supply > Zero::zero(),
@@ -178,14 +178,14 @@ impl<T: Config> Pallet<T> {
             ensure!(!params.unit_price.is_zero(), Error::<T>::UnitPriceIsZero);
 
             // the total supply of project must match the supply of all batches
-            let batch_total_supply =
-                params
-                    .batches
-                    .iter()
-                    .fold(Zero::zero(), |mut sum: T::Balance, batch| {
-                        sum += batch.total_supply;
-                        sum
-                    });
+            let mut batch_total_supply = Zero::zero();
+            for batch in params.batches.iter() {
+                ensure!(
+                    batch.total_supply > Zero::zero(),
+                    Error::<T>::CannotCreateProjectWithoutCredits
+                );
+                batch_total_supply += batch.total_supply
+            }
 
             ensure!(
                 batch_total_supply > Zero::zero(),
@@ -286,9 +286,7 @@ impl<T: Config> Pallet<T> {
                 Error::<T>::AmountGreaterThanSupply
             );
 
-            project.batches = batch_list
-                .try_into()
-                .map_err(|_| Error::<T>::Overflow)?;
+            project.batches = batch_list.try_into().map_err(|_| Error::<T>::Overflow)?;
 
             // increase the minted count
             project.minted = project
@@ -401,9 +399,7 @@ impl<T: Config> Pallet<T> {
                 Error::<T>::AmountGreaterThanSupply
             );
 
-            project.batches = batch_list
-                .try_into()
-                .map_err(|_| Error::<T>::Overflow)?;
+            project.batches = batch_list.try_into().map_err(|_| Error::<T>::Overflow)?;
 
             // Get the item-id of the NFT to mint
             let maybe_item_id = NextItemId::<T>::get(&project_id);

@@ -351,6 +351,50 @@ fn create_works_for_multiple_batch() {
 }
 
 #[test]
+fn create_fails_for_multiple_batch_with_single_batch_supply_zero() {
+    new_test_ext().execute_with(|| {
+        let originator_account = 1;
+        let project_id = 1001;
+
+        let mut creation_params = get_default_creation_params::<Test>();
+        // replace the default with mutiple batches
+        creation_params.batches = vec![
+            Batch {
+                name: "batch_name".as_bytes().to_vec().try_into().unwrap(),
+                uuid: "batch_uuid".as_bytes().to_vec().try_into().unwrap(),
+                issuance_year: 2020_u16,
+                start_date: 2020_u16,
+                end_date: 2020_u16,
+                total_supply: 0_u32.into(), // this should be rejected
+                minted: 0_u32.into(),
+                retired: 0_u32.into(),
+            },
+            Batch {
+                name: "batch_name_2".as_bytes().to_vec().try_into().unwrap(),
+                uuid: "batch_uuid_2".as_bytes().to_vec().try_into().unwrap(),
+                issuance_year: 2021_u16,
+                start_date: 2021_u16,
+                end_date: 2021_u16,
+                total_supply: 100_u32.into(),
+                minted: 0_u32.into(),
+                retired: 0_u32.into(),
+            },
+        ]
+        .try_into()
+        .unwrap();
+
+        assert_noop!(
+            VCU::create(
+                RawOrigin::Signed(originator_account).into(),
+                project_id,
+                creation_params.clone()
+            ),
+            Error::<Test>::CannotCreateProjectWithoutCredits
+        );
+    });
+}
+
+#[test]
 fn resubmit_works() {
     new_test_ext().execute_with(|| {
         let originator_account = 1;
