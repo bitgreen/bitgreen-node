@@ -54,7 +54,7 @@ pub mod pallet {
         transactional, PalletId,
     };
     use frame_system::pallet_prelude::*;
-    use sp_runtime::traits::{AccountIdConversion, Zero};
+    use sp_runtime::traits::{AccountIdConversion, CheckedAdd, CheckedSub, Zero};
     use sp_std::convert::{TryFrom, TryInto};
 
     #[pallet::config]
@@ -157,6 +157,8 @@ pub mod pallet {
         UnexpectedOverflow,
         /// Cannot determine Credit issuance year
         ProjectIssuanceYearError,
+        /// Invalid deposit amount
+        InvalidAmount,
     }
 
     #[pallet::call]
@@ -173,11 +175,12 @@ pub mod pallet {
         pub fn create(
             origin: OriginFor<T>,
             id: T::PoolId,
+            admin: T::AccountId,
             config: PoolConfigOf<T>,
             max_limit: Option<u32>,
             asset_symbol: SymbolStringOf<T>,
         ) -> DispatchResultWithPostInfo {
-            let who = ensure_signed(origin)?;
+            <T as pallet::Config>::ForceOrigin::ensure_origin(origin)?;
 
             ensure!(
                 id >= T::MinPoolId::get(),
@@ -202,7 +205,7 @@ pub mod pallet {
             <Pools<T>>::insert(
                 id,
                 Pool {
-                    admin: who.clone(),
+                    admin: admin.clone(),
                     config: config.clone(),
                     max_limit: actual_max_limit,
                     credits: Default::default(),
@@ -227,11 +230,7 @@ pub mod pallet {
             )?;
 
             // Emit an event.
-            Self::deposit_event(Event::PoolCreated {
-                admin: who,
-                id,
-                config,
-            });
+            Self::deposit_event(Event::PoolCreated { admin, id, config });
 
             Ok(().into())
         }
@@ -251,6 +250,8 @@ pub mod pallet {
             amount: T::Balance,
         ) -> DispatchResultWithPostInfo {
             let who = ensure_signed(origin)?;
+
+            ensure!(!amount.is_zero(), Error::<T>::InvalidAmount);
 
             Pools::<T>::try_mutate(pool_id, |pool| -> DispatchResultWithPostInfo {
                 let pool = pool.as_mut().ok_or(Error::<T>::InvalidPoolId)?;
@@ -292,7 +293,7 @@ pub mod pallet {
                     &who,
                     &Self::account_id(),
                     amount,
-                    true,
+                    false,
                 )?;
 
                 // add the project to the credits pool
@@ -305,7 +306,9 @@ pub mod pallet {
                     // If the project tokens have been previoulsy deposited to the
                     // pool, increment the counter
                     if let Some(existing_amount) = project_details {
-                        let new_amount = *existing_amount + amount;
+                        let new_amount = existing_amount
+                            .checked_add(&amount)
+                            .ok_or(Error::<T>::UnexpectedOverflow)?;
                         project_map
                             .try_insert(project_id, new_amount)
                             .map_err(|_| Error::<T>::UnexpectedOverflow)?;
@@ -360,6 +363,8 @@ pub mod pallet {
         ) -> DispatchResultWithPostInfo {
             let who = ensure_signed(origin)?;
 
+            ensure!(!amount.is_zero(), Error::<T>::InvalidAmount);
+
             Pools::<T>::try_mutate(pool_id, |pool| -> DispatchResultWithPostInfo {
                 let pool = pool.as_mut().ok_or(Error::<T>::InvalidPoolId)?;
 
@@ -381,7 +386,9 @@ pub mod pallet {
 
                         if remaining <= *available_amount {
                             actual = remaining;
-                            *available_amount -= actual;
+                            *available_amount = available_amount
+                                .checked_sub(&actual)
+                                .ok_or(Error::<T>::UnexpectedOverflow)?;
                         } else {
                             actual = *available_amount;
                             *available_amount = 0_u32.into();
@@ -393,7 +400,7 @@ pub mod pallet {
                             &Self::account_id(),
                             &who,
                             actual,
-                            true,
+                            false,
                         )?;
                         // Retire the transferred tokens
                         pallet_vcu::Pallet::<T>::retire_vcus(who.clone(), *project_id, actual)?;
@@ -405,7 +412,9 @@ pub mod pallet {
                             .map_err(|_| Error::<T>::UnexpectedOverflow)?;
 
                         // this is safe since actual is <= remaining
-                        remaining -= actual;
+                        remaining = remaining
+                            .checked_sub(&actual)
+                            .ok_or(Error::<T>::UnexpectedOverflow)?;
                         if remaining <= Zero::zero() {
                             break;
                         }

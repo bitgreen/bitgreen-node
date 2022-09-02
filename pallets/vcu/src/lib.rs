@@ -61,7 +61,7 @@ pub mod pallet {
     use frame_support::{
         pallet_prelude::*,
         traits::{
-            tokens::fungibles::{metadata::Mutate as MetadataMutate, Create, Mutate},
+            tokens::fungibles::{metadata::Mutate as MetadataMutate, Create, Destroy, Mutate},
             tokens::nonfungibles::{Create as NFTCreate, Mutate as NFTMutate},
             Contains,
         },
@@ -122,6 +122,7 @@ pub mod pallet {
         // Asset manager config
         type AssetHandler: Create<Self::AccountId, AssetId = Self::AssetId, Balance = Self::Balance>
             + Mutate<Self::AccountId>
+            + Destroy<Self::AccountId>
             + MetadataMutate<Self::AccountId>;
 
         // NFT handler config
@@ -211,7 +212,13 @@ pub mod pallet {
             /// The details of the created project
             details: ProjectDetail<T>,
         },
+        /// Project has been approved
         ProjectApproved {
+            /// The T::AssetId of the approved project
+            project_id: T::AssetId,
+        },
+        /// Project has been rejected
+        ProjectRejected {
             /// The T::AssetId of the approved project
             project_id: T::AssetId,
         },
@@ -454,6 +461,22 @@ pub mod pallet {
             Self::create_project(sender.clone(), project_id, params)?;
             Self::do_approve_project(project_id, true)?;
             Self::mint_vcus(sender, project_id, amount_to_mint, list_to_marketplace)?;
+            Ok(())
+        }
+
+        /// Force remove an project asset from storage, can be used by ForceOrigin to remove unapproved projects
+        /// Can only be called by ForceOrigin
+        #[transactional]
+        #[pallet::weight(T::WeightInfo::force_set_project_storage())]
+        pub fn force_remove_project(
+            origin: OriginFor<T>,
+            project_id: T::AssetId,
+        ) -> DispatchResult {
+            T::ForceOrigin::ensure_origin(origin)?;
+            let destroy_witness = T::AssetHandler::get_destroy_witness(&project_id)
+                .ok_or(Error::<T>::ProjectNotFound)?;
+            T::AssetHandler::destroy(project_id, destroy_witness, None)?;
+            Projects::<T>::take(project_id);
             Ok(())
         }
     }

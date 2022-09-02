@@ -45,9 +45,9 @@ fn get_default_batch_group<T: Config>() -> BatchGroupOf<T> {
     let batches: BatchGroupOf<T> = vec![Batch {
         name: "batch_name".as_bytes().to_vec().try_into().unwrap(),
         uuid: "batch_uuid".as_bytes().to_vec().try_into().unwrap(),
-        issuance_year: 2020_u32,
-        start_date: 2020_u32,
-        end_date: 2020_u32,
+        issuance_year: 2020_u16,
+        start_date: 2020_u16,
+        end_date: 2020_u16,
         total_supply: 100_u32.into(),
         minted: 0_u32.into(),
         retired: 0_u32.into(),
@@ -64,9 +64,9 @@ fn get_multiple_batch_group<T: Config>() -> BatchGroupOf<T> {
         Batch {
             name: "batch_name_2".as_bytes().to_vec().try_into().unwrap(),
             uuid: "batch_uuid_2".as_bytes().to_vec().try_into().unwrap(),
-            issuance_year: 2021_u32,
-            start_date: 2021_u32,
-            end_date: 2021_u32,
+            issuance_year: 2021_u16,
+            start_date: 2021_u16,
+            end_date: 2021_u16,
             total_supply: 100_u32.into(),
             minted: 0_u32.into(),
             retired: 0_u32.into(),
@@ -74,9 +74,9 @@ fn get_multiple_batch_group<T: Config>() -> BatchGroupOf<T> {
         Batch {
             name: "batch_name".as_bytes().to_vec().try_into().unwrap(),
             uuid: "batch_uuid".as_bytes().to_vec().try_into().unwrap(),
-            issuance_year: 2020_u32,
-            start_date: 2020_u32,
-            end_date: 2020_u32,
+            issuance_year: 2020_u16,
+            start_date: 2020_u16,
+            end_date: 2020_u16,
             total_supply: 100_u32.into(),
             minted: 0_u32.into(),
             retired: 0_u32.into(),
@@ -166,8 +166,9 @@ fn test_cannot_create_pools_below_min_id() {
     new_test_ext().execute_with(|| {
         assert_noop!(
             VCUPools::create(
-                RawOrigin::Signed(1).into(),
+                RawOrigin::Root.into(),
                 10,
+                1,
                 Default::default(),
                 None,
                 "pool_xyz".as_bytes().to_vec().try_into().unwrap(),
@@ -184,8 +185,9 @@ fn create_new_pools() {
         let project_id = 10_000;
 
         assert_ok!(VCUPools::create(
-            RawOrigin::Signed(authorised_account_one).into(),
+            RawOrigin::Root.into(),
             project_id,
+            authorised_account_one,
             Default::default(),
             None,
             "pool_xyz".as_bytes().to_vec().try_into().unwrap(),
@@ -210,8 +212,9 @@ fn create_new_pools() {
 
         assert_noop!(
             VCUPools::create(
-                RawOrigin::Signed(authorised_account_one).into(),
+                RawOrigin::Root.into(),
                 10_000,
+                authorised_account_one,
                 Default::default(),
                 None,
                 "pool_xyz".as_bytes().to_vec().try_into().unwrap(),
@@ -231,8 +234,9 @@ fn deposit_works() {
         let project_tokens_to_deposit = 99;
 
         assert_ok!(VCUPools::create(
-            RawOrigin::Signed(authorised_account_one).into(),
+            RawOrigin::Root.into(),
             pool_id,
+            authorised_account_one,
             Default::default(),
             None,
             "pool_xyz".as_bytes().to_vec().try_into().unwrap(),
@@ -243,6 +247,16 @@ fn deposit_works() {
             authorised_account_one,
             project_tokens_to_mint,
             false,
+        );
+
+        assert_noop!(
+            VCUPools::deposit(
+                RawOrigin::Signed(authorised_account_one).into(),
+                pool_id,
+                project_id,
+                0
+            ),
+            Error::<Test>::InvalidAmount
         );
 
         // deposit to pool should work
@@ -299,8 +313,9 @@ fn deposit_works_for_batch_vcus() {
         let project_tokens_to_deposit = 99;
 
         assert_ok!(VCUPools::create(
-            RawOrigin::Signed(authorised_account_one).into(),
+            RawOrigin::Root.into(),
             pool_id,
+            authorised_account_one,
             Default::default(),
             None,
             "pool_xyz".as_bytes().to_vec().try_into().unwrap(),
@@ -367,8 +382,9 @@ fn retire_works() {
         let project_tokens_to_deposit = 99;
 
         assert_ok!(VCUPools::create(
-            RawOrigin::Signed(authorised_account_one).into(),
+            RawOrigin::Root.into(),
             pool_id,
+            authorised_account_one,
             Default::default(),
             None,
             "pool_xyz".as_bytes().to_vec().try_into().unwrap(),
@@ -414,6 +430,11 @@ fn retire_works() {
                 10_000
             ),
             pallet_assets::Error::<Test>::BalanceLow
+        );
+
+        assert_noop!(
+            VCUPools::retire(RawOrigin::Signed(authorised_account_one).into(), pool_id, 0),
+            Error::<Test>::InvalidAmount
         );
 
         // retire should work
