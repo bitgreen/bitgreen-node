@@ -166,8 +166,9 @@ fn test_cannot_create_pools_below_min_id() {
     new_test_ext().execute_with(|| {
         assert_noop!(
             VCUPools::create(
-                RawOrigin::Signed(1).into(),
+                RawOrigin::Root.into(),
                 10,
+                1,
                 Default::default(),
                 None,
                 "pool_xyz".as_bytes().to_vec().try_into().unwrap(),
@@ -184,8 +185,9 @@ fn create_new_pools() {
         let project_id = 10_000;
 
         assert_ok!(VCUPools::create(
-            RawOrigin::Signed(authorised_account_one).into(),
+            RawOrigin::Root.into(),
             project_id,
+            authorised_account_one,
             Default::default(),
             None,
             "pool_xyz".as_bytes().to_vec().try_into().unwrap(),
@@ -210,8 +212,9 @@ fn create_new_pools() {
 
         assert_noop!(
             VCUPools::create(
-                RawOrigin::Signed(authorised_account_one).into(),
+                RawOrigin::Root.into(),
                 10_000,
+                authorised_account_one,
                 Default::default(),
                 None,
                 "pool_xyz".as_bytes().to_vec().try_into().unwrap(),
@@ -231,8 +234,9 @@ fn deposit_works() {
         let project_tokens_to_deposit = 99;
 
         assert_ok!(VCUPools::create(
-            RawOrigin::Signed(authorised_account_one).into(),
+            RawOrigin::Root.into(),
             pool_id,
+            authorised_account_one,
             Default::default(),
             None,
             "pool_xyz".as_bytes().to_vec().try_into().unwrap(),
@@ -309,8 +313,9 @@ fn deposit_works_for_batch_vcus() {
         let project_tokens_to_deposit = 99;
 
         assert_ok!(VCUPools::create(
-            RawOrigin::Signed(authorised_account_one).into(),
+            RawOrigin::Root.into(),
             pool_id,
+            authorised_account_one,
             Default::default(),
             None,
             "pool_xyz".as_bytes().to_vec().try_into().unwrap(),
@@ -377,8 +382,9 @@ fn retire_works() {
         let project_tokens_to_deposit = 99;
 
         assert_ok!(VCUPools::create(
-            RawOrigin::Signed(authorised_account_one).into(),
+            RawOrigin::Root.into(),
             pool_id,
+            authorised_account_one,
             Default::default(),
             None,
             "pool_xyz".as_bytes().to_vec().try_into().unwrap(),

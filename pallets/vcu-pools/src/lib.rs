@@ -175,11 +175,12 @@ pub mod pallet {
         pub fn create(
             origin: OriginFor<T>,
             id: T::PoolId,
+            admin: T::AccountId,
             config: PoolConfigOf<T>,
             max_limit: Option<u32>,
             asset_symbol: SymbolStringOf<T>,
         ) -> DispatchResultWithPostInfo {
-            let who = ensure_signed(origin)?;
+            <T as pallet::Config>::ForceOrigin::ensure_origin(origin)?;
 
             ensure!(
                 id >= T::MinPoolId::get(),
@@ -204,7 +205,7 @@ pub mod pallet {
             <Pools<T>>::insert(
                 id,
                 Pool {
-                    admin: who.clone(),
+                    admin: admin.clone(),
                     config: config.clone(),
                     max_limit: actual_max_limit,
                     credits: Default::default(),
@@ -229,11 +230,7 @@ pub mod pallet {
             )?;
 
             // Emit an event.
-            Self::deposit_event(Event::PoolCreated {
-                admin: who,
-                id,
-                config,
-            });
+            Self::deposit_event(Event::PoolCreated { admin, id, config });
 
             Ok(().into())
         }
