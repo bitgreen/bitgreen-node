@@ -82,3 +82,21 @@ jobs:
       - name: Cargo build release
         run: |
           cargo build --release
+
+      - name: copy file via ssh password
+        uses: appleboy/scp-action@master
+        with:
+          host: ${{ secrets.SSH_IP }}
+          username: root
+          key: ${{ secrets.SSH_PRIV }}
+          source: "target/release/bitg-parachain"
+          target: "bitg-parachain"
+      - name: ssh and start
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.SSH_IP }}
+          username: root
+          key: ${{ secrets.SSH_PRIV }}
+          source: "target/release/bitg-parachain"
+          target: "bitg-parachain"
+          script: ls && sudo apt install supervisor
