@@ -59,8 +59,11 @@ impl<T: Config> Pallet<T> {
             project.approved = is_approved;
 
             // emit event
-            // TODO : Emit rejected event if rejected?
-            Self::deposit_event(Event::ProjectApproved { project_id });
+            if is_approved {
+                Self::deposit_event(Event::ProjectApproved { project_id });
+            } else {
+                Self::deposit_event(Event::ProjectRejected { project_id });
+            }
 
             Ok(())
         })

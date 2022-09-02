@@ -1344,3 +1344,48 @@ fn force_approve_and_mint_vcu_works() {
         assert_eq!(stored_data.approved, true);
     });
 }
+
+#[test]
+fn cleanup_after_project_reject_works() {
+    new_test_ext().execute_with(|| {
+        let originator_account = 1;
+        let authorised_account = 10;
+        let project_id = 1001;
+
+        // authorise the account
+        assert_ok!(VCU::force_add_authorized_account(
+            RawOrigin::Root.into(),
+            authorised_account
+        ));
+
+        // create the project to approve
+        let creation_params = get_default_creation_params::<Test>();
+        assert_ok!(VCU::create(
+            RawOrigin::Signed(originator_account).into(),
+            project_id,
+            creation_params.clone()
+        ));
+
+        // reject the project
+        assert_ok!(VCU::approve_project(
+            RawOrigin::Signed(authorised_account).into(),
+            project_id,
+            false
+        ),);
+
+        assert_eq!(
+            last_event(),
+            VCUEvent::ProjectRejected { project_id }.into()
+        );
+
+        // remove the project from storage
+        assert_ok!(VCU::force_remove_project(
+            RawOrigin::Root.into(),
+            project_id,
+        ),);
+
+        // ensure storage is cleaned
+        assert_eq!(VCU::get_project_details(project_id), None);
+        assert_eq!(Assets::total_issuance(project_id), 0);
+    });
+}
