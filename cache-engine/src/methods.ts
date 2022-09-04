@@ -287,7 +287,7 @@ export async function processBlock(api: ApiPromise, block_number: BlockNumber | 
 								}
 							} catch (e) {
 								// @ts-ignore
-								console.log(`Error occurred: ${e.message}`);
+								console.log(`Error occurred (creating project): ${e.message}`);
 							}
 						}
 
@@ -315,7 +315,7 @@ export async function processBlock(api: ApiPromise, block_number: BlockNumber | 
 								});
 							} catch (e) {
 								// @ts-ignore
-								console.log(`Error occurred: ${e.message}`);
+								console.log(`Error occurred (approving project): ${e.message}`);
 							}
 						}
 
@@ -347,7 +347,7 @@ export async function processBlock(api: ApiPromise, block_number: BlockNumber | 
 									});
 								} catch (e) {
 									// @ts-ignore
-									console.log(`Error occurred: ${e.message}`);
+									console.log(`Error occurred (minting carbon credit): ${e.message}`);
 								}
 							}
 						}
@@ -377,7 +377,7 @@ export async function processBlock(api: ApiPromise, block_number: BlockNumber | 
 								});
 							} catch (e) {
 								// @ts-ignore
-								console.log(`Error occurred: ${e.message}`);
+								console.log(`Error occurred (creating asset): ${e.message}`);
 							}
 						}
 
@@ -420,7 +420,7 @@ export async function processBlock(api: ApiPromise, block_number: BlockNumber | 
 								});
 							} catch (e) {
 								// @ts-ignore
-								console.log(`Error occurred: ${e.message}`);
+								console.log(`Error occurred (updating metadata): ${e.message}`);
 							}
 						}
 
@@ -456,7 +456,7 @@ export async function processBlock(api: ApiPromise, block_number: BlockNumber | 
 								});
 							} catch (e) {
 								// @ts-ignore
-								console.log(`Error occurred: ${e.message}`);
+								console.log(`Error occurred (asset transfered): ${e.message}`);
 							}
 						}
 					}
@@ -496,7 +496,7 @@ export async function processBlock(api: ApiPromise, block_number: BlockNumber | 
 								});
 							} catch (e) {
 								// @ts-ignore
-								console.log(`Error occurred: ${e.message}`);
+								console.log(`Error occurred (adding transaction): ${e.message}`);
 							}
 						}
 					}
@@ -515,7 +515,7 @@ export async function processBlock(api: ApiPromise, block_number: BlockNumber | 
 		});
 	} catch (e) {
 		// @ts-ignore
-		console.log(`Error occurred: ${e.message}`);
+		console.log(`Error occurred (storing block): ${e.message}`);
 	}
 
 	console.log("-----------------------------------------------------");
