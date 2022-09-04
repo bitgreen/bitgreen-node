@@ -506,8 +506,13 @@ export async function processBlock(api: ApiPromise, block_number: BlockNumber | 
 
 	// store block in db
 	try {
-		await prisma.blocks.create({
-			data: {
+		await prisma.blocks.upsert({
+			where: {
+				number: block_number as number,
+			},
+			update: {
+			},
+			create: {
 				number: block_number as number,
 				hash: block_hash.toHex() as string,
 				created_at: new Date(current_time).toISOString(),
