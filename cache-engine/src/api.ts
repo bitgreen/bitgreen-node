@@ -55,6 +55,48 @@ const mainLoop = async () => {
 
 	// app.get('/analyze-data', db.getAnalyzeData)
 
+	app.get("/carbon-credits/owned", async (req: Request, res: Response) => {
+		const { address } = req.query;
+
+		if (typeof address !== "string") {
+			res.status(400).json({ error: "Invalid address" });
+			return;
+		}
+
+		const received = await prisma.asset_transactions.groupBy({
+			by: ["recipient", "asset_id"],
+			where: {
+				recipient: address,
+			},
+			_sum: {
+				amount: true,
+			},
+		});
+
+		const sent = await prisma.asset_transactions.groupBy({
+			by: ["sender", "asset_id"],
+			where: {
+				sender: address,
+			},
+			_sum: {
+				amount: true,
+			},
+		});
+
+		const owned = received
+			.map((r) => {
+				const s = sent.find((s) => s.asset_id === r.asset_id);
+
+				return {
+					asset_id: r.asset_id,
+					amount: (r?._sum?.amount ?? 0) - (s?._sum?.amount ?? 0),
+				};
+			})
+			.filter((o) => o.amount > 0);
+
+		res.json({owned});
+	});
+
 	app.get("/carbon-credits/projects", async (req: Request, res: Response) => {
 		const { originator = undefined } = req.query;
 
