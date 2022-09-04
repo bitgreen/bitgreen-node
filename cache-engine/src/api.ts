@@ -56,10 +56,16 @@ const mainLoop = async () => {
 	// app.get('/analyze-data', db.getAnalyzeData)
 
 	app.get("/carbon-credits/owned", async (req: Request, res: Response) => {
-		const { address } = req.query;
+		const address = req.query.address;
+		const asset_id = Number(req.query.asset_id);
 
 		if (typeof address !== "string") {
 			res.status(400).json({ error: "Invalid address" });
+			return;
+		}
+
+		if (req.query.asset_id !== undefined && isNaN(asset_id)) {
+			res.status(400).json({ error: "Invalid asset ID" });
 			return;
 		}
 
@@ -67,6 +73,7 @@ const mainLoop = async () => {
 			by: ["recipient", "asset_id"],
 			where: {
 				recipient: address,
+				...asset_id && {asset_id: asset_id},
 			},
 			_sum: {
 				amount: true,
@@ -77,6 +84,7 @@ const mainLoop = async () => {
 			by: ["sender", "asset_id"],
 			where: {
 				sender: address,
+				...asset_id && {asset_id: asset_id},
 			},
 			_sum: {
 				amount: true,
