@@ -91,9 +91,9 @@ export async function processBlock(api: ApiPromise, block_number: BlockNumber | 
 		return false;
 	}
 
-	const current_time: string | number | Date = Number(
-		signed_block.block.extrinsics.at(0)?.args.at(0)?.toString()
-	);
+	// Assume that block just got created.
+	// TODO: estimate block time from block number.
+	const block_date = new Date();
 
 	// parse block
 	signed_block.block.extrinsics.map(async (ex: Extrinsic, index: number) => {
@@ -281,7 +281,7 @@ export async function processBlock(api: ApiPromise, block_number: BlockNumber | 
 												create: videos,
 											},
 
-											created_at: new Date(current_time).toISOString(),
+											created_at: block_date.toISOString(),
 										},
 									});
 								}
@@ -310,7 +310,7 @@ export async function processBlock(api: ApiPromise, block_number: BlockNumber | 
 									},
 									data: {
 										approved: is_approved,
-										updated_at: new Date(current_time).toISOString(),
+										updated_at: block_date.toISOString(),
 									},
 								});
 							} catch (e) {
@@ -342,7 +342,7 @@ export async function processBlock(api: ApiPromise, block_number: BlockNumber | 
 										},
 										data: {
 											asset_id: new_asset_id,
-											updated_at: new Date(current_time).toISOString(),
+											updated_at: block_date.toISOString(),
 										},
 									});
 								} catch (e) {
@@ -372,7 +372,7 @@ export async function processBlock(api: ApiPromise, block_number: BlockNumber | 
 										block_number: block_number as number,
 										hash: hash as string,
 										owner: owner as string,
-										created_at: new Date(current_time).toISOString(),
+										created_at: block_date.toISOString(),
 									},
 								});
 							} catch (e) {
@@ -415,7 +415,7 @@ export async function processBlock(api: ApiPromise, block_number: BlockNumber | 
 										symbol: hexToString(symbol),
 										decimals: decimals as number,
 										is_frozen: is_frozen as boolean,
-										updated_at: new Date(current_time).toISOString(),
+										updated_at: block_date.toISOString(),
 									},
 								});
 							} catch (e) {
@@ -451,7 +451,7 @@ export async function processBlock(api: ApiPromise, block_number: BlockNumber | 
 										recipient: recipient as string,
 										amount: amount as number,
 										asset_id: asset_id as number,
-										created_at: new Date(current_time).toISOString(),
+										created_at: block_date.toISOString(),
 									},
 								});
 							} catch (e) {
@@ -491,7 +491,7 @@ export async function processBlock(api: ApiPromise, block_number: BlockNumber | 
 										recipient: recipient as string,
 										sender: sender as string,
 										amount: amount as number,
-										created_at: new Date(current_time).toISOString(),
+										created_at: block_date.toISOString(),
 									},
 								});
 							} catch (e) {
@@ -510,7 +510,7 @@ export async function processBlock(api: ApiPromise, block_number: BlockNumber | 
 			data: {
 				number: block_number as number,
 				hash: block_hash.toHex() as string,
-				created_at: new Date(current_time).toISOString(),
+				created_at: block_date.toISOString(),
 			},
 		});
 	} catch (e) {
