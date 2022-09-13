@@ -83,7 +83,15 @@ jobs:
         run: |
           cargo build --release
 
-      - name: copy file via ssh password
+      - name: Checkout polkadot
+        uses: actions/checkout@v3
+        with:
+          name: paritytech/polkadot
+      
+      - name: build polkadot
+        run: cd polkadot && cargo build --release && cd..
+
+      - name: copy file via scp
         uses: appleboy/scp-action@master
         with:
           host: ${{ secrets.SSH_IP }}
@@ -91,6 +99,16 @@ jobs:
           key: ${{ secrets.SSH_PRIV }}
           source: "target/release/bitg-parachain"
           target: "bitg-parachain"
+      - name: copy polkadot via scp
+        uses: appleboy/scp-action@master
+        with:
+          host: ${{ secrets.SSH_IP }}
+          username: root
+          key: ${{ secrets.SSH_PRIV }}
+          source: "polkadot/target/release/bitg-parachain"
+          target: "polkadot"
+      - name: ssh and generate config
+        run: polkadot build-spec --chain rococo-local --disable-default-bootnode --raw > rococo-local-cfde.json
       - name: ssh and start
         uses: appleboy/ssh-action@master
         with:
