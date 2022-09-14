@@ -35,7 +35,7 @@ jobs:
           cache-on-failure: true
 
       - name: Set-Up
-        run: sudo apt install -y cmake pkg-config libssl-dev git build-essential clang libclang-dev curl
+        run: sudo apt install -y cmake pkg-config libssl-dev git build-essential clang libclang-dev curl 
 
       - name: Install toolchain
         uses: actions-rs/toolchain@v1
@@ -55,11 +55,18 @@ jobs:
           target: x86_64-unknown-linux-gnu
           default: true
       
+      - name: Checkout Polkadot
+        uses: actions/checkout@v3
+        with:
+          repository: paritytech/polkadot
+          ref: "v0.9.26"
+          path: "polkadot"
       - name: build polkadot
-        run: cargo install --git https://github.com/paritytech/polkadot --tag v0.9.26 polkadot --locked 
+        run: cd polkadot && ./scripts/init.sh && cargo build --release
 
       - name: List polkadot install
-        run: ls && cd ..
+        run: ls
+
       - name: Cargo format
         run: pwd && cargo fmt --all -- --check
 
