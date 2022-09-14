@@ -107,11 +107,6 @@ jobs:
           rustup component add clippy --toolchain nightly-2022-05-15-x86_64-unknown-linux-gnu
           cargo clippy --all-targets --workspace -- --deny warnings
 
-      - name: Cargo test
-        run: cargo test
-
-      - name: Check check benchmarking
-        run: cargo check --features=runtime-benchmarks --release        
   test:
     # The type of runner that the job will run on
     runs-on: ubuntu-latest
