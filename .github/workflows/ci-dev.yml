@@ -52,6 +52,10 @@ jobs:
     runs-on: ubuntu-latest
     needs: [setup]
     steps:
+      - name: Rust Cache
+        uses: Swatinem/rust-cache@v2.0.0
+        with:
+          cache-on-failure: true    
       - name: Checkout Polkadot
         uses: actions/checkout@v3
         with:
@@ -72,6 +76,10 @@ jobs:
       group: ${{ github.head_ref || github.run_id }}
       cancel-in-progress: true
     steps:
+      - name: Rust Cache
+        uses: Swatinem/rust-cache@v2.0.0
+        with:
+          cache-on-failure: true    
       - name: Cargo format
         run: pwd && cargo fmt --all -- --check
 
@@ -93,6 +101,10 @@ jobs:
     runs-on: ubuntu-latest
     needs: [setup]
     steps:
+      - name: Rust Cache
+        uses: Swatinem/rust-cache@v2.0.0
+        with:
+          cache-on-failure: true    
       # Run cargo build release on github runner and cache it for next run to speed up the builds
       - name: Cargo build release
         run: |
