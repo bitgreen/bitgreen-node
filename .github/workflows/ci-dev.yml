@@ -78,6 +78,14 @@ jobs:
         uses: Swatinem/rust-cache@v2.0.0
         with:
           cache-on-failure: true 
+      - name: Install toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: nightly-2022-05-15
+          components: rustfmt
+          target: wasm32-unknown-unknown
+          default: true          
       - name: Install toolchain x86
         uses: actions-rs/toolchain@v1
         with:
@@ -117,6 +125,14 @@ jobs:
         uses: Swatinem/rust-cache@v2.0.0
         with:
           cache-on-failure: true 
+      - name: Install toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: nightly-2022-05-15
+          components: rustfmt
+          target: wasm32-unknown-unknown
+          default: true          
       - name: Install toolchain x86
         uses: actions-rs/toolchain@v1
         with:
@@ -144,6 +160,14 @@ jobs:
         uses: Swatinem/rust-cache@v2.0.0
         with:
           cache-on-failure: true 
+      - name: Install toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: nightly-2022-05-15
+          components: rustfmt
+          target: wasm32-unknown-unknown
+          default: true
       - name: Install toolchain x86
         uses: actions-rs/toolchain@v1
         with:
@@ -167,7 +191,15 @@ jobs:
       - name: Rust Cache
         uses: Swatinem/rust-cache@v2.0.0
         with:
-          cache-on-failure: true    
+          cache-on-failure: true 
+      - name: Install toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: nightly-2022-05-15
+          components: rustfmt
+          target: wasm32-unknown-unknown
+          default: true   
       - name: Checkout code
         uses: actions/checkout@v3
       # Run cargo build release on github runner and cache it for next run to speed up the builds
