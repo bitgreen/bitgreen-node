@@ -80,6 +80,8 @@ jobs:
         uses: Swatinem/rust-cache@v2.0.0
         with:
           cache-on-failure: true    
+      - name: Checkout code
+        uses: actions/checkout@v3          
       - name: Cargo format
         run: pwd && cargo fmt --all -- --check
 
@@ -105,6 +107,8 @@ jobs:
         uses: Swatinem/rust-cache@v2.0.0
         with:
           cache-on-failure: true    
+      - name: Checkout code
+        uses: actions/checkout@v3
       # Run cargo build release on github runner and cache it for next run to speed up the builds
       - name: Cargo build release
         run: |
