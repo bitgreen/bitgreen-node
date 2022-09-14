@@ -34,17 +34,6 @@ jobs:
         with:
           cache-on-failure: true
 
-      - name: Cache restore
-        uses: actions/cache@v3.0.8
-        with:
-          path: |
-            ~/.cargo/bin/
-            ~/.cargo/registry/index/
-            ~/.cargo/registry/cache/
-            ~/.cargo/git/db/
-            target/
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-
       - name: Set-Up
         run: sudo apt install -y cmake pkg-config libssl-dev git build-essential clang libclang-dev curl
 
@@ -73,7 +62,8 @@ jobs:
           path: polkadot
       
       - name: build polkadot
-        run: cargo install --git https://github.com/paritytech/polkadot --tag v0.9.26 polkadot --locked
+        run: cd polkadot && bash ./scripts/init.sh && cargo build --release 
+
       - name: List polkadot install
         run: ls
       - name: Cargo format
