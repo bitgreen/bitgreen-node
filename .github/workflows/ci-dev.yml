@@ -73,7 +73,7 @@ jobs:
           path: polkadot
       
       - name: build polkadot
-        run: cargo install --git https://github.com/paritytech/polkadot --tag -v0.9.26 polkadot --locked
+        run: cargo install --git https://github.com/paritytech/polkadot --tag v0.9.26 polkadot --locked
       - name: List polkadot install
         run: ls
       - name: Cargo format
