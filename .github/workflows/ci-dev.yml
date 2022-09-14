@@ -29,6 +29,9 @@ jobs:
 
       - name: Checkout code
         uses: actions/checkout@v3
+      - name: Rust Cache
+        uses: Swatinem/rust-cache@v2.0.0
+
       - name: Cache restore
         uses: actions/cache@v3.0.8
         with:
