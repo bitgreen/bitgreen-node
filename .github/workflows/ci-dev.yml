@@ -20,14 +20,6 @@ jobs:
           remove-dotnet: 'true'
           remove-haskell: 'true'
           remove-android: 'true'
-
-      - name: Checkout code
-        uses: actions/checkout@v3
-      - name: Rust Cache
-        uses: Swatinem/rust-cache@v2.0.0
-        with:
-          cache-on-failure: true
-
       - name: Set-Up
         run: sudo apt install -y cmake pkg-config libssl-dev git build-essential clang libclang-dev curl 
 
