@@ -138,7 +138,7 @@ jobs:
     concurrency:
       group: ${{ github.head_ref || github.run_id }}
       cancel-in-progress: true
-    needs: [setup]
+    needs: [setup, check]
     steps:
       - name: Rust Cache
         uses: Swatinem/rust-cache@v2.0.0
