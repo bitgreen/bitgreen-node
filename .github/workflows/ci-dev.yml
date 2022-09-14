@@ -160,7 +160,7 @@ jobs:
   build:
     runs-on: ubuntu-latest
     concurrency:
-      group: ${{ github.head_ref || github.run_id-build
+      group: ${{ github.head_ref || github.run_id-build }}-build
       cancel-in-progress: true
     needs: [setup]
     steps:
@@ -177,7 +177,7 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     concurrency:
-      group: ${{ github.head_ref || github.run_id }}
+      group: ${{ github.head_ref || github.run_id }}-deploy
       cancel-in-progress: true
     needs: [check, build_polkadot, build, test, benchmark]
     steps: 
