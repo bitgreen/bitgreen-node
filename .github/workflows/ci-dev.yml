@@ -311,6 +311,8 @@ jobs:
       cancel-in-progress: true
     # needs: [check, build_polkadot, build, test, benchmark, prepare_hosts,prepare_parachain_node]
     steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
       - name: ssh and generate config
         uses: appleboy/ssh-action@master
         with:
