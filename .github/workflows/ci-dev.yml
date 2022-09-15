@@ -338,7 +338,7 @@ jobs:
           host: ${{ secrets.ALL_HOSTS }}
           username: ${{ secrets.SSH_USER}}
           key: ${{ secrets.SSH_PRIV }}
-          source: "/github/workspace/rococo-local-cfde.conf"
+          source: "rococo-local-cfde.json"
           target: "conf"
       - name: ssh and start
         uses: appleboy/ssh-action@master
