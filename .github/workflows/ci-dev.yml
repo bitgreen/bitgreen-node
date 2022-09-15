@@ -24,7 +24,7 @@ jobs:
           remove-haskell: 'true'
           remove-android: 'true'
       - name: Set-Up
-        run: sudo apt install -y cmake pkg-config libssl-dev git build-essential clang libclang-dev curl 
+        run: sudo apt install -y cmake pkg-config libssl-dev git build-essential clang libclang-dev curl
 
       - name: Install toolchain
         uses: actions-rs/toolchain@v1
@@ -53,7 +53,7 @@ jobs:
       - name: Rust Cache
         uses: Swatinem/rust-cache@v2.0.0
         with:
-          cache-on-failure: true    
+          cache-on-failure: true
           shared-key: polkadot
       - name: Checkout Polkadot
         uses: actions/checkout@v3
@@ -89,7 +89,7 @@ jobs:
       - name: Rust Cache
         uses: Swatinem/rust-cache@v2.0.0
         with:
-          cache-on-failure: true 
+          cache-on-failure: true
           shared-key: check
       - name: Install toolchain
         uses: actions-rs/toolchain@v1
@@ -98,7 +98,7 @@ jobs:
           toolchain: nightly-2022-05-15
           components: rustfmt
           target: wasm32-unknown-unknown
-          default: true          
+          default: true
       - name: Install toolchain x86
         uses: actions-rs/toolchain@v1
         with:
@@ -106,9 +106,9 @@ jobs:
           toolchain: nightly-2022-05-15
           components: rustfmt
           target: x86_64-unknown-linux-gnu
-          default: true             
+          default: true
       - name: Checkout code
-        uses: actions/checkout@v3          
+        uses: actions/checkout@v3
       - name: Cargo format
         run: pwd && cargo fmt --all -- --check
 
@@ -132,7 +132,7 @@ jobs:
       - name: Rust Cache
         uses: Swatinem/rust-cache@v2.0.0
         with:
-          cache-on-failure: true 
+          cache-on-failure: true
           shared-key: test
       - name: Install toolchain
         uses: actions-rs/toolchain@v1
@@ -141,7 +141,7 @@ jobs:
           toolchain: nightly-2022-05-15
           components: rustfmt
           target: wasm32-unknown-unknown
-          default: true          
+          default: true
       - name: Install toolchain x86
         uses: actions-rs/toolchain@v1
         with:
@@ -149,9 +149,9 @@ jobs:
           toolchain: nightly-2022-05-15
           components: rustfmt
           target: x86_64-unknown-linux-gnu
-          default: true             
+          default: true
       - name: Checkout code
-        uses: actions/checkout@v3          
+        uses: actions/checkout@v3
       - name: Cargo format
         run: pwd && cargo fmt --all -- --check
 
@@ -168,7 +168,7 @@ jobs:
       - name: Rust Cache
         uses: Swatinem/rust-cache@v2.0.0
         with:
-          cache-on-failure: true 
+          cache-on-failure: true
           shared-key: benchmark
       - name: Install toolchain
         uses: actions-rs/toolchain@v1
@@ -185,9 +185,9 @@ jobs:
           toolchain: nightly-2022-05-15
           components: rustfmt
           target: x86_64-unknown-linux-gnu
-          default: true             
+          default: true
       - name: Checkout code
-        uses: actions/checkout@v3          
+        uses: actions/checkout@v3
       - name: Check check benchmarking
         run: cargo check --features=runtime-benchmarks --release
 
@@ -201,7 +201,7 @@ jobs:
       - name: Rust Cache
         uses: Swatinem/rust-cache@v2.0.0
         with:
-          cache-on-failure: true 
+          cache-on-failure: true
           shared-key: build
       - name: Install toolchain
         uses: actions-rs/toolchain@v1
@@ -210,7 +210,7 @@ jobs:
           toolchain: nightly-2022-05-15
           components: rustfmt
           target: wasm32-unknown-unknown
-          default: true   
+          default: true
       - name: Checkout code
         uses: actions/checkout@v3
       # Run cargo build release on github runner and cache it for next run to speed up the builds
@@ -225,31 +225,118 @@ jobs:
           key: ${{ secrets.SSH_PRIV }}
           source: "target/release/bitg-parachain"
           target: "bitg-parachain"
+  prepare_hosts:
+    runs-on: ubuntu-latest
+    concurrency:
+      group: ${{ github.head_ref || github.run_id }}-deploy
+      cancel-in-progress: true
+    needs: [setup,test]
+    steps:
+      - name: Setup Supervisor
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.ALL_HOSTS }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIV }}
+          script: apt install -y supervisor
+  prepare_relay_nodes:
+    runs-on: ubuntu-latest
+    concurrency:
+      group: ${{ github.head_ref || github.run_id }}-deploy
+      cancel-in-progress: true
+    needs: [prepare_hosts]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      - name: relay alice supervisor conf
+        uses: appleboy/scp-action@master
+        with:
+          host: ${{ secrets.HOST_ALICE }}
+          username: root
+          key: ${{ secrets.SSH_PRIV }}
+          source: "scripts/supervisor/alice.conf"
+          target: "supervisor"
+      - name: relay bob supervisor conf
+        uses: appleboy/scp-action@master
+        with:
+          host: ${{ secrets.HOST_BOB }}
+          username: root
+          key: ${{ secrets.SSH_PRIV }}
+          source: "scripts/supervisor/bob.conf"
+          target: "supervisor"
+      - name: alice supervisor file copy
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.HOST_ALICE }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIV }}
+          script: cp supervisor/scripts/supervisor/alice.conf /etc/supervisor/conf.d/alice.conf
+      - name: bob supervisor file copy
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.HOST_BOB }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIV }}
+          script: cp supervisor/scripts/supervisor/bob.conf /etc/supervisor/conf.d/bob.conf
+
+  prepare_parachain_node:
+    runs-on: ubuntu-latest
+    concurrency:
+      group: ${{ github.head_ref || github.run_id }}-deploy
+      cancel-in-progress: true
+    needs: [prepare_hosts]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      - name: relay alice supervisor conf
+        uses: appleboy/scp-action@master
+        with:
+          host: ${{ secrets.PARACHAIN_HOST }}
+          username: root
+          key: ${{ secrets.SSH_PRIV }}
+          source: "scripts/supervisor/parachain.conf"
+          target: "supervisor"
+      - name: parachain supervisor file
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.PARACHAIN_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIV }}
+          script: cp supervisor/scripts/supervisor/parachain.conf /etc/supervisor/conf.d/parachain.conf
+
+
   deploy:
     runs-on: ubuntu-latest
     concurrency:
       group: ${{ github.head_ref || github.run_id }}-deploy
       cancel-in-progress: true
-    needs: [check, build_polkadot, build, test, benchmark]
-    steps: 
+    needs: [check, build_polkadot, build, test, benchmark, prepare_hosts,prepare_parachain_node]
+    steps:
       - name: ssh and generate config
         run:  ./polkadot/polkadot/target/release/polkadot  build-spec --chain rococo-local --disable-default-bootnode --raw > rococo-local-cfde.json
 
       - name: Install SSH Key
         uses: shimataro/ssh-key-action@v2
         with:
-          key: ${{ secrets.SSH_PRIV}} 
+          key: ${{ secrets.SSH_PRIV}}
           known_hosts: 'just-a-placeholder-so-we-dont-get-errors'
       - name: Adding Known Hosts
         run: ssh-keyscan -H ${{ secrets.SSH_IP }} >> ~/.ssh/known_hosts
       - name: Deploy with rsync
         run: rsync -avz ${{ secrets.SSH_USER }}@${{ secrets.SSH_IP }}:~/rococo-local-cfde.json rococo-local-cfde.json
+      - name: copy config
+        uses: appleboy/scp-action@master
+        with:
+          host: ${{ secrets.ALL_HOSTS }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIV }}
+          source: "rococo-local-cfde.conf"
+          target: "conf"
+
       - name: ssh and start
         uses: appleboy/ssh-action@master
         with:
-          host: ${{ secrets.SSH_IP }}
+          host: ${{ secrets.ALL_HOSTS }}
           username: root
           key: ${{ secrets.SSH_PRIV }}
-          source: "target/release/bitg-parachain"
-          target: "bitg-parachain"
-          script: ls && sudo apt install supervisor
+          script: cp ~/conf/rococo-local-cfde.conf ~/ && supervisorctl reload
