@@ -343,7 +343,7 @@ jobs:
       - name: ssh and start
         uses: appleboy/ssh-action@master
         with:
-          host: ${{ secrets.ALL_HOSTS }}
+          host: ${{ secrets.PARACHAIN_HOST }}
           username: ${{ secrets.SSH_USER}}
           key: ${{ secrets.SSH_PRIV }}
           script: cp ~/conf/rococo-local-cfde.conf ~/ && supervisorctl reload
