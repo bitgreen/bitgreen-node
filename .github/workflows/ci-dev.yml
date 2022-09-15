@@ -336,7 +336,7 @@ jobs:
           host: ${{ secrets.ALL_HOSTS }}
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_PRIV }}
-          source: "rococo-local-cfde.conf"
+          source: "/home/runner/work/bitgreen-node/bitgreen-node/rococo-local-cfde.conf"
           target: "conf"
 
       - name: ssh and start
