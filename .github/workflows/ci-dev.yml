@@ -54,7 +54,7 @@ jobs:
         uses: Swatinem/rust-cache@v2.0.0
         with:
           cache-on-failure: true    
-          key: polkadot
+          shared-key: polkadot
       - name: Checkout Polkadot
         uses: actions/checkout@v3
         with:
@@ -87,7 +87,7 @@ jobs:
         uses: Swatinem/rust-cache@v2.0.0
         with:
           cache-on-failure: true 
-          key: check
+          shared-key: check
       - name: Install toolchain
         uses: actions-rs/toolchain@v1
         with:
@@ -130,7 +130,7 @@ jobs:
         uses: Swatinem/rust-cache@v2.0.0
         with:
           cache-on-failure: true 
-          key: test
+          shared-key: test
       - name: Install toolchain
         uses: actions-rs/toolchain@v1
         with:
@@ -166,7 +166,7 @@ jobs:
         uses: Swatinem/rust-cache@v2.0.0
         with:
           cache-on-failure: true 
-          key: benchmark
+          shared-key: benchmark
       - name: Install toolchain
         uses: actions-rs/toolchain@v1
         with:
@@ -199,7 +199,7 @@ jobs:
         uses: Swatinem/rust-cache@v2.0.0
         with:
           cache-on-failure: true 
-          key: build
+          shared-key: build
       - name: Install toolchain
         uses: actions-rs/toolchain@v1
         with:
