@@ -259,7 +259,7 @@ jobs:
 #         uses: appleboy/scp-action@master
 #         with:
 #           host: ${{ secrets.HOST_BOB }}
-#           username: root
+#           username: ${{ secrets.SSH_USER}}
 #           key: ${{ secrets.SSH_PRIV }}
 #           source: "scripts/supervisor/bob.conf"
 #           target: "supervisor"
@@ -291,7 +291,7 @@ jobs:
 #         uses: appleboy/scp-action@master
 #         with:
 #           host: ${{ secrets.PARACHAIN_HOST }}
-#           username: root
+#           username: ${{ secrets.SSH_USER}}
 #           key: ${{ secrets.SSH_PRIV }}
 #           source: "scripts/supervisor/parachain.conf"
 #           target: "supervisor"
@@ -334,14 +334,14 @@ jobs:
         uses: appleboy/scp-action@master
         with:
           host: ${{ secrets.ALL_HOSTS }}
-          username: root
+          username: ${{ secrets.SSH_USER}}
           key: ${{ secrets.SSH_PRIV }}
-          source: "rococo-local-cfde.conf"
+          source: "/github/workspace/rococo-local-cfde.conf"
           target: "conf"
       - name: ssh and start
         uses: appleboy/ssh-action@master
         with:
           host: ${{ secrets.ALL_HOSTS }}
-          username: root
+          username: ${{ secrets.SSH_USER}}
           key: ${{ secrets.SSH_PRIV }}
           script: cp ~/conf/rococo-local-cfde.conf ~/ && supervisorctl reload
