@@ -346,4 +346,4 @@ jobs:
           host: ${{ secrets.PARACHAIN_HOST }}
           username: ${{ secrets.SSH_USER}}
           key: ${{ secrets.SSH_PRIV }}
-          script: cp ~/conf/rococo-local-cfde.conf ~/ && supervisorctl reload
+          script: cp /root/conf/rococo-local-cfde.conf ~/ && supervisorctl reload
