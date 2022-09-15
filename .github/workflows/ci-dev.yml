@@ -329,7 +329,7 @@ jobs:
       - name: Deploy with rsync
         run: rsync -avz ${{ secrets.SSH_USER }}@${{ secrets.PARACHAIN_HOST }}:~/rococo-local-cfde.json ~/rococo-local-cfde.json && cp ~/rococo-local-cfde.json /home/runner/work/bitgreen-node/bitgreen-node
       - name: List copied files
-        run: pwd && ls -alh /tmp
+        run: pwd && ls -alh
       - name: Copy config to hosts
         uses: appleboy/scp-action@master
         with:
