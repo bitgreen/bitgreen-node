@@ -275,7 +275,7 @@ jobs:
           host: ${{ secrets.ALL_HOSTS }}
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_PRIV }}
-          script: apt install -y supervisor
+          script: apt update && apt install -y supervisor
   prepare_relay_nodes:
     runs-on: ubuntu-latest
     concurrency:
