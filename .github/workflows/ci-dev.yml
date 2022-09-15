@@ -244,7 +244,7 @@ jobs:
     concurrency:
       group: ${{ github.head_ref || github.run_id }}-deploy
       cancel-in-progress: true
-    needs: [prepare_hosts]
+    needs: [prepare_hosts,build_polkadot, build]
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -284,7 +284,7 @@ jobs:
     concurrency:
       group: ${{ github.head_ref || github.run_id }}-deploy
       cancel-in-progress: true
-    needs: [prepare_hosts]
+    needs: [prepare_hosts,build_polkadot, build]
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
