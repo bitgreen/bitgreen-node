@@ -28,9 +28,11 @@ jobs:
       - uses: actions/cache@v3
         with:
           path: |
-            ~/.cargo/registry
-            ~/.cargo/git
+            ~/.cargo
             target
+            bitgreen-node/target
+            bitgreen-node/bitgreen-node/target
+
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}-polkadot
       - name: Checkout Polkadot
         uses: actions/checkout@v3
@@ -66,9 +68,10 @@ jobs:
       - uses: actions/cache@v3
         with:
           path: |
-            ~/.cargo/registry
-            ~/.cargo/git
+            ~/.cargo
             target
+            bitgreen-node/target
+            bitgreen-node/bitgreen-node/target
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}-check
       - name: Install toolchain
         uses: actions-rs/toolchain@v1
@@ -111,9 +114,11 @@ jobs:
       - uses: actions/cache@v3
         with:
           path: |
-            ~/.cargo/registry
-            ~/.cargo/git
+            ~/.cargo
             target
+            bitgreen-node/target
+            bitgreen-node/bitgreen-node/target
+
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}-test
       - name: Rust Cache
         uses: Swatinem/rust-cache@v2.0.0
@@ -154,9 +159,10 @@ jobs:
       - uses: actions/cache@v3
         with:
           path: |
-            ~/.cargo/registry
-            ~/.cargo/git
+            ~/.cargo
             target
+            bitgreen-node/target
+            bitgreen-node/bitgreen-node/target
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}-benchmark
 
       - name: Install toolchain
@@ -190,9 +196,10 @@ jobs:
       - uses: actions/cache@v3
         with:
           path: |
-            ~/.cargo/registry
-            ~/.cargo/git
+            ~/.cargo
             target
+            bitgreen-node/target
+            bitgreen-node/bitgreen-node/target
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}-build
 
       - name: Install toolchain
