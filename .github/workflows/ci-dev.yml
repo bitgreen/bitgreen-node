@@ -312,7 +312,7 @@ jobs:
     # needs: [check, build_polkadot, build, test, benchmark, prepare_hosts,prepare_parachain_node]
     steps:
       - name: ssh and generate config
-        run:  ls -alh && ~/polkadot/polkadot/target/release/polkadot  build-spec --chain rococo-local --disable-default-bootnode --raw > rococo-local-cfde.json
+        run:  pwd && ls -alh && ~/polkadot/polkadot/target/release/polkadot  build-spec --chain rococo-local --disable-default-bootnode --raw > rococo-local-cfde.json
 
       - name: Install SSH Key
         uses: shimataro/ssh-key-action@v2
