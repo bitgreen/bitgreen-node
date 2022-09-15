@@ -309,7 +309,7 @@ jobs:
     concurrency:
       group: ${{ github.head_ref || github.run_id }}-deploy
       cancel-in-progress: true
-      needs: [check, build_polkadot, build, test, benchmark, prepare_hosts,prepare_parachain_node]
+    needs: [check, build_polkadot, build, test, benchmark, prepare_hosts,prepare_parachain_node]
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
