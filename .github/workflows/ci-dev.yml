@@ -50,6 +50,13 @@ jobs:
       group: ${{ github.head_ref || github.run_id }}-build-polkadot
       cancel-in-progress: true
     steps:
+      - uses: actions/cache@v2
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}-polkadot
       - name: Rust Cache
         uses: Swatinem/rust-cache@v2.0.0
         with:
@@ -86,6 +93,13 @@ jobs:
       group: ${{ github.head_ref || github.run_id }}-check
       cancel-in-progress: true
     steps:
+      - uses: actions/cache@v2
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}-check
       - name: Rust Cache
         uses: Swatinem/rust-cache@v2.0.0
         with:
@@ -129,6 +143,13 @@ jobs:
     needs: [setup]
     # cancel concurrent builds on the same branch
     steps:
+      - uses: actions/cache@v2
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}-test
       - name: Rust Cache
         uses: Swatinem/rust-cache@v2.0.0
         with:
@@ -165,6 +186,14 @@ jobs:
       cancel-in-progress: true
     needs: [setup, check]
     steps:
+      - uses: actions/cache@v2
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}-benchmark
+
       - name: Rust Cache
         uses: Swatinem/rust-cache@v2.0.0
         with:
@@ -198,6 +227,14 @@ jobs:
       cancel-in-progress: true
     needs: [setup]
     steps:
+      - uses: actions/cache@v2
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}-build
+
       - name: Rust Cache
         uses: Swatinem/rust-cache@v2.0.0
         with:
