@@ -327,16 +327,16 @@ jobs:
       - name: Adding Known Hosts
         run: ssh-keyscan -H ${{ secrets.PARACHAIN_HOST }} >> ~/.ssh/known_hosts
       - name: Deploy with rsync
-        run: rsync -avz ${{ secrets.SSH_USER }}@${{ secrets.PARACHAIN_HOST }}:~/rococo-local-cfde.json ~/rococo-local-cfde.json && ls ~/ && pwd
+        run: rsync -avz ${{ secrets.SSH_USER }}@${{ secrets.PARACHAIN_HOST }}:~/rococo-local-cfde.json ~/rococo-local-cfde.json && cp ~/rococo-local-cfde.json /tmp &&  ls ~/ && pwd && ls /tmp
       - name: List copied files
-        run: pwd && ls -alh
+        run: pwd && ls -alh /tmp
       - name: copy config
         uses: appleboy/scp-action@master
         with:
           host: ${{ secrets.ALL_HOSTS }}
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_PRIV }}
-          source: "/home/runner/work/bitgreen-node/bitgreen-node/rococo-local-cfde.conf"
+          source: "/tmp/rococo-local-cfde.conf"
           target: "conf"
 
       - name: ssh and start
