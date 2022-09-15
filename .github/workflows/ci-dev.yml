@@ -330,15 +330,14 @@ jobs:
         run: rsync -avz ${{ secrets.SSH_USER }}@${{ secrets.PARACHAIN_HOST }}:~/rococo-local-cfde.json ~/rococo-local-cfde.json && cp ~/rococo-local-cfde.json /home/runner/work/bitgreen-node/bitgreen-node
       - name: List copied files
         run: pwd && ls -alh /tmp
-      - name: copy config
+      - name: Copy config to hosts
         uses: appleboy/scp-action@master
         with:
           host: ${{ secrets.ALL_HOSTS }}
-          username: ${{ secrets.SSH_USER }}
+          username: root
           key: ${{ secrets.SSH_PRIV }}
           source: "rococo-local-cfde.conf"
           target: "conf"
-
       - name: ssh and start
         uses: appleboy/ssh-action@master
         with:
