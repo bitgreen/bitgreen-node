@@ -50,44 +50,32 @@ jobs:
       group: ${{ github.head_ref || github.run_id }}-build-polkadot
       cancel-in-progress: true
     steps:
-      - uses: actions/download-artifact@v3
-        id: polkadot-binary
-        with:
-          name: polkadot-binary
-      - name: Change Permissions
-        if: ${{steps.polkadot-binary.outputs.download-path}}
-        run: chmod +x polkadot         
       - name: Rust Cache
         uses: Swatinem/rust-cache@v2.0.0
         with:
           cache-on-failure: true    
           shared-key: polkadot
       - name: Checkout Polkadot
-        if: ${{!steps.polkadot-binary.outputs.download-path}}
         uses: actions/checkout@v3
         with:
           repository: paritytech/polkadot
           ref: "v0.9.26"
           path: "polkadot"
       - name: build polkadot
-        if: ${{!steps.polkadot-binary.outputs.download-path}}
-        run: cd polkadot && ./scripts/init.sh && cargo build --release && cd ..
-      - name: Copy binary to top level
-        if: ${{!steps.polkadot-binary.outputs.download-path}}
-        run: cp polkadot/target/release/polkadot ~/
+        run: cd polkadot && ./scripts/init.sh && cargo build --release
+
       - name: Upload Polkadot Binary
-        if: ${{!steps.polkadot-binary.outputs.download-path}}
         uses: actions/upload-artifact@v3
         with:
           name: polkadot-binary
-          path: polkadot
+          path: polkadot/target/release/polkadot
       - name: copy polkadot via scp
         uses: appleboy/scp-action@master
         with:
           host: ${{ secrets.SSH_IP }}
           username: root
           key: ${{ secrets.SSH_PRIV }}
-          source: "polkadot"
+          source: "polkadot/target/release/polkadot"
           target: "polkadot"
   check:
     # The type of runner that the job will run on
@@ -245,7 +233,7 @@ jobs:
     needs: [check, build_polkadot, build, test, benchmark]
     steps: 
       - name: ssh and generate config
-        run:  ./polkadot/polkadot  build-spec --chain rococo-local --disable-default-bootnode --raw > rococo-local-cfde.json
+        run:  ./polkadot/polkadot/target/release/polkadot  build-spec --chain rococo-local --disable-default-bootnode --raw > rococo-local-cfde.json
 
       - name: Install SSH Key
         uses: shimataro/ssh-key-action@v2
