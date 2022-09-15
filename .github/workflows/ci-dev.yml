@@ -15,34 +15,9 @@ jobs:
       group: ${{ github.head_ref || github.run_id }}
       cancel-in-progress: true
     steps:
-      - name: Maximize build space
-        uses: easimon/maximize-build-space@master
-        with:
-          root-reserve-mb: 4096
-          swap-size-mb: 8192
-          remove-dotnet: 'true'
-          remove-haskell: 'true'
-          remove-android: 'true'
       - name: Set-Up
         run: sudo apt install -y cmake pkg-config libssl-dev git build-essential clang libclang-dev curl
 
-      - name: Install toolchain
-        uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: nightly-2022-05-15
-          components: rustfmt
-          target: wasm32-unknown-unknown
-          default: true
-
-      - name: Install toolchain x86
-        uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: nightly-2022-05-15
-          components: rustfmt
-          target: x86_64-unknown-linux-gnu
-          default: true
   build_polkadot:
     runs-on: ubuntu-latest
     needs: [setup]
@@ -57,11 +32,6 @@ jobs:
             ~/.cargo/git
             target
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}-polkadot
-      - name: Rust Cache
-        uses: Swatinem/rust-cache@v2.0.0
-        with:
-          cache-on-failure: true
-          shared-key: polkadot
       - name: Checkout Polkadot
         uses: actions/checkout@v3
         with:
@@ -100,11 +70,6 @@ jobs:
             ~/.cargo/git
             target
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}-check
-      - name: Rust Cache
-        uses: Swatinem/rust-cache@v2.0.0
-        with:
-          cache-on-failure: true
-          shared-key: check
       - name: Install toolchain
         uses: actions-rs/toolchain@v1
         with:
@@ -182,7 +147,7 @@ jobs:
     # The type of runner that the job will run on
     runs-on: ubuntu-latest
     concurrency:
-      group: ${{ github.head_ref || github.run_id }}-benchmark
+      group: ${{ github.head_ref || github.run_id }}-test
       cancel-in-progress: true
     needs: [setup, check]
     steps:
@@ -194,11 +159,6 @@ jobs:
             target
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}-benchmark
 
-      - name: Rust Cache
-        uses: Swatinem/rust-cache@v2.0.0
-        with:
-          cache-on-failure: true
-          shared-key: benchmark
       - name: Install toolchain
         uses: actions-rs/toolchain@v1
         with:
@@ -235,11 +195,6 @@ jobs:
             target
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}-build
 
-      - name: Rust Cache
-        uses: Swatinem/rust-cache@v2.0.0
-        with:
-          cache-on-failure: true
-          shared-key: build
       - name: Install toolchain
         uses: actions-rs/toolchain@v1
         with:
