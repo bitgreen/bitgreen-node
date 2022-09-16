@@ -298,7 +298,7 @@ jobs:
   prepare_parachain_node:
     runs-on: ubuntu-latest
     concurrency:
-      group: ${{ github.head_ref || github.run_id }}-deploy
+      group: ${{ github.head_ref || github.run_id }}-parachain
       cancel-in-progress: true
     needs: [prepare_hosts,build_polkadot, build]
     steps:
