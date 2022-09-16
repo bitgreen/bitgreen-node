@@ -171,7 +171,7 @@ jobs:
     concurrency:
       group: ${{ github.head_ref || github.run_id }}-test
       cancel-in-progress: true
-    needs: [setup, check]
+    needs: [setup]
     steps:
       - uses: actions/cache@v3
         with:
