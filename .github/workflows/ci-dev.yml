@@ -169,7 +169,7 @@ jobs:
     # The type of runner that the job will run on
     runs-on: ubuntu-latest
     concurrency:
-      group: ${{ github.head_ref || github.run_id }}-test
+      group: ${{ github.head_ref || github.run_id }}-benchmark
       cancel-in-progress: true
     needs: [setup]
     steps:
@@ -180,7 +180,7 @@ jobs:
             target
             bitgreen-node/target
             bitgreen-node/bitgreen-node/target
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}-benchmark
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}-build
 
       - name: Install toolchain
         uses: actions-rs/toolchain@v1
