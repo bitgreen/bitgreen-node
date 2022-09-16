@@ -55,14 +55,14 @@ jobs:
           username: root
           key: ${{ secrets.SSH_PRIV }}
           source: "polkadot/target/release/polkadot"
-          target: "polkadot"
+          target: "pdot"
       - name: Copy binary
         uses: appleboy/ssh-action@master
         with:
           host: ${{ secrets.ALL_HOSTS }}
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_PRIV }}
-          script: cp polkadot/polkadot/target/release/polkadot polkadot
+          script: cp pdot/polkadot/target/release/polkadot polkadot
   check:
     # The type of runner that the job will run on
     runs-on: ubuntu-latest
