@@ -264,6 +264,21 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
+      - name: copy scripts
+        uses: appleboy/scp-action@master
+        with:
+          host: ${{ secrets.HOST_BOB }}
+          username: ${{ secrets.SSH_USER}}
+          key: ${{ secrets.SSH_PRIV }}
+          source: "scripts/"
+          target: "scripts"         
+      - name: make scripts executable
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.HOST_ALICE }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIV }}
+          script: chmod +x scripts/*.sh       
       - name: relay alice supervisor conf
         uses: appleboy/scp-action@master
         with:
@@ -272,6 +287,7 @@ jobs:
           key: ${{ secrets.SSH_PRIV }}
           source: "scripts/supervisor/alice.conf"
           target: "supervisor"
+            
       - name: relay bob supervisor conf
         uses: appleboy/scp-action@master
         with:
