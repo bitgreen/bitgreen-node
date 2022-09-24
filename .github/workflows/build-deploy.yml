@@ -25,6 +25,26 @@ jobs:
       group: ${{ github.head_ref || github.run_id }}-build-polkadot
       cancel-in-progress: true
     steps:
+      - name: Install sccache (ubuntu-latest)
+        env:
+          LINK: https://github.com/mozilla/sccache/releases/download
+          SCCACHE_VERSION: 0.3.0
+        run: |
+          SCCACHE_FILE=sccache-$SCCACHE_VERSION-x86_64-unknown-linux-musl
+          mkdir -p $HOME/.local/bin
+          curl -L "$LINK/$SCCACHE_VERSION/$SCCACHE_FILE.tar.gz" | tar xz
+          mv -f $SCCACHE_FILE/sccache $HOME/.local/bin/sccache
+          echo "$HOME/.local/bin" >> $GITHUB_PATH    
+      - name: Save sccache
+        uses: actions/cache@v3
+        continue-on-error: false
+        with:
+          path: ${{ matrix.sccache-path }}
+          key: ${{ runner.os }}-sccache-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+                        ${{ runner.os }}-sccache-           
+      - name: Start sccache server
+        run: sccache --start-server                             
       - uses: actions/cache@v3
         with:
           path: |
@@ -37,6 +57,7 @@ jobs:
             ${{ runner.os }}-cargo--polkadot
             ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}-polkadot
             ${{ runner.os }}-cargo-
+         
       - name: Checkout Polkadot
         uses: actions/checkout@v3
         with:
@@ -73,6 +94,10 @@ jobs:
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_PRIV }}
           script: cp pdot/polkadot/target/release/polkadot polkadot
+      - name: Print sccache stats
+        run: sccache --show-stats
+      - name: Stop sccache server
+        run: sccache --stop-server || true          
   check:
     # The type of runner that the job will run on
     runs-on: ubuntu-latest
@@ -82,6 +107,38 @@ jobs:
       group: ${{ github.head_ref || github.run_id }}-check
       cancel-in-progress: true
     steps:
+      - name: Install sccache (ubuntu-latest)
+        env:
+          LINK: https://github.com/mozilla/sccache/releases/download
+          SCCACHE_VERSION: 0.3.0
+        run: |
+          SCCACHE_FILE=sccache-$SCCACHE_VERSION-x86_64-unknown-linux-musl
+          mkdir -p $HOME/.local/bin
+          curl -L "$LINK/$SCCACHE_VERSION/$SCCACHE_FILE.tar.gz" | tar xz
+          mv -f $SCCACHE_FILE/sccache $HOME/.local/bin/sccache
+          echo "$HOME/.local/bin" >> $GITHUB_PATH    
+      - name: Save sccache
+        uses: actions/cache@v3
+        continue-on-error: false
+        with:
+          path: ${{ matrix.sccache-path }}
+          key: ${{ runner.os }}-sccache-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+                        ${{ runner.os }}-sccache-           
+      - name: Start sccache server
+        run: sccache --start-server                             
+      - uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cargo
+            target
+            bitgreen-node/target
+            bitgreen-node/bitgreen-node/target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}-polkadot
+          restore-keys: |
+            ${{ runner.os }}-cargo--polkadot
+            ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}-polkadot
+            ${{ runner.os }}-cargo-    
       - uses: actions/cache@v3
         with:
           path: |
@@ -118,7 +175,10 @@ jobs:
         run: |
           rustup component add clippy --toolchain nightly-2022-05-15-x86_64-unknown-linux-gnu
           cargo clippy --all-targets --workspace -- --deny warnings
-
+      - name: Print sccache stats
+        run: sccache --show-stats
+      - name: Stop sccache server
+        run: sccache --stop-server || true     
   test:
     # The type of runner that the job will run on
     runs-on: ubuntu-latest
@@ -128,6 +188,38 @@ jobs:
     needs: [setup]
     # cancel concurrent builds on the same branch
     steps:
+      - name: Install sccache (ubuntu-latest)
+        env:
+          LINK: https://github.com/mozilla/sccache/releases/download
+          SCCACHE_VERSION: 0.3.0
+        run: |
+          SCCACHE_FILE=sccache-$SCCACHE_VERSION-x86_64-unknown-linux-musl
+          mkdir -p $HOME/.local/bin
+          curl -L "$LINK/$SCCACHE_VERSION/$SCCACHE_FILE.tar.gz" | tar xz
+          mv -f $SCCACHE_FILE/sccache $HOME/.local/bin/sccache
+          echo "$HOME/.local/bin" >> $GITHUB_PATH    
+      - name: Save sccache
+        uses: actions/cache@v3
+        continue-on-error: false
+        with:
+          path: ${{ matrix.sccache-path }}
+          key: ${{ runner.os }}-sccache-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+                        ${{ runner.os }}-sccache-           
+      - name: Start sccache server
+        run: sccache --start-server                             
+      - uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cargo
+            target
+            bitgreen-node/target
+            bitgreen-node/bitgreen-node/target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}-polkadot
+          restore-keys: |
+            ${{ runner.os }}-cargo--polkadot
+            ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}-polkadot
+            ${{ runner.os }}-cargo-    
       - uses: actions/cache@v3
         with:
           path: |
@@ -165,6 +257,10 @@ jobs:
 
       - name: Cargo test
         run: cargo test
+      - name: Print sccache stats
+        run: sccache --show-stats
+      - name: Stop sccache server
+        run: sccache --stop-server || true             
   benchmark:
     # The type of runner that the job will run on
     runs-on: ubuntu-latest
@@ -210,6 +306,38 @@ jobs:
       cancel-in-progress: true
     needs: [setup]
     steps:
+      - name: Install sccache (ubuntu-latest)
+        env:
+          LINK: https://github.com/mozilla/sccache/releases/download
+          SCCACHE_VERSION: 0.3.0
+        run: |
+          SCCACHE_FILE=sccache-$SCCACHE_VERSION-x86_64-unknown-linux-musl
+          mkdir -p $HOME/.local/bin
+          curl -L "$LINK/$SCCACHE_VERSION/$SCCACHE_FILE.tar.gz" | tar xz
+          mv -f $SCCACHE_FILE/sccache $HOME/.local/bin/sccache
+          echo "$HOME/.local/bin" >> $GITHUB_PATH    
+      - name: Save sccache
+        uses: actions/cache@v3
+        continue-on-error: false
+        with:
+          path: ${{ matrix.sccache-path }}
+          key: ${{ runner.os }}-sccache-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+                        ${{ runner.os }}-sccache-           
+      - name: Start sccache server
+        run: sccache --start-server                             
+      - uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cargo
+            target
+            bitgreen-node/target
+            bitgreen-node/bitgreen-node/target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}-polkadot
+          restore-keys: |
+            ${{ runner.os }}-cargo--polkadot
+            ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}-polkadot
+            ${{ runner.os }}-cargo-    
       - uses: actions/cache@v3
         with:
           path: |
@@ -241,6 +369,10 @@ jobs:
           key: ${{ secrets.SSH_PRIV }}
           source: "target/release/bitg-parachain"
           target: "bitg-parachain"
+      - name: Print sccache stats
+        run: sccache --show-stats
+      - name: Stop sccache server
+        run: sccache --stop-server || true               
   prepare_hosts:
     runs-on: ubuntu-latest
     concurrency:
