@@ -32,7 +32,7 @@ jobs:
         run: |
           SCCACHE_FILE=sccache-0.3.0-x86_64-unknown-linux-musl
           mkdir -p $HOME/.local/bin
-          curl -L "$LINK/0.3.0/$SCCACHE_FILE.tar.gz" | tar xz
+          curl -L "https://github.com/mozilla/sccache/releases/download/0.3.0/$SCCACHE_FILE.tar.gz" | tar xz
           mv -f $SCCACHE_FILE/sccache $HOME/.local/bin/sccache
           echo "$HOME/.local/bin" >> $GITHUB_PATH    
       - name: Save sccache
@@ -114,7 +114,7 @@ jobs:
         run: |
           SCCACHE_FILE=sccache-0.3.0-x86_64-unknown-linux-musl
           mkdir -p $HOME/.local/bin
-          curl -L "$LINK/0.3.0/$SCCACHE_FILE.tar.gz" | tar xz
+          curl -L "https://github.com/mozilla/sccache/releases/download/0.3.0/$SCCACHE_FILE.tar.gz" | tar xz
           mv -f $SCCACHE_FILE/sccache $HOME/.local/bin/sccache
           echo "$HOME/.local/bin" >> $GITHUB_PATH    
       - name: Save sccache
@@ -195,7 +195,7 @@ jobs:
         run: |
           SCCACHE_FILE=sccache-0.3.0-x86_64-unknown-linux-musl
           mkdir -p $HOME/.local/bin
-          curl -L "$LINK/0.3.0/$SCCACHE_FILE.tar.gz" | tar xz
+          curl -L "https://github.com/mozilla/sccache/releases/download/0.3.0/$SCCACHE_FILE.tar.gz" | tar xz
           mv -f $SCCACHE_FILE/sccache $HOME/.local/bin/sccache
           echo "$HOME/.local/bin" >> $GITHUB_PATH    
       - name: Save sccache
@@ -313,7 +313,7 @@ jobs:
         run: |
           SCCACHE_FILE=sccache-0.3.0-x86_64-unknown-linux-musl
           mkdir -p $HOME/.local/bin
-          curl -L "$LINK/0.3.0/$SCCACHE_FILE.tar.gz" | tar xz
+          curl -L "https://github.com/mozilla/sccache/releases/download/0.3.0/$SCCACHE_FILE.tar.gz" | tar xz
           mv -f $SCCACHE_FILE/sccache $HOME/.local/bin/sccache
           echo "$HOME/.local/bin" >> $GITHUB_PATH    
       - name: Save sccache
