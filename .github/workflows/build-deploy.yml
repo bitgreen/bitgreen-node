@@ -32,8 +32,8 @@ jobs:
         run: |
           SCCACHE_FILE=sccache-dist-v0.3.0-x86_64-unknown-linux-musl
           mkdir -p $HOME/.local/bin
-          curl -L "https://github.com/mozilla/sccache/releases/download/v0.3.0/sccache-dist-v0.3.0-x86_64-unknown-linux-musl.tar.gz" | tar xz
-          mv -f $SCCACHE_FILE/sccache $HOME/.local/bin/sccache
+          wget https://github.com/mozilla/sccache/releases/download/v0.3.0/sccache-dist-v0.3.0-x86_64-unknown-linux-musl.tar.gz && tar -xvf sccache-dist-v0.3.0-x86_64-unknown-linux-musl.tar.gz
+          mv -f $SCCACHE_FILE/sccache-dist $HOME/.local/bin/sccacheå
           echo "$HOME/.local/bin" >> $GITHUB_PATH    
       - name: Save sccache
         uses: actions/cache@v3
@@ -114,8 +114,8 @@ jobs:
         run: |
           SCCACHE_FILE=sccache-dist-v0.3.0-x86_64-unknown-linux-musl
           mkdir -p $HOME/.local/bin
-          curl -L "https://github.com/mozilla/sccache/releases/download/v0.3.0/sccache-dist-v0.3.0-x86_64-unknown-linux-musl.tar.gz" | tar xz
-          mv -f $SCCACHE_FILE/sccache $HOME/.local/bin/sccache
+          wget https://github.com/mozilla/sccache/releases/download/v0.3.0/sccache-dist-v0.3.0-x86_64-unknown-linux-musl.tar.gz && tar -xvf sccache-dist-v0.3.0-x86_64-unknown-linux-musl.tar.gz
+          mv -f $SCCACHE_FILE/sccache-dist $HOME/.local/bin/sccacheå
           echo "$HOME/.local/bin" >> $GITHUB_PATH    
       - name: Save sccache
         uses: actions/cache@v3
@@ -195,8 +195,8 @@ jobs:
         run: |
           SCCACHE_FILE=sccache-dist-v0.3.0-x86_64-unknown-linux-musl
           mkdir -p $HOME/.local/bin
-          curl -L "https://github.com/mozilla/sccache/releases/download/v0.3.0/sccache-dist-v0.3.0-x86_64-unknown-linux-musl.tar.gz" | tar xz
-          mv -f $SCCACHE_FILE/sccache $HOME/.local/bin/sccache
+          wget https://github.com/mozilla/sccache/releases/download/v0.3.0/sccache-dist-v0.3.0-x86_64-unknown-linux-musl.tar.gz && tar -xvf sccache-dist-v0.3.0-x86_64-unknown-linux-musl.tar.gz
+          mv -f $SCCACHE_FILE/sccache-dist $HOME/.local/bin/sccacheå
           echo "$HOME/.local/bin" >> $GITHUB_PATH    
       - name: Save sccache
         uses: actions/cache@v3
@@ -313,11 +313,11 @@ jobs:
         run: |
           SCCACHE_FILE=sccache-dist-v0.3.0-x86_64-unknown-linux-musl
           mkdir -p $HOME/.local/bin
-          curl -L "https://github.com/mozilla/sccache/releases/download/v0.3.0/sccache-dist-v0.3.0-x86_64-unknown-linux-musl.tar.gz" | tar xz 
+          wget https://github.com/mozilla/sccache/releases/download/v0.3.0/sccache-dist-v0.3.0-x86_64-unknown-linux-musl.tar.gz && tar -xvf sccache-dist-v0.3.0-x86_64-unknown-linux-musl.tar.gz
           wget https://github.com/mozilla/sccache/releases/download/v0.3.0/sccache-dist-v0.3.0-x86_64-unknown-linux-musl.tar.gz && tar -xvf sccache-dist-v0.3.0-x86_64-unknown-linux-musl.tar.gz
           echo "DIR LISTx"
           ls -alh
-          mv -f $SCCACHE_FILE/sccache $HOME/.local/bin/sccache
+          mv -f $SCCACHE_FILE/sccache-dist $HOME/.local/bin/sccache
           echo "$HOME/.local/bin" >> $GITHUB_PATH    
       - name: Save sccache
         uses: actions/cache@v3
