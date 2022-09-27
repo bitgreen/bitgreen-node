@@ -1,6 +1,6 @@
 # Using sccache guidance from
 # https://www.infinyon.com/blog/2021/04/github-actions-best-practices/
-xs 
+
 name: Ci-test-and-build
 on:
   push:
