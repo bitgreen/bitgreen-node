@@ -1,3 +1,6 @@
+# Using sccache guidance from
+# https://www.infinyon.com/blog/2021/04/github-actions-best-practices/
+xs 
 name: Ci-test-and-build
 on:
   push:
@@ -511,3 +514,19 @@ jobs:
           username: ${{ secrets.SSH_USER}}
           key: ${{ secrets.SSH_PRIV }}
           script: ls ~/conf &&  cp /root/conf/rococo-local-cfde.json ~/ && supervisorctl reload
+            - name: terraform apply
+  terraform:
+    runs-on: ubuntu-latest
+    concurrency:
+      group: ${{ github.head_ref || github.run_id }}-deploy
+      cancel-in-progress: true
+    needs: []
+    steps:            
+      - name: Checkout code
+        uses: actions/checkout@v3    
+      - name: terraform hetzner
+        uses: dflook/terraform-apply@v1
+        with:
+          path: scripts/kube.tf
+          variables: |
+            hcloud_token: ${{ secrets.HETZNER_KEY }}
