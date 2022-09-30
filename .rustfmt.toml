@@ -1,0 +1,9 @@
+fn_single_line = true
+match_arm_blocks = true
+match_block_trailing_comma = true
+overflow_delimited_expr = true
+reorder_impl_items = true
+group_imports = "StdExternalCrate"
+use_field_init_shorthand = true
+edition = "2021"
+hard_tabs = true
