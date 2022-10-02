@@ -91,9 +91,9 @@ export async function processBlock(api: ApiPromise, block_number: BlockNumber | 
 		return false;
 	}
 
-	const current_time: string | number | Date = Number(
-		signed_block.block.extrinsics.at(0)?.args.at(0)?.toString()
-	);
+	// Assume that block just got created.
+	// TODO: estimate block time from block number.
+	const block_date = new Date();
 
 	// parse block
 	signed_block.block.extrinsics.map(async (ex: Extrinsic, index: number) => {
@@ -124,7 +124,7 @@ export async function processBlock(api: ApiPromise, block_number: BlockNumber | 
 
 				// extract asset_id and assign it to a project
 				if (
-					section === "vcu" &&
+					section === "carbon-credits" &&
 					method === "mint" &&
 					event.section === "assets" &&
 					event.method === "ForceCreated"
@@ -150,7 +150,7 @@ export async function processBlock(api: ApiPromise, block_number: BlockNumber | 
 					// console.log(`${event_section}:${event_method}`)
 					// console.log('Transaction Hash: ' + hash);
 
-					if (event_section === "vcu") {
+					if (event_section === "carbon-credits") {
 						if (event_method === "ProjectCreated") {
 							let project_id: number | undefined, details: ProjectDetails | undefined;
 
@@ -281,13 +281,13 @@ export async function processBlock(api: ApiPromise, block_number: BlockNumber | 
 												create: videos,
 											},
 
-											created_at: new Date(current_time).toISOString(),
+											created_at: block_date.toISOString(),
 										},
 									});
 								}
 							} catch (e) {
 								// @ts-ignore
-								console.log(`Error occurred: ${e.message}`);
+								console.log(`Error occurred (creating project): ${e.message}`);
 							}
 						}
 
@@ -310,17 +310,17 @@ export async function processBlock(api: ApiPromise, block_number: BlockNumber | 
 									},
 									data: {
 										approved: is_approved,
-										updated_at: new Date(current_time).toISOString(),
+										updated_at: block_date.toISOString(),
 									},
 								});
 							} catch (e) {
 								// @ts-ignore
-								console.log(`Error occurred: ${e.message}`);
+								console.log(`Error occurred (approving project): ${e.message}`);
 							}
 						}
 
-						if (event_method === "VCUMinted") {
-							// console.log(api.events.vcu.VCUMinted.is(event))
+						if (event_method === "CarbonCreditMinted") {
+							// console.log(api.events.vcu.CarbonCreditMinted.is(event))
 							let project_id, account, amount;
 
 							event.data.map(async (arg: any, d: number) => {
@@ -342,12 +342,12 @@ export async function processBlock(api: ApiPromise, block_number: BlockNumber | 
 										},
 										data: {
 											asset_id: new_asset_id,
-											updated_at: new Date(current_time).toISOString(),
+											updated_at: block_date.toISOString(),
 										},
 									});
 								} catch (e) {
 									// @ts-ignore
-									console.log(`Error occurred: ${e.message}`);
+									console.log(`Error occurred (minting carbon credit): ${e.message}`);
 								}
 							}
 						}
@@ -372,12 +372,12 @@ export async function processBlock(api: ApiPromise, block_number: BlockNumber | 
 										block_number: block_number as number,
 										hash: hash as string,
 										owner: owner as string,
-										created_at: new Date(current_time).toISOString(),
+										created_at: block_date.toISOString(),
 									},
 								});
 							} catch (e) {
 								// @ts-ignore
-								console.log(`Error occurred: ${e.message}`);
+								console.log(`Error occurred (creating asset): ${e.message}`);
 							}
 						}
 
@@ -415,12 +415,12 @@ export async function processBlock(api: ApiPromise, block_number: BlockNumber | 
 										symbol: hexToString(symbol),
 										decimals: decimals as number,
 										is_frozen: is_frozen as boolean,
-										updated_at: new Date(current_time).toISOString(),
+										updated_at: block_date.toISOString(),
 									},
 								});
 							} catch (e) {
 								// @ts-ignore
-								console.log(`Error occurred: ${e.message}`);
+								console.log(`Error occurred (updating metadata): ${e.message}`);
 							}
 						}
 
@@ -451,12 +451,12 @@ export async function processBlock(api: ApiPromise, block_number: BlockNumber | 
 										recipient: recipient as string,
 										amount: amount as number,
 										asset_id: asset_id as number,
-										created_at: new Date(current_time).toISOString(),
+										created_at: block_date.toISOString(),
 									},
 								});
 							} catch (e) {
 								// @ts-ignore
-								console.log(`Error occurred: ${e.message}`);
+								console.log(`Error occurred (asset transfered): ${e.message}`);
 							}
 						}
 					}
@@ -491,12 +491,12 @@ export async function processBlock(api: ApiPromise, block_number: BlockNumber | 
 										recipient: recipient as string,
 										sender: sender as string,
 										amount: amount as number,
-										created_at: new Date(current_time).toISOString(),
+										created_at: block_date.toISOString(),
 									},
 								});
 							} catch (e) {
 								// @ts-ignore
-								console.log(`Error occurred: ${e.message}`);
+								console.log(`Error occurred (adding transaction): ${e.message}`);
 							}
 						}
 					}
@@ -506,16 +506,21 @@ export async function processBlock(api: ApiPromise, block_number: BlockNumber | 
 
 	// store block in db
 	try {
-		await prisma.blocks.create({
-			data: {
+		await prisma.blocks.upsert({
+			where: {
+				number: block_number as number,
+			},
+			update: {
+			},
+			create: {
 				number: block_number as number,
 				hash: block_hash.toHex() as string,
-				created_at: new Date(current_time).toISOString(),
+				created_at: block_date.toISOString(),
 			},
 		});
 	} catch (e) {
 		// @ts-ignore
-		console.log(`Error occurred: ${e.message}`);
+		console.log(`Error occurred (storing block): ${e.message}`);
 	}
 
 	console.log("-----------------------------------------------------");

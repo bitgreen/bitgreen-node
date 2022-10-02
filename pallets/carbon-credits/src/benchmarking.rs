@@ -124,7 +124,7 @@ benchmarks! {
         CarbonCredits::<T>::approve_project(RawOrigin::Signed(caller.clone()).into(), project_id, true)?;
     }: _(RawOrigin::Signed(caller.clone()), project_id, 100_u32.into(), false)
     verify {
-        assert_last_event::<T>(Event::VCUMinted { project_id, recipient : caller, amount : 100_u32.into() }.into());
+        assert_last_event::<T>(Event::CarbonCreditMinted { project_id, recipient : caller, amount : 100_u32.into() }.into());
     }
 
     retire {
@@ -140,7 +140,7 @@ benchmarks! {
     verify {
         let item_id : T::ItemId = 0_u32.into();
         let retire_data = RetiredCredits::<T>::get(project_id, item_id).unwrap();
-        assert_last_event::<T>(Event::VCURetired { project_id, account : caller, amount : 10_u32.into(), retire_data :retire_data.retire_data }.into());
+        assert_last_event::<T>(Event::CarbonCreditRetired { project_id, account : caller, amount : 10_u32.into(), retire_data :retire_data.retire_data }.into());
     }
 
     force_add_authorized_account {
@@ -201,12 +201,12 @@ benchmarks! {
         assert_eq!(NextItemId::<T>::get(project_id).unwrap(), next_item_id);
     }
 
-    force_set_retired_vcu {
+    force_set_retired_carbon_credit {
         let account : T::AccountId = account("account_id", 0, 0);
         let project_id : T::AssetId = 1000_u32.into();
         let item_id : T::ItemId = 100_u32.into();
         let batch_data : BatchRetireDataOf::<T> = Default::default();
-        let new_retire_data = RetiredVcuData::<T> {
+        let new_retire_data = RetiredCarbonCreditsData::<T> {
             account,
             retire_data : vec![batch_data].try_into().unwrap(),
             timestamp : 1_u32.into(),

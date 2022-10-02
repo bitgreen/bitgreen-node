@@ -45,9 +45,9 @@ pub type RoyaltyRecipientsOf<T> = BoundedVec<
 // Type of batch used by the pallet
 pub type BatchOf<T> = Batch<ShortStringOf<T>, <T as pallet::Config>::Balance>;
 
-/// A project can represent VCUs from multiple batches
+/// A project can represent Carbon credits from multiple batches
 /// For example a project can have 100 tokens of 2019 vintage and 200 tokens of 2020 vintage. In this case
-/// the project can package these two vintages to create a vcu token that has a supply of 300 tokens.
+/// the project can package these two vintages to create a carbon credit token that has a supply of 300 tokens.
 /// These vintages can be represented inside a batchgroup, in this case, it is important to remember that
 /// the minting and retirement always gives priority to the oldest vintage.
 /// Example : in the above case of 300 tokens, when the originator mints 100 tokens, we first mint the oldest (2019) credits
@@ -154,7 +154,7 @@ pub type BatchRetireDataList<T> =
 #[codec(mel_bound(T: pallet::Config))]
 #[derive(frame_support::DebugNoBound)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub struct RetiredVcuData<T: pallet::Config> {
+pub struct RetiredCarbonCreditsData<T: pallet::Config> {
     /// The AccountId that retired the credits
     pub account: T::AccountId,
     /// The details of the batches the tokens were retired from

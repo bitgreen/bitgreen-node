@@ -5,7 +5,7 @@ The Bitgreen Caching Engine makes on-chain actions and function results availabl
 
 Examples:
 
-http://157.90.126.46:3000/vcu/projects/?originator=5G6M646srfn77x6uzwReRhCsVdBDRtYMd74nQuHkxvZX1SLC
+http://157.90.126.46:3000/carbon-credits/projects/?originator=5G6M646srfn77x6uzwReRhCsVdBDRtYMd74nQuHkxvZX1SLC
 
 http://157.90.126.46:3000/assets/transactions?date_start=2022-05-01&date_end=2022-05-31
 
