@@ -55,7 +55,57 @@ const mainLoop = async () => {
 
 	// app.get('/analyze-data', db.getAnalyzeData)
 
-	app.get("/vcu/projects", async (req: Request, res: Response) => {
+	app.get("/carbon-credits/owned", async (req: Request, res: Response) => {
+		const address = req.query.address;
+		const asset_id = Number(req.query.asset_id);
+
+		if (typeof address !== "string") {
+			res.status(400).json({ error: "Invalid address" });
+			return;
+		}
+
+		if (req.query.asset_id !== undefined && isNaN(asset_id)) {
+			res.status(400).json({ error: "Invalid asset ID" });
+			return;
+		}
+
+		const received = await prisma.asset_transactions.groupBy({
+			by: ["recipient", "asset_id"],
+			where: {
+				recipient: address,
+				...asset_id && {asset_id: asset_id},
+			},
+			_sum: {
+				amount: true,
+			},
+		});
+
+		const sent = await prisma.asset_transactions.groupBy({
+			by: ["sender", "asset_id"],
+			where: {
+				sender: address,
+				...asset_id && {asset_id: asset_id},
+			},
+			_sum: {
+				amount: true,
+			},
+		});
+
+		const owned = received
+			.map((r) => {
+				const s = sent.find((s) => s.asset_id === r.asset_id);
+
+				return {
+					asset_id: r.asset_id,
+					amount: (r?._sum?.amount ?? 0) - (s?._sum?.amount ?? 0),
+				};
+			})
+			.filter((o) => o.amount > 0);
+
+		res.json({owned});
+	});
+
+	app.get("/carbon-credits/projects", async (req: Request, res: Response) => {
 		const queryParameterToString = (parameter: typeof req.query[string]) => {
 			if (typeof parameter === "string") {
 				return parameter;

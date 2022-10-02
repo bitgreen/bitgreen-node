@@ -40,7 +40,7 @@ pub trait WeightInfo {
 	fn force_remove_authorized_account() -> Weight;
 	fn force_set_project_storage() -> Weight;
 	fn force_set_next_item_id() -> Weight;
-	fn force_set_retired_vcu() -> Weight;
+	fn force_set_retired_carbon_credit() -> Weight;
 }
 
 /// Weights for pallet_carbon_credits using the Substrate node and recommended hardware.
@@ -108,7 +108,7 @@ impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
 			.saturating_add(T::DbWeight::get().writes(1 as Weight))
 	}
 	// Storage: VCU RetiredCredits (r:0 w:1)
-	fn force_set_retired_vcu() -> Weight {
+	fn force_set_retired_carbon_credit() -> Weight {
 		(10_000_000 as Weight)
 			.saturating_add(T::DbWeight::get().writes(1 as Weight))
 	}
@@ -178,7 +178,7 @@ impl WeightInfo for () {
 			.saturating_add(RocksDbWeight::get().writes(1 as Weight))
 	}
 	// Storage: VCU RetiredCredits (r:0 w:1)
-	fn force_set_retired_vcu() -> Weight {
+	fn force_set_retired_carbon_credit() -> Weight {
 		(10_000_000 as Weight)
 			.saturating_add(RocksDbWeight::get().writes(1 as Weight))
 	}

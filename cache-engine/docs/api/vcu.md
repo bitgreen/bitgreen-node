@@ -1,9 +1,9 @@
-# VCU Pallet API Documentation
+# Carbon-credits Pallet API Documentation
 
-### Get VCU Projects
+### Get Carbon-Credits Projects
 Get all projects from specified account.
 ```
-http://localhost:3000/vcu/projects
+http://localhost:3000/carbon-credits/projects
 ```
 #### Params:
 ```
