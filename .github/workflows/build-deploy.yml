@@ -524,7 +524,6 @@ jobs:
     steps:            
       - name: Checkout code
         uses: actions/checkout@v3
-        run: mkdir /home/runner/.ssh && echo "${{ secrets.SSH_PUB}}"" >> /home/runner/.ssh/id_rsa.pub && echo "${{ secrets.SSH_PRIV}}"" >> /home/runner/.ssh/id_rsa 
       - name: terraform hetzner
         uses: dflook/terraform-apply@v1
         with:
