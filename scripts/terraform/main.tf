@@ -218,7 +218,7 @@ module "kube-hetzner" {
   # initial_k3s_channel = "latest"
 
   # The cluster name, by default "k3s"
-  # cluster_name = ""
+  cluster_name = "bitgreen"
 
   # Whether to use the cluster name in the node name, in the form of {cluster_name}-{nodepool_name}, the default is "true".
   # use_cluster_name_in_node_name = false
