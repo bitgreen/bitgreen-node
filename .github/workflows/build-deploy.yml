@@ -530,6 +530,7 @@ jobs:
         uses: dflook/terraform-apply@v1
         with:
           path: /home/runner/work/bitgreen-node/bitgreen-node/scripts/terraform
+          auto_approve: true
           variables: |
             hcloud_token = "${{ secrets.HETZNER_KEY }}"
             pubkey = "{{ secrets.SSH_PUB }}"
