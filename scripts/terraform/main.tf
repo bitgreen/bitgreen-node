@@ -37,7 +37,7 @@ module "kube-hetzner" {
   ssh_private_key = file("/home/runner/.ssh/id_rsa")
   # You can add additional SSH public Keys to grant other team members root access to your cluster nodes.
   # ssh_additional_public_keys = []
-  
+
   # If you want to use an ssh key that is already registered within hetzner cloud, you can pass its id.
   # If no id is passed, a new ssh key will be registered within hetzner cloud.
   # It is important that exactly this key is passed via `ssh_public_key` & `ssh_private_key` vars. 
@@ -66,7 +66,7 @@ module "kube-hetzner" {
   # The nodepool names are entirely arbitrary, you can choose whatever you want, but no special characters or underscore, and they must be unique; only alphanumeric characters and dashes are allowed.
 
   # If you want to have a single node cluster, have one control plane nodepools with a count of 1, and one agent nodepool with a count of 0.
-  
+
   # Please note that changing labels and taints after the first run will have no effect. If needed, you will need to do that through Kubernetes directly.
 
   # * Example below:
@@ -180,7 +180,7 @@ module "kube-hetzner" {
 
   # If you want to disable the Traefik ingress controller, to use the Nginx ingress controller for instance, you can can set this to "false". Default is "true".
   # enable_traefik = false
-  
+
   # Use the klipper LB, instead of the default Hetzner one, that has an advantage of dropping the cost of the setup,
   # Automatically "true" in the case of single node cluster.
   # It can work with any ingress controller that you choose to deploy.
