@@ -532,9 +532,9 @@ jobs:
           variables: |
             hcloud_token = "${{ secrets.HETZNER_KEY }}"
             pubkey = <<EOT
-            ${{ secrets.SSH_PUB }}
+            ${{ secrets.KUBERNETES_PUB }}
             EOT
             privatekey = <<EOT
-            ${{ secrets.SSH_PRIV }}
+            ${{ secrets.KUBERNETES_PRIV }}
             EOT
 
