@@ -8,7 +8,7 @@ variable "pubkey" {
 }
 
 variable "privatekey" {
-  type = "string"
+  type = string
 }
 
 module "kube-hetzner" {
