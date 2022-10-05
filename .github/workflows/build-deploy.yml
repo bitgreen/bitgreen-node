@@ -514,7 +514,7 @@ jobs:
           username: ${{ secrets.SSH_USER}}
           key: ${{ secrets.SSH_PRIV }}
           script: ls ~/conf &&  cp /root/conf/rococo-local-cfde.json ~/ && supervisorctl reload
-            - name: terraform apply
+      
   terraform:
     runs-on: ubuntu-latest
     concurrency:
