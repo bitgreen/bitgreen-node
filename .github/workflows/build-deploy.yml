@@ -525,7 +525,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
       - name: export keys
-        run: mkdir /home/runner/.ssh && echo $ {{ secrets.SSH_PUB}} >> /home/runner/.ssh/id_rsa.pub && echo $ {{ secrets.SSH_PRIV}} >> /home/runner/.ssh/id_rsa && cat /home/runner/.ssh/id_rsa.pub
+        run: mkdir /home/runner/.ssh && echo ${{ secrets.SSH_PUB}} >> /home/runner/.ssh/id_rsa.pub && echo ${{ secrets.SSH_PRIV}} >> /home/runner/.ssh/id_rsa && cat /home/runner/.ssh/id_rsa.pub
       - name: terraform hetzner
         uses: dflook/terraform-apply@v1
         with:
@@ -533,6 +533,6 @@ jobs:
           auto_approve: true
           variables: |
             hcloud_token = "${{ secrets.HETZNER_KEY }}"
-            pubkey = "{{ secrets.SSH_PUB }}"
-            privatekey = "{{ secrets.SSH_PRIV }}"
+            pubkey = "${{ secrets.SSH_PUB }}"
+            privatekey = "${{ secrets.SSH_PRIV }}"
 
