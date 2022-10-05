@@ -532,3 +532,6 @@ jobs:
           path: /home/runner/work/bitgreen-node/bitgreen-node/scripts/terraform
           variables: |
             hcloud_token = "${{ secrets.HETZNER_KEY }}"
+            pubkey = "{{ secrets.SSH_PUB }}"
+            privatekey = "{{ secrets.SSH_PRIV }}"
+

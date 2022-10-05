@@ -1,10 +1,14 @@
-locals {
-  # Fill first and foremost your Hetzner API token, found in your project, Security, API Token, of type Read & Write.
-  hcloud_token = "xxxxxxxxxxxxxxxxYYYYYYYYYYzzzzzzzzzzzzzzzzz"
-}
 
 variable "hcloud_token" {
   type = string
+}
+
+variable "pubkey" {
+  type = string
+}
+
+variable "privatekey" {
+  type = "string"
 }
 
 module "kube-hetzner" {
@@ -31,10 +35,10 @@ module "kube-hetzner" {
   # ssh_port = 2222
 
   # * Your ssh public key
-  ssh_public_key = file("/home/runner/.ssh/id_rsa.pub")
+  ssh_public_key = var.pubkey
   # * Your private key must be "ssh_private_key = null" when you want to use ssh-agent for a Yubikey-like device authentification or an SSH key-pair with a passphrase.
   # For more details on SSH see https://github.com/kube-hetzner/kube-hetzner/blob/master/docs/ssh.md
-  ssh_private_key = file("/home/runner/.ssh/id_rsa")
+  ssh_private_key = var.privatekey
   # You can add additional SSH public Keys to grant other team members root access to your cluster nodes.
   # ssh_additional_public_keys = []
 
