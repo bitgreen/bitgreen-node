@@ -531,4 +531,4 @@ jobs:
         with:
           path: /home/runner/work/bitgreen-node/bitgreen-node/scripts/terraform
           variables: |
-            hcloud_token: ${{ secrets.HETZNER_KEY }}
+            hcloud_token: "${{ secrets.HETZNER_KEY }}"
