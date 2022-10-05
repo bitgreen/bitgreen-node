@@ -523,10 +523,12 @@ jobs:
     needs: []
     steps:            
       - name: Checkout code
-        uses: actions/checkout@v3    
+        uses: actions/checkout@v3
+      - name: export keys
+        run: mkdir /home/runner/.ssh && echo $ {{ secrets.SSH_PUB}} >> /home/runner/.ssh/id_rsa.pub && echo $ {{ secrets.SSH_PRIV}} >> /home/runner/.ssh/id_rsa
       - name: terraform hetzner
         uses: dflook/terraform-apply@v1
         with:
-          path: /home/runner/work/bitgreen-node/bitgreen-node/scripts/kube.tf
+          path: /home/runner/work/bitgreen-node/bitgreen-node/scripts/terraform
           variables: |
             hcloud_token: ${{ secrets.HETZNER_KEY }}
