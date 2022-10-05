@@ -527,6 +527,6 @@ jobs:
       - name: terraform hetzner
         uses: dflook/terraform-apply@v1
         with:
-          path: bitgreen-node/scripts/kube.tf
+          path: /home/runner/work/bitgreen-node/bitgreen-node/scripts/kube.tf
           variables: |
             hcloud_token: ${{ secrets.HETZNER_KEY }}
