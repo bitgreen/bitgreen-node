@@ -359,6 +359,25 @@ const mainLoop = async () => {
 		});
 	});
 
+	app.get("/asset/balance", async (req: Request, res: Response) => {
+		const { address, asset_id } = req.query;
+
+		if (address === undefined || asset_id === undefined) {
+			res.status(400).json({ error: "Missing address or asset_id" });
+			return;
+		}
+
+		try {
+			const api = await initApi();
+			const balance = await api.query.assets.account(asset_id, address);
+			res.json({balance});
+		} catch (e) {
+			console.error(e);
+			res.status(400).json({ error: "Invalid address or asset_id" });
+			return;
+		}
+	});
+
 	// app.get('/impact_actions', db.getImpactActions)
 	// app.get('/impact_actions/auditors', db.getImpactActionsAuditors)
 	// app.get('/impact_actions/categories', db.getImpactActionsCategories)
