@@ -1,3 +1,7 @@
+// This file is part of BitGreen.
+// Copyright (C) 2022 BitGreen.
+// This code is licensed under MIT license (see LICENSE.txt for details)
+//
 use frame_support::{parameter_types, traits::Everything, PalletId};
 use frame_system as system;
 use sp_core::H256;
@@ -77,7 +81,6 @@ parameter_types! {
   pub const MaxContractInputLength : u32 = 10;
   pub const MaxContractExpiryInABlock : u32 = 10;
   pub const VestingContractPalletId: PalletId = PalletId(*b"bitg/vcp");
-
 }
 
 impl vesting_contract::Config for Test {

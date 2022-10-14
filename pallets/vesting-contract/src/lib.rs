@@ -1,3 +1,35 @@
+// This file is part of BitGreen.
+// Copyright (C) 2022 BitGreen.
+// This code is licensed under MIT license (see LICENSE.txt for details)
+//
+//! ## Vesting Contract Pallet
+//! The goal of the pallet is to create vesting contracts for uniques addresses. This is different from other vesting pallets since our goal
+//! is to use unique addresses for every payout/unlock rather than a scheduled payout to same address.
+//! For example, if a recipient has an amount of 100BBB vested over 50 blocks, and unlocked propotionality over 10 blocks.
+//! In this case we would have 20BBB every 10 blocks until the entire amount is vested after 50 blocks, to execute this the recipient
+//! has to create 5 different addresses (one account for every transaction) and these addresses and amounts are added as individual contracts
+//! to the pallet storage
+//! Example : Account A -> 20 BBB -> Expiry at block 10
+//! 		  Account B -> 20 BBB -> Expiry at block 20
+//! 		  Account C -> 20 BBB -> Expiry at block 30
+//! 		  Account D -> 20 BBB -> Expiry at block 40
+//! 		  Account E -> 20 BBB -> Expiry at block 50
+//! This can also be used for individual one time contracts and future contracts can be modified or revoked.
+//!
+//! ## Interface
+//!
+//! ### Permissionless Functions
+//!
+//! * `withdraw_vested`: Withdraw an expired contract amount
+//!
+//! ### Permissioned Functions
+//!
+//! * `add_new_contract`: Add a new contract to the pallet
+//! * `remove_contract`: Remove existing contract from pallet
+//! * `bulk_add_new_contracts`: Same as add_new_contract but for multiple contracts
+//! * `bulk_remove_new_contracts`: Same as remove_contract but for multiple contracts
+//! * `force_withdraw_vested`: Withdraw vested amount to a recipient
+//!
 #![cfg_attr(not(feature = "std"), no_std)]
 pub use pallet::*;
 
@@ -10,17 +42,20 @@ mod tests;
 #[cfg(feature = "runtime-benchmarks")]
 mod benchmarking;
 
-use frame_support::traits::Currency;
+use frame_support::traits::{Currency, ExistenceRequirement::*};
 use frame_support::{
 	ensure, pallet_prelude::DispatchResult, sp_runtime::traits::AccountIdConversion, traits::Get,
 };
 use sp_runtime::{
-	traits::{CheckedAdd, CheckedSub},
+	traits::{CheckedAdd, CheckedSub, Zero},
 	ArithmeticError,
 };
 
 mod functions;
 pub use functions::*;
+
+mod pre_validate;
+pub use pre_validate::*;
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -28,7 +63,7 @@ pub mod pallet {
 		dispatch::DispatchResultWithPostInfo,
 		pallet_prelude::*,
 		traits::{Currency, ReservableCurrency},
-		PalletId,
+		transactional, PalletId,
 	};
 	use frame_system::pallet_prelude::*;
 	use sp_std::convert::TryInto;
@@ -131,8 +166,12 @@ pub mod pallet {
 			amount: BalanceOf<T>,
 		},
 		/// Contract removed from storage
-		ContractRemoved {
+		ContractRemoved { recipient: T::AccountId },
+		/// An existing contract has been completed/withdrawn
+		ContractWithdrawn {
 			recipient: T::AccountId,
+			expiry: T::BlockNumber,
+			amount: BalanceOf<T>,
 		},
 	}
 
@@ -147,19 +186,21 @@ pub mod pallet {
 		ExpiryInThePast,
 		/// The pallet account does not have funds to pay contract
 		PalletOutOfFunds,
+		/// The contract has not expired
+		ContractNotExpired,
+		/// Contract already exists, remove old contract before adding new
+		ContractAlreadyExists,
 	}
 
-	#[pallet::hooks]
-	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {}
-
-	// Dispatchable functions allows users to interact with the pallet and invoke state changes.
-	// These functions materialize as "extrinsics", which are often compared to transactions.
-	// Dispatchable functions must be annotated with a weight and must return a DispatchResult.
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
-		/// An example dispatchable that takes a singles value as a parameter, writes the value to
-		/// storage and emits an event. This function must be dispatched by a signed extrinsic.
+		/// Add a new contract on chain
+		/// A contract is considered valid if the following conditions are satisfied
+		/// - the recipient does not already have a contract
+		/// - The expiry block is in the future
+		/// - If the pallet has balance to payout this contract
 		#[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
+		#[transactional]
 		pub fn add_new_contract(
 			origin: OriginFor<T>,
 			recipient: T::AccountId,
@@ -172,9 +213,9 @@ pub mod pallet {
 			Ok(().into())
 		}
 
-		/// An example dispatchable that takes a singles value as a parameter, writes the value to
-		/// storage and emits an event. This function must be dispatched by a signed extrinsic.
+		/// Remove a contract from storage
 		#[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
+		#[transactional]
 		pub fn remove_contract(
 			origin: OriginFor<T>,
 			recipient: T::AccountId,
@@ -185,7 +226,10 @@ pub mod pallet {
 			Ok(().into())
 		}
 
+		/// Same as add_contract but take multiple accounts as input
+		/// If any of the contracts fail to be processed all inputs are rejected
 		#[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
+		#[transactional]
 		pub fn bulk_add_new_contracts(
 			origin: OriginFor<T>,
 			recipients: BulkContractInputs<T>,
@@ -198,7 +242,10 @@ pub mod pallet {
 			Ok(().into())
 		}
 
+		/// Same as remove_contract but take multiple accounts as input
+		/// If any of the contracts fail to be processed all inputs are rejected
 		#[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
+		#[transactional]
 		pub fn bulk_remove_contract(
 			origin: OriginFor<T>,
 			recipients: BulkContractRemove<T>,
@@ -211,14 +258,36 @@ pub mod pallet {
 			Ok(().into())
 		}
 
-		// Ext to withdraw
+		/// Withdraw amount from a vested (expired) contract
+		///
+		/// WARNING: Insecure unless the chain includes `PrevalidateVestingWithdraw` as a `SignedExtension`.
+		///
+		/// Unsigned Validation:
+		/// A call to withdraw vested is deemed valid if the sender has an existing contract
+		#[pallet::weight((
+			T::DbWeight::get().writes(1),
+			DispatchClass::Normal,
+			Pays::No
+		))]
+		#[transactional]
+		pub fn withdraw_vested(origin: OriginFor<T>) -> DispatchResultWithPostInfo {
+			// ensure caller is allowed to remove recipients
+			let who = ensure_signed(origin)?;
+			Self::do_withdraw_vested(who)?;
+			Ok(().into())
+		}
 
-
-		// Ext to claim expired payout
-		
-
-		// Ext for force payout
-
-		// ext to handle pallet balance
+		/// Call withdraw_vested for any account with a valid contract
+		#[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
+		#[transactional]
+		pub fn force_withdraw_vested(
+			origin: OriginFor<T>,
+			recipient: T::AccountId,
+		) -> DispatchResultWithPostInfo {
+			// ensure caller is allowed to force withdraw
+			T::ForceOrigin::ensure_origin(origin)?;
+			Self::do_withdraw_vested(recipient)?;
+			Ok(().into())
+		}
 	}
 }

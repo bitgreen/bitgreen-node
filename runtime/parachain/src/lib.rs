@@ -1,3 +1,7 @@
+// This file is part of BitGreen.
+// Copyright (C) 2022 BitGreen.
+// This code is licensed under MIT license (see LICENSE.txt for details)
+//
 #![cfg_attr(not(feature = "std"), no_std)]
 // `construct_runtime!` does a lot of recursion and requires us to increase the limit to 256.
 #![recursion_limit = "256"]
@@ -106,6 +110,7 @@ pub type SignedExtra = (
     frame_system::CheckNonce<Runtime>,
     frame_system::CheckWeight<Runtime>,
     pallet_transaction_payment::ChargeTransactionPayment<Runtime>,
+    vesting_contract::PrevalidateVestingWithdraw::<Runtime>
 );
 
 /// Unchecked extrinsic type as expected by this runtime.
