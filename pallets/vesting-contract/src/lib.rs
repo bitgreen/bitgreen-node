@@ -57,6 +57,9 @@ pub use functions::*;
 mod pre_validate;
 pub use pre_validate::*;
 
+mod weights;
+pub use weights::WeightInfo;
+
 #[frame_support::pallet]
 pub mod pallet {
 	use frame_support::{
@@ -67,6 +70,8 @@ pub mod pallet {
 	};
 	use frame_system::pallet_prelude::*;
 	use sp_std::convert::TryInto;
+
+	use super::*;
 
 	/// The data stored for every contract
 	#[derive(
@@ -97,7 +102,7 @@ pub mod pallet {
 		ContractDetail<<T as frame_system::Config>::BlockNumber, BalanceOf<T>>;
 
 	/// Pallet version of BulkContractInput
-	pub type BlockContractInputOf<T> = BulkContractInput<
+	pub type BulkContractInputOf<T> = BulkContractInput<
 		<T as frame_system::Config>::AccountId,
 		<T as frame_system::Config>::BlockNumber,
 		BalanceOf<T>,
@@ -105,7 +110,7 @@ pub mod pallet {
 
 	/// List of BulkContractInput
 	pub type BulkContractInputs<T> =
-		BoundedVec<BlockContractInputOf<T>, <T as Config>::MaxContractInputLength>;
+		BoundedVec<BulkContractInputOf<T>, <T as Config>::MaxContractInputLength>;
 
 	/// List of accountIds to be used for bulk_remove
 	pub type BulkContractRemove<T> =
@@ -130,12 +135,12 @@ pub mod pallet {
 		/// Maximum length of contract input length
 		type MaxContractInputLength: Get<u32>;
 
-		/// Maximum length of contract expiry in a block
-		type MaxContractExpiryInABlock: Get<u32>;
-
 		/// The Vesting Contract pallet id
 		#[pallet::constant]
 		type PalletId: Get<PalletId>;
+
+		/// Weight information for extrinsics in this pallet.
+		type WeightInfo: WeightInfo;
 	}
 
 	#[pallet::pallet]
@@ -199,8 +204,8 @@ pub mod pallet {
 		/// - the recipient does not already have a contract
 		/// - The expiry block is in the future
 		/// - If the pallet has balance to payout this contract
-		#[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
 		#[transactional]
+		#[pallet::weight(T::WeightInfo::add_new_contract())]
 		pub fn add_new_contract(
 			origin: OriginFor<T>,
 			recipient: T::AccountId,
@@ -214,8 +219,8 @@ pub mod pallet {
 		}
 
 		/// Remove a contract from storage
-		#[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
 		#[transactional]
+		#[pallet::weight(T::WeightInfo::remove_contract())]
 		pub fn remove_contract(
 			origin: OriginFor<T>,
 			recipient: T::AccountId,
@@ -228,7 +233,7 @@ pub mod pallet {
 
 		/// Same as add_contract but take multiple accounts as input
 		/// If any of the contracts fail to be processed all inputs are rejected
-		#[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
+		#[pallet::weight(T::WeightInfo::bulk_add_new_contracts(recipients.len() as u32))]
 		#[transactional]
 		pub fn bulk_add_new_contracts(
 			origin: OriginFor<T>,
@@ -244,9 +249,9 @@ pub mod pallet {
 
 		/// Same as remove_contract but take multiple accounts as input
 		/// If any of the contracts fail to be processed all inputs are rejected
-		#[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
+		#[pallet::weight(T::WeightInfo::bulk_add_new_contracts(recipients.len() as u32))]
 		#[transactional]
-		pub fn bulk_remove_contract(
+		pub fn bulk_remove_contracts(
 			origin: OriginFor<T>,
 			recipients: BulkContractRemove<T>,
 		) -> DispatchResultWithPostInfo {
@@ -265,7 +270,7 @@ pub mod pallet {
 		/// Unsigned Validation:
 		/// A call to withdraw vested is deemed valid if the sender has an existing contract
 		#[pallet::weight((
-			T::DbWeight::get().writes(1),
+			T::WeightInfo::withdraw_vested(),
 			DispatchClass::Normal,
 			Pays::No
 		))]
@@ -278,7 +283,7 @@ pub mod pallet {
 		}
 
 		/// Call withdraw_vested for any account with a valid contract
-		#[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
+		#[pallet::weight(T::WeightInfo::force_withdraw_vested())]
 		#[transactional]
 		pub fn force_withdraw_vested(
 			origin: OriginFor<T>,

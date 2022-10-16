@@ -90,6 +90,7 @@ pallet-carbon-credits ={ default-features = false, version = '0.1.0', path = "..
 pallet-carbon-credits-pool ={ default-features = false, version = '0.1.0', path = "../../pallets/carbon-credits-pool"}
 pallet-assets = { default-features = false, version = '4.0.0-dev', path = "../../pallets/assets"}
 pallet-transaction-pause = { default-features = false, version = '2.9.2', path = "../../pallets/transaction-pause"}
+pallet-vesting-contract = { default-features = false, version = '0.1.0', path = "../../pallets/vesting-contract"}
 
 [features]
 default = [
@@ -155,7 +156,8 @@ std = [
 	"pallet-assets/std",
 	"pallet-carbon-credits/std",
 	"pallet-carbon-credits-pool/std",
-	"pallet-transaction-pause/std"
+	"pallet-transaction-pause/std",
+	"pallet-vesting-contract/std"
 ]
 
 runtime-benchmarks = [
@@ -173,5 +175,6 @@ runtime-benchmarks = [
 	"cumulus-pallet-session-benchmarking/runtime-benchmarks",
 	"cumulus-pallet-xcmp-queue/runtime-benchmarks",
 	"pallet-carbon-credits/runtime-benchmarks",
+	"pallet-vesting-contract/runtime-benchmarks",
 	"orml-authority/runtime-benchmarks",
 ]

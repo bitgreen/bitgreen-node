@@ -79,7 +79,6 @@ impl pallet_balances::Config for Test {
 
 parameter_types! {
   pub const MaxContractInputLength : u32 = 10;
-  pub const MaxContractExpiryInABlock : u32 = 10;
   pub const VestingContractPalletId: PalletId = PalletId(*b"bitg/vcp");
 }
 
@@ -87,7 +86,6 @@ impl vesting_contract::Config for Test {
 	type Currency = Balances;
 	type Event = Event;
 	type ForceOrigin = frame_system::EnsureRoot<u64>;
-	type MaxContractExpiryInABlock = MaxContractExpiryInABlock;
 	type MaxContractInputLength = MaxContractInputLength;
 	type PalletId = VestingContractPalletId;
 }
