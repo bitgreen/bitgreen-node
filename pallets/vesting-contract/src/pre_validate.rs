@@ -2,6 +2,7 @@
 // Copyright (C) 2022 BitGreen.
 // This code is licensed under MIT license (see LICENSE.txt for details)
 //
+#![allow(clippy::all)]
 use codec::{Decode, Encode};
 use frame_support::dispatch::fmt::Debug;
 use frame_support::pallet_prelude::{
@@ -80,9 +81,9 @@ where
 	) -> TransactionValidity {
 		if let Some(local_call) = call.is_sub_type() {
 			if let Call::withdraw_vested {} = local_call {
-				let _ = VestingContracts::<T>::get(who).ok_or(InvalidTransaction::Custom(
-					ValidityError::SignerHasNoContract.into(),
-				))?;
+				let _ = VestingContracts::<T>::get(who).ok_or_else(|| {
+					InvalidTransaction::Custom(ValidityError::SignerHasNoContract.into())
+				})?;
 			}
 		}
 		Ok(ValidTransaction::default())

@@ -10,10 +10,10 @@
 //! has to create 5 different addresses (one account for every transaction) and these addresses and amounts are added as individual contracts
 //! to the pallet storage
 //! Example : Account A -> 20 BBB -> Expiry at block 10
-//! 		  Account B -> 20 BBB -> Expiry at block 20
-//! 		  Account C -> 20 BBB -> Expiry at block 30
-//! 		  Account D -> 20 BBB -> Expiry at block 40
-//! 		  Account E -> 20 BBB -> Expiry at block 50
+//!   Account B -> 20 BBB -> Expiry at block 20
+//!   Account C -> 20 BBB -> Expiry at block 30
+//!   Account D -> 20 BBB -> Expiry at block 40
+//!   Account E -> 20 BBB -> Expiry at block 50
 //! This can also be used for individual one time contracts and future contracts can be modified or revoked.
 //!
 //! ## Interface
@@ -47,7 +47,7 @@ use frame_support::{
 	ensure, pallet_prelude::DispatchResult, sp_runtime::traits::AccountIdConversion, traits::Get,
 };
 use sp_runtime::{
-	traits::{CheckedAdd, CheckedSub, Zero},
+	traits::{CheckedAdd, CheckedSub},
 	ArithmeticError,
 };
 

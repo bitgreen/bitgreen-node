@@ -7,7 +7,7 @@ use frame_system as system;
 use sp_core::H256;
 use sp_runtime::{
 	testing::Header,
-	traits::{AccountIdConversion, BlakeTwo256, IdentityLookup},
+	traits::{BlakeTwo256, IdentityLookup},
 };
 use sp_std::convert::{TryFrom, TryInto};
 
@@ -88,6 +88,7 @@ impl vesting_contract::Config for Test {
 	type ForceOrigin = frame_system::EnsureRoot<u64>;
 	type MaxContractInputLength = MaxContractInputLength;
 	type PalletId = VestingContractPalletId;
+	type WeightInfo = ();
 }
 
 // Build genesis storage according to the mock runtime.

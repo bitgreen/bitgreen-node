@@ -126,7 +126,6 @@ use codec::HasCompact;
 use frame_support::{
 	dispatch::{DispatchError, DispatchResult},
 	ensure,
-	pallet_prelude::DispatchResultWithPostInfo,
 	traits::{
 		tokens::{fungibles, DepositConsequence, WithdrawConsequence},
 		BalanceStatus::Reserved,
@@ -135,7 +134,6 @@ use frame_support::{
 };
 use frame_system::Config as SystemConfig;
 pub use pallet::*;
-use scale_info::TypeInfo;
 use sp_runtime::{
 	traits::{
 		AtLeast32BitUnsigned, Bounded, CheckedAdd, CheckedSub, Saturating, StaticLookup, Zero,

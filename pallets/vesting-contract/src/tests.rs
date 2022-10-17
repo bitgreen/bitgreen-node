@@ -7,7 +7,7 @@ use frame_support::{assert_noop, assert_ok, error::BadOrigin, PalletId};
 use frame_system::RawOrigin;
 use sp_runtime::traits::AccountIdConversion;
 
-use crate::{mock::*, BalanceOf, Config, ContractDetail, Error, VestingBalance, VestingContracts};
+use crate::{mock::*, ContractDetail, Error, VestingBalance, VestingContracts};
 
 pub type VestingContractEvent = crate::Event<Test>;
 
