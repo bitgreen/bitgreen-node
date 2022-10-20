@@ -16,6 +16,14 @@ If you require any assistance using these features, or this repo, please contact
 
 Additional, detailed technical information regarding the use and response of the caching engine can be found below.
 
+### Getting Started
+
+The following commands starts all the services required to run the caching engine:
+
+```bash
+docker compose up
+```
+
 ### Installation
 ```
 npm install

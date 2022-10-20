@@ -1,0 +1,51 @@
+version: "3.2"
+
+services:
+  postgresql:
+    image: postgres:9.6
+    container_name: postgresql
+    restart: always
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: pass
+      POSTGRES_DB: cache-engine
+
+  api:
+    container_name: cache-engine-api
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "80:80"
+    environment:
+      API_PORT: 80
+      DATABASE_URL: "postgresql://user:pass@postgresql:5432/cache-engine"
+      RPC_PROVIDER: "wss://testnet.bitgreen.org"
+
+    volumes:
+      - ./src:/app/src
+    command: bash -c "npx prisma db push && npm run api-dev"
+
+  fetch:
+    container_name: cache-engine-fetch
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      DATABASE_URL: "postgresql://user:pass@postgresql:5432/cache-engine"
+      RPC_PROVIDER: "wss://testnet.bitgreen.org"
+    volumes:
+      - ./src:/app/src
+    command: bash -c "npx prisma db push && npm run fetch-dev"
+
+  node:
+    container_name: cache-engine-node
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      DATABASE_URL: "postgresql://user:pass@postgresql:5432/cache-engine"
+      RPC_PROVIDER: "wss://testnet.bitgreen.org"
+    volumes:
+      - ./src:/app/src
+    command: bash -c "npx prisma db push && npm run node-dev"
