@@ -106,17 +106,25 @@ const mainLoop = async () => {
 	});
 
 	app.get("/carbon-credits/projects", async (req: Request, res: Response) => {
-		const { originator = undefined } = req.query;
+		const queryParameterToString = (parameter: typeof req.query[string]) => {
+			if (typeof parameter === "string") {
+				return parameter;
+			} else {
+				return undefined;
+			}
+		};
 
-		const or = originator
-			? {
-					OR: [{ originator: originator as string }],
-			  }
-			: {};
+		const originator = queryParameterToString(req.query.originator);
+		const approved = queryParameterToString(req.query.approved);
+
+		const where = {
+			...(originator !== undefined && { originator: originator as string }),
+			...(approved !== undefined && { approved: approved.toLowerCase() !== "false" }),
+		};
 
 		const vcu_projects = await prisma.vcu_projects.findMany({
 			where: {
-				...or,
+				...where,
 			},
 			select: {
 				id: true,
