@@ -1,15 +1,14 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 use codec::{Decode, Encode, MaxEncodedLen};
 use scale_info::TypeInfo;
-use sp_runtime::{
-    generic,
-    traits::{BlakeTwo256, IdentifyAccount, Verify},
-    MultiSignature, RuntimeDebug,
-};
-use sp_std::convert::TryFrom;
-
 #[cfg(feature = "std")]
 use serde::{Deserialize, Serialize};
+use sp_runtime::{
+	generic,
+	traits::{BlakeTwo256, IdentifyAccount, Verify},
+	MultiSignature, RuntimeDebug,
+};
+use sp_std::convert::TryFrom;
 
 mod carbon_credits;
 pub use carbon_credits::*;
@@ -18,37 +17,37 @@ pub const BBB_TOKEN: u32 = 1;
 
 /// Amounts
 pub mod currency {
-    use super::Balance;
+	use super::Balance;
 
-    pub const DOLLARS: Balance = 1_000_000_000_000_000_000;
-    pub const CENTS: Balance = DOLLARS / 100;
+	pub const DOLLARS: Balance = 1_000_000_000_000_000_000;
+	pub const CENTS: Balance = DOLLARS / 100;
 
-    pub const BBB: Balance = DOLLARS;
-    pub const MILLI_BBB: Balance = BBB / 1_000;
-    pub const MICRO_BBB: Balance = BBB / 1_000_000;
+	pub const BBB: Balance = DOLLARS;
+	pub const MILLI_BBB: Balance = BBB / 1_000;
+	pub const MICRO_BBB: Balance = BBB / 1_000_000;
 }
 
 /// Time and blocks.
 pub mod time {
-    use super::{BlockNumber, Moment};
+	use super::{BlockNumber, Moment};
 
-    ///  second block times
-    pub const SECS_PER_BLOCK: Moment = 10;
-    pub const MILLISECS_PER_BLOCK: Moment = SECS_PER_BLOCK * 1000;
+	///  second block times
+	pub const SECS_PER_BLOCK: Moment = 10;
+	pub const MILLISECS_PER_BLOCK: Moment = SECS_PER_BLOCK * 1000;
 
-    // These time units are defined in number of blocks.
-    pub const MINUTES: BlockNumber = 60 / (SECS_PER_BLOCK as BlockNumber);
-    pub const HOURS: BlockNumber = MINUTES * 60;
-    pub const DAYS: BlockNumber = HOURS * 24;
-    pub const SLOT_DURATION: Moment = MILLISECS_PER_BLOCK;
+	// These time units are defined in number of blocks.
+	pub const MINUTES: BlockNumber = 60 / (SECS_PER_BLOCK as BlockNumber);
+	pub const HOURS: BlockNumber = MINUTES * 60;
+	pub const DAYS: BlockNumber = HOURS * 24;
+	pub const SLOT_DURATION: Moment = MILLISECS_PER_BLOCK;
 
-    // 1 in 4 blocks (on average, not counting collisions) will be primary BABE blocks.
-    pub const PRIMARY_PROBABILITY: (u64, u64) = (1, 4);
-    pub const EPOCH_DURATION_IN_BLOCKS: BlockNumber = HOURS;
-    pub const EPOCH_DURATION_IN_SLOTS: u64 = {
-        const SLOT_FILL_RATE: f64 = MILLISECS_PER_BLOCK as f64 / SLOT_DURATION as f64;
-        (EPOCH_DURATION_IN_BLOCKS as f64 * SLOT_FILL_RATE) as u64
-    };
+	// 1 in 4 blocks (on average, not counting collisions) will be primary BABE blocks.
+	pub const PRIMARY_PROBABILITY: (u64, u64) = (1, 4);
+	pub const EPOCH_DURATION_IN_BLOCKS: BlockNumber = HOURS;
+	pub const EPOCH_DURATION_IN_SLOTS: u64 = {
+		const SLOT_FILL_RATE: f64 = MILLISECS_PER_BLOCK as f64 / SLOT_DURATION as f64;
+		(EPOCH_DURATION_IN_BLOCKS as f64 * SLOT_FILL_RATE) as u64
+	};
 }
 
 /// An index to a block.
@@ -102,35 +101,35 @@ pub type BlockId = generic::BlockId<Block>;
 pub use sp_runtime::OpaqueExtrinsic as UncheckedExtrinsic;
 
 #[derive(
-    Encode,
-    Decode,
-    Eq,
-    PartialEq,
-    Copy,
-    Clone,
-    RuntimeDebug,
-    PartialOrd,
-    Ord,
-    MaxEncodedLen,
-    TypeInfo,
+	Encode,
+	Decode,
+	Eq,
+	PartialEq,
+	Copy,
+	Clone,
+	RuntimeDebug,
+	PartialOrd,
+	Ord,
+	MaxEncodedLen,
+	TypeInfo,
 )]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 #[allow(clippy::unnecessary_cast)]
 pub enum CurrencyId {
-    DOT = 0,
-    ACA = 1,
-    AUSD = 2,
+	DOT = 0,
+	ACA = 1,
+	AUSD = 2,
 }
 
 impl TryFrom<u8> for CurrencyId {
-    type Error = ();
+	type Error = ();
 
-    fn try_from(v: u8) -> Result<Self, Self::Error> {
-        match v {
-            0 => Ok(CurrencyId::DOT),
-            1 => Ok(CurrencyId::ACA),
-            2 => Ok(CurrencyId::AUSD),
-            _ => Err(()),
-        }
-    }
+	fn try_from(v: u8) -> Result<Self, Self::Error> {
+		match v {
+			0 => Ok(CurrencyId::DOT),
+			1 => Ok(CurrencyId::ACA),
+			2 => Ok(CurrencyId::AUSD),
+			_ => Err(()),
+		}
+	}
 }
