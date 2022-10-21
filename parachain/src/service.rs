@@ -4,7 +4,9 @@
 use std::{sync::Arc, time::Duration};
 
 // Local Runtime Types
-use bitgreen_rococo_runtime::{opaque::Block, AccountId, Balance, Hash, Index as Nonce, RuntimeApi};
+use bitgreen_rococo_runtime::{
+	opaque::Block, AccountId, Balance, Hash, Index as Nonce, RuntimeApi,
+};
 use cumulus_client_cli::CollatorOptions;
 // Cumulus Imports
 use cumulus_client_consensus_aura::{AuraConsensus, BuildAuraConsensusParams, SlotProportion};

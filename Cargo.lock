@@ -535,21 +535,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "bef38d45163c2f1dde094a7dfd33ccf595c92905c8f8f4fdc18d06fb1037718a"
 
 [[package]]
-name = "bitg-primitives"
-version = "0.7.3"
-dependencies = [
- "frame-support",
- "parity-scale-codec",
- "parity-util-mem",
- "scale-info",
- "serde",
- "sp-core",
- "sp-io",
- "sp-runtime",
- "sp-std",
-]
-
-[[package]]
 name = "bitgreen-parachain"
 version = "0.1.0"
 dependencies = [
@@ -616,10 +601,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "bitgreen-primitives"
+version = "0.7.3"
+dependencies = [
+ "frame-support",
+ "parity-scale-codec",
+ "scale-info",
+ "serde",
+ "sp-core",
+ "sp-runtime",
+ "sp-std",
+]
+
+[[package]]
 name = "bitgreen-rococo-runtime"
 version = "0.1.0"
 dependencies = [
- "bitg-primitives",
+ "bitgreen-primitives",
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-dmp-queue",
  "cumulus-pallet-parachain-system",
@@ -5396,7 +5394,7 @@ dependencies = [
 name = "pallet-carbon-credits"
 version = "0.1.0"
 dependencies = [
- "bitg-primitives",
+ "bitgreen-primitives",
  "bs58",
  "frame-benchmarking",
  "frame-support",
@@ -5419,7 +5417,7 @@ dependencies = [
 name = "pallet-carbon-credits-pool"
 version = "0.1.0"
 dependencies = [
- "bitg-primitives",
+ "bitgreen-primitives",
  "bs58",
  "frame-benchmarking",
  "frame-support",
@@ -6018,7 +6016,7 @@ dependencies = [
 name = "pallet-transaction-pause"
 version = "2.9.2"
 dependencies = [
- "bitg-primitives",
+ "bitgreen-primitives",
  "frame-support",
  "frame-system",
  "orml-tokens",
