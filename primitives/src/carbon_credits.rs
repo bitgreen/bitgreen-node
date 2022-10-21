@@ -2,7 +2,7 @@ use sp_runtime::Percent;
 
 use super::*;
 
-pub type IssuanceYear = u32;
+pub type IssuanceYear = u16;
 
 /// The possible values for Registry Names
 #[derive(Clone, Encode, Decode, Eq, PartialEq, Debug, TypeInfo, MaxEncodedLen)]
@@ -106,9 +106,9 @@ pub struct Batch<StringType, Balance> {
 	/// The year the associated credits were issued
 	pub issuance_year: IssuanceYear,
 	/// start date for multi year batch
-	pub start_date: u32,
+	pub start_date: u16,
 	/// end date for multi year batch
-	pub end_date: u32,
+	pub end_date: u16,
 	/// The total_supply of the credits - this represents the total supply of the
 	/// credits in the registry.
 	pub total_supply: Balance,
