@@ -4,7 +4,7 @@
 use std::{sync::Arc, time::Duration};
 
 // Local Runtime Types
-use bitg_parachain_runtime::{opaque::Block, AccountId, Balance, Hash, Index as Nonce, RuntimeApi};
+use bitgreen_rococo_runtime::{opaque::Block, AccountId, Balance, Hash, Index as Nonce, RuntimeApi};
 use cumulus_client_cli::CollatorOptions;
 // Cumulus Imports
 use cumulus_client_consensus_aura::{AuraConsensus, BuildAuraConsensusParams, SlotProportion};
@@ -39,10 +39,10 @@ impl sc_executor::NativeExecutionDispatch for TemplateRuntimeExecutor {
 	type ExtendHostFunctions = frame_benchmarking::benchmarking::HostFunctions;
 
 	fn dispatch(method: &str, data: &[u8]) -> Option<Vec<u8>> {
-		bitg_parachain_runtime::api::dispatch(method, data)
+		bitgreen_rococo_runtime::api::dispatch(method, data)
 	}
 
-	fn native_version() -> sc_executor::NativeVersion { bitg_parachain_runtime::native_version() }
+	fn native_version() -> sc_executor::NativeVersion { bitgreen_rococo_runtime::native_version() }
 }
 
 /// Starts a `ServiceBuilder` for a full service.

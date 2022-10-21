@@ -1,4 +1,4 @@
-use bitg_parachain_runtime::{AccountId, AuraId, Signature, EXISTENTIAL_DEPOSIT};
+use bitgreen_rococo_runtime::{AccountId, AuraId, Signature, EXISTENTIAL_DEPOSIT};
 use cumulus_primitives_core::ParaId;
 use sc_chain_spec::{ChainSpecExtension, ChainSpecGroup};
 use sc_service::ChainType;
@@ -8,7 +8,7 @@ use sp_runtime::traits::{IdentifyAccount, Verify};
 
 /// Specialized `ChainSpec` for the normal parachain runtime.
 pub type ChainSpec =
-	sc_service::GenericChainSpec<bitg_parachain_runtime::GenesisConfig, Extensions>;
+	sc_service::GenericChainSpec<bitgreen_rococo_runtime::GenesisConfig, Extensions>;
 
 /// The default XCM version to set in genesis config.
 const SAFE_XCM_VERSION: u32 = xcm::prelude::XCM_VERSION;
@@ -57,8 +57,8 @@ where
 /// Generate the session keys from individual elements.
 ///
 /// The input must be a tuple of individual keys (a single arg for now since we have just one key).
-pub fn template_session_keys(keys: AuraId) -> bitg_parachain_runtime::SessionKeys {
-	bitg_parachain_runtime::SessionKeys { aura: keys }
+pub fn template_session_keys(keys: AuraId) -> bitgreen_rococo_runtime::SessionKeys {
+	bitgreen_rococo_runtime::SessionKeys { aura: keys }
 }
 
 pub fn development_config() -> ChainSpec {
@@ -241,27 +241,27 @@ fn testnet_genesis(
 	invulnerables: Vec<(AccountId, AuraId)>,
 	endowed_accounts: Vec<AccountId>,
 	id: ParaId,
-) -> bitg_parachain_runtime::GenesisConfig {
-	bitg_parachain_runtime::GenesisConfig {
-		system: bitg_parachain_runtime::SystemConfig {
-			code: bitg_parachain_runtime::WASM_BINARY
+) -> bitgreen_rococo_runtime::GenesisConfig {
+	bitgreen_rococo_runtime::GenesisConfig {
+		system: bitgreen_rococo_runtime::SystemConfig {
+			code: bitgreen_rococo_runtime::WASM_BINARY
 				.expect("WASM binary was not build, please build it!")
 				.to_vec(),
 		},
-		balances: bitg_parachain_runtime::BalancesConfig {
+		balances: bitgreen_rococo_runtime::BalancesConfig {
 			balances: endowed_accounts
 				.iter()
 				.cloned()
 				.map(|k| (k, 1 << 80))
 				.collect(),
 		},
-		parachain_info: bitg_parachain_runtime::ParachainInfoConfig { parachain_id: id },
-		collator_selection: bitg_parachain_runtime::CollatorSelectionConfig {
+		parachain_info: bitgreen_rococo_runtime::ParachainInfoConfig { parachain_id: id },
+		collator_selection: bitgreen_rococo_runtime::CollatorSelectionConfig {
 			invulnerables: invulnerables.iter().cloned().map(|(acc, _)| acc).collect(),
 			candidacy_bond: EXISTENTIAL_DEPOSIT * 16,
 			..Default::default()
 		},
-		session: bitg_parachain_runtime::SessionConfig {
+		session: bitgreen_rococo_runtime::SessionConfig {
 			keys: invulnerables
 				.into_iter()
 				.map(|(acc, aura)| {
@@ -278,19 +278,19 @@ fn testnet_genesis(
 		aura: Default::default(),
 		aura_ext: Default::default(),
 		parachain_system: Default::default(),
-		polkadot_xcm: bitg_parachain_runtime::PolkadotXcmConfig {
+		polkadot_xcm: bitgreen_rococo_runtime::PolkadotXcmConfig {
 			safe_xcm_version: Some(SAFE_XCM_VERSION),
 		},
-		kyc_membership: bitg_parachain_runtime::KYCMembershipConfig {
+		kyc_membership: bitgreen_rococo_runtime::KYCMembershipConfig {
 			members: [].to_vec().try_into().unwrap(),
 			phantom: Default::default(),
 		},
-		tokens: bitg_parachain_runtime::TokensConfig {
+		tokens: bitgreen_rococo_runtime::TokensConfig {
 			balances: [].to_vec(),
 		},
-		sudo: bitg_parachain_runtime::SudoConfig {
+		sudo: bitgreen_rococo_runtime::SudoConfig {
 			key: Some(get_account_id_from_seed::<sr25519::Public>("Alice")),
 		},
-		nft: bitg_parachain_runtime::NftConfig { tokens: vec![] },
+		nft: bitgreen_rococo_runtime::NftConfig { tokens: vec![] },
 	}
 }

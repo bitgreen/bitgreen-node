@@ -1,12 +1,12 @@
 
 [package]
 authors = ['BitGreen <https://www.bitgreen.org>']
-description = 'BitGreen Node - Substrate framework'
+description = 'Bitgreen Parachain Runtime - Rococo'
 edition = '2021'
 homepage = 'https://www.bitgreen.org'
 license = 'MIT'
-name = 'bitg-parachain-runtime'
-repository = 'https://github.com/bitgreen/bitg-node'
+name = 'bitgreen-rococo-runtime'
+repository = 'https://github.com/bitgreen/bitgreen-node'
 version = '0.1.0'
 
 [package.metadata.docs.rs]
