@@ -18,7 +18,7 @@ sp-io = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0
 pallet-balances = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.29" }
 orml-tokens = { git = "https://github.com/open-web3-stack/open-runtime-module-library", default-features = false, branch = "polkadot-v0.9.29" }
 orml-traits = { git = "https://github.com/open-web3-stack/open-runtime-module-library", default-features = false, branch = "polkadot-v0.9.29" }
-primitives = { package = 'bitg-primitives', path = '../../primitives', default-features = false }
+primitives = { package = 'bitgreen-primitives', path = '../../primitives', default-features = false }
 smallvec = "1.4.1"
 
 [features]

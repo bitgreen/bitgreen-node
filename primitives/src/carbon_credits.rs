@@ -1,5 +1,3 @@
-use sp_runtime::Percent;
-
 use super::*;
 
 pub type IssuanceYear = u16;

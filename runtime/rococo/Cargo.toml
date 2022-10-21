@@ -85,9 +85,9 @@ orml-benchmarking = { git = "https://github.com/open-web3-stack/open-runtime-mod
 orml-nft = { git = "https://github.com/open-web3-stack/open-runtime-module-library", default-features = false, branch = "polkadot-v0.9.29" }
 
 # Local Dependencies
-primitives = { package = "bitg-primitives", path = "../../primitives", default-features = false }
-pallet-carbon-credits ={ default-features = false, version = '0.1.0', path = "../../pallets/carbon-credits"}
-pallet-carbon-credits-pool ={ default-features = false, version = '0.1.0', path = "../../pallets/carbon-credits-pool"}
+primitives = { package = "bitgreen-primitives", path = "../../primitives", default-features = false }
+pallet-carbon-credits = { default-features = false, version = '0.1.0', path = "../../pallets/carbon-credits"}
+pallet-carbon-credits-pool = { default-features = false, version = '0.1.0', path = "../../pallets/carbon-credits-pool"}
 pallet-assets = { default-features = false, version = '4.0.0-dev', path = "../../pallets/assets"}
 pallet-transaction-pause = { default-features = false, version = '2.9.2', path = "../../pallets/transaction-pause"}
 pallet-vesting-contract = { default-features = false, version = '0.1.0', path = "../../pallets/vesting-contract"}
