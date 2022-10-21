@@ -44,9 +44,9 @@ impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
 	// Storage: Assets Asset (r:1 w:1)
 	// Storage: Assets Metadata (r:1 w:1)
 	fn create() -> Weight {
-		(25_000_000 as Weight)
-			.saturating_add(T::DbWeight::get().reads(3 as Weight))
-			.saturating_add(T::DbWeight::get().writes(3 as Weight))
+		Weight::from_ref_time(25_000_000 as u64)
+			.saturating_add(T::DbWeight::get().reads(3 as u64))
+			.saturating_add(T::DbWeight::get().writes(3 as u64))
 	}
 	// Storage: VCUPools Pools (r:1 w:1)
 	// Storage: VCU Projects (r:1 w:0)
@@ -54,9 +54,9 @@ impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
 	// Storage: Assets Account (r:3 w:3)
 	// Storage: System Account (r:2 w:2)
 	fn deposit() -> Weight {
-		(67_000_000 as Weight)
-			.saturating_add(T::DbWeight::get().reads(9 as Weight))
-			.saturating_add(T::DbWeight::get().writes(8 as Weight))
+		Weight::from_ref_time(67_000_000 as u64)
+			.saturating_add(T::DbWeight::get().reads(9 as u64))
+			.saturating_add(T::DbWeight::get().writes(8 as u64))
 	}
 	// Storage: VCUPools Pools (r:1 w:1)
 	// Storage: Assets Asset (r:2 w:2)
@@ -70,9 +70,9 @@ impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
 	// Storage: Uniques Account (r:0 w:1)
 	// Storage: VCU RetiredCredits (r:0 w:1)
 	fn retire() -> Weight {
-		(101_000_000 as Weight)
-			.saturating_add(T::DbWeight::get().reads(11 as Weight))
-			.saturating_add(T::DbWeight::get().writes(13 as Weight))
+		Weight::from_ref_time(101_000_000 as u64)
+			.saturating_add(T::DbWeight::get().reads(11 as u64))
+			.saturating_add(T::DbWeight::get().writes(13 as u64))
 	}
 }
 
@@ -82,9 +82,9 @@ impl WeightInfo for () {
 	// Storage: Assets Asset (r:1 w:1)
 	// Storage: Assets Metadata (r:1 w:1)
 	fn create() -> Weight {
-		(25_000_000 as Weight)
-			.saturating_add(RocksDbWeight::get().reads(3 as Weight))
-			.saturating_add(RocksDbWeight::get().writes(3 as Weight))
+		Weight::from_ref_time(25_000_000 as u64)
+			.saturating_add(RocksDbWeight::get().reads(3 as u64))
+			.saturating_add(RocksDbWeight::get().writes(3 as u64))
 	}
 	// Storage: VCUPools Pools (r:1 w:1)
 	// Storage: VCU Projects (r:1 w:0)
@@ -92,9 +92,9 @@ impl WeightInfo for () {
 	// Storage: Assets Account (r:3 w:3)
 	// Storage: System Account (r:2 w:2)
 	fn deposit() -> Weight {
-		(67_000_000 as Weight)
-			.saturating_add(RocksDbWeight::get().reads(9 as Weight))
-			.saturating_add(RocksDbWeight::get().writes(8 as Weight))
+		Weight::from_ref_time(67_000_000 as u64)
+			.saturating_add(RocksDbWeight::get().reads(9 as u64))
+			.saturating_add(RocksDbWeight::get().writes(8 as u64))
 	}
 	// Storage: VCUPools Pools (r:1 w:1)
 	// Storage: Assets Asset (r:2 w:2)
@@ -108,8 +108,8 @@ impl WeightInfo for () {
 	// Storage: Uniques Account (r:0 w:1)
 	// Storage: VCU RetiredCredits (r:0 w:1)
 	fn retire() -> Weight {
-		(101_000_000 as Weight)
-			.saturating_add(RocksDbWeight::get().reads(11 as Weight))
-			.saturating_add(RocksDbWeight::get().writes(13 as Weight))
+		Weight::from_ref_time(101_000_000 as u64)
+			.saturating_add(RocksDbWeight::get().reads(11 as u64))
+			.saturating_add(RocksDbWeight::get().writes(13 as u64))
 	}
 }

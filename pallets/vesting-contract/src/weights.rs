@@ -47,47 +47,47 @@ impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
 	// Storage: VestingContract VestingBalance (r:1 w:1)
 	// Storage: System Account (r:1 w:0)
 	fn add_new_contract() -> Weight {
-		(25_000_000 as Weight)
-			.saturating_add(T::DbWeight::get().reads(3 as Weight))
-			.saturating_add(T::DbWeight::get().writes(2 as Weight))
+		Weight::from_ref_time(25_000_000 as u64)
+			.saturating_add(T::DbWeight::get().reads(3 as u64))
+			.saturating_add(T::DbWeight::get().writes(2 as u64))
 	}
 	// Storage: VestingContract VestingContracts (r:1 w:1)
 	// Storage: VestingContract VestingBalance (r:1 w:1)
 	fn remove_contract() -> Weight {
-		(22_000_000 as Weight)
-			.saturating_add(T::DbWeight::get().reads(2 as Weight))
-			.saturating_add(T::DbWeight::get().writes(2 as Weight))
+		Weight::from_ref_time(22_000_000 as u64)
+			.saturating_add(T::DbWeight::get().reads(2 as u64))
+			.saturating_add(T::DbWeight::get().writes(2 as u64))
 	}
 	// Storage: VestingContract VestingContracts (r:1 w:1)
 	// Storage: VestingContract VestingBalance (r:1 w:1)
 	// Storage: System Account (r:1 w:0)
 	fn bulk_add_new_contracts(_i: u32, ) -> Weight {
-		(26_044_000 as Weight)
-			.saturating_add(T::DbWeight::get().reads(3 as Weight))
-			.saturating_add(T::DbWeight::get().writes(2 as Weight))
+		Weight::from_ref_time(26_044_000 as u64)
+			.saturating_add(T::DbWeight::get().reads(3 as u64))
+			.saturating_add(T::DbWeight::get().writes(2 as u64))
 	}
 	// Storage: VestingContract VestingContracts (r:1 w:1)
 	// Storage: VestingContract VestingBalance (r:1 w:1)
 	fn bulk_remove_contracts(_i: u32, ) -> Weight {
-		(22_383_000 as Weight)
-			.saturating_add(T::DbWeight::get().reads(2 as Weight))
-			.saturating_add(T::DbWeight::get().writes(2 as Weight))
+		Weight::from_ref_time(22_383_000 as u64)
+			.saturating_add(T::DbWeight::get().reads(2 as u64))
+			.saturating_add(T::DbWeight::get().writes(2 as u64))
 	}
 	// Storage: VestingContract VestingContracts (r:1 w:1)
 	// Storage: VestingContract VestingBalance (r:1 w:1)
 	// Storage: System Account (r:2 w:2)
 	fn withdraw_vested() -> Weight {
-		(45_000_000 as Weight)
-			.saturating_add(T::DbWeight::get().reads(4 as Weight))
-			.saturating_add(T::DbWeight::get().writes(4 as Weight))
+		Weight::from_ref_time(45_000_000 as u64)
+			.saturating_add(T::DbWeight::get().reads(4 as u64))
+			.saturating_add(T::DbWeight::get().writes(4 as u64))
 	}
 	// Storage: VestingContract VestingContracts (r:1 w:1)
 	// Storage: VestingContract VestingBalance (r:1 w:1)
 	// Storage: System Account (r:2 w:2)
 	fn force_withdraw_vested() -> Weight {
-		(46_000_000 as Weight)
-			.saturating_add(T::DbWeight::get().reads(4 as Weight))
-			.saturating_add(T::DbWeight::get().writes(4 as Weight))
+		Weight::from_ref_time(46_000_000 as u64)
+			.saturating_add(T::DbWeight::get().reads(4 as u64))
+			.saturating_add(T::DbWeight::get().writes(4 as u64))
 	}
 }
 
@@ -97,46 +97,46 @@ impl WeightInfo for () {
 	// Storage: VestingContract VestingBalance (r:1 w:1)
 	// Storage: System Account (r:1 w:0)
 	fn add_new_contract() -> Weight {
-		(25_000_000 as Weight)
-			.saturating_add(RocksDbWeight::get().reads(3 as Weight))
-			.saturating_add(RocksDbWeight::get().writes(2 as Weight))
+		Weight::from_ref_time(25_000_000 as u64)
+			.saturating_add(RocksDbWeight::get().reads(3 as u64))
+			.saturating_add(RocksDbWeight::get().writes(2 as u64))
 	}
 	// Storage: VestingContract VestingContracts (r:1 w:1)
 	// Storage: VestingContract VestingBalance (r:1 w:1)
 	fn remove_contract() -> Weight {
-		(22_000_000 as Weight)
-			.saturating_add(RocksDbWeight::get().reads(2 as Weight))
-			.saturating_add(RocksDbWeight::get().writes(2 as Weight))
+		Weight::from_ref_time(22_000_000 as u64)
+			.saturating_add(RocksDbWeight::get().reads(2 as u64))
+			.saturating_add(RocksDbWeight::get().writes(2 as u64))
 	}
 	// Storage: VestingContract VestingContracts (r:1 w:1)
 	// Storage: VestingContract VestingBalance (r:1 w:1)
 	// Storage: System Account (r:1 w:0)
 	fn bulk_add_new_contracts(_i: u32, ) -> Weight {
-		(26_044_000 as Weight)
-			.saturating_add(RocksDbWeight::get().reads(3 as Weight))
-			.saturating_add(RocksDbWeight::get().writes(2 as Weight))
+		Weight::from_ref_time(26_044_000 as u64)
+			.saturating_add(RocksDbWeight::get().reads(3 as u64))
+			.saturating_add(RocksDbWeight::get().writes(2 as u64))
 	}
 	// Storage: VestingContract VestingContracts (r:1 w:1)
 	// Storage: VestingContract VestingBalance (r:1 w:1)
 	fn bulk_remove_contracts(_i: u32, ) -> Weight {
-		(22_383_000 as Weight)
-			.saturating_add(RocksDbWeight::get().reads(2 as Weight))
-			.saturating_add(RocksDbWeight::get().writes(2 as Weight))
+		Weight::from_ref_time(22_383_000 as u64)
+			.saturating_add(RocksDbWeight::get().reads(2 as u64))
+			.saturating_add(RocksDbWeight::get().writes(2 as u64))
 	}
 	// Storage: VestingContract VestingContracts (r:1 w:1)
 	// Storage: VestingContract VestingBalance (r:1 w:1)
 	// Storage: System Account (r:2 w:2)
 	fn withdraw_vested() -> Weight {
-		(45_000_000 as Weight)
-			.saturating_add(RocksDbWeight::get().reads(4 as Weight))
-			.saturating_add(RocksDbWeight::get().writes(4 as Weight))
+		Weight::from_ref_time(45_000_000 as u64)
+			.saturating_add(RocksDbWeight::get().reads(4 as u64))
+			.saturating_add(RocksDbWeight::get().writes(4 as u64))
 	}
 	// Storage: VestingContract VestingContracts (r:1 w:1)
 	// Storage: VestingContract VestingBalance (r:1 w:1)
 	// Storage: System Account (r:2 w:2)
 	fn force_withdraw_vested() -> Weight {
-		(46_000_000 as Weight)
-			.saturating_add(RocksDbWeight::get().reads(4 as Weight))
-			.saturating_add(RocksDbWeight::get().writes(4 as Weight))
+		Weight::from_ref_time(46_000_000 as u64)
+			.saturating_add(RocksDbWeight::get().reads(4 as u64))
+			.saturating_add(RocksDbWeight::get().writes(4 as u64))
 	}
 }
