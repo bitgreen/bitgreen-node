@@ -5,7 +5,7 @@ homepage = 'https://bitgreen.org'
 license = 'MIT'
 name = 'pallet-carbon-credits-pool'
 description = "Create pools for CarbonCredits"
-repository = 'https://github.com/bitgreen/bitg-node'
+repository = 'https://github.com/bitgreen/bitgreen-node'
 version = '0.1.0'
 
 [package.metadata.docs.rs]

@@ -34,7 +34,7 @@ You can build without launching:
 
 ```sh
 cargo build --release -p bitg-node (for standalone node)
-cargo build --release -p bitg-parachain (for parachain)
+cargo build --release -p bitgreen-parachain (for parachain)
 ```
 
 
@@ -99,7 +99,7 @@ You can install in your node as from [instructions here](cache-engine/README.md)
 
 ### Bugs Reporting
 For bug reporting, please open an issue on our Git Repo:  
-[https://github.com/bitgreen/bitg-node/issues](https://github.com/bitgreen/bitg-node/issues)  
+[https://github.com/bitgreen/bitgreen-node/issues](https://github.com/bitgreen/bitgreen-node/issues)  
 
 
 ### Secure Web Socket

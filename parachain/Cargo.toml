@@ -1,17 +1,16 @@
 [package]
 authors = ['BitGreen <https://www.bitgreen.org>']
 build = 'build.rs'
-description = 'BitGreen Node - Substrate framework'
+description = 'BitGreen Parachain'
 edition = '2021'
 homepage = 'https://www.bitgreen.org'
 license = 'MIT'
-name = 'bitg-parachain'
-repository = 'https://github.com/bitgreen/bitg-node'
+name = 'bitgreen-parachain'
+repository = 'https://github.com/bitgreen/bitgreen-node'
 version = '0.1.0'
 
-
 [[bin]]
-name = 'bitg-parachain'
+name = 'bitgreen-parachain'
 
 [package.metadata.docs.rs]
 targets = ['x86_64-unknown-linux-gnu']
@@ -26,7 +25,7 @@ hex-literal = "0.3.4"
 jsonrpsee = { version = "0.15.0", features = ["server"] }
 
 # Local
-bitg-parachain-runtime = { path = "../runtime/parachain" }
+bitgreen-rococo-runtime = { path = "../runtime/rococo" }
 
 # Substrate
 frame-benchmarking = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.29" }
@@ -90,6 +89,6 @@ substrate-build-script-utils = { git = "https://github.com/paritytech/substrate"
 
 [features]
 runtime-benchmarks = [
-	"bitg-parachain-runtime/runtime-benchmarks",
+	"bitgreen-rococo-runtime/runtime-benchmarks",
 	"polkadot-cli/runtime-benchmarks",
 ]
