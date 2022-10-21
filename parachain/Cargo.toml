@@ -1,9 +1,9 @@
 [package]
-authors = ['BitGreen <https://bitg.org>']
+authors = ['BitGreen <https://www.bitgreen.org>']
 build = 'build.rs'
 description = 'BitGreen Node - Substrate framework'
 edition = '2021'
-homepage = 'https://bitg.org'
+homepage = 'https://www.bitgreen.org'
 license = 'MIT'
 name = 'bitg-parachain'
 repository = 'https://github.com/bitgreen/bitg-node'
