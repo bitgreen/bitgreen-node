@@ -45,9 +45,9 @@ fn get_default_batch_group<T: Config>() -> BatchGroupOf<T> {
 	let batches: BatchGroupOf<T> = vec![Batch {
 		name: "batch_name".as_bytes().to_vec().try_into().unwrap(),
 		uuid: "batch_uuid".as_bytes().to_vec().try_into().unwrap(),
-		issuance_year: 2020_u32,
-		start_date: 2020_u32,
-		end_date: 2020_u32,
+		issuance_year: 2020_u16,
+		start_date: 2020_u16,
+		end_date: 2020_u16,
 		total_supply: 100_u32.into(),
 		minted: 0_u32.into(),
 		retired: 0_u32.into(),

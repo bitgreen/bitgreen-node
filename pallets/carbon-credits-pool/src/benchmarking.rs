@@ -98,8 +98,7 @@ benchmarks! {
 		let owner : T::AccountId = account("owner", 0, 1);
 		let pool_id = 10_001_u32.into();
 		let asset_symbol =  "pool_xyz".as_bytes().to_vec().try_into().unwrap();
-
-	}: _(RawOrigin::Signed(account_id), pool_id, Default::default(), None, asset_symbol)
+	}: _(RawOrigin::Signed(account_id), pool_id, owner, Default::default(), None, asset_symbol)
 	verify {
 		assert!(
 			CarbonCreditPools::<T>::pools(pool_id).is_some()
@@ -108,6 +107,7 @@ benchmarks! {
 
 	deposit {
 		let caller : T::AccountId = account("account_id", 0, 0);
+		let owner : T::AccountId = account("owner", 0, 1);
 		// create a project and mint tokens
 		let project_id = 10_000_u32.into();
 		let creation_params = get_default_creation_params::<T>();
@@ -122,7 +122,7 @@ benchmarks! {
 		// create a pool
 		let pool_id = 10_001_u32.into();
 		let asset_symbol =  "pool_xyz".as_bytes().to_vec().try_into().unwrap();
-		CarbonCreditPools::<T>::create(RawOrigin::Signed(caller.clone()).into(), pool_id, Default::default(), None, asset_symbol).unwrap();
+		CarbonCreditPools::<T>::create(RawOrigin::Signed(caller.clone()).into(), pool_id, owner, Default::default(), None, asset_symbol).unwrap();
 	}: _(RawOrigin::Signed(caller.clone()), pool_id, project_id, 1_u32.into())
 	verify {
 		assert_last_event::<T>(Event::Deposit { project_id, who : caller, amount : 1_u32.into(), pool_id }.into());
@@ -130,6 +130,7 @@ benchmarks! {
 
 	retire {
 		let caller : T::AccountId = account("account_id", 0, 0);
+		let owner : T::AccountId = account("owner", 0, 1);
 		// create a project and mint tokens
 		let project_id = 10_000_u32.into();
 		let creation_params = get_default_creation_params::<T>();
@@ -144,7 +145,7 @@ benchmarks! {
 		// create a pool and deposit tokens
 		let pool_id = 10_001_u32.into();
 		let asset_symbol =  "pool_xyz".as_bytes().to_vec().try_into().unwrap();
-		CarbonCreditPools::<T>::create(RawOrigin::Signed(caller.clone()).into(), pool_id, Default::default(), None, asset_symbol).unwrap();
+		CarbonCreditPools::<T>::create(RawOrigin::Signed(caller.clone()).into(), pool_id, owner, Default::default(), None, asset_symbol).unwrap();
 		CarbonCreditPools::<T>::deposit(RawOrigin::Signed(caller.clone()).into(), pool_id, project_id, 10_u32.into()).unwrap();
 	}: _(RawOrigin::Signed(caller.clone()), pool_id, 1_u32.into())
 	verify {
