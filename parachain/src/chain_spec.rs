@@ -62,11 +62,11 @@ pub fn template_session_keys(keys: AuraId) -> bitg_parachain_runtime::SessionKey
 }
 
 pub fn development_config() -> ChainSpec {
-    // Give your base currency a unit name and decimal places
-    let mut properties = sc_chain_spec::Properties::new();
-    properties.insert("tokenSymbol".into(), "BBB".into());
-    properties.insert("tokenDecimals".into(), 18.into());
-    properties.insert("ss58Format".into(), 2106.into());
+	// Give your base currency a unit name and decimal places
+	let mut properties = sc_chain_spec::Properties::new();
+	properties.insert("tokenSymbol".into(), "BBB".into());
+	properties.insert("tokenDecimals".into(), 18.into());
+	properties.insert("ss58Format".into(), 2106.into());
 	ChainSpec::from_genesis(
 		// Name
 		"Development",
@@ -116,12 +116,11 @@ pub fn development_config() -> ChainSpec {
 }
 
 pub fn local_testnet_config() -> ChainSpec {
-
-    // Give your base currency a unit name and decimal places
-    let mut properties = sc_chain_spec::Properties::new();
-    properties.insert("tokenSymbol".into(), "BBB".into());
-    properties.insert("tokenDecimals".into(), 18.into());
-    properties.insert("ss58Format".into(), 2106.into());
+	// Give your base currency a unit name and decimal places
+	let mut properties = sc_chain_spec::Properties::new();
+	properties.insert("tokenSymbol".into(), "BBB".into());
+	properties.insert("tokenDecimals".into(), 18.into());
+	properties.insert("ss58Format".into(), 2106.into());
 
 	ChainSpec::from_genesis(
 		// Name
@@ -178,11 +177,11 @@ pub fn local_testnet_config() -> ChainSpec {
 }
 
 pub fn rococo_config() -> ChainSpec {
-    // Give your base currency a unit name and decimal places
-    let mut properties = sc_chain_spec::Properties::new();
-    properties.insert("tokenSymbol".into(), "BBB".into());
-    properties.insert("tokenDecimals".into(), 18.into());
-    properties.insert("ss58Format".into(), 2106.into());
+	// Give your base currency a unit name and decimal places
+	let mut properties = sc_chain_spec::Properties::new();
+	properties.insert("tokenSymbol".into(), "BBB".into());
+	properties.insert("tokenDecimals".into(), 18.into());
+	properties.insert("ss58Format".into(), 2106.into());
 
 	ChainSpec::from_genesis(
 		// Name
