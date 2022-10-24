@@ -394,7 +394,7 @@ fn create_fails_for_multiple_batch_with_single_batch_supply_zero() {
 			CarbonCredits::create(
 				RawOrigin::Signed(originator_account).into(),
 				project_id,
-				creation_params.clone()
+				creation_params
 			),
 			Error::<Test>::CannotCreateProjectWithoutCredits
 		);
@@ -503,7 +503,7 @@ fn cleanup_after_project_reject_works() {
 		assert_ok!(CarbonCredits::create(
 			RawOrigin::Signed(originator_account).into(),
 			project_id,
-			creation_params.clone()
+			creation_params
 		));
 
 		// reject the project
