@@ -1,3 +1,7 @@
+// SBP-M3 review: If you have made some changes to it, you should carefully document them
+// and ideally submit those changes upstream as a PR if they are generic enough, and useful for the rest of the community.
+// If there are no changes you should fetch the pallet from orginal repository
+
 // This file is part of Acala.
 
 // Copyright (C) 2020-2022 Acala Foundation.

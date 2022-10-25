@@ -234,6 +234,7 @@ pub mod pallet {
 			Ok(().into())
 		}
 
+		// SBP-M3 review: Too long function, refactor needed
 		/// Deposit CarbonCredits tokens to pool with `id`
 		///
 		/// Params:
@@ -369,6 +370,9 @@ pub mod pallet {
 				let mut pool_credits_temp = pool.credits.clone().into_inner();
 
 				// Retire tokens starting from oldest until `amount` is retired
+
+				// SBP-M3 review: Multiple loops, potential security issue for block time
+				// Try to avoid looping or prepare benchmarked limits for loop size
 				for (_year, project_map) in pool_credits_temp.iter_mut() {
 					// the iterator is sorted by key (year), so retire all from year before moving to next year
 					// we dont care about the project order
@@ -430,6 +434,7 @@ pub mod pallet {
 
 		/// Force modify pool storage
 		#[transactional]
+		// SBP-M3 review: I suggest having benchmark instead
 		#[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
 		pub fn force_set_pool_storage(
 			origin: OriginFor<T>,

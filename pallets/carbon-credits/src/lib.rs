@@ -304,6 +304,8 @@ pub mod pallet {
 		}
 
 		/// Set the project status to approve/reject
+		// SBP-M3 review: I would split approve/reject into separated extrinsics.
+		// It would simplify usage and reduce errors from passing wrong `is_approved`
 		#[transactional]
 		#[pallet::weight(T::WeightInfo::approve_project())]
 		pub fn approve_project(
@@ -330,6 +332,7 @@ pub mod pallet {
 		) -> DispatchResult {
 			let sender = ensure_signed(origin)?;
 			Self::check_authorized_account(&sender)?;
+			// SBP-M3 review: should it be just autorized account or after KYC process?
 			// Self::check_kyc_approval(&sender)?;
 			Self::mint_carbon_credits(sender, project_id, amount_to_mint, list_to_marketplace)
 		}

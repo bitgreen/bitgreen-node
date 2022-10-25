@@ -1,5 +1,8 @@
 // This file is part of Bitgreen.
 // Modified from frame assets pallet to have a kyc check to be used before asset operations
+
+// SBP-M3 review: If you have made some changes to it, you should carefully document them
+// and ideally submit those changes upstream as a PR if they are generic enough, and useful for the rest of the community.
 //! # Assets Pallet
 //!
 //! A simple, secure module for dealing with fungible assets.

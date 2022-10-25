@@ -465,6 +465,7 @@ impl pallet_collator_selection::Config for Runtime {
 // orml pallets
 parameter_type_with_key! {
 	pub ExistentialDeposits: |_currency_id: primitives::CurrencyId| -> Balance {
+		// SBP-M3 review: action required before launch
 		// TODO : Calculate correct ED before launch
 		Zero::zero()
 	};
@@ -472,6 +473,8 @@ parameter_type_with_key! {
 
 pub struct DustRemovalWhitelist;
 impl Contains<AccountId> for DustRemovalWhitelist {
+	// SBP-M3 review: is this targer implementation
+	// IMHO there are predefined configs that handle action like this
 	fn contains(_a: &AccountId) -> bool { false }
 }
 
@@ -508,6 +511,7 @@ pub const DOLLARS: Balance = 100 * CENTS;
 
 // Asset pallet
 parameter_types! {
+	// SBP-M3 review: I suggest splitting capital letters with '_'
 	pub const ASSETDEPOSIT: Balance = DOLLARS;
 	pub const ASSETACCOUNTDEPOSIT: Balance = DOLLARS;
 	pub const STRINGLIMIT: u32 = 8192;	// max metadata size in bytes
@@ -533,6 +537,7 @@ impl pallet_assets::Config for Runtime {
 	type Event = Event;
 	type Extra = ();
 	type ForceOrigin = EnsureRoot<AccountId>;
+	// SBP-M3 review: are you sure about using `TestFreezer` in almost production ready runtime?
 	type Freezer = TestFreezer;
 	type MetadataDepositBase = METADATADEPOSITBASE;
 	type MetadataDepositPerByte = METADATADEPOSITPERBYTE;
@@ -624,6 +629,9 @@ parameter_types! {
   pub const NativeTokenId: u32 = primitives::BBB_TOKEN;
 }
 
+// SBP-M3 review: We strongly recommend removal of Sudo pallet
+// Sudo operations deny true decentralization
+// You should use entity like a council for vital operations
 impl pallet_sudo::Config for Runtime {
 	type Call = Call;
 	type Event = Event;

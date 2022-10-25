@@ -32,6 +32,7 @@ impl<T: Config> Pallet<T> {
 
 	/// Checks if given account is kyc approved
 	pub fn check_kyc_approval(account_id: &T::AccountId) -> DispatchResult {
+		// SBP-M3 review: I would use ensure!(!T::KYCProvider::contains(account_id), Error::<T>::KYCAuthorisationFailed)
 		if !T::KYCProvider::contains(account_id) {
 			Err(Error::<T>::KYCAuthorisationFailed.into())
 		} else {
@@ -42,6 +43,7 @@ impl<T: Config> Pallet<T> {
 	/// Checks if the given account_id is part of authorized account list
 	pub fn check_authorized_account(account_id: &T::AccountId) -> DispatchResult {
 		let authorized_accounts = AuthorizedAccounts::<T>::get();
+		// SBP-M3 review: same as above
 		if !authorized_accounts.contains(account_id) {
 			Err(Error::<T>::NotAuthorised.into())
 		} else {
@@ -59,6 +61,7 @@ impl<T: Config> Pallet<T> {
 
 			// emit event
 			// TODO : Emit rejected event if rejected?
+			// SBP-M3 review: handle situation when project gets rejected
 			Self::deposit_event(Event::ProjectApproved { project_id });
 
 			Ok(())
@@ -74,6 +77,7 @@ impl<T: Config> Pallet<T> {
 	}
 
 	/// Create a new project with `params`
+	// SBP-M3 review: Too long function
 	pub fn create_project(
 		admin: T::AccountId,
 		project_id: T::AssetId,
@@ -112,6 +116,10 @@ impl<T: Config> Pallet<T> {
 				.batches
 				.sort_by(|x, y| x.issuance_year.cmp(&y.issuance_year));
 
+			// SBP-M3 review: I recommend dedicated function that creates `ProjectDetail`
+			// based on `params` and some other arguments
+			// like ProjectDetail::new(originator, params, ...)
+			// It would clean the codebase
 			let new_project = ProjectDetail {
 				originator: admin,
 				name: params.name,
@@ -157,6 +165,7 @@ impl<T: Config> Pallet<T> {
 		})
 	}
 
+	// SBP-M3 review: refactor suggested as above
 	/// Resubmit a project after approval is rejected
 	pub fn resubmit_project(
 		admin: T::AccountId,
@@ -225,6 +234,7 @@ impl<T: Config> Pallet<T> {
 	}
 
 	pub fn mint_carbon_credits(
+		// SBP-M3 review: remove `sender` if not needed
 		_sender: T::AccountId,
 		project_id: T::AssetId,
 		amount_to_mint: T::Balance,
@@ -306,6 +316,7 @@ impl<T: Config> Pallet<T> {
 		})
 	}
 
+	// SBP-M3 review: Too long function
 	/// Retire carbon credits for given project_id
 	pub fn retire_carbon_credits(
 		from: T::AccountId,

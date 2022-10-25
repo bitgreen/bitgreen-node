@@ -186,6 +186,7 @@ where
 }
 
 #[test]
+// SBP-M3 review: I suggest splitting multiple checks into separated test cases
 fn add_new_authorized_accounts_should_work() {
 	new_test_ext().execute_with(|| {
 		let authorised_account_one = 1;
