@@ -97,7 +97,8 @@ benchmarks! {
 		let caller : T::AccountId = account("account_id", 0, 0);
 		let project_id = 10_000_u32.into();
 		let creation_params = get_default_creation_params::<T>();
-		pallet_membership::Pallet::<T>::add_member(RawOrigin::Root.into(), caller.clone())?;
+		let caller_lookup = <T::Lookup as sp_runtime::traits::StaticLookup>::unlookup(caller.clone());
+		pallet_membership::Pallet::<T>::add_member(RawOrigin::Root.into(), caller_lookup)?;
 	}: _(RawOrigin::Signed(caller.into()), project_id, creation_params.into())
 	verify {
 		assert!(Projects::<T>::get(project_id).is_some());
@@ -108,7 +109,8 @@ benchmarks! {
 		let project_id = 10_000_u32.into();
 		let creation_params = get_default_creation_params::<T>();
 		CarbonCredits::<T>::force_add_authorized_account(RawOrigin::Root.into(), caller.clone().into())?;
-		pallet_membership::Pallet::<T>::add_member(RawOrigin::Root.into(), caller.clone())?;
+		let caller_lookup = <T::Lookup as sp_runtime::traits::StaticLookup>::unlookup(caller.clone());
+		pallet_membership::Pallet::<T>::add_member(RawOrigin::Root.into(), caller_lookup)?;
 		CarbonCredits::<T>::create(RawOrigin::Signed(caller.clone()).into(), project_id, creation_params)?;
 	}: _(RawOrigin::Signed(caller.into()), project_id, true)
 	verify {
@@ -119,7 +121,10 @@ benchmarks! {
 		let caller : T::AccountId = account("account_id", 0, 0);
 		let project_id = 10_000_u32.into();
 		let creation_params = get_default_creation_params::<T>();
-		pallet_membership::Pallet::<T>::add_member(RawOrigin::Root.into(), caller.clone())?;
+
+		let caller_lookup = <T::Lookup as sp_runtime::traits::StaticLookup>::unlookup(caller.clone());
+		pallet_membership::Pallet::<T>::add_member(RawOrigin::Root.into(), caller_lookup)?;
+
 		CarbonCredits::<T>::force_add_authorized_account(RawOrigin::Root.into(), caller.clone().into())?;
 		CarbonCredits::<T>::create(RawOrigin::Signed(caller.clone()).into(), project_id, creation_params)?;
 		CarbonCredits::<T>::approve_project(RawOrigin::Signed(caller.clone()).into(), project_id, true)?;
@@ -132,7 +137,10 @@ benchmarks! {
 		let caller : T::AccountId = account("account_id", 0, 0);
 		let project_id = 10_000_u32.into();
 		let creation_params = get_default_creation_params::<T>();
-		pallet_membership::Pallet::<T>::add_member(RawOrigin::Root.into(), caller.clone())?;
+
+		let caller_lookup = <T::Lookup as sp_runtime::traits::StaticLookup>::unlookup(caller.clone());
+		pallet_membership::Pallet::<T>::add_member(RawOrigin::Root.into(), caller_lookup)?;
+
 		CarbonCredits::<T>::force_add_authorized_account(RawOrigin::Root.into(), caller.clone().into())?;
 		CarbonCredits::<T>::create(RawOrigin::Signed(caller.clone()).into(), project_id, creation_params)?;
 		CarbonCredits::<T>::approve_project(RawOrigin::Signed(caller.clone()).into(), project_id, true)?;
