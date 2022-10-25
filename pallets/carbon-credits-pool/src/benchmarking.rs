@@ -134,7 +134,6 @@ benchmarks! {
 		// create a project and mint tokens
 		let project_id = 10_000_u32.into();
 		let creation_params = get_default_creation_params::<T>();
-
 		let caller_lookup = <T::Lookup as sp_runtime::traits::StaticLookup>::unlookup(caller.clone());
 		pallet_membership::Pallet::<T>::add_member(RawOrigin::Root.into(), caller_lookup)?;
 
