@@ -1,13 +1,16 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 use codec::{Decode, Encode, MaxEncodedLen};
+use frame_support::weights::{constants::WEIGHT_PER_SECOND, Weight};
 use scale_info::TypeInfo;
 #[cfg(feature = "std")]
 use serde::{Deserialize, Serialize};
+use sp_runtime::MultiAddress;
 use sp_runtime::{
 	generic,
 	traits::{BlakeTwo256, IdentifyAccount, Verify},
 	MultiSignature, RuntimeDebug,
 };
+use sp_runtime::{Perbill, Percent};
 use sp_std::convert::TryFrom;
 
 mod carbon_credits;
@@ -19,68 +22,50 @@ pub const BBB_TOKEN: u32 = 1;
 pub mod currency {
 	use super::Balance;
 
-	pub const DOLLARS: Balance = 1_000_000_000_000_000_000;
-	pub const CENTS: Balance = DOLLARS / 100;
+	// Unit = the base number of indivisible units for balances
+	pub const UNIT: Balance = 1_000_000_000_000;
+	pub const MILLIUNIT: Balance = 1_000_000_000;
+	pub const MICROUNIT: Balance = 1_000_000;
 
-	pub const BBB: Balance = DOLLARS;
-	pub const MILLI_BBB: Balance = BBB / 1_000;
-	pub const MICRO_BBB: Balance = BBB / 1_000_000;
+	/// The existential deposit. Set to 1/10 of the Connected Relay Chain.
+	pub const EXISTENTIAL_DEPOSIT: Balance = MILLIUNIT;
 }
 
 /// Time and blocks.
 pub mod time {
-	use super::{BlockNumber, Moment};
+	use super::*;
 
-	///  second block times
-	pub const SECS_PER_BLOCK: Moment = 10;
-	pub const MILLISECS_PER_BLOCK: Moment = SECS_PER_BLOCK * 1000;
+	/// This determines the average expected block time that we are targeting.
+	/// Blocks will be produced at a minimum duration defined by `SLOT_DURATION`.
+	/// `SLOT_DURATION` is picked up by `pallet_timestamp` which is in turn picked
+	/// up by `pallet_aura` to implement `fn slot_duration()`.
+	///
+	/// Change this to adjust the block time.
+	pub const MILLISECS_PER_BLOCK: u64 = 12000;
 
-	// These time units are defined in number of blocks.
-	pub const MINUTES: BlockNumber = 60 / (SECS_PER_BLOCK as BlockNumber);
+	// NOTE: Currently it is not possible to change the slot duration after the chain has started.
+	//       Attempting to do so will brick block production.
+	pub const SLOT_DURATION: u64 = MILLISECS_PER_BLOCK;
+
+	// Time is measured by number of blocks.
+	pub const MINUTES: BlockNumber = 60_000 / (MILLISECS_PER_BLOCK as BlockNumber);
 	pub const HOURS: BlockNumber = MINUTES * 60;
 	pub const DAYS: BlockNumber = HOURS * 24;
-	pub const SLOT_DURATION: Moment = MILLISECS_PER_BLOCK;
 
-	// 1 in 4 blocks (on average, not counting collisions) will be primary BABE blocks.
-	pub const PRIMARY_PROBABILITY: (u64, u64) = (1, 4);
-	pub const EPOCH_DURATION_IN_BLOCKS: BlockNumber = HOURS;
-	pub const EPOCH_DURATION_IN_SLOTS: u64 = {
-		const SLOT_FILL_RATE: f64 = MILLISECS_PER_BLOCK as f64 / SLOT_DURATION as f64;
-		(EPOCH_DURATION_IN_BLOCKS as f64 * SLOT_FILL_RATE) as u64
-	};
+	/// We assume that ~5% of the block weight is consumed by `on_initialize` handlers. This is
+	/// used to limit the maximal weight of a single extrinsic.
+	pub const AVERAGE_ON_INITIALIZE_RATIO: Perbill = Perbill::from_percent(5);
+
+	/// We allow `Normal` extrinsics to fill up the block up to 75%, the rest can be used by
+	/// `Operational` extrinsics.
+	pub const NORMAL_DISPATCH_RATIO: Perbill = Perbill::from_percent(75);
+
+	/// We allow for 0.5 of a second of compute with a 12 second average block time.
+	pub const MAXIMUM_BLOCK_WEIGHT: Weight = WEIGHT_PER_SECOND.saturating_div(2);
 }
-
-/// An index to a block.
-pub type BlockNumber = u32;
-
-/// Alias to 512-bit hash when used in the context of a transaction signature on
-/// the chain.
-pub type Signature = MultiSignature;
-
-/// Alias to the public key used for this chain, actually a `MultiSigner`. Like
-/// the signature, this also isn't a fixed size when encoded, as different
-/// cryptos have different size public keys.
-pub type AccountPublic = <Signature as Verify>::Signer;
-
-/// Alias to the opaque account ID type for this chain, actually a
-/// `AccountId32`. This is always 32 bytes.
-pub type AccountId = <AccountPublic as IdentifyAccount>::AccountId;
-
-/// The type for looking up accounts. We don't expect more than 4 billion of
-/// them.
-pub type AccountIndex = u32;
-
-/// Index of a transaction in the chain. 32-bit should be plenty.
-pub type Nonce = u32;
-
-/// A hash of some data used by the chain.
-pub type Hash = sp_core::H256;
 
 /// An instant or duration in time.
 pub type Moment = u64;
-
-/// Counter for the number of eras that have passed.
-pub type EraIndex = u32;
 
 /// Balance of an account.
 pub type Balance = u128;
@@ -88,17 +73,27 @@ pub type Balance = u128;
 /// Signed version of Balance
 pub type Amount = i128;
 
-/// Header type.
+/// Index of a transaction in the chain.
+pub type Index = u32;
+
+/// A hash of some data used by the chain.
+pub type Hash = sp_core::H256;
+
+/// An index to a block.
+pub type BlockNumber = u32;
+
+/// The address format for describing accounts.
+pub type Address = MultiAddress<AccountId, ()>;
+
+/// Block header type as expected by this runtime.
 pub type Header = generic::Header<BlockNumber, BlakeTwo256>;
 
-/// Block type.
-pub type Block = generic::Block<Header, UncheckedExtrinsic>;
+/// Alias to 512-bit hash when used in the context of a transaction signature on the chain.
+pub type Signature = MultiSignature;
 
-/// Block ID.
-pub type BlockId = generic::BlockId<Block>;
-
-/// Opaque, encoded, unchecked extrinsic.
-pub use sp_runtime::OpaqueExtrinsic as UncheckedExtrinsic;
+/// Some way of identifying an account on the chain. We intentionally make it equivalent
+/// to the public key of our transaction signing scheme.
+pub type AccountId = <<Signature as Verify>::Signer as IdentifyAccount>::AccountId;
 
 #[derive(
 	Encode,

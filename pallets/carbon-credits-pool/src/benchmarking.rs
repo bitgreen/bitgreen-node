@@ -46,9 +46,9 @@ fn get_default_batch_group<T: Config>() -> BatchGroupOf<T> {
 	let batches: BatchGroupOf<T> = vec![Batch {
 		name: "batch_name".as_bytes().to_vec().try_into().unwrap(),
 		uuid: "batch_uuid".as_bytes().to_vec().try_into().unwrap(),
-		issuance_year: 2020_u32,
-		start_date: 2020_u32,
-		end_date: 2020_u32,
+		issuance_year: 2020_u16,
+		start_date: 2020_u16,
+		end_date: 2020_u16,
 		total_supply: 100_u32.into(),
 		minted: 0_u32.into(),
 		retired: 0_u32.into(),
@@ -98,8 +98,7 @@ benchmarks! {
 		let owner : T::AccountId = account("owner", 0, 1);
 		let pool_id = 10_001_u32.into();
 		let asset_symbol =  "pool_xyz".as_bytes().to_vec().try_into().unwrap();
-
-	}: _(RawOrigin::Signed(account_id), pool_id, Default::default(), None, asset_symbol)
+	}: _(RawOrigin::Signed(account_id), pool_id, owner, Default::default(), None, asset_symbol)
 	verify {
 		assert!(
 			CarbonCreditPools::<T>::pools(pool_id).is_some()
@@ -108,10 +107,13 @@ benchmarks! {
 
 	deposit {
 		let caller : T::AccountId = account("account_id", 0, 0);
+		let owner : T::AccountId = account("owner", 0, 1);
 		// create a project and mint tokens
 		let project_id = 10_000_u32.into();
 		let creation_params = get_default_creation_params::<T>();
-		pallet_membership::Pallet::<T>::add_member(RawOrigin::Root.into(), caller.clone())?;
+		let caller_lookup = <T::Lookup as sp_runtime::traits::StaticLookup>::unlookup(caller.clone());
+		pallet_membership::Pallet::<T>::add_member(RawOrigin::Root.into(), caller_lookup)?;
+
 		pallet_carbon_credits::Pallet::<T>::force_add_authorized_account(RawOrigin::Root.into(), caller.clone().into())?;
 		pallet_carbon_credits::Pallet::<T>::create(RawOrigin::Signed(caller.clone()).into(), project_id, creation_params)?;
 		pallet_carbon_credits::Pallet::<T>::approve_project(RawOrigin::Signed(caller.clone()).into(), project_id, true)?;
@@ -120,7 +122,7 @@ benchmarks! {
 		// create a pool
 		let pool_id = 10_001_u32.into();
 		let asset_symbol =  "pool_xyz".as_bytes().to_vec().try_into().unwrap();
-		CarbonCreditPools::<T>::create(RawOrigin::Signed(caller.clone()).into(), pool_id, Default::default(), None, asset_symbol).unwrap();
+		CarbonCreditPools::<T>::create(RawOrigin::Signed(caller.clone()).into(), pool_id, owner, Default::default(), None, asset_symbol).unwrap();
 	}: _(RawOrigin::Signed(caller.clone()), pool_id, project_id, 1_u32.into())
 	verify {
 		assert_last_event::<T>(Event::Deposit { project_id, who : caller, amount : 1_u32.into(), pool_id }.into());
@@ -128,10 +130,13 @@ benchmarks! {
 
 	retire {
 		let caller : T::AccountId = account("account_id", 0, 0);
+		let owner : T::AccountId = account("owner", 0, 1);
 		// create a project and mint tokens
 		let project_id = 10_000_u32.into();
 		let creation_params = get_default_creation_params::<T>();
-		pallet_membership::Pallet::<T>::add_member(RawOrigin::Root.into(), caller.clone())?;
+		let caller_lookup = <T::Lookup as sp_runtime::traits::StaticLookup>::unlookup(caller.clone());
+		pallet_membership::Pallet::<T>::add_member(RawOrigin::Root.into(), caller_lookup)?;
+
 		pallet_carbon_credits::Pallet::<T>::force_add_authorized_account(RawOrigin::Root.into(), caller.clone().into())?;
 		pallet_carbon_credits::Pallet::<T>::create(RawOrigin::Signed(caller.clone()).into(), project_id, creation_params)?;
 		pallet_carbon_credits::Pallet::<T>::approve_project(RawOrigin::Signed(caller.clone()).into(), project_id, true)?;
@@ -140,7 +145,7 @@ benchmarks! {
 		// create a pool and deposit tokens
 		let pool_id = 10_001_u32.into();
 		let asset_symbol =  "pool_xyz".as_bytes().to_vec().try_into().unwrap();
-		CarbonCreditPools::<T>::create(RawOrigin::Signed(caller.clone()).into(), pool_id, Default::default(), None, asset_symbol).unwrap();
+		CarbonCreditPools::<T>::create(RawOrigin::Signed(caller.clone()).into(), pool_id, owner, Default::default(), None, asset_symbol).unwrap();
 		CarbonCreditPools::<T>::deposit(RawOrigin::Signed(caller.clone()).into(), pool_id, project_id, 10_u32.into()).unwrap();
 	}: _(RawOrigin::Signed(caller.clone()), pool_id, 1_u32.into())
 	verify {

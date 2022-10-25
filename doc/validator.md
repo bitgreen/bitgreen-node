@@ -75,7 +75,7 @@ This will result in ImOnline heartbeats making it on chain, but zero allocated b
   
 - Clone the node from our public repository:  
 ```sh
-git clone https://github.com/bitgreen/bitg-node
+git clone https://github.com/bitgreen/bitgreen-node
 cd bitg-node
 ```
 - Build the node with:  

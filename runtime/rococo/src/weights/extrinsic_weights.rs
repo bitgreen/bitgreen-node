@@ -18,46 +18,34 @@
 pub mod constants {
 	use frame_support::{
 		parameter_types,
-		weights::{constants, RuntimeDbWeight},
+		weights::{constants, Weight},
 	};
 
 	parameter_types! {
-		/// `ParityDB` can be enabled with a feature flag, but is still experimental. These weights
-		/// are available for brave runtime engineers who may want to try this out as default.
-		pub const ParityDbWeight: RuntimeDbWeight = RuntimeDbWeight {
-			read: 8_000 * constants::WEIGHT_PER_NANOS,
-			write: 50_000 * constants::WEIGHT_PER_NANOS,
-		};
+		/// Executing a NO-OP `System::remarks` Extrinsic.
+		pub const ExtrinsicBaseWeight: Weight = constants::WEIGHT_PER_NANOS.saturating_mul(125_000);
 	}
 
 	#[cfg(test)]
-	mod test_db_weights {
+	mod test_weights {
 		use frame_support::weights::constants;
 
-		use super::constants::ParityDbWeight as W;
-
-		/// Checks that all weights exist and have sane values.
+		/// Checks that the weight exists and is sane.
 		// NOTE: If this test fails but you are sure that the generated values are fine,
 		// you can delete it.
 		#[test]
 		fn sane() {
-			// At least 1 µs.
+			let w = super::constants::ExtrinsicBaseWeight::get();
+
+			// At least 10 µs.
 			assert!(
-				W::get().reads(1) >= constants::WEIGHT_PER_MICROS,
-				"Read weight should be at least 1 µs."
-			);
-			assert!(
-				W::get().writes(1) >= constants::WEIGHT_PER_MICROS,
-				"Write weight should be at least 1 µs."
+				w >= 10u64 * constants::WEIGHT_PER_MICROS,
+				"Weight should be at least 10 µs."
 			);
 			// At most 1 ms.
 			assert!(
-				W::get().reads(1) <= constants::WEIGHT_PER_MILLIS,
-				"Read weight should be at most 1 ms."
-			);
-			assert!(
-				W::get().writes(1) <= constants::WEIGHT_PER_MILLIS,
-				"Write weight should be at most 1 ms."
+				w <= constants::WEIGHT_PER_MILLIS,
+				"Weight should be at most 1 ms."
 			);
 		}
 	}

@@ -37,7 +37,7 @@ echo
 
 # install Bitgreen node
 echo "cloning Bitgreen Github repository..."
-git clone https://github.com/bitgreen/bitg-node.git
+git clone https://github.com/bitgreen/bitgreen-node.git
 echo "Bitgreen Github repository successfully cloned"
 echo
 echo "building Bitgreen node..."

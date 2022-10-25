@@ -22,11 +22,11 @@ pub mod constants {
 	};
 
 	parameter_types! {
-		/// By default, Substrate uses `RocksDB`, so this will be the weight used throughout
-		/// the runtime.
-		pub const RocksDbWeight: RuntimeDbWeight = RuntimeDbWeight {
-			read: 25_000 * constants::WEIGHT_PER_NANOS,
-			write: 100_000 * constants::WEIGHT_PER_NANOS,
+		/// `ParityDB` can be enabled with a feature flag, but is still experimental. These weights
+		/// are available for brave runtime engineers who may want to try this out as default.
+		pub const ParityDbWeight: RuntimeDbWeight = RuntimeDbWeight {
+			read: 8_000 * constants::WEIGHT_PER_NANOS.ref_time(),
+			write: 50_000 * constants::WEIGHT_PER_NANOS.ref_time(),
 		};
 	}
 
@@ -34,7 +34,7 @@ pub mod constants {
 	mod test_db_weights {
 		use frame_support::weights::constants;
 
-		use super::constants::RocksDbWeight as W;
+		use super::constants::ParityDbWeight as W;
 
 		/// Checks that all weights exist and have sane values.
 		// NOTE: If this test fails but you are sure that the generated values are fine,
