@@ -18,34 +18,46 @@
 pub mod constants {
 	use frame_support::{
 		parameter_types,
-		weights::{constants, Weight},
+		weights::{constants, RuntimeDbWeight},
 	};
 
 	parameter_types! {
-		/// Executing a NO-OP `System::remarks` Extrinsic.
-		pub const ExtrinsicBaseWeight: Weight = 125_000 * constants::WEIGHT_PER_NANOS;
+		/// By default, Substrate uses `RocksDB`, so this will be the weight used throughout
+		/// the runtime.
+		pub const RocksDbWeight: RuntimeDbWeight = RuntimeDbWeight {
+			read: 25_000 * constants::WEIGHT_PER_NANOS.ref_time(),
+			write: 100_000 * constants::WEIGHT_PER_NANOS.ref_time(),
+		};
 	}
 
 	#[cfg(test)]
-	mod test_weights {
+	mod test_db_weights {
 		use frame_support::weights::constants;
 
-		/// Checks that the weight exists and is sane.
+		use super::constants::RocksDbWeight as W;
+
+		/// Checks that all weights exist and have sane values.
 		// NOTE: If this test fails but you are sure that the generated values are fine,
 		// you can delete it.
 		#[test]
 		fn sane() {
-			let w = super::constants::ExtrinsicBaseWeight::get();
-
-			// At least 10 µs.
+			// At least 1 µs.
 			assert!(
-				w >= 10 * constants::WEIGHT_PER_MICROS,
-				"Weight should be at least 10 µs."
+				W::get().reads(1) >= constants::WEIGHT_PER_MICROS,
+				"Read weight should be at least 1 µs."
+			);
+			assert!(
+				W::get().writes(1) >= constants::WEIGHT_PER_MICROS,
+				"Write weight should be at least 1 µs."
 			);
 			// At most 1 ms.
 			assert!(
-				w <= constants::WEIGHT_PER_MILLIS,
-				"Weight should be at most 1 ms."
+				W::get().reads(1) <= constants::WEIGHT_PER_MILLIS,
+				"Read weight should be at most 1 ms."
+			);
+			assert!(
+				W::get().writes(1) <= constants::WEIGHT_PER_MILLIS,
+				"Write weight should be at most 1 ms."
 			);
 		}
 	}

@@ -29,7 +29,7 @@
 	},
 	"parachains": [
 		{
-			"bin": "../target/release/bitg-parachain",
+			"bin": "../target/release/bitgreen-parachain",
 			"chain" : "dev",
 			"id": "2000",
 			"balance": "1000000000000000000000",

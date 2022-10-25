@@ -49,9 +49,9 @@ fn get_default_batch_group<T: Config>() -> BatchGroupOf<T> {
 	let batches: BatchGroupOf<T> = vec![Batch {
 		name: "batch_name".as_bytes().to_vec().try_into().unwrap(),
 		uuid: "batch_uuid".as_bytes().to_vec().try_into().unwrap(),
-		issuance_year: 2020_u32,
-		start_date: 2020_u32,
-		end_date: 2020_u32,
+		issuance_year: 2020_u16,
+		start_date: 2020_u16,
+		end_date: 2020_u16,
 		total_supply: 100_u32.into(),
 		minted: 0_u32.into(),
 		retired: 0_u32.into(),
@@ -68,9 +68,9 @@ fn get_multiple_batch_group<T: Config>() -> BatchGroupOf<T> {
 		Batch {
 			name: "batch_name".as_bytes().to_vec().try_into().unwrap(),
 			uuid: "batch_uuid".as_bytes().to_vec().try_into().unwrap(),
-			issuance_year: 2020_u32,
-			start_date: 2020_u32,
-			end_date: 2020_u32,
+			issuance_year: 2020_u16,
+			start_date: 2020_u16,
+			end_date: 2020_u16,
 			total_supply: 100_u32.into(),
 			minted: 0_u32.into(),
 			retired: 0_u32.into(),
@@ -78,9 +78,9 @@ fn get_multiple_batch_group<T: Config>() -> BatchGroupOf<T> {
 		Batch {
 			name: "batch_name_2".as_bytes().to_vec().try_into().unwrap(),
 			uuid: "batch_uuid_2".as_bytes().to_vec().try_into().unwrap(),
-			issuance_year: 2021_u32,
-			start_date: 2021_u32,
-			end_date: 2021_u32,
+			issuance_year: 2021_u16,
+			start_date: 2021_u16,
+			end_date: 2021_u16,
 			total_supply: 100_u32.into(),
 			minted: 0_u32.into(),
 			retired: 0_u32.into(),
@@ -358,6 +358,50 @@ fn create_works_for_multiple_batch() {
 }
 
 #[test]
+fn create_fails_for_multiple_batch_with_single_batch_supply_zero() {
+	new_test_ext().execute_with(|| {
+		let originator_account = 1;
+		let project_id = 1001;
+
+		let mut creation_params = get_default_creation_params::<Test>();
+		// replace the default with mutiple batches
+		creation_params.batches = vec![
+			Batch {
+				name: "batch_name".as_bytes().to_vec().try_into().unwrap(),
+				uuid: "batch_uuid".as_bytes().to_vec().try_into().unwrap(),
+				issuance_year: 2020_u16,
+				start_date: 2020_u16,
+				end_date: 2020_u16,
+				total_supply: 0_u32.into(), // this should be rejected
+				minted: 0_u32.into(),
+				retired: 0_u32.into(),
+			},
+			Batch {
+				name: "batch_name_2".as_bytes().to_vec().try_into().unwrap(),
+				uuid: "batch_uuid_2".as_bytes().to_vec().try_into().unwrap(),
+				issuance_year: 2021_u16,
+				start_date: 2021_u16,
+				end_date: 2021_u16,
+				total_supply: 100_u32.into(),
+				minted: 0_u32.into(),
+				retired: 0_u32.into(),
+			},
+		]
+		.try_into()
+		.unwrap();
+
+		assert_noop!(
+			CarbonCredits::create(
+				RawOrigin::Signed(originator_account).into(),
+				project_id,
+				creation_params
+			),
+			Error::<Test>::CannotCreateProjectWithoutCredits
+		);
+	});
+}
+
+#[test]
 fn resubmit_works() {
 	new_test_ext().execute_with(|| {
 		let originator_account = 1;
@@ -438,6 +482,51 @@ fn resubmit_works() {
 			),
 			Error::<Test>::CannotModifyApprovedProject
 		);
+	});
+}
+
+#[test]
+fn cleanup_after_project_reject_works() {
+	new_test_ext().execute_with(|| {
+		let originator_account = 1;
+		let authorised_account = 10;
+		let project_id = 1001;
+
+		// authorise the account
+		assert_ok!(CarbonCredits::force_add_authorized_account(
+			RawOrigin::Root.into(),
+			authorised_account
+		));
+
+		// create the project to approve
+		let creation_params = get_default_creation_params::<Test>();
+		assert_ok!(CarbonCredits::create(
+			RawOrigin::Signed(originator_account).into(),
+			project_id,
+			creation_params
+		));
+
+		// reject the project
+		assert_ok!(CarbonCredits::approve_project(
+			RawOrigin::Signed(authorised_account).into(),
+			project_id,
+			false
+		),);
+
+		assert_eq!(
+			last_event(),
+			CarbonCreditsEvent::ProjectRejected { project_id }.into()
+		);
+
+		// remove the project from storage
+		assert_ok!(CarbonCredits::force_remove_project(
+			RawOrigin::Root.into(),
+			project_id,
+		),);
+
+		// ensure storage is cleaned
+		assert_eq!(CarbonCredits::get_project_details(project_id), None);
+		assert_eq!(Assets::total_issuance(project_id), 0);
 	});
 }
 

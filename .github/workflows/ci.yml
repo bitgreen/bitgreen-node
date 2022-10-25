@@ -43,4 +43,4 @@ jobs:
           cargo clippy --all-targets --workspace -- --deny warnings
 
       - name: Unit tests
-        run: cargo test --features runtime-benchmarks
+        run: cargo test -p bitgreen-parachain --features runtime-benchmarks

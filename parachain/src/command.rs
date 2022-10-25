@@ -1,7 +1,7 @@
 #![allow(clippy::all)]
 use std::net::SocketAddr;
 
-use bitg_parachain_runtime::{Block, RuntimeApi};
+use bitgreen_rococo_runtime::{Block, RuntimeApi};
 use codec::Encode;
 use cumulus_client_cli::generate_genesis_block;
 use cumulus_primitives_core::ParaId;
@@ -27,10 +27,9 @@ use crate::{
 fn load_spec(id: &str) -> std::result::Result<Box<dyn ChainSpec>, String> {
 	Ok(match id {
 		"dev" => Box::new(chain_spec::development_config()),
-		"template-rococo" => Box::new(chain_spec::local_testnet_config()),
 		"rococo" => Box::new(chain_spec::rococo_config()),
 		"" | "local" => Box::new(chain_spec::local_testnet_config()),
-		path => Box::new(chain_spec::ChainSpec::from_json_file(
+		path => Box::new(chain_spec::RococoChainSpec::from_json_file(
 			std::path::PathBuf::from(path),
 		)?),
 	})
@@ -62,7 +61,7 @@ impl SubstrateCli for Cli {
 	}
 
 	fn native_runtime_version(_: &Box<dyn ChainSpec>) -> &'static RuntimeVersion {
-		&bitg_parachain_runtime::VERSION
+		&bitgreen_rococo_runtime::VERSION
 	}
 }
 
@@ -337,7 +336,7 @@ impl CliConfiguration<Self> for RelayChainCli {
 	fn base_path(&self) -> Result<Option<BasePath>> {
 		Ok(self
 			.shared_params()
-			.base_path()
+			.base_path()?
 			.or_else(|| self.base_path.clone().map(Into::into)))
 	}
 
@@ -388,10 +387,6 @@ impl CliConfiguration<Self> for RelayChainCli {
 
 	fn transaction_pool(&self, is_dev: bool) -> Result<sc_service::config::TransactionPoolOptions> {
 		self.base.base.transaction_pool(is_dev)
-	}
-
-	fn state_cache_child_ratio(&self) -> Result<Option<usize>> {
-		self.base.base.state_cache_child_ratio()
 	}
 
 	fn rpc_methods(&self) -> Result<sc_service::config::RpcMethods> { self.base.base.rpc_methods() }
