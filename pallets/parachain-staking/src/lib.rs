@@ -5,25 +5,6 @@
 //! Parachain Staking Pallet
 //! Minimal staking pallet that implements collator selection by total backed stake. Unlike the approach taken by the frame staking pallet
 //! we have opted for a more simpler model of the stakers selecting the collator they chose to stake with, rather than run an election process.
-//! 
-
-//!
-//! The CarbonCredits units are created by an account that controls CarbonCredit units, represented in the pallet as the originator.
-//! The creation process will store the CarbonCredits details on the pallet storage and then mint the given amount of CarbonCredits units using the Asset Handler
-//! like pallet-assets. These newly minted CarbonCredits units will be transferred to the recipient, this can be any address.
-//! These units can then be sold/transferred to a buyer of carbon credits, these transactions can take place multiple times but the final goal
-//! of purchasing a CarbonCredits unit is to retire them. The current holder of the CarbonCredits units can call the `retire` extrinsic to burn these
-//! tokens (erase from storage), this process will store a reference of the tokens burned.
-//!
-//! ## Interface
-//!
-//! ### Permissionless Functions
-//!
-
-//!
-//! ### Permissioned Functions
-//!
-
 //!
 #![cfg_attr(not(feature = "std"), no_std)]
 
@@ -48,6 +29,45 @@ pub mod pallet {
 	pub trait Config: frame_system::Config {
 		/// Because this pallet emits events, it depends on the runtime's definition of an event.
 		type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
+		/// Number of rounds that candidates remain bonded before exit request is executable
+		#[pallet::constant]
+		type LeaveCandidatesDelay: Get<RoundIndex>;
+		/// Number of rounds candidate requests to decrease self-bond must wait to be executable
+		#[pallet::constant]
+		type CandidateBondLessDelay: Get<RoundIndex>;
+		/// Number of rounds that delegators remain bonded before exit request is executable
+		#[pallet::constant]
+		type LeaveDelegatorsDelay: Get<RoundIndex>;
+		/// Number of rounds that delegations remain bonded before revocation request is executable
+		#[pallet::constant]
+		type RevokeDelegationDelay: Get<RoundIndex>;
+		/// Minimum number of selected candidates every round
+		#[pallet::constant]
+		type MinSelectedCandidates: Get<u32>;
+		/// Maximum top delegations counted per candidate
+		#[pallet::constant]
+		type MaxTopDelegationsPerCandidate: Get<u32>;
+		/// Maximum bottom delegations (not counted) per candidate
+		#[pallet::constant]
+		type MaxBottomDelegationsPerCandidate: Get<u32>;
+		/// Maximum delegations per delegator
+		#[pallet::constant]
+		type MaxDelegationsPerDelegator: Get<u32>;
+		/// Minimum stake required for any candidate to be in `SelectedCandidates` for the round
+		#[pallet::constant]
+		type MinCollatorStk: Get<BalanceOf<Self>>;
+		/// Minimum stake required for any account to be a collator candidate
+		#[pallet::constant]
+		type MinCandidateStk: Get<BalanceOf<Self>>;
+		/// Minimum stake for any registered on-chain account to delegate
+		#[pallet::constant]
+		type MinDelegation: Get<BalanceOf<Self>>;
+		/// Minimum stake for any registered on-chain account to be a delegator
+		#[pallet::constant]
+		type MinDelegatorStk: Get<BalanceOf<Self>>;
+		// /// Weight information for extrinsics in this pallet.
+		// type WeightInfo: WeightInfo;
+
 	}
 
 	#[pallet::pallet]
