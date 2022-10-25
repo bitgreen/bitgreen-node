@@ -16,19 +16,29 @@ mod mock;
 #[cfg(test)]
 mod tests;
 
-#[cfg(feature = "runtime-benchmarks")]
-mod benchmarking;
+// #[cfg(feature = "runtime-benchmarks")]
+// mod benchmarking;
+
+mod types;
+use types::*;
 
 #[frame_support::pallet]
 pub mod pallet {
+	use frame_support::traits::{Currency, ReservableCurrency};
 	use frame_support::{dispatch::DispatchResultWithPostInfo, pallet_prelude::*};
 	use frame_system::pallet_prelude::*;
+	use sp_runtime::traits::Zero;
+	use sp_std::convert::TryInto;
+
+	use super::*;
 
 	/// Configure the pallet by specifying the parameters and types on which it depends.
 	#[pallet::config]
 	pub trait Config: frame_system::Config {
 		/// Because this pallet emits events, it depends on the runtime's definition of an event.
 		type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
+		/// The currency type
+		type Currency: Currency<Self::AccountId> + ReservableCurrency<Self::AccountId>;
 		/// Number of rounds that candidates remain bonded before exit request is executable
 		#[pallet::constant]
 		type LeaveCandidatesDelay: Get<RoundIndex>;
@@ -44,21 +54,24 @@ pub mod pallet {
 		/// Minimum number of selected candidates every round
 		#[pallet::constant]
 		type MinSelectedCandidates: Get<u32>;
+		/// Maximum number of candidates to store
+		#[pallet::constant]
+		type MaxCandidates: Get<u32> + TypeInfo;
 		/// Maximum top delegations counted per candidate
 		#[pallet::constant]
 		type MaxTopDelegationsPerCandidate: Get<u32>;
 		/// Maximum bottom delegations (not counted) per candidate
 		#[pallet::constant]
 		type MaxBottomDelegationsPerCandidate: Get<u32>;
-		/// Maximum delegations per delegator
+		/// Maximum delegations for a candidate
 		#[pallet::constant]
-		type MaxDelegationsPerDelegator: Get<u32>;
+		type MaxDelegationsPerCandidate: Get<u32>;
 		/// Minimum stake required for any candidate to be in `SelectedCandidates` for the round
 		#[pallet::constant]
 		type MinCollatorStk: Get<BalanceOf<Self>>;
 		/// Minimum stake required for any account to be a collator candidate
 		#[pallet::constant]
-		type MinCandidateStk: Get<BalanceOf<Self>>;
+		type MinCandidateStake: Get<BalanceOf<Self>>;
 		/// Minimum stake for any registered on-chain account to delegate
 		#[pallet::constant]
 		type MinDelegation: Get<BalanceOf<Self>>;
@@ -67,83 +80,97 @@ pub mod pallet {
 		type MinDelegatorStk: Get<BalanceOf<Self>>;
 		// /// Weight information for extrinsics in this pallet.
 		// type WeightInfo: WeightInfo;
-
 	}
 
 	#[pallet::pallet]
 	#[pallet::generate_store(pub(super) trait Store)]
 	pub struct Pallet<T>(_);
 
-	// The pallet's runtime storage items.
-	// https://docs.substrate.io/v3/runtime/storage
+	/// The pool of collator candidates, each with their total backing stake
 	#[pallet::storage]
-	#[pallet::getter(fn something)]
-	// Learn more about declaring storage items:
-	// https://docs.substrate.io/v3/runtime/storage#declaring-storage-items
-	pub type Something<T> = StorageValue<_, u32>;
+	#[pallet::getter(fn candidate_pool)]
+	pub(crate) type CandidateSet<T: Config> = StorageValue<_, OrderedCandidateSetOf<T>>;
 
-	// Pallets use events to inform users when important changes are made.
-	// https://docs.substrate.io/v3/runtime/events-and-errors
+	/// The list of delegators
+	#[pallet::storage]
+	#[pallet::getter(fn delegations)]
+	pub(crate) type Delegations<T: Config> =
+		StorageMap<_, Blake2_128Concat, T::AccountId, DelegationListOf<T>>;
+
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
 	pub enum Event<T: Config> {
-		/// Event documentation should end with an array that provides descriptive names for event
-		/// parameters. [something, who]
-		SomethingStored(u32, T::AccountId),
+		/// Account joined the set of collator candidates.
+		JoinedCollatorCandidates {
+			account: T::AccountId,
+			amount_locked: BalanceOf<T>,
+		},
 	}
 
 	// Errors inform users that something went wrong.
 	#[pallet::error]
 	pub enum Error<T> {
 		/// Error names should be descriptive.
-		NoneValue,
+		CandidateExists,
 		/// Errors should have helpful documentation associated with them.
-		StorageOverflow,
+		DelegatorExists,
+		/// Candidate bond amount is below minimum threshold
+		CandidateBondBelowMin,
+		/// The candidate set is full
+		CandidateSetFull,
 	}
 
 	#[pallet::hooks]
 	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {}
 
-	// Dispatchable functions allows users to interact with the pallet and invoke state changes.
-	// These functions materialize as "extrinsics", which are often compared to transactions.
-	// Dispatchable functions must be annotated with a weight and must return a DispatchResult.
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
-		/// An example dispatchable that takes a singles value as a parameter, writes the value to
-		/// storage and emits an event. This function must be dispatched by a signed extrinsic.
+		/// Join the set of collator candidates
 		#[pallet::weight(Weight::from_ref_time(10_000) + T::DbWeight::get().writes(1))]
-		pub fn do_something(origin: OriginFor<T>, something: u32) -> DispatchResultWithPostInfo {
-			// Check that the extrinsic was signed and get the signer.
-			// This function will return an error if the extrinsic is not signed.
-			// https://docs.substrate.io/v3/runtime/origins
-			let who = ensure_signed(origin)?;
+		pub fn join_candidates(
+			origin: OriginFor<T>,
+			bond: BalanceOf<T>,
+		) -> DispatchResultWithPostInfo {
+			let caller = ensure_signed(origin)?;
 
-			// Update storage.
-			<Something<T>>::put(something);
+			let mut candidates =
+				CandidateSet::<T>::get().unwrap_or_else(|| OrderedCandidateSetOf::<T>::new());
 
-			// Emit an event.
-			Self::deposit_event(Event::SomethingStored(something, who));
-			// Return a successful DispatchResultWithPostInfo
+			// ensure not already a candidate
+			ensure!(
+				!candidates.is_candidate(&caller),
+				Error::<T>::CandidateExists
+			);
+
+			// ensure the bond amount is greater than minimum
+			ensure!(
+				bond >= T::MinCandidateStake::get(),
+				Error::<T>::CandidateBondBelowMin
+			);
+
+			// reserve the bond amount
+			T::Currency::reserve(&caller, bond)?;
+
+			let new_candidate = CandidateInfoOf::<T> {
+				account: caller.clone(),
+				bonded: bond,
+				delegated: Zero::zero(),
+				total_bond: bond,
+			};
+
+			candidates
+				.insert_candidate(new_candidate)
+				.map_err(|_| Error::<T>::CandidateSetFull)?;
+
+			// insert empty delegations
+			<Delegations<T>>::insert(&caller, BoundedVec::<_, _>::default());
+
+			Self::deposit_event(Event::JoinedCollatorCandidates {
+				account: caller,
+				amount_locked: bond,
+			});
+
 			Ok(().into())
-		}
-
-		/// An example dispatchable that may throw a custom error.
-		#[pallet::weight(Weight::from_ref_time(10_000) + T::DbWeight::get().reads_writes(1,1))]
-		pub fn cause_error(origin: OriginFor<T>) -> DispatchResultWithPostInfo {
-			let _who = ensure_signed(origin)?;
-
-			// Read a value from storage.
-			match <Something<T>>::get() {
-				// Return an error if the value has not been set.
-				None => Err(Error::<T>::NoneValue)?,
-				Some(old) => {
-					// Increment the value read from storage; will error in the event of overflow.
-					let new = old.checked_add(1).ok_or(Error::<T>::StorageOverflow)?;
-					// Update the value in storage with the incremented result.
-					<Something<T>>::put(new);
-					Ok(().into())
-				},
-			}
 		}
 	}
 }
