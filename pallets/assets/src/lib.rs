@@ -1,5 +1,6 @@
 // This file is part of Bitgreen.
 // Modified from frame assets pallet to have a kyc check to be used before asset operations
+// The difference between this pallet and pallet_assets from substrate is only the addition of kyc check
 //! # Assets Pallet
 //!
 //! A simple, secure module for dealing with fungible assets.
