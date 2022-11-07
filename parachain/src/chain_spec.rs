@@ -194,7 +194,7 @@ fn testnet_genesis(
 				.collect(),
 		},
 		parachain_info: bitgreen_rococo_runtime::ParachainInfoConfig { parachain_id: id },
-		collator_selection: bitgreen_rococo_runtime::CollatorSelectionConfig {
+		parachain_staking: bitgreen_rococo_runtime::ParachainStakingConfig {
 			invulnerables: invulnerables.iter().cloned().map(|(acc, _)| acc).collect(),
 			candidacy_bond: EXISTENTIAL_DEPOSIT * 16,
 			..Default::default()
@@ -230,5 +230,6 @@ fn testnet_genesis(
 			key: Some(get_account_id_from_seed::<sr25519::Public>("Alice")),
 		},
 		nft: bitgreen_rococo_runtime::NftConfig { tokens: vec![] },
+		treasury: Default::default(),
 	}
 }

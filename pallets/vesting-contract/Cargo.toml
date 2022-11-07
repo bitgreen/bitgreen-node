@@ -1,6 +1,6 @@
 [package]
 authors = ['BitGreen <https://bitgreen.org>']
-edition = '2018'
+edition = '2021'
 homepage = 'https://bitgreen.org'
 license = 'MIT'
 name = 'pallet-vesting-contract'
