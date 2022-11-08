@@ -1,8 +1,14 @@
 use std::path::PathBuf;
 
+use sc_cli::KeySubcommand;
+
 /// Sub-commands supported by the collator.
 #[derive(Debug, clap::Subcommand)]
 pub enum Subcommand {
+	/// Key management cli utilities
+	#[clap(subcommand)]
+	Key(KeySubcommand),
+
 	/// Build a chain specification.
 	BuildSpec(sc_cli::BuildSpecCmd),
 

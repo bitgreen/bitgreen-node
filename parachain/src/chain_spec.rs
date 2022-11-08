@@ -3,6 +3,7 @@ use cumulus_primitives_core::ParaId;
 use sc_chain_spec::{ChainSpecExtension, ChainSpecGroup};
 use sc_service::ChainType;
 use serde::{Deserialize, Serialize};
+use sp_core::ByteArray;
 use sp_core::{sr25519, Pair, Public};
 use sp_runtime::traits::{IdentifyAccount, Verify};
 
@@ -53,6 +54,20 @@ where
 	AccountPublic::from(get_public_from_seed::<TPublic>(seed)).into_account()
 }
 
+/// Generate collator keys from public keys
+fn generate_collator_keys<PK: Clone + Into<AccountId>>(
+	public_keys: &[PK],
+) -> Vec<(AccountId, AuraId)> {
+	public_keys
+		.iter()
+		.map(|pk| {
+			let account: AccountId = pk.clone().into();
+			let aura_id = AuraId::from_slice(account.as_ref()).unwrap();
+			(account, aura_id)
+		})
+		.collect()
+}
+
 /// Generate the session keys from individual elements.
 ///
 /// The input must be a tuple of individual keys (a single arg for now since we have just one key).
@@ -65,7 +80,7 @@ pub fn development_config() -> RococoChainSpec {
 	let mut properties = sc_chain_spec::Properties::new();
 	properties.insert("tokenSymbol".into(), "BBB".into());
 	properties.insert("tokenDecimals".into(), 18.into());
-	properties.insert("ss58Format".into(), 2106.into());
+	properties.insert("ss58Format".into(), ROCOCO_PARA_ID.into());
 	RococoChainSpec::from_genesis(
 		// Name
 		"Development",
@@ -119,7 +134,7 @@ pub fn local_testnet_config() -> RococoChainSpec {
 	let mut properties = sc_chain_spec::Properties::new();
 	properties.insert("tokenSymbol".into(), "BBB".into());
 	properties.insert("tokenDecimals".into(), 18.into());
-	properties.insert("ss58Format".into(), 2106.into());
+	properties.insert("ss58Format".into(), ROCOCO_PARA_ID.into());
 
 	RococoChainSpec::from_genesis(
 		// Name

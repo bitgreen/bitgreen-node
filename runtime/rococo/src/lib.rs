@@ -545,7 +545,7 @@ impl pallet_carbon_credits_pool::Config for Runtime {
 	type MaxAssetSymbolLength = ConstU32<20>;
 	type MaxIssuanceYearCount = ConstU32<20>;
 	type MaxProjectIdList = ConstU32<100>;
-	type MaxRegistryListCount = ConstU32<2>;
+	type MaxRegistryListCount = ConstU32<5>;
 	type MinPoolId = ConstU32<10000>;
 	type PalletId = VCUPoolPalletId;
 	type PoolId = u32;

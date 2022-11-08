@@ -223,6 +223,7 @@ pub fn run() -> Result<()> {
 				_ => Err("Benchmarking sub-command unsupported".into()),
 			}
 		},
+		Some(Subcommand::Key(cmd)) => cmd.run(&cli),
 		Some(Subcommand::TryRuntime(cmd)) => {
 			if cfg!(feature = "try-runtime") {
 				let runner = cli.create_runner(cmd)?;
