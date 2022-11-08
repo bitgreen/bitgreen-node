@@ -61,7 +61,6 @@ pub mod weights;
 
 #[frame_support::pallet]
 pub mod pallet {
-	use core::ops::Div;
 
 	use frame_support::{
 		dispatch::DispatchResultWithPostInfo,

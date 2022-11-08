@@ -36,17 +36,14 @@ fn it_should_set_invulnerables() {
 
 		// cannot set with non-root.
 		assert_noop!(
-			CollatorSelection::set_invulnerables(Origin::signed(1), new_set.clone()),
+			CollatorSelection::set_invulnerables(Origin::signed(1), new_set),
 			BadOrigin
 		);
 
 		// cannot set invulnerables without associated validator keys
 		let invulnerables = vec![7];
 		assert_noop!(
-			CollatorSelection::set_invulnerables(
-				Origin::signed(RootAccount::get()),
-				invulnerables.clone()
-			),
+			CollatorSelection::set_invulnerables(Origin::signed(RootAccount::get()), invulnerables),
 			Error::<Test>::ValidatorNotRegistered
 		);
 	});
