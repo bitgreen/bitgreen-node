@@ -85,10 +85,10 @@ orml-traits = { git = "https://github.com/open-web3-stack/open-runtime-module-li
 
 # Local Dependencies
 pallet-assets = { default-features = false, version = '4.0.0-dev', path = "../../pallets/assets" }
-pallet-carbon-credits = { default-features = false, version = '0.1.0', path = "../../pallets/carbon-credits" }
-pallet-carbon-credits-pool = { default-features = false, version = '0.1.0', path = "../../pallets/carbon-credits-pool" }
-pallet-transaction-pause = { default-features = false, version = '2.9.2', path = "../../pallets/transaction-pause" }
-pallet-vesting-contract = { default-features = false, version = '0.1.0', path = "../../pallets/vesting-contract" }
+pallet-carbon-credits = { default-features = false, version = '0.0.1', path = "../../pallets/carbon-credits" }
+pallet-carbon-credits-pool = { default-features = false, version = '0.0.1', path = "../../pallets/carbon-credits-pool" }
+pallet-transaction-pause = { default-features = false, version = '0.0.1', path = "../../pallets/transaction-pause" }
+pallet-vesting-contract = { default-features = false, version = '0.0.1', path = "../../pallets/vesting-contract" }
 primitives = { package = "bitgreen-primitives", path = "../../primitives", default-features = false }
 
 [features]
