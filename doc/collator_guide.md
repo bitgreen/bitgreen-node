@@ -13,7 +13,9 @@ This repository contains the core logic and associated tools to issue and manage
 - [2. Collator Program](#2-overview)
 - [3. Prerequisites](#3-prerequisites)
 - [4. Installation](#4-installation)
-- [5. Run a Collator](#5-run-a-collator)
+- [5. System Setup](#5-system-setup)
+- [6. Run a Collator](#6-run-a-collator)
+- [7. Register as Candidate](#7-register-as-candiate)
 
 <!-- /TOC -->
 
@@ -124,8 +126,11 @@ ntpd will be started automatically after install. You can query ntpd for status 
 sudo ntpq -p
 ```
 
-# 5. Run a Collator
+# 5. System Setup
 
+This guide focuses on running the node as a systemd service. 
+
+### Build the binary
 Once you have all prerequisites installed, clone and build the bitgreen binary
 
 ```sh
@@ -133,11 +138,10 @@ git clone https://github.com/bitgreen/bitgreen-node
 cd bitgreen-node
 ```
 
-
 Checkout the current active version
 
 ```
-git checkout v1.0.0
+git checkout <current-active-tag>
 ```
 
 Build the release binary for the parachain 
@@ -146,26 +150,86 @@ Build the release binary for the parachain
 cargo build --release -p bitgreen-parachain
 ```
 
+### Generate node key
+
+To generate a node key, run
+
+```bash
+./bitgreen-parachain key generate-node-key --file <location-of-nodekey-file>
+```
+
+### Setup service
+
+To setup the systemd service, first create the file using 
+
+```bash
+sudo nano /etc/systemd/system/bitgreen.service
+```
+
+Copy the following config, making the required path changes for your setup
+
+```bash
+[Unit]
+Description=Bitgreen Collator
+After=network-online.target
+StartLimitIntervalSec=0
+
+[Service]
+User=bitgreen_service
+Restart=always
+Restart=on-failure
+SyslogIdentifier=bitgreen
+RestartSec=3
+StandardOutput=file:/root/logs/parachain
+StandardError=file:/root/logs/parachain_err
+ExecStart=/var/lib/bitgreen-parachain \
+  --chain <location-of-chainspec-file> \
+  --collator --force-authoring --base-path <location-of-basepath> --port 40333 \
+  --node-key-file <location-of-nodekey-file> \
+  --rpc-cors all --ws-external \
+  --ws-port 9944 --rpc-port 9933 \
+  --name "YOUR-NODE-NAME" \
+  --rpc-methods=unsafe -- --execution wasm --chain <location-of-relaychain-chainspec>
+
+[Install]
+WantedBy=multi-user.target
+```
+
+# 6. Run a Collator
+
+If this is the first time starting a collator, remember to insert the keys before starting the collator, to insert keys run
+
+```bash
+./bitgreen-parachain key insert --base-path <location-of-basepath> \
+--chain <location-of-chainspec> \
+--scheme Sr25519 \
+--suri "YOUR_SECRET_KEY" \
+--key-type aura
+```
 
 Start the collator binary and wait for it to sync with the chain state
 
+Register and start the service by running:
+
+```bash
+systemctl enable bitgreen.service
+systemctl start bitgreen.service
 ```
-./target/release/bitgreen-parachain \
-     --validator \
-     --port 30333 \
-     --rpc-port 9933 \
-     --ws-port 9944 \
-     --execution wasm \
-     --wasm-execution compiled \
-     --trie-cache-size 0 \
-     --db-cache <50% RAM in MB> \
-     --base-path /var/lib/moonbeam-data \
-     --chain bitgreen \
-     --name "YOUR-NODE-NAME" \
-     -- \
-     --port 30334 \
-     --rpc-port 9934 \
-     --ws-port 9945 \
-     --execution wasm \
-     --name="YOUR-NODE-NAME (Embedded Relay)"
+
+And lastly, verify the service is running:
+```bash
+systemctl status bitgreen.service
 ```
+
+
+# 7. Register as Candidate
+
+Ensure the collator is working correctly and has synced up with both the relaychain and parachain latest heads, once the collator has caught up and is ready to produce blocks, you have to add your collator keys to the parachain staking pallet to be considered as a candidate.
+
+Head to `https://polkadot.js.org/apps/?rpc=wss%3A%2F%2Ftestnet.bitgreen.org#/extrinsics`
+
+Select parachainStaking -> register as candidate, make sure to use the same account that you used to start the collator.
+
+![Register as candidate](./images/register-candidate.png "Register as candidate")
+
+Once the extrinsic is succesful, depending on your staked amount, you have a chance to be selected as a block author for next session.
