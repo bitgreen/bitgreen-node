@@ -13,7 +13,7 @@ pub use rococo::*;
 /// The default XCM version to set in genesis config.
 const SAFE_XCM_VERSION: u32 = xcm::prelude::XCM_VERSION;
 
-pub const ROCOCO_PARA_ID: u32 = 2048;
+pub const ROCOCO_PARA_ID: u32 = 20048;
 
 /// Helper function to generate a crypto pair from seed
 pub fn get_public_from_seed<TPublic: Public>(seed: &str) -> <TPublic::Pair as Pair>::Public {

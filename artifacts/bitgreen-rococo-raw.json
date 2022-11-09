@@ -6,17 +6,17 @@
   "telemetryEndpoints": null,
   "protocolId": "bitgreen-rococo",
   "properties": {
-    "ss58Format": 2048,
+    "ss58Format": 20048,
     "tokenDecimals": 18,
     "tokenSymbol": "BBB"
   },
   "relay_chain": "rococo",
-  "para_id": 2048,
+  "para_id": 20048,
   "codeSubstitutes": {},
   "genesis": {
     "raw": {
       "top": {
-        "0x0d715f2646c8f85767b5d2764bb2782604a74d81251e398fd8a0a4d55023bb3f": "0x00080000",
+        "0x0d715f2646c8f85767b5d2764bb2782604a74d81251e398fd8a0a4d55023bb3f": "0x504e0000",
         "0x0d715f2646c8f85767b5d2764bb278264e7b9012096b41c4eb3aaf947f6ea429": "0x0000",
         "0x26aa394eea5630e07c48ae0c9558cef734abf5cb34d6244378cddbf18e849d96": "0x000000000000000000000000000000000000000000000000",
         "0x26aa394eea5630e07c48ae0c9558cef74e7b9012096b41c4eb3aaf947f6ea429": "0x0000",
