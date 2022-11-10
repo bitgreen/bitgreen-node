@@ -122,4 +122,6 @@ them are violated, the behavior of this module is undefined.
 * [`System`](https://docs.rs/frame-system/latest/frame_system/)
 * [`Support`](https://docs.rs/frame-support/latest/frame_support/)
 
+Originally forked from Substrate (pallet-assets)
+
 License: Apache-2.0

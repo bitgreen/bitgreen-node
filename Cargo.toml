@@ -6,9 +6,9 @@ split-debuginfo = "unpacked"
 
 [workspace]
 members = [
-    'parachain',
-    'runtime/*',
-    'pallets/*',
-    'primitives'
+  'parachain',
+  'runtime/*',
+  'pallets/*',
+  'primitives',
 ]
 exclude = ['rpc']
