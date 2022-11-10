@@ -55,6 +55,7 @@ sp-transaction-pool = { git = "https://github.com/paritytech/substrate", default
 sp-version = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.29" }
 pallet-uniques = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.29" }
 pallet-membership = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.29" }
+pallet-treasury = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.29" }
 
 # Polkadot
 pallet-xcm = { git = "https://github.com/paritytech/polkadot", default-features = false, branch = "release-v0.9.29" }
@@ -74,7 +75,6 @@ cumulus-pallet-xcmp-queue = { git = "https://github.com/paritytech/cumulus", def
 cumulus-primitives-core = { git = "https://github.com/paritytech/cumulus", default-features = false,  branch = "polkadot-v0.9.29" }
 cumulus-primitives-timestamp = { git = "https://github.com/paritytech/cumulus", default-features = false,  branch = "polkadot-v0.9.29" }
 cumulus-primitives-utility = { git = "https://github.com/paritytech/cumulus", default-features = false,  branch = "polkadot-v0.9.29" }
-pallet-collator-selection = { git = "https://github.com/paritytech/cumulus", default-features = false,  branch = "polkadot-v0.9.29" }
 parachain-info = { git = "https://github.com/paritytech/cumulus", default-features = false,  branch = "polkadot-v0.9.29" }
 
 # ORML dependencies
@@ -91,6 +91,7 @@ pallet-carbon-credits-pool = { default-features = false, version = '0.1.0', path
 pallet-assets = { default-features = false, version = '4.0.0-dev', path = "../../pallets/assets"}
 pallet-transaction-pause = { default-features = false, version = '2.9.2', path = "../../pallets/transaction-pause"}
 pallet-vesting-contract = { default-features = false, version = '0.1.0', path = "../../pallets/vesting-contract"}
+pallet-parachain-staking= { default-features = false, version = '0.0.1', path = "../../pallets/parachain-staking"}
 
 [features]
 default = [
@@ -118,7 +119,6 @@ std = [
 	"pallet-aura/std",
 	"pallet-authorship/std",
 	"pallet-balances/std",
-	"pallet-collator-selection/std",
 	"pallet-session/std",
 	"pallet-sudo/std",
 	"pallet-timestamp/std",
@@ -145,6 +145,7 @@ std = [
 	"xcm/std",
 	"pallet-uniques/std",
 	"pallet-membership/std",
+	"pallet-treasury/std",
 
 	"orml-traits/std",
 	"orml-tokens/std",
@@ -157,7 +158,8 @@ std = [
 	"pallet-carbon-credits/std",
 	"pallet-carbon-credits-pool/std",
 	"pallet-transaction-pause/std",
-	"pallet-vesting-contract/std"
+	"pallet-vesting-contract/std",
+	"pallet-parachain-staking/std"
 ]
 
 runtime-benchmarks = [
@@ -167,7 +169,6 @@ runtime-benchmarks = [
 	"frame-system-benchmarking",
 	"frame-system/runtime-benchmarks",
 	"pallet-balances/runtime-benchmarks",
-	"pallet-collator-selection/runtime-benchmarks",
 	"pallet-timestamp/runtime-benchmarks",
 	"pallet-xcm/runtime-benchmarks",
 	"sp-runtime/runtime-benchmarks",
@@ -177,4 +178,5 @@ runtime-benchmarks = [
 	"pallet-carbon-credits/runtime-benchmarks",
 	"pallet-vesting-contract/runtime-benchmarks",
 	"orml-authority/runtime-benchmarks",
+	"pallet-parachain-staking/runtime-benchmarks"
 ]
