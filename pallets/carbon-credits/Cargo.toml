@@ -2,7 +2,7 @@
 name = 'pallet-carbon-credits'
 version = '0.0.1'
 authors = ['BitGreen <https://bitgreen.org>']
-edition = '2018'
+edition = '2021'
 homepage = 'https://bitgreen.org'
 license = 'MIT'
 repository = 'https://github.com/bitgreen/bitgreen-node'
