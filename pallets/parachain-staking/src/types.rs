@@ -1,6 +1,5 @@
-use codec::{Decode, Encode, EncodeLike, MaxEncodedLen};
+use codec::{Decode, Encode, MaxEncodedLen};
 use frame_support::{pallet_prelude::Get, BoundedVec, RuntimeDebug};
-use scale_info::TypeInfo;
 
 use super::*;
 
