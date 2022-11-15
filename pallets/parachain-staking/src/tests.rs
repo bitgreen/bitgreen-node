@@ -11,7 +11,7 @@ use pallet_balances::Error as BalancesError;
 use sp_runtime::traits::BadOrigin;
 
 use crate as collator_selection;
-use crate::{mock::*, CandidateInfo, Error};
+use crate::{mock::*, types::CandidateInfoOf, Error};
 
 #[test]
 fn basic_setup_works() {
@@ -159,11 +159,13 @@ fn cannot_register_dupe_candidate() {
 	new_test_ext().execute_with(|| {
 		// can add 3 as candidate
 		assert_ok!(CollatorSelection::register_as_candidate(Origin::signed(3)));
-		let addition = CandidateInfo {
-			who: 3,
-			deposit: 10,
+		let addition = CandidateInfoOf::<Test> {
+			who: 3u64,
+			deposit: 10u64,
+			delegators: Default::default(),
+			total_stake: 10u64,
 		};
-		assert_eq!(CollatorSelection::candidates(), vec![addition]);
+		assert_eq!(CollatorSelection::candidates().pop().unwrap(), addition);
 		assert_eq!(CollatorSelection::last_authored_block(3), 10);
 		assert_eq!(Balances::free_balance(3), 90);
 
@@ -251,12 +253,14 @@ fn authorship_event_handler() {
 		// triggers `note_author`
 		Authorship::on_initialize(1);
 
-		let collator = CandidateInfo {
+		let collator = CandidateInfoOf::<Test> {
 			who: 4,
 			deposit: 10,
+			delegators: Default::default(),
+			total_stake: 10,
 		};
 
-		assert_eq!(CollatorSelection::candidates(), vec![collator]);
+		assert_eq!(CollatorSelection::candidates().pop().unwrap(), collator);
 		assert_eq!(CollatorSelection::last_authored_block(4), 0);
 
 		// all the amount goes to collators
@@ -279,12 +283,14 @@ fn fees_edgecases() {
 		// triggers `note_author`
 		Authorship::on_initialize(1);
 
-		let collator = CandidateInfo {
+		let collator = CandidateInfoOf::<Test> {
 			who: 4,
 			deposit: 10,
+			delegators: Default::default(),
+			total_stake: 10,
 		};
 
-		assert_eq!(CollatorSelection::candidates(), vec![collator]);
+		assert_eq!(CollatorSelection::candidates().pop().unwrap(), collator);
 		assert_eq!(CollatorSelection::last_authored_block(4), 0);
 		// Nothing received
 		assert_eq!(Balances::free_balance(4), 90);
@@ -344,11 +350,13 @@ fn kick_mechanism() {
 		assert_eq!(CollatorSelection::candidates().len(), 1);
 		// 3 will be kicked after 1 session delay
 		assert_eq!(SessionHandlerCollators::get(), vec![1, 2, 3, 4]);
-		let collator = CandidateInfo {
+		let collator = CandidateInfoOf::<Test> {
 			who: 4,
 			deposit: 10,
+			delegators: Default::default(),
+			total_stake: 10,
 		};
-		assert_eq!(CollatorSelection::candidates(), vec![collator]);
+		assert_eq!(CollatorSelection::candidates().pop().unwrap(), collator);
 		assert_eq!(CollatorSelection::last_authored_block(4), 20);
 		initialize_to_block(30);
 		// 3 gets kicked after 1 session delay
@@ -372,11 +380,13 @@ fn should_not_kick_mechanism_too_few() {
 		assert_eq!(CollatorSelection::candidates().len(), 1);
 		// 3 will be kicked after 1 session delay
 		assert_eq!(SessionHandlerCollators::get(), vec![1, 2, 3, 5]);
-		let collator = CandidateInfo {
+		let collator = CandidateInfoOf::<Test> {
 			who: 5,
 			deposit: 10,
+			delegators: Default::default(),
+			total_stake: 10,
 		};
-		assert_eq!(CollatorSelection::candidates(), vec![collator]);
+		assert_eq!(CollatorSelection::candidates().pop().unwrap(), collator);
 		assert_eq!(CollatorSelection::last_authored_block(4), 20);
 		initialize_to_block(30);
 		// 3 gets kicked after 1 session delay
