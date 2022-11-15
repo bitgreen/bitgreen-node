@@ -29,13 +29,13 @@ The Bitgreen network is a parachain and therefore only requires collators, runni
 
 # 3. Prerequisites
 
-:warning: **Running a validator on a live network is a lot of responsibility! You will be accountable for not only your own stake, but also the stake of your current delegators. If you make a mistake and get slashed, your money and your reputation will be at risk. However, running a validator can also be very rewarding, knowing that you contribute to the security of a decentralized network while growing your stash. It is highly recommended that you have significant system administration experience before attempting to run your own validator. You must be able to handle technical issues and anomalies with your node which you must be able to tackle yourself. Being a validator involves more than just executing the Bitgreen binary.**
+:warning: **Running a collator on a live network is a lot of responsibility! You will be accountable for not only your own stake, but also the stake of your current delegators. If you make a mistake and get slashed, your money and your reputation will be at risk. However, running a collator can also be very rewarding, knowing that you contribute to the security of a decentralized network while growing your stash. It is highly recommended that you have significant system administration experience before attempting to run your own collator. You must be able to handle technical issues and anomalies with your node which you must be able to tackle yourself. Being a collator involves more than just executing the Bitgreen binary.**
 
 ### Requirements
-The most common way for a beginner to run a validator is on a cloud server running Linux. You may choose whatever VPS provider that your prefer. As OS it is best to use a recent Debian Linux. For this guide we will be using Ubuntu 22.04, but the instructions should be similar for other platforms.
+The most common way for a beginner to run a collator is on a cloud server running Linux. You may choose whatever VPS provider that your prefer. As OS it is best to use a recent Debian Linux. For this guide we will be using Ubuntu 22.04, but the instructions should be similar for other platforms.
 
 ### Reference Hardware
-The transaction weights in Polkadot are benchmarked on reference hardware. We ran the benchmark on VM instances of two major cloud providers: Google Cloud Platform (GCP) and Amazon Web Services (AWS). To be specific, we used c2d-highcpu-8 VM instance on GCP and c6id.2xlarge on AWS. It is recommended that the hardware used to run the validators at least matches the specs of the reference hardware in order to ensure they are able to process all blocks in time. If you use subpar hardware you will possibly run into performance issues, get less era points, and potentially even get slashed.
+The transaction weights in Polkadot are benchmarked on reference hardware. We ran the benchmark on VM instances of two major cloud providers: Google Cloud Platform (GCP) and Amazon Web Services (AWS). To be specific, we used c2d-highcpu-8 VM instance on GCP and c6id.2xlarge on AWS. It is recommended that the hardware used to run the collators at least matches the specs of the reference hardware in order to ensure they are able to process all blocks in time. If you use subpar hardware you will possibly run into performance issues, get less era points, and potentially even get slashed.
 
 #### CPU
 x86-64 compatible;
@@ -54,7 +54,7 @@ Linux Kernel 5.16 or newer.
 
 #### Network
 The minimum symmetric networking speed is set to 500 Mbit/s (= 62.5 MB/s). This is required to support a large number of parachains and allow for proper congestion control in busy network situations.
-The specs posted above are not a hard requirement to run a validator, but are considered best practice. Running a validator is a responsible task; using professional hardware is a must in any way.
+The specs posted above are not a hard requirement to run a collator, but are considered best practice. Running a collator is a responsible task; using professional hardware is a must in any way.
 
 
 # 4. Installation
@@ -108,7 +108,7 @@ brew install cmake pkg-config openssl git llvm
 
 #### Install & Configure Network Time Protocol (NTP) Client
 
-NTP is a networking protocol designed to synchronize the clocks of computers over a network. NTP allows you to synchronize the clocks of all the systems within the network. Currently it is required that validators' local clocks stay reasonably in sync, so you should be running NTP or a similar service. You can check whether you have the NTP client by running:
+NTP is a networking protocol designed to synchronize the clocks of computers over a network. NTP allows you to synchronize the clocks of all the systems within the network. Currently it is required that collators' local clocks stay reasonably in sync, so you should be running NTP or a similar service. You can check whether you have the NTP client by running:
 
 If you are using Ubuntu 18.04 or a newer version, NTP Client should be installed by default.
 
