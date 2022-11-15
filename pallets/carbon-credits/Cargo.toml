@@ -1,36 +1,34 @@
 [package]
+name = 'pallet-carbon-credits'
+version = '0.0.1'
 authors = ['BitGreen <https://bitgreen.org>']
 edition = '2021'
 homepage = 'https://bitgreen.org'
 license = 'MIT'
-name = 'pallet-carbon-credits'
-description = "Module to tokenize carbon credits"
 repository = 'https://github.com/bitgreen/bitgreen-node'
-version = '0.1.0'
+description = "Module to tokenize carbon credits"
 
 [package.metadata.docs.rs]
 targets = ['x86_64-unknown-linux-gnu']
 
-
 [dependencies]
+bs58 = { default-features = false, version = '0.4.0', features = ['alloc'] }
 codec = { package = "parity-scale-codec", version = "3.0.0", default-features = false, features = ["derive"] }
 frame-support = { git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.29", default-features = false }
 frame-system = { git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.29", default-features = false }
-sp-std = { git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.29", default-features = false }
-sp-runtime = { git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.29", default-features = false }
-bs58 = { default-features = false, version = '0.4.0',features=['alloc']}
-scale-info = { version = "2.0.1", default-features = false, features = ["derive"] }
 pallet-assets = { git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.29", default-features = false }
-primitives = { package = 'bitgreen-primitives', path = '../../primitives', default-features = false }
 pallet-balances = { git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.29", default-features = false }
 pallet-uniques = { git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.29", default-features = false }
+primitives = { package = 'bitgreen-primitives', path = '../../primitives', default-features = false }
+scale-info = { version = "2.0.1", default-features = false, features = ["derive"] }
+sp-runtime = { git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.29", default-features = false }
+sp-std = { git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.29", default-features = false }
 
 # Benchmarking
 frame-benchmarking = { git = "https://github.com/paritytech/substrate.git", default-features = false, optional = true, branch = "polkadot-v0.9.29" }
-pallet-timestamp = { git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.29", default-features = false }
 pallet-membership = { git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.29", default-features = false }
+pallet-timestamp = { git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.29", default-features = false }
 sp-core = { git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.29", default-features = false }
-
 
 [dev-dependencies]
 serde = { version = "1.0.136" }
@@ -39,17 +37,17 @@ sp-io = { git = "https://github.com/paritytech/substrate.git", branch = "polkado
 [features]
 default = ['std']
 std = [
-    'codec/std',
-    'frame-support/std',
-    'frame-system/std',
-    'sp-std/std',
-    'bs58/std',
-    'scale-info/std',
-    'pallet-assets/std',
-    'pallet-balances/std',
-    'sp-runtime/std',
-    'pallet-uniques/std',
-    'pallet-membership/std'
+  'codec/std',
+  'frame-support/std',
+  'frame-system/std',
+  'sp-std/std',
+  'bs58/std',
+  'scale-info/std',
+  'pallet-assets/std',
+  'pallet-balances/std',
+  'sp-runtime/std',
+  'pallet-uniques/std',
+  'pallet-membership/std',
 ]
 runtime-benchmarks = [
   "frame-benchmarking/runtime-benchmarks",

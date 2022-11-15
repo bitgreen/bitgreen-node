@@ -94,7 +94,7 @@ Verify your installation.
 rustc --version
 ```
 
-Finally, run this command to install the necessary dependencies for compiling and running the Polkadot node software.
+Finally, run this command to install the necessary dependencies for compiling and running the Bitgreen node software.
 
 ```bash
 sudo apt install make clang pkg-config libssl-dev build-essential

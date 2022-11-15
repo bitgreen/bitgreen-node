@@ -18,7 +18,7 @@ This repository contains the core logic and associated tools to issue and manage
 - [4. Run local testnet](#4-run-local-testnet)
 - [5. Development](#5-development)
 - [6. Run a Collator](#6-run-a-collator)
-- [7. Bug Bounty :bug:](#6-bug-bounty-bug)
+- [7. Bugs Reporting :bug:](#6-bug-bounty-bug)
 - [8. Contribute](#7-contribute)
 
 <!-- /TOC -->
