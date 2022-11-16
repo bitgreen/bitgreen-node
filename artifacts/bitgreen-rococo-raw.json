@@ -2,7 +2,9 @@
   "name": "BitgreenRococo",
   "id": "bitgreen_rococo",
   "chainType": "Live",
-  "bootNodes": [],
+  "bootNodes": [
+    "/ip4/65.108.65.250/tcp/40333/p2p/12D3KooWFxd8uEMWTWNWz2HVNyZ1FcvkYcJKDj5g8Gh7wx27jSs8"
+  ],
   "telemetryEndpoints": null,
   "protocolId": "bitgreen-rococo",
   "properties": {
