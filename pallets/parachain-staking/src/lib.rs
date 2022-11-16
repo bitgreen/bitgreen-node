@@ -59,17 +59,15 @@ mod tests;
 mod benchmarking;
 pub mod weights;
 
+pub mod types;
+
 #[frame_support::pallet]
 pub mod pallet {
-
 	use frame_support::{
 		dispatch::DispatchResultWithPostInfo,
 		inherent::Vec,
 		pallet_prelude::*,
-		sp_runtime::{
-			traits::{AccountIdConversion, CheckedSub, Saturating, Zero},
-			RuntimeDebug,
-		},
+		sp_runtime::traits::{AccountIdConversion, CheckedSub, Saturating, Zero},
 		traits::{
 			Currency, EnsureOrigin, ExistenceRequirement::KeepAlive, ReservableCurrency,
 			ValidatorRegistration,
@@ -79,12 +77,14 @@ pub mod pallet {
 	};
 	use frame_system::{pallet_prelude::*, Config as SystemConfig};
 	use pallet_session::SessionManager;
-	use sp_runtime::traits::Convert;
+	use sp_runtime::traits::{CheckedAdd, CheckedDiv, Convert};
+	use sp_runtime::Percent;
 	use sp_staking::SessionIndex;
 
+	use crate::types::{CandidateInfoOf, DelegationInfoOf};
 	pub use crate::weights::WeightInfo;
 
-	type BalanceOf<T> =
+	pub type BalanceOf<T> =
 		<<T as Config>::Currency as Currency<<T as SystemConfig>::AccountId>>::Balance;
 
 	/// A convertor from collators id. Since this pallet does not have stash/controller, this is
@@ -122,11 +122,20 @@ pub mod pallet {
 		/// Maximum number of invulnerables. This is enforced in code.
 		type MaxInvulnerables: Get<u32>;
 
+		/// Maximum number of delegators for a single candidate
+		type MaxDelegators: Get<u32> + TypeInfo + Clone;
+
+		/// Minim amount that should be delegated
+		type MinDelegationAmount: Get<BalanceOf<Self>>;
+
 		// Will be kicked if block is not produced in threshold.
 		type KickThreshold: Get<Self::BlockNumber>;
 
 		/// A stable ID for a validator.
 		type ValidatorId: Member + Parameter;
+
+		/// The origin which may forcibly set storage or add authorised accounts
+		type ForceOrigin: EnsureOrigin<Self::Origin>;
 
 		/// A conversion from account ID to validator ID.
 		///
@@ -138,17 +147,6 @@ pub mod pallet {
 
 		/// The weight information of this pallet.
 		type WeightInfo: WeightInfo;
-	}
-
-	/// Basic information about a collation candidate.
-	#[derive(
-		PartialEq, Eq, Clone, Encode, Decode, RuntimeDebug, scale_info::TypeInfo, MaxEncodedLen,
-	)]
-	pub struct CandidateInfo<AccountId, Balance> {
-		/// Account identifier.
-		pub who: AccountId,
-		/// Reserved deposit.
-		pub deposit: Balance,
 	}
 
 	#[pallet::pallet]
@@ -164,11 +162,8 @@ pub mod pallet {
 	/// The (community, limited) collation candidates.
 	#[pallet::storage]
 	#[pallet::getter(fn candidates)]
-	pub type Candidates<T: Config> = StorageValue<
-		_,
-		BoundedVec<CandidateInfo<T::AccountId, BalanceOf<T>>, T::MaxCandidates>,
-		ValueQuery,
-	>;
+	pub type Candidates<T: Config> =
+		StorageValue<_, BoundedVec<CandidateInfoOf<T>, T::MaxCandidates>, ValueQuery>;
 
 	/// Last block authored by collator.
 	#[pallet::storage]
@@ -189,6 +184,13 @@ pub mod pallet {
 	#[pallet::storage]
 	#[pallet::getter(fn candidacy_bond)]
 	pub type CandidacyBond<T> = StorageValue<_, BalanceOf<T>, ValueQuery>;
+
+	/// Fixed amount to reward to collator
+	///
+	/// This amount is rewarded to collators and stakers every block
+	#[pallet::storage]
+	#[pallet::getter(fn inflation_reward_per_block)]
+	pub type InflationAmountPerBlock<T> = StorageValue<_, BalanceOf<T>, ValueQuery>;
 
 	#[pallet::genesis_config]
 	pub struct GenesisConfig<T: Config> {
@@ -253,6 +255,18 @@ pub mod pallet {
 		CandidateRemoved {
 			account_id: T::AccountId,
 		},
+		NewDelegation {
+			account_id: T::AccountId,
+			candidate: T::AccountId,
+			amount: BalanceOf<T>,
+		},
+		DelegationRemoved {
+			account_id: T::AccountId,
+			candidate: T::AccountId,
+		},
+		InflationAmountSet {
+			amount: BalanceOf<T>,
+		},
 	}
 
 	// Errors inform users that something went wrong.
@@ -278,6 +292,12 @@ pub mod pallet {
 		NoAssociatedValidatorId,
 		/// Validator ID is not yet registered
 		ValidatorNotRegistered,
+		/// Deledation limit is reached
+		TooManyDelegations,
+		/// Arithmetic overflow
+		ArithmeticOverflow,
+		/// Not a delegator
+		NotDelegator,
 	}
 
 	#[pallet::hooks]
@@ -372,9 +392,11 @@ pub mod pallet {
 
 			let deposit = Self::candidacy_bond();
 			// First authored block is current block plus kick threshold to handle session delay
-			let incoming = CandidateInfo {
+			let incoming = CandidateInfoOf::<T> {
 				who: who.clone(),
 				deposit,
+				delegators: Default::default(),
+				total_stake: deposit,
 			};
 
 			let current_count =
@@ -386,6 +408,10 @@ pub mod pallet {
 						candidates
 							.try_push(incoming)
 							.map_err(|_| Error::<T>::TooManyCandidates)?;
+
+						// sort the candidates by total_stake
+						candidates.sort_by(|a, b| a.total_stake.cmp(&b.total_stake));
+
 						<LastAuthoredBlock<T>>::insert(
 							who.clone(),
 							frame_system::Pallet::<T>::block_number() + T::KickThreshold::get(),
@@ -418,6 +444,122 @@ pub mod pallet {
 
 			Ok(Some(T::WeightInfo::leave_intent(current_count as u32)).into())
 		}
+
+		/// Delegate to an existing candidate, delegators stake a bond amount to support the selected candidate
+		#[pallet::weight(T::WeightInfo::leave_intent(T::MaxCandidates::get()))]
+		pub fn delegate(
+			origin: OriginFor<T>,
+			candidate_id: T::AccountId,
+			amount: BalanceOf<T>,
+		) -> DispatchResult {
+			let who = ensure_signed(origin)?;
+
+			// ensure the amount is above minimum
+			ensure!(
+				amount >= T::MinDelegationAmount::get(),
+				Error::<T>::TooFewCandidates
+			);
+
+			let mut candidate =
+				Self::find_candidate(candidate_id).ok_or(Error::<T>::NotCandidate)?;
+
+			// try to reserve the delegation amount
+			<T as Config>::Currency::reserve(&who, amount)?;
+
+			// add the delegator to the list of delegators
+			let delegation_info = DelegationInfoOf::<T> {
+				who: who.clone(),
+				deposit: amount,
+			};
+
+			candidate
+				.delegators
+				.try_push(delegation_info)
+				.map_err(|_| Error::<T>::TooManyDelegations)?;
+
+			candidate.total_stake = candidate
+				.total_stake
+				.checked_add(&amount)
+				.ok_or(Error::<T>::ArithmeticOverflow)?;
+
+			<Candidates<T>>::try_mutate(|candidates| -> Result<usize, DispatchError> {
+				let index = candidates
+					.iter()
+					.position(|candidate| candidate.who == who)
+					.ok_or(Error::<T>::NotCandidate)?;
+
+				candidates
+					.try_insert(index, candidate.clone())
+					.map_err(|_| Error::<T>::TooManyCandidates)?;
+				Ok(candidates.len())
+			})?;
+
+			Self::deposit_event(Event::NewDelegation {
+				account_id: who,
+				candidate: candidate.who,
+				amount,
+			});
+
+			Ok(())
+		}
+
+		/// Undelegate and remove stake from an existing delegation
+		#[pallet::weight(T::WeightInfo::leave_intent(T::MaxCandidates::get()))]
+		pub fn undelegate(origin: OriginFor<T>, candidate_id: T::AccountId) -> DispatchResult {
+			let who = ensure_signed(origin)?;
+
+			let mut candidate =
+				Self::find_candidate(candidate_id).ok_or(Error::<T>::NotCandidate)?;
+
+			// remove delegator from candidates
+			let delegator_index = candidate
+				.delegators
+				.iter()
+				.position(|d| d.who == who)
+				.ok_or(Error::<T>::NotDelegator)?;
+			let delegator = candidate.delegators.swap_remove(delegator_index);
+
+			// try to unreserve the delegation amount
+			<T as Config>::Currency::reserve(&who, delegator.deposit)?;
+
+			candidate.total_stake = candidate
+				.total_stake
+				.checked_sub(&delegator.deposit)
+				.ok_or(Error::<T>::ArithmeticOverflow)?;
+
+			<Candidates<T>>::try_mutate(|candidates| -> Result<usize, DispatchError> {
+				let index = candidates
+					.iter()
+					.position(|candidate| candidate.who == who)
+					.ok_or(Error::<T>::NotCandidate)?;
+
+				candidates
+					.try_insert(index, candidate.clone())
+					.map_err(|_| Error::<T>::TooManyCandidates)?;
+				Ok(candidates.len())
+			})?;
+
+			Self::deposit_event(Event::DelegationRemoved {
+				account_id: who,
+				candidate: candidate.who,
+			});
+
+			Ok(())
+		}
+
+		/// Undelegate and remove stake from an existing delegation
+		#[pallet::weight(T::WeightInfo::leave_intent(T::MaxCandidates::get()))]
+		pub fn set_block_inflation_reward(
+			origin: OriginFor<T>,
+			amount: BalanceOf<T>,
+		) -> DispatchResult {
+			// ensure the caller is allowed origin
+			T::ForceOrigin::ensure_origin(origin)?;
+			InflationAmountPerBlock::<T>::set(amount);
+			// emit event
+			Self::deposit_event(Event::InflationAmountSet { amount });
+			Ok(())
+		}
 	}
 
 	impl<T: Config> Pallet<T> {
@@ -443,6 +585,20 @@ pub mod pallet {
 			Ok(current_count)
 		}
 
+		/// Finds a candidate with AccountId if it exists
+		fn find_candidate(who: T::AccountId) -> Option<CandidateInfoOf<T>> {
+			Candidates::<T>::get().into_iter().find(|c| c.who == who)
+		}
+
+		/// Finds a candidate with AccountId if it exists
+		fn get_delegators(who: T::AccountId) -> BoundedVec<DelegationInfoOf<T>, T::MaxDelegators> {
+			let candidate = Candidates::<T>::get().into_iter().find(|c| c.who == who);
+			if let Some(candidate) = candidate {
+				return candidate.delegators;
+			}
+			Default::default()
+		}
+
 		/// Assemble the current set of candidates and invulnerables into the next collator set.
 		///
 		/// This is done on the fly, as frequent as we are told to do so, as the session manager.
@@ -457,7 +613,7 @@ pub mod pallet {
 		/// Kicks out candidates that did not produce a block in the kick threshold
 		/// and refund their deposits.
 		pub fn kick_stale_candidates(
-			candidates: BoundedVec<CandidateInfo<T::AccountId, BalanceOf<T>>, T::MaxCandidates>,
+			candidates: BoundedVec<CandidateInfoOf<T>, T::MaxCandidates>,
 		) -> BoundedVec<T::AccountId, T::MaxCandidates> {
 			let now = frame_system::Pallet::<T>::block_number();
 			let kick_threshold = T::KickThreshold::get();
@@ -496,9 +652,35 @@ pub mod pallet {
 			let reward = T::Currency::free_balance(&pot)
 				.checked_sub(&T::Currency::minimum_balance())
 				.unwrap_or_else(Zero::zero);
-			// `reward` pot account minus ED, this should never fail.
-			let _success = T::Currency::transfer(&pot, &author, reward, KeepAlive);
-			debug_assert!(_success.is_ok());
+
+			// find the list of all delegators for this author
+			let delegators = Self::get_delegators(author.clone());
+			if !delegators.is_empty() {
+				// total delegator reward is 90%
+				let delegator_reward = Percent::from_percent(90).mul_floor(reward);
+				let reward_for_one_delegator = delegator_reward
+					.checked_div(&(delegators.len() as u32).into())
+					.unwrap_or_default();
+				for delegator in delegators.iter() {
+					let _success = T::Currency::transfer(
+						&pot,
+						&delegator.who,
+						reward_for_one_delegator,
+						KeepAlive,
+					);
+					debug_assert!(_success.is_ok());
+				}
+
+				// send rest of reward to collator
+				let collator_reward = Percent::from_percent(10).mul_floor(reward);
+				let _success = T::Currency::transfer(&pot, &author, collator_reward, KeepAlive);
+				debug_assert!(_success.is_ok());
+			} else {
+				// `reward` pot account minus ED, this should never fail.
+				let _success = T::Currency::transfer(&pot, &author, reward, KeepAlive);
+				debug_assert!(_success.is_ok());
+			}
+
 			<LastAuthoredBlock<T>>::insert(author, frame_system::Pallet::<T>::block_number());
 
 			frame_system::Pallet::<T>::register_extra_weight_unchecked(

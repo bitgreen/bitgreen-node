@@ -12,6 +12,11 @@ where
 	pallet_treasury::Pallet<R>: OnUnbalanced<NegativeImbalance<R>>,
 	<R as frame_system::Config>::AccountId: From<primitives::AccountId>,
 	<R as frame_system::Config>::AccountId: Into<primitives::AccountId>,
+	<R as pallet_balances::Config>::Balance: From<
+		<<R as pallet_parachain_staking::Config>::Currency as Currency<
+			<R as frame_system::Config>::AccountId,
+		>>::Balance,
+	>,
 {
 	fn on_unbalanceds<B>(mut fees_then_tips: impl Iterator<Item = NegativeImbalance<R>>) {
 		if let Some(fees) = fees_then_tips.next() {
@@ -24,8 +29,16 @@ where
 			use pallet_treasury::Pallet as Treasury;
 			// transfer treasury portion to treasury
 			<Treasury<R> as OnUnbalanced<_>>::on_unbalanced(split.0);
-			// transfer author reward to parachain staking
+
+			// transfer author reward + inflation rewards to parachain staking
 			let parachain_staking_pot = pallet_parachain_staking::Pallet::<R>::account_id();
+			// add inflation rewards to the parachain_staking_pot
+			let inflation_reward_per_block: pallet_balances::NegativeImbalance<R> =
+				NegativeImbalance::new(
+					<pallet_parachain_staking::Pallet<R>>::inflation_reward_per_block().into(),
+				);
+
+			inflation_reward_per_block.merge_into(&mut split.1);
 			<pallet_balances::Pallet<R>>::resolve_creating(&parachain_staking_pot, split.1);
 		}
 	}
