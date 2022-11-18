@@ -2,14 +2,14 @@
 // Copyright (C) 2022 BitGreen.
 // This code is licensed under MIT license (see LICENSE.txt for details)
 //
-
 use frame_support::{
 	ord_parameter_types, parameter_types,
 	traits::{FindAuthor, GenesisBuild, ValidatorRegistration},
 	PalletId,
 };
 use frame_system as system;
-use frame_system::EnsureSignedBy;
+use frame_system::{EnsureRoot, EnsureSignedBy};
+use scale_info::TypeInfo;
 use sp_core::H256;
 use sp_runtime::{
 	testing::{Header, UintAuthorityId},
@@ -183,9 +183,12 @@ ord_parameter_types! {
 parameter_types! {
 	pub const PotId: PalletId = PalletId(*b"PotStake");
 	pub const MaxCandidates: u32 = 20;
+	#[derive(Debug, TypeInfo, Clone, PartialEq, Eq)]
+	pub const MaxDelegators: u32 = 10;
 	pub const MaxInvulnerables: u32 = 20;
 	pub const MinCandidates: u32 = 1;
 	pub const MaxAuthorities: u32 = 100_000;
+	pub const MinDelegationAmount : u32 = 10;
 }
 
 pub struct IsRegistered;
@@ -196,10 +199,13 @@ impl ValidatorRegistration<u64> for IsRegistered {
 impl Config for Test {
 	type Currency = Balances;
 	type Event = Event;
+	type ForceOrigin = EnsureRoot<u64>;
 	type KickThreshold = Period;
 	type MaxCandidates = MaxCandidates;
+	type MaxDelegators = MaxDelegators;
 	type MaxInvulnerables = MaxInvulnerables;
 	type MinCandidates = MinCandidates;
+	type MinDelegationAmount = MinDelegationAmount;
 	type PotId = PotId;
 	type UpdateOrigin = EnsureSignedBy<RootAccount, u64>;
 	type ValidatorId = <Self as frame_system::Config>::AccountId;

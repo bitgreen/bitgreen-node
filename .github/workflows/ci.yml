@@ -37,10 +37,53 @@ jobs:
         run: |
           SKIP_WASM_BUILD=1 cargo check --release
 
+  clippy:
+    # The type of runner that the job will run on
+    runs-on: ubuntu-latest
+
+    # Steps represent a sequence of tasks that will be executed as part of the job
+    steps:
+      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
+      - uses: actions/checkout@v3
+
+      - name: Set-Up
+        run: sudo apt install -y cmake pkg-config libssl-dev git build-essential clang libclang-dev curl
+
+      -  name: Install toolchain
+         uses: actions-rs/toolchain@master
+         with:
+          profile: minimal
+          components: rustfmt
+          toolchain: nightly-2022-05-15
+          target: wasm32-unknown-unknown
+
       - name: Run clippy
         run: | 
           rustup component add clippy --toolchain nightly-2022-05-15-x86_64-unknown-linux-gnu
           cargo clippy --all-targets --workspace -- --deny warnings
 
+      - name: Unit tests
+        run: cargo test -p bitgreen-parachain --features runtime-benchmarks
+
+  tests:
+    # The type of runner that the job will run on
+    runs-on: ubuntu-latest
+
+    # Steps represent a sequence of tasks that will be executed as part of the job
+    steps:
+      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
+      - uses: actions/checkout@v3
+
+      - name: Set-Up
+        run: sudo apt install -y cmake pkg-config libssl-dev git build-essential clang libclang-dev curl
+
+      -  name: Install toolchain
+         uses: actions-rs/toolchain@master
+         with:
+          profile: minimal
+          components: rustfmt
+          toolchain: nightly-2022-05-15
+          target: wasm32-unknown-unknown
+    
       - name: Unit tests
         run: cargo test -p bitgreen-parachain --features runtime-benchmarks

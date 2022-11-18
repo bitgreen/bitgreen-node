@@ -41,6 +41,7 @@ pub use primitives::{
 	},
 	AccountId, Address, Amount, Balance, BlockNumber, Hash, Header, Index, Signature,
 };
+use scale_info::TypeInfo;
 use smallvec::smallvec;
 use sp_api::impl_runtime_apis;
 pub use sp_consensus_aura::sr25519::AuthorityId as AuraId;
@@ -392,6 +393,9 @@ parameter_types! {
 	pub const MinCandidates: u32 = 5;
 	pub const SessionLength: BlockNumber = 6 * HOURS;
 	pub const MaxInvulnerables: u32 = 100;
+	#[derive(Clone, TypeInfo)]
+	pub const MaxDelegators : u32 = 20;
+	pub const MinDelegationAmount : u32 = 100;
 	pub const ExecutiveBody: BodyId = BodyId::Executive;
 }
 
@@ -401,11 +405,14 @@ pub type ParachainStakingUpdateOrigin = EnsureRoot<AccountId>;
 impl pallet_parachain_staking::Config for Runtime {
 	type Currency = Balances;
 	type Event = Event;
+	type ForceOrigin = EnsureRoot<AccountId>;
 	// should be a multiple of session or things will get inconsistent
 	type KickThreshold = Period;
 	type MaxCandidates = MaxCandidates;
+	type MaxDelegators = MaxDelegators;
 	type MaxInvulnerables = MaxInvulnerables;
 	type MinCandidates = MinCandidates;
+	type MinDelegationAmount = MinDelegationAmount;
 	type PotId = PotId;
 	type UpdateOrigin = ParachainStakingUpdateOrigin;
 	type ValidatorId = <Self as frame_system::Config>::AccountId;

@@ -41,6 +41,7 @@ pallet-sudo = { git = "https://github.com/paritytech/substrate", default-feature
 pallet-timestamp = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.29" }
 pallet-transaction-payment = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.29" }
 pallet-transaction-payment-rpc-runtime-api = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.29" }
+pallet-treasury = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.29" }
 pallet-uniques = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.29" }
 sp-api = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.29" }
 sp-block-builder = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.29" }
@@ -54,7 +55,6 @@ sp-session = { git = "https://github.com/paritytech/substrate", default-features
 sp-std = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.29" }
 sp-transaction-pool = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.29" }
 sp-version = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.29" }
-pallet-treasury = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.29" }
 
 # Polkadot
 pallet-xcm = { git = "https://github.com/paritytech/polkadot", default-features = false, branch = "release-v0.9.29" }
@@ -74,7 +74,6 @@ cumulus-pallet-xcmp-queue = { git = "https://github.com/paritytech/cumulus", def
 cumulus-primitives-core = { git = "https://github.com/paritytech/cumulus", default-features = false, branch = "polkadot-v0.9.29" }
 cumulus-primitives-timestamp = { git = "https://github.com/paritytech/cumulus", default-features = false, branch = "polkadot-v0.9.29" }
 cumulus-primitives-utility = { git = "https://github.com/paritytech/cumulus", default-features = false, branch = "polkadot-v0.9.29" }
-pallet-collator-selection = { git = "https://github.com/paritytech/cumulus", default-features = false, branch = "polkadot-v0.9.29" }
 parachain-info = { git = "https://github.com/paritytech/cumulus", default-features = false, branch = "polkadot-v0.9.29" }
 
 # ORML dependencies
@@ -88,10 +87,10 @@ orml-traits = { git = "https://github.com/open-web3-stack/open-runtime-module-li
 pallet-assets = { default-features = false, version = '4.0.0-dev', path = "../../pallets/assets" }
 pallet-carbon-credits = { default-features = false, version = '0.0.1', path = "../../pallets/carbon-credits" }
 pallet-carbon-credits-pool = { default-features = false, version = '0.0.1', path = "../../pallets/carbon-credits-pool" }
+pallet-parachain-staking = { default-features = false, version = '0.0.1', path = "../../pallets/parachain-staking" }
 pallet-transaction-pause = { default-features = false, version = '0.0.1', path = "../../pallets/transaction-pause" }
 pallet-vesting-contract = { default-features = false, version = '0.0.1', path = "../../pallets/vesting-contract" }
 primitives = { package = "bitgreen-primitives", path = "../../primitives", default-features = false }
-pallet-parachain-staking = { default-features = false, version = '0.0.1', path = "../../pallets/parachain-staking" }
 
 [features]
 default = [
@@ -119,7 +118,6 @@ std = [
   "pallet-aura/std",
   "pallet-authorship/std",
   "pallet-balances/std",
-  "pallet-collator-selection/std",
   "pallet-session/std",
   "pallet-sudo/std",
   "pallet-timestamp/std",
@@ -160,7 +158,7 @@ std = [
   "pallet-carbon-credits-pool/std",
   "pallet-transaction-pause/std",
   "pallet-vesting-contract/std",
-  "pallet-parachain-staking/std"
+  "pallet-parachain-staking/std",
 ]
 
 runtime-benchmarks = [
@@ -170,7 +168,6 @@ runtime-benchmarks = [
   "frame-system-benchmarking",
   "frame-system/runtime-benchmarks",
   "pallet-balances/runtime-benchmarks",
-  "pallet-collator-selection/runtime-benchmarks",
   "pallet-timestamp/runtime-benchmarks",
   "pallet-xcm/runtime-benchmarks",
   "sp-runtime/runtime-benchmarks",
@@ -180,4 +177,5 @@ runtime-benchmarks = [
   "pallet-carbon-credits/runtime-benchmarks",
   "pallet-vesting-contract/runtime-benchmarks",
   "orml-authority/runtime-benchmarks",
+  "pallet-parachain-staking/runtime-benchmarks",
 ]
