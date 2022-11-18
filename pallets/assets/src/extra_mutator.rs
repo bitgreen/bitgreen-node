@@ -22,10 +22,7 @@ pub struct ExtraMutator<T: Config<I>, I: 'static = ()> {
 
 impl<T: Config<I>, I: 'static> Drop for ExtraMutator<T, I> {
 	fn drop(&mut self) {
-		debug_assert!(
-			self.commit().is_ok(),
-			"attempt to write to non-existent asset account"
-		);
+		debug_assert!(self.commit().is_ok(), "attempt to write to non-existent asset account");
 	}
 }
 
@@ -71,10 +68,7 @@ impl<T: Config<I>, I: 'static> ExtraMutator<T, I> {
 	pub fn commit(&mut self) -> Result<(), ()> {
 		if let Some(extra) = self.pending.take() {
 			Account::<T, I>::try_mutate(self.id, self.who.borrow(), |maybe_account| {
-				maybe_account
-					.as_mut()
-					.ok_or(())
-					.map(|account| account.extra = extra)
+				maybe_account.as_mut().ok_or(()).map(|account| account.extra = extra)
 			})
 		} else {
 			Ok(())

@@ -102,7 +102,7 @@ pub enum ExistenceReason<Balance> {
 impl<Balance> ExistenceReason<Balance> {
 	pub(crate) fn take_deposit(&mut self) -> Option<Balance> {
 		if !matches!(self, ExistenceReason::DepositHeld(_)) {
-			return None;
+			return None
 		}
 		if let ExistenceReason::DepositHeld(deposit) =
 			sp_std::mem::replace(self, ExistenceReason::DepositRefunded)
@@ -182,7 +182,9 @@ pub trait FrozenBalance<AssetId, AccountId, Balance> {
 }
 
 impl<AssetId, AccountId, Balance> FrozenBalance<AssetId, AccountId, Balance> for () {
-	fn frozen_balance(_: AssetId, _: &AccountId) -> Option<Balance> { None }
+	fn frozen_balance(_: AssetId, _: &AccountId) -> Option<Balance> {
+		None
+	}
 
 	fn died(_: AssetId, _: &AccountId) {}
 }
@@ -214,10 +216,7 @@ pub(super) struct DebitFlags {
 
 impl From<TransferFlags> for DebitFlags {
 	fn from(f: TransferFlags) -> Self {
-		Self {
-			keep_alive: f.keep_alive,
-			best_effort: f.best_effort,
-		}
+		Self { keep_alive: f.keep_alive, best_effort: f.best_effort }
 	}
 }
 
@@ -273,9 +272,7 @@ where
 		ensure!(!min_balance.is_zero(), ConversionError::MinBalanceZero);
 		let balance = CON::convert(balance);
 		// balance * asset.min_balance / min_balance
-		Ok(
-			FixedU128::saturating_from_rational(asset.min_balance, min_balance)
-				.saturating_mul_int(balance),
-		)
+		Ok(FixedU128::saturating_from_rational(asset.min_balance, min_balance)
+			.saturating_mul_int(balance))
 	}
 }

@@ -10,8 +10,7 @@ use primitives::{Batch, RegistryDetails, RegistryName, SDGDetails, SdgType};
 use sp_std::convert::TryInto;
 
 use super::*;
-use crate::Event;
-use crate::Pallet as CarbonCredits;
+use crate::{Event, Pallet as CarbonCredits};
 fn assert_last_event<T: Config>(generic_event: <T as Config>::Event) {
 	frame_system::Pallet::<T>::assert_last_event(generic_event.into());
 }
@@ -66,12 +65,8 @@ where
 		name: "name".as_bytes().to_vec().try_into().unwrap(),
 		description: "description".as_bytes().to_vec().try_into().unwrap(),
 		location: vec![(1, 1), (2, 2), (3, 3), (4, 4)].try_into().unwrap(),
-		images: vec!["image_link".as_bytes().to_vec().try_into().unwrap()]
-			.try_into()
-			.unwrap(),
-		videos: vec!["video_link".as_bytes().to_vec().try_into().unwrap()]
-			.try_into()
-			.unwrap(),
+		images: vec!["image_link".as_bytes().to_vec().try_into().unwrap()].try_into().unwrap(),
+		videos: vec!["video_link".as_bytes().to_vec().try_into().unwrap()].try_into().unwrap(),
 		documents: vec!["document_link".as_bytes().to_vec().try_into().unwrap()]
 			.try_into()
 			.unwrap(),

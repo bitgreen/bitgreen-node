@@ -15,15 +15,14 @@ mod weights;
 pub mod xcm_config;
 use cumulus_pallet_parachain_system::RelayNumberStrictlyIncreases;
 // Polkadot Imports
-use frame_support::weights::ConstantMultiplier;
 use frame_support::{
 	construct_runtime,
 	pallet_prelude::ConstU32,
 	parameter_types,
 	traits::{AsEnsureOriginWithArg, ConstU128, Contains, Currency, Everything},
 	weights::{
-		constants::WEIGHT_PER_SECOND, DispatchClass, Weight, WeightToFeeCoefficient,
-		WeightToFeeCoefficients, WeightToFeePolynomial,
+		constants::WEIGHT_PER_SECOND, ConstantMultiplier, DispatchClass, Weight,
+		WeightToFeeCoefficient, WeightToFeeCoefficients, WeightToFeePolynomial,
 	},
 	PalletId,
 };
@@ -48,19 +47,17 @@ pub use sp_consensus_aura::sr25519::AuthorityId as AuraId;
 use sp_core::{crypto::KeyTypeId, OpaqueMetadata};
 #[cfg(any(feature = "std", test))]
 pub use sp_runtime::BuildStorage;
-use sp_runtime::Percent;
 use sp_runtime::{
 	create_runtime_str, generic, impl_opaque_keys,
 	traits::{AccountIdLookup, BlakeTwo256, Block as BlockT},
 	transaction_validity::{TransactionSource, TransactionValidity},
-	ApplyExtrinsicResult,
+	ApplyExtrinsicResult, Percent,
 };
 pub use sp_runtime::{
 	traits::{AccountIdConversion, Zero},
 	MultiAddress, Perbill, Permill,
 };
-use sp_std::convert::TryInto;
-use sp_std::prelude::*;
+use sp_std::{convert::TryInto, prelude::*};
 #[cfg(feature = "std")]
 use sp_version::NativeVersion;
 use sp_version::RuntimeVersion;
@@ -177,10 +174,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 /// The version information used to identify this runtime when compiled natively.
 #[cfg(feature = "std")]
 pub fn native_version() -> NativeVersion {
-	NativeVersion {
-		runtime_version: VERSION,
-		can_author_with: Default::default(),
-	}
+	NativeVersion { runtime_version: VERSION, can_author_with: Default::default() }
 }
 
 parameter_types! {
@@ -431,7 +425,9 @@ parameter_type_with_key! {
 
 pub struct DustRemovalWhitelist;
 impl Contains<AccountId> for DustRemovalWhitelist {
-	fn contains(_a: &AccountId) -> bool { false }
+	fn contains(_a: &AccountId) -> bool {
+		false
+	}
 }
 
 impl orml_tokens::Config for Runtime {
@@ -477,7 +473,9 @@ parameter_types! {
 
 pub struct TestFreezer;
 impl pallet_assets::FrozenBalance<u32, AccountId, u128> for TestFreezer {
-	fn frozen_balance(_asset: u32, _who: &AccountId) -> Option<u128> { None }
+	fn frozen_balance(_asset: u32, _who: &AccountId) -> Option<u128> {
+		None
+	}
 
 	fn died(_asset: u32, _who: &AccountId) {}
 }

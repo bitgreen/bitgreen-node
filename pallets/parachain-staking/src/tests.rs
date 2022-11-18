@@ -35,10 +35,7 @@ fn it_should_set_invulnerables() {
 		assert_eq!(CollatorSelection::invulnerables(), new_set);
 
 		// cannot set with non-root.
-		assert_noop!(
-			CollatorSelection::set_invulnerables(Origin::signed(1), new_set),
-			BadOrigin
-		);
+		assert_noop!(CollatorSelection::set_invulnerables(Origin::signed(1), new_set), BadOrigin);
 
 		// cannot set invulnerables without associated validator keys
 		let invulnerables = vec![7];
@@ -63,10 +60,7 @@ fn set_desired_candidates_works() {
 		assert_eq!(CollatorSelection::desired_candidates(), 7);
 
 		// rejects bad origin
-		assert_noop!(
-			CollatorSelection::set_desired_candidates(Origin::signed(1), 8),
-			BadOrigin
-		);
+		assert_noop!(CollatorSelection::set_desired_candidates(Origin::signed(1), 8), BadOrigin);
 	});
 }
 
@@ -77,17 +71,11 @@ fn set_candidacy_bond() {
 		assert_eq!(CollatorSelection::candidacy_bond(), 10);
 
 		// can set
-		assert_ok!(CollatorSelection::set_candidacy_bond(
-			Origin::signed(RootAccount::get()),
-			7
-		));
+		assert_ok!(CollatorSelection::set_candidacy_bond(Origin::signed(RootAccount::get()), 7));
 		assert_eq!(CollatorSelection::candidacy_bond(), 7);
 
 		// rejects bad origin.
-		assert_noop!(
-			CollatorSelection::set_candidacy_bond(Origin::signed(1), 8),
-			BadOrigin
-		);
+		assert_noop!(CollatorSelection::set_candidacy_bond(Origin::signed(1), 8), BadOrigin);
 	});
 }
 
@@ -400,9 +388,7 @@ fn should_not_kick_mechanism_too_few() {
 #[should_panic = "duplicate invulnerables in genesis."]
 fn cannot_set_genesis_value_twice() {
 	sp_tracing::try_init_simple();
-	let mut t = frame_system::GenesisConfig::default()
-		.build_storage::<Test>()
-		.unwrap();
+	let mut t = frame_system::GenesisConfig::default().build_storage::<Test>().unwrap();
 	let invulnerables = vec![1, 1];
 
 	let collator_selection = collator_selection::GenesisConfig::<Test> {

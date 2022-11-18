@@ -3,15 +3,18 @@
 // This code is licensed under MIT license (see LICENSE.txt for details)
 //
 //! ## CarbonCredits Pools Pallet
-//! The CarbonCredits Pools pallet lets users create and manage CarbonCredits pools. A CarbonCredits pool is a collection of CarbonCredits tokens of different types represented by a
-//! common pool token. A user holding any CarbonCredits tokens (subject to the CarbonCredits pool config) can deposit CarbonCredits tokens to the pool and receive equivalent
-//! pool tokens in return. These pool tokens can be transferred freely and can be retired. When retire function is called, the underlying CarbonCredits credits
-//! are retired starting from the oldest in the pool.
+//! The CarbonCredits Pools pallet lets users create and manage CarbonCredits pools. A CarbonCredits
+//! pool is a collection of CarbonCredits tokens of different types represented by a common pool
+//! token. A user holding any CarbonCredits tokens (subject to the CarbonCredits pool config) can
+//! deposit CarbonCredits tokens to the pool and receive equivalent pool tokens in return. These
+//! pool tokens can be transferred freely and can be retired. When retire function is called, the
+//! underlying CarbonCredits credits are retired starting from the oldest in the pool.
 //!
 //! ### Pool Config
-//! A pool creator can setup configs, these configs determine which type of tokens are accepted into the pool. Currently the owner can setup two configs for a pool
-//! 1. Registry List : This limits the pool to accept CarbonCredits's issued by the given registry's only
-//! 2. Project List : This limits the pool to accepts CarbonCredits's issued by specific project's only
+//! A pool creator can setup configs, these configs determine which type of tokens are accepted into
+//! the pool. Currently the owner can setup two configs for a pool 1. Registry List : This limits
+//! the pool to accept CarbonCredits's issued by the given registry's only 2. Project List : This
+//! limits the pool to accepts CarbonCredits's issued by specific project's only
 //!
 //! ## Interface
 //!
@@ -24,7 +27,6 @@
 //! ### Permissioned Functions
 //!
 //! * `force_set_pool_storage`: Set the pool storage
-//!
 #![cfg_attr(not(feature = "std"), no_std)]
 pub use pallet::*;
 
@@ -117,11 +119,7 @@ pub mod pallet {
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
 	pub enum Event<T: Config> {
 		/// A new pool was created
-		PoolCreated {
-			admin: T::AccountId,
-			id: T::PoolId,
-			config: PoolConfigOf<T>,
-		},
+		PoolCreated { admin: T::AccountId, id: T::PoolId, config: PoolConfigOf<T> },
 		/// A new deposit was added to pool
 		Deposit {
 			who: T::AccountId,
@@ -130,11 +128,7 @@ pub mod pallet {
 			amount: T::Balance,
 		},
 		/// Pool tokens were retired
-		Retired {
-			who: T::AccountId,
-			pool_id: T::PoolId,
-			amount: T::Balance,
-		},
+		Retired { who: T::AccountId, pool_id: T::PoolId, amount: T::Balance },
 	}
 
 	// Errors inform users that something went wrong.
@@ -169,8 +163,8 @@ pub mod pallet {
 		/// Params:
 		/// id : Id of the new pool
 		/// config : Config values for new pool
-		/// max_limit : Limit of maximum project-ids the pool can support, default to T::MaxProjectIdLIst
-		/// asset_symbol : Symbol for asset created for the pool
+		/// max_limit : Limit of maximum project-ids the pool can support, default to
+		/// T::MaxProjectIdLIst asset_symbol : Symbol for asset created for the pool
 		#[transactional]
 		#[pallet::weight(<T as pallet::Config>::WeightInfo::create())]
 		pub fn create(
@@ -183,10 +177,7 @@ pub mod pallet {
 		) -> DispatchResultWithPostInfo {
 			<T as pallet::Config>::ForceOrigin::ensure_origin(origin)?;
 
-			ensure!(
-				id >= T::MinPoolId::get(),
-				Error::<T>::PoolIdBelowExpectedMinimum
-			);
+			ensure!(id >= T::MinPoolId::get(), Error::<T>::PoolIdBelowExpectedMinimum);
 
 			ensure!(!Pools::<T>::contains_key(id), Error::<T>::PoolIdInUse);
 
@@ -203,12 +194,15 @@ pub mod pallet {
 			};
 
 			// insert to storage
-			<Pools<T>>::insert(id, Pool {
-				admin: admin.clone(),
-				config: config.clone(),
-				max_limit: actual_max_limit,
-				credits: Default::default(),
-			});
+			<Pools<T>>::insert(
+				id,
+				Pool {
+					admin: admin.clone(),
+					config: config.clone(),
+					max_limit: actual_max_limit,
+					credits: Default::default(),
+				},
+			);
 
 			// create an asset collection to reserve asset-id
 			<T as pallet::Config>::AssetHandler::create(
@@ -336,19 +330,15 @@ pub mod pallet {
 				<T as pallet::Config>::AssetHandler::mint_into(pool_id.into(), &who, amount)?;
 
 				// Emit an event.
-				Self::deposit_event(Event::Deposit {
-					who,
-					pool_id,
-					project_id,
-					amount,
-				});
+				Self::deposit_event(Event::Deposit { who, pool_id, project_id, amount });
 
 				Ok(().into())
 			})
 		}
 
-		/// Retire Pool Tokens - A user can retire pool tokens, this will look at the available CarbonCredits token supply in the pool and retire tokens
-		/// starting from the oldest issuance until the entire amount is retired.
+		/// Retire Pool Tokens - A user can retire pool tokens, this will look at the available
+		/// CarbonCredits token supply in the pool and retire tokens starting from the oldest
+		/// issuance until the entire amount is retired.
 		///
 		/// Params:
 		/// pool_id : Id of the pooltokens to retire
@@ -376,8 +366,8 @@ pub mod pallet {
 
 				// Retire tokens starting from oldest until `amount` is retired
 				for (_year, project_map) in pool_credits_temp.iter_mut() {
-					// the iterator is sorted by key (year), so retire all from year before moving to next year
-					// we dont care about the project order
+					// the iterator is sorted by key (year), so retire all from year before moving
+					// to next year we dont care about the project order
 					for (project_id, available_amount) in
 						project_map.clone().into_inner().iter_mut()
 					{
@@ -415,11 +405,10 @@ pub mod pallet {
 							.map_err(|_| Error::<T>::UnexpectedOverflow)?;
 
 						// this is safe since actual is <= remaining
-						remaining = remaining
-							.checked_sub(&actual)
-							.ok_or(Error::<T>::UnexpectedOverflow)?;
+						remaining =
+							remaining.checked_sub(&actual).ok_or(Error::<T>::UnexpectedOverflow)?;
 						if remaining <= Zero::zero() {
-							break;
+							break
 						}
 					}
 				}
@@ -428,11 +417,7 @@ pub mod pallet {
 					.map_err(|_| Error::<T>::UnexpectedOverflow)?;
 
 				// Emit an event.
-				Self::deposit_event(Event::Retired {
-					who,
-					pool_id,
-					amount,
-				});
+				Self::deposit_event(Event::Retired { who, pool_id, amount });
 
 				Ok(().into())
 			})

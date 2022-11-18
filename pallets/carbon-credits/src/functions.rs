@@ -7,8 +7,10 @@ use frame_support::{
 	ensure,
 	pallet_prelude::*,
 	traits::{
-		tokens::fungibles::{metadata::Mutate as MetadataMutate, Create, Mutate},
-		tokens::nonfungibles::{Create as NFTCreate, Mutate as NFTMutate},
+		tokens::{
+			fungibles::{metadata::Mutate as MetadataMutate, Create, Mutate},
+			nonfungibles::{Create as NFTCreate, Mutate as NFTMutate},
+		},
 		Contains, Get,
 	},
 };
@@ -23,7 +25,9 @@ use crate::{
 
 impl<T: Config> Pallet<T> {
 	/// The account ID of the CarbonCredits pallet
-	pub fn account_id() -> T::AccountId { T::PalletId::get().into_account_truncating() }
+	pub fn account_id() -> T::AccountId {
+		T::PalletId::get().into_account_truncating()
+	}
 
 	/// Get the project details from AssetId
 	pub fn get_project_details(project_id: T::AssetId) -> Option<ProjectDetail<T>> {
@@ -72,7 +76,8 @@ impl<T: Config> Pallet<T> {
 	/// For a project with a single batch it's the issuance year of that batch
 	/// For a project with multiple batches, its the issuance year of the oldest batch
 	pub fn calculate_issuance_year(project: ProjectDetail<T>) -> Option<u16> {
-		// the data is stored sorted in ascending order of issuance year, hence first() will always return oldest batch
+		// the data is stored sorted in ascending order of issuance year, hence first() will always
+		// return oldest batch
 		project.batches.first().map(|x| x.issuance_year)
 	}
 
@@ -84,10 +89,7 @@ impl<T: Config> Pallet<T> {
 	) -> DispatchResult {
 		let now = frame_system::Pallet::<T>::block_number();
 
-		ensure!(
-			project_id >= T::MinProjectId::get(),
-			Error::<T>::ProjectIdLowerThanPermitted
-		);
+		ensure!(project_id >= T::MinProjectId::get(), Error::<T>::ProjectIdLowerThanPermitted);
 
 		// the unit price should not be zero
 		ensure!(!params.unit_price.is_zero(), Error::<T>::UnitPriceIsZero);
@@ -113,9 +115,7 @@ impl<T: Config> Pallet<T> {
 			);
 
 			// sort batch data in ascending order of issuance year
-			params
-				.batches
-				.sort_by(|x, y| x.issuance_year.cmp(&y.issuance_year));
+			params.batches.sort_by(|x, y| x.issuance_year.cmp(&y.issuance_year));
 
 			let new_project = ProjectDetail {
 				originator: admin,
@@ -153,10 +153,7 @@ impl<T: Config> Pallet<T> {
 			)?;
 
 			// emit event
-			Self::deposit_event(Event::ProjectCreated {
-				project_id,
-				details: new_project,
-			});
+			Self::deposit_event(Event::ProjectCreated { project_id, details: new_project });
 
 			Ok(())
 		})
@@ -199,9 +196,7 @@ impl<T: Config> Pallet<T> {
 			);
 
 			// sort batch data in ascending order of issuance year
-			params
-				.batches
-				.sort_by(|x, y| x.issuance_year.cmp(&y.issuance_year));
+			params.batches.sort_by(|x, y| x.issuance_year.cmp(&y.issuance_year));
 
 			let new_project = ProjectDetail {
 				originator: admin,
@@ -227,10 +222,7 @@ impl<T: Config> Pallet<T> {
 			*project = new_project.clone();
 
 			// emit event
-			Self::deposit_event(Event::ProjectResubmitted {
-				project_id,
-				details: new_project,
-			});
+			Self::deposit_event(Event::ProjectResubmitted { project_id, details: new_project });
 
 			Ok(())
 		})
@@ -243,7 +235,7 @@ impl<T: Config> Pallet<T> {
 		list_to_marketplace: bool,
 	) -> DispatchResult {
 		if amount_to_mint.is_zero() {
-			return Ok(());
+			return Ok(())
 		}
 
 		Projects::<T>::try_mutate(project_id, |project| -> DispatchResult {
@@ -254,9 +246,8 @@ impl<T: Config> Pallet<T> {
 			ensure!(project.approved, Error::<T>::ProjectNotApproved);
 
 			// ensure the amount_to_mint does not exceed limit
-			let projected_total_supply = amount_to_mint
-				.checked_add(&project.minted)
-				.ok_or(Error::<T>::Overflow)?;
+			let projected_total_supply =
+				amount_to_mint.checked_add(&project.minted).ok_or(Error::<T>::Overflow)?;
 
 			ensure!(
 				projected_total_supply <= project.total_supply,
@@ -274,45 +265,32 @@ impl<T: Config> Pallet<T> {
 			let mut remaining = amount_to_mint;
 			for batch in batch_list.iter_mut() {
 				// lets mint from the older batches as much as possible
-				let available_to_mint = batch
-					.total_supply
-					.checked_sub(&batch.minted)
-					.ok_or(Error::<T>::Overflow)?;
+				let available_to_mint =
+					batch.total_supply.checked_sub(&batch.minted).ok_or(Error::<T>::Overflow)?;
 
 				let actual = cmp::min(available_to_mint, remaining);
 
-				batch.minted = batch
-					.minted
-					.checked_add(&actual)
-					.ok_or(Error::<T>::Overflow)?;
+				batch.minted = batch.minted.checked_add(&actual).ok_or(Error::<T>::Overflow)?;
 
 				// this is safe since actual is <= remaining
 				remaining = remaining.checked_sub(&actual).ok_or(Error::<T>::Overflow)?;
 				if remaining <= Zero::zero() {
-					break;
+					break
 				}
 			}
 
 			// this should not happen since total_supply = batches supply but
 			// lets be safe
-			ensure!(
-				remaining == Zero::zero(),
-				Error::<T>::AmountGreaterThanSupply
-			);
+			ensure!(remaining == Zero::zero(), Error::<T>::AmountGreaterThanSupply);
 
 			project.batches = batch_list.try_into().map_err(|_| Error::<T>::Overflow)?;
 
 			// increase the minted count
-			project.minted = project
-				.minted
-				.checked_add(&amount_to_mint)
-				.ok_or(Error::<T>::Overflow)?;
+			project.minted =
+				project.minted.checked_add(&amount_to_mint).ok_or(Error::<T>::Overflow)?;
 
 			// another check to ensure accounting is correct
-			ensure!(
-				project.minted <= project.total_supply,
-				Error::<T>::AmountGreaterThanSupply
-			);
+			ensure!(project.minted <= project.total_supply, Error::<T>::AmountGreaterThanSupply);
 
 			// mint the asset to the recipient
 			T::AssetHandler::mint_into(project_id, &recipient, amount_to_mint)?;
@@ -337,7 +315,7 @@ impl<T: Config> Pallet<T> {
 		let now = frame_system::Pallet::<T>::block_number();
 
 		if amount.is_zero() {
-			return Ok(());
+			return Ok(())
 		}
 
 		Projects::<T>::try_mutate(project_id, |project| -> DispatchResult {
@@ -354,10 +332,7 @@ impl<T: Config> Pallet<T> {
 				.ok_or(Error::<T>::AmountGreaterThanSupply)?;
 
 			// another check to ensure accounting is correct
-			ensure!(
-				project.retired <= project.minted,
-				Error::<T>::AmountGreaterThanSupply
-			);
+			ensure!(project.retired <= project.minted, Error::<T>::AmountGreaterThanSupply);
 
 			// Retire in the individual batches too
 			let mut batch_list: Vec<_> = project.batches.clone().into_iter().collect();
@@ -368,17 +343,12 @@ impl<T: Config> Pallet<T> {
 			for batch in batch_list.iter_mut() {
 				// lets retire from the older batches as much as possible
 				// this is safe since we ensure minted >= retired
-				let available_to_retire = batch
-					.minted
-					.checked_sub(&batch.retired)
-					.ok_or(Error::<T>::Overflow)?;
+				let available_to_retire =
+					batch.minted.checked_sub(&batch.retired).ok_or(Error::<T>::Overflow)?;
 
 				let actual = cmp::min(available_to_retire, remaining);
 
-				batch.retired = batch
-					.retired
-					.checked_add(&actual)
-					.ok_or(Error::<T>::Overflow)?;
+				batch.retired = batch.retired.checked_add(&actual).ok_or(Error::<T>::Overflow)?;
 
 				// create data of retired batch
 				let batch_retire_data: BatchRetireDataOf<T> = BatchRetireData {
@@ -396,26 +366,17 @@ impl<T: Config> Pallet<T> {
 				// this is safe since actual is <= remaining
 				remaining = remaining.checked_sub(&actual).ok_or(Error::<T>::Overflow)?;
 				if remaining <= Zero::zero() {
-					break;
+					break
 				}
 			}
 
 			// this should not happen since total_retired = batches supply but
 			// lets be safe
-			ensure!(
-				remaining == Zero::zero(),
-				Error::<T>::AmountGreaterThanSupply
-			);
+			ensure!(remaining == Zero::zero(), Error::<T>::AmountGreaterThanSupply);
 
 			// sanity checks to ensure accounting is correct
-			ensure!(
-				project.minted <= project.total_supply,
-				Error::<T>::AmountGreaterThanSupply
-			);
-			ensure!(
-				project.retired <= project.minted,
-				Error::<T>::AmountGreaterThanSupply
-			);
+			ensure!(project.minted <= project.total_supply, Error::<T>::AmountGreaterThanSupply);
+			ensure!(project.retired <= project.minted, Error::<T>::AmountGreaterThanSupply);
 
 			project.batches = batch_list.try_into().map_err(|_| Error::<T>::Overflow)?;
 
@@ -425,8 +386,8 @@ impl<T: Config> Pallet<T> {
 			// handle the case of first retirement of proejct
 			let item_id = match maybe_item_id {
 				None => {
-					// If the item-id does not exist it implies this is the first retirement of project tokens
-					// create a collection and use default item-id
+					// If the item-id does not exist it implies this is the first retirement of
+					// project tokens create a collection and use default item-id
 					T::NFTHandler::create_collection(
 						&project_id,
 						&Self::account_id(),
@@ -440,9 +401,8 @@ impl<T: Config> Pallet<T> {
 			// mint the NFT to caller
 			T::NFTHandler::mint_into(&project_id, &item_id, &from)?;
 			// Increment the NextItemId storage
-			let next_item_id: T::ItemId = item_id
-				.checked_add(&One::one())
-				.ok_or(Error::<T>::Overflow)?;
+			let next_item_id: T::ItemId =
+				item_id.checked_add(&One::one()).ok_or(Error::<T>::Overflow)?;
 			NextItemId::<T>::insert::<T::AssetId, T::ItemId>(project_id, next_item_id);
 
 			// form the retire CarbonCredits data

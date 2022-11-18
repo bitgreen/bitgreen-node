@@ -29,16 +29,19 @@ fn load_spec(id: &str) -> std::result::Result<Box<dyn ChainSpec>, String> {
 		"dev" => Box::new(chain_spec::development_config()),
 		"rococo" => Box::new(chain_spec::rococo_config()),
 		"" | "local" => Box::new(chain_spec::local_testnet_config()),
-		path => Box::new(chain_spec::RococoChainSpec::from_json_file(
-			std::path::PathBuf::from(path),
-		)?),
+		path =>
+			Box::new(chain_spec::RococoChainSpec::from_json_file(std::path::PathBuf::from(path))?),
 	})
 }
 
 impl SubstrateCli for Cli {
-	fn impl_name() -> String { "Parachain Collator Template".into() }
+	fn impl_name() -> String {
+		"Parachain Collator Template".into()
+	}
 
-	fn impl_version() -> String { env!("SUBSTRATE_CLI_IMPL_VERSION").into() }
+	fn impl_version() -> String {
+		env!("SUBSTRATE_CLI_IMPL_VERSION").into()
+	}
 
 	fn description() -> String {
 		format!(
@@ -50,11 +53,17 @@ impl SubstrateCli for Cli {
 		)
 	}
 
-	fn author() -> String { env!("CARGO_PKG_AUTHORS").into() }
+	fn author() -> String {
+		env!("CARGO_PKG_AUTHORS").into()
+	}
 
-	fn support_url() -> String { "https://github.com/paritytech/cumulus/issues/new".into() }
+	fn support_url() -> String {
+		"https://github.com/paritytech/cumulus/issues/new".into()
+	}
 
-	fn copyright_start_year() -> i32 { 2020 }
+	fn copyright_start_year() -> i32 {
+		2020
+	}
 
 	fn load_spec(&self, id: &str) -> std::result::Result<Box<dyn sc_service::ChainSpec>, String> {
 		load_spec(id)
@@ -66,9 +75,13 @@ impl SubstrateCli for Cli {
 }
 
 impl SubstrateCli for RelayChainCli {
-	fn impl_name() -> String { "Parachain Collator Template".into() }
+	fn impl_name() -> String {
+		"Parachain Collator Template".into()
+	}
 
-	fn impl_version() -> String { env!("SUBSTRATE_CLI_IMPL_VERSION").into() }
+	fn impl_version() -> String {
+		env!("SUBSTRATE_CLI_IMPL_VERSION").into()
+	}
 
 	fn description() -> String {
 		format!(
@@ -80,11 +93,17 @@ impl SubstrateCli for RelayChainCli {
 		)
 	}
 
-	fn author() -> String { env!("CARGO_PKG_AUTHORS").into() }
+	fn author() -> String {
+		env!("CARGO_PKG_AUTHORS").into()
+	}
 
-	fn support_url() -> String { "https://github.com/paritytech/cumulus/issues/new".into() }
+	fn support_url() -> String {
+		"https://github.com/paritytech/cumulus/issues/new".into()
+	}
 
-	fn copyright_start_year() -> i32 { 2020 }
+	fn copyright_start_year() -> i32 {
+		2020
+	}
 
 	fn load_spec(&self, id: &str) -> std::result::Result<Box<dyn sc_service::ChainSpec>, String> {
 		polkadot_cli::Cli::from_iter([RelayChainCli::executable_name()].iter()).load_spec(id)
@@ -153,9 +172,7 @@ pub fn run() -> Result<()> {
 			runner.sync_run(|config| {
 				let polkadot_cli = RelayChainCli::new(
 					&config,
-					[RelayChainCli::executable_name()]
-						.iter()
-						.chain(cli.relay_chain_args.iter()),
+					[RelayChainCli::executable_name()].iter().chain(cli.relay_chain_args.iter()),
 				);
 
 				let polkadot_config = SubstrateCli::create_configuration(
@@ -187,15 +204,14 @@ pub fn run() -> Result<()> {
 			let runner = cli.create_runner(cmd)?;
 			// Switch on the concrete benchmark sub-command-
 			match cmd {
-				BenchmarkCmd::Pallet(cmd) => {
+				BenchmarkCmd::Pallet(cmd) =>
 					if cfg!(feature = "runtime-benchmarks") {
 						runner.sync_run(|config| cmd.run::<Block, TemplateRuntimeExecutor>(config))
 					} else {
 						Err("Benchmarking wasn't enabled when building the node. \
 					You can enable it with `--features runtime-benchmarks`."
 							.into())
-					}
-				},
+					},
 				BenchmarkCmd::Block(cmd) => runner.sync_run(|config| {
 					let partials = new_partial::<RuntimeApi, TemplateRuntimeExecutor, _>(
 						&config,
@@ -214,9 +230,8 @@ pub fn run() -> Result<()> {
 					cmd.run(config, partials.client.clone(), db, storage)
 				}),
 				BenchmarkCmd::Overhead(_) => Err("Unsupported benchmarking command".into()),
-				BenchmarkCmd::Machine(cmd) => {
-					runner.sync_run(|config| cmd.run(&config, SUBSTRATE_REFERENCE_HARDWARE.clone()))
-				},
+				BenchmarkCmd::Machine(cmd) =>
+					runner.sync_run(|config| cmd.run(&config, SUBSTRATE_REFERENCE_HARDWARE.clone())),
 				// NOTE: this allows the Client to leniently implement
 				// new benchmark commands without requiring a companion MR.
 				#[allow(unreachable_patterns)]
@@ -229,20 +244,13 @@ pub fn run() -> Result<()> {
 				let runner = cli.create_runner(cmd)?;
 
 				// grab the task manager.
-				let registry = &runner
-					.config()
-					.prometheus_config
-					.as_ref()
-					.map(|cfg| &cfg.registry);
+				let registry = &runner.config().prometheus_config.as_ref().map(|cfg| &cfg.registry);
 				let task_manager =
 					TaskManager::new(runner.config().tokio_handle.clone(), *registry)
 						.map_err(|e| format!("Error: {:?}", e))?;
 
 				runner.async_run(|config| {
-					Ok((
-						cmd.run::<Block, TemplateRuntimeExecutor>(config),
-						task_manager,
-					))
+					Ok((cmd.run::<Block, TemplateRuntimeExecutor>(config), task_manager))
 				})
 			} else {
 				Err("Try-runtime must be enabled by `--features try-runtime`.".into())
@@ -268,9 +276,7 @@ pub fn run() -> Result<()> {
 
 				let polkadot_cli = RelayChainCli::new(
 					&config,
-					[RelayChainCli::executable_name()]
-						.iter()
-						.chain(cli.relay_chain_args.iter()),
+					[RelayChainCli::executable_name()].iter().chain(cli.relay_chain_args.iter()),
 				);
 
 				let id = ParaId::from(para_id);
@@ -291,14 +297,7 @@ pub fn run() -> Result<()> {
 				info!("Parachain id: {:?}", id);
 				info!("Parachain Account: {}", parachain_account);
 				info!("Parachain genesis state: {}", genesis_state);
-				info!(
-					"Is collating: {}",
-					if config.role.is_authority() {
-						"yes"
-					} else {
-						"no"
-					}
-				);
+				info!("Is collating: {}", if config.role.is_authority() { "yes" } else { "no" });
 
 				crate::service::start_parachain_node(
 					config,
@@ -316,23 +315,39 @@ pub fn run() -> Result<()> {
 }
 
 impl DefaultConfigurationValues for RelayChainCli {
-	fn p2p_listen_port() -> u16 { 30334 }
+	fn p2p_listen_port() -> u16 {
+		30334
+	}
 
-	fn rpc_ws_listen_port() -> u16 { 9945 }
+	fn rpc_ws_listen_port() -> u16 {
+		9945
+	}
 
-	fn rpc_http_listen_port() -> u16 { 9934 }
+	fn rpc_http_listen_port() -> u16 {
+		9934
+	}
 
-	fn prometheus_listen_port() -> u16 { 9616 }
+	fn prometheus_listen_port() -> u16 {
+		9616
+	}
 }
 
 impl CliConfiguration<Self> for RelayChainCli {
-	fn shared_params(&self) -> &SharedParams { self.base.base.shared_params() }
+	fn shared_params(&self) -> &SharedParams {
+		self.base.base.shared_params()
+	}
 
-	fn import_params(&self) -> Option<&ImportParams> { self.base.base.import_params() }
+	fn import_params(&self) -> Option<&ImportParams> {
+		self.base.base.import_params()
+	}
 
-	fn network_params(&self) -> Option<&NetworkParams> { self.base.base.network_params() }
+	fn network_params(&self) -> Option<&NetworkParams> {
+		self.base.base.network_params()
+	}
 
-	fn keystore_params(&self) -> Option<&KeystoreParams> { self.base.base.keystore_params() }
+	fn keystore_params(&self) -> Option<&KeystoreParams> {
+		self.base.base.keystore_params()
+	}
 
 	fn base_path(&self) -> Result<Option<BasePath>> {
 		Ok(self
@@ -345,7 +360,9 @@ impl CliConfiguration<Self> for RelayChainCli {
 		self.base.base.rpc_http(default_listen_port)
 	}
 
-	fn rpc_ipc(&self) -> Result<Option<String>> { self.base.base.rpc_ipc() }
+	fn rpc_ipc(&self) -> Result<Option<String>> {
+		self.base.base.rpc_ipc()
+	}
 
 	fn rpc_ws(&self, default_listen_port: u16) -> Result<Option<SocketAddr>> {
 		self.base.base.rpc_ws(default_listen_port)
@@ -356,9 +373,7 @@ impl CliConfiguration<Self> for RelayChainCli {
 		default_listen_port: u16,
 		chain_spec: &Box<dyn ChainSpec>,
 	) -> Result<Option<PrometheusConfig>> {
-		self.base
-			.base
-			.prometheus_config(default_listen_port, chain_spec)
+		self.base.base.prometheus_config(default_listen_port, chain_spec)
 	}
 
 	fn init<F>(
@@ -377,20 +392,20 @@ impl CliConfiguration<Self> for RelayChainCli {
 	fn chain_id(&self, is_dev: bool) -> Result<String> {
 		let chain_id = self.base.base.chain_id(is_dev)?;
 
-		Ok(if chain_id.is_empty() {
-			self.chain_id.clone().unwrap_or_default()
-		} else {
-			chain_id
-		})
+		Ok(if chain_id.is_empty() { self.chain_id.clone().unwrap_or_default() } else { chain_id })
 	}
 
-	fn role(&self, is_dev: bool) -> Result<sc_service::Role> { self.base.base.role(is_dev) }
+	fn role(&self, is_dev: bool) -> Result<sc_service::Role> {
+		self.base.base.role(is_dev)
+	}
 
 	fn transaction_pool(&self, is_dev: bool) -> Result<sc_service::config::TransactionPoolOptions> {
 		self.base.base.transaction_pool(is_dev)
 	}
 
-	fn rpc_methods(&self) -> Result<sc_service::config::RpcMethods> { self.base.base.rpc_methods() }
+	fn rpc_methods(&self) -> Result<sc_service::config::RpcMethods> {
+		self.base.base.rpc_methods()
+	}
 
 	fn rpc_ws_max_connections(&self) -> Result<Option<usize>> {
 		self.base.base.rpc_ws_max_connections()
@@ -400,17 +415,25 @@ impl CliConfiguration<Self> for RelayChainCli {
 		self.base.base.rpc_cors(is_dev)
 	}
 
-	fn default_heap_pages(&self) -> Result<Option<u64>> { self.base.base.default_heap_pages() }
+	fn default_heap_pages(&self) -> Result<Option<u64>> {
+		self.base.base.default_heap_pages()
+	}
 
-	fn force_authoring(&self) -> Result<bool> { self.base.base.force_authoring() }
+	fn force_authoring(&self) -> Result<bool> {
+		self.base.base.force_authoring()
+	}
 
-	fn disable_grandpa(&self) -> Result<bool> { self.base.base.disable_grandpa() }
+	fn disable_grandpa(&self) -> Result<bool> {
+		self.base.base.disable_grandpa()
+	}
 
 	fn max_runtime_instances(&self) -> Result<Option<usize>> {
 		self.base.base.max_runtime_instances()
 	}
 
-	fn announce_block(&self) -> Result<bool> { self.base.base.announce_block() }
+	fn announce_block(&self) -> Result<bool> {
+		self.base.base.announce_block()
+	}
 
 	fn telemetry_endpoints(
 		&self,
@@ -419,5 +442,7 @@ impl CliConfiguration<Self> for RelayChainCli {
 		self.base.base.telemetry_endpoints(chain_spec)
 	}
 
-	fn node_name(&self) -> Result<String> { self.base.base.node_name() }
+	fn node_name(&self) -> Result<String> {
+		self.base.base.node_name()
+	}
 }

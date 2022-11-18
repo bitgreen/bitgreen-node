@@ -77,8 +77,10 @@ pub mod pallet {
 	};
 	use frame_system::{pallet_prelude::*, Config as SystemConfig};
 	use pallet_session::SessionManager;
-	use sp_runtime::traits::{CheckedAdd, CheckedDiv, Convert};
-	use sp_runtime::Percent;
+	use sp_runtime::{
+		traits::{CheckedAdd, CheckedDiv, Convert},
+		Percent,
+	};
 	use sp_staking::SessionIndex;
 
 	use crate::types::{CandidateInfoOf, DelegationInfoOf};
@@ -91,7 +93,9 @@ pub mod pallet {
 	/// just identity.
 	pub struct IdentityCollator;
 	impl<T> sp_runtime::traits::Convert<T, Option<T>> for IdentityCollator {
-		fn convert(t: T) -> Option<T> { Some(t) }
+		fn convert(t: T) -> Option<T> {
+			Some(t)
+		}
 	}
 
 	/// Configure the pallet by specifying the parameters and types on which it depends.
@@ -213,10 +217,8 @@ pub mod pallet {
 	#[pallet::genesis_build]
 	impl<T: Config> GenesisBuild<T> for GenesisConfig<T> {
 		fn build(&self) {
-			let duplicate_invulnerables = self
-				.invulnerables
-				.iter()
-				.collect::<std::collections::BTreeSet<_>>();
+			let duplicate_invulnerables =
+				self.invulnerables.iter().collect::<std::collections::BTreeSet<_>>();
 			assert!(
 				duplicate_invulnerables.len() == self.invulnerables.len(),
 				"duplicate invulnerables in genesis."
@@ -239,34 +241,14 @@ pub mod pallet {
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
 	pub enum Event<T: Config> {
-		NewInvulnerables {
-			invulnerables: Vec<T::AccountId>,
-		},
-		NewDesiredCandidates {
-			desired_candidates: u32,
-		},
-		NewCandidacyBond {
-			bond_amount: BalanceOf<T>,
-		},
-		CandidateAdded {
-			account_id: T::AccountId,
-			deposit: BalanceOf<T>,
-		},
-		CandidateRemoved {
-			account_id: T::AccountId,
-		},
-		NewDelegation {
-			account_id: T::AccountId,
-			candidate: T::AccountId,
-			amount: BalanceOf<T>,
-		},
-		DelegationRemoved {
-			account_id: T::AccountId,
-			candidate: T::AccountId,
-		},
-		InflationAmountSet {
-			amount: BalanceOf<T>,
-		},
+		NewInvulnerables { invulnerables: Vec<T::AccountId> },
+		NewDesiredCandidates { desired_candidates: u32 },
+		NewCandidacyBond { bond_amount: BalanceOf<T> },
+		CandidateAdded { account_id: T::AccountId, deposit: BalanceOf<T> },
+		CandidateRemoved { account_id: T::AccountId },
+		NewDelegation { account_id: T::AccountId, candidate: T::AccountId, amount: BalanceOf<T> },
+		DelegationRemoved { account_id: T::AccountId, candidate: T::AccountId },
+		InflationAmountSet { amount: BalanceOf<T> },
 	}
 
 	// Errors inform users that something went wrong.
@@ -333,8 +315,9 @@ pub mod pallet {
 		}
 
 		/// Set the ideal number of collators (not including the invulnerables).
-		/// If lowering this number, then the number of running collators could be higher than this figure.
-		/// Aside from that edge case, there should be no other way to have more collators than the desired number.
+		/// If lowering this number, then the number of running collators could be higher than this
+		/// figure. Aside from that edge case, there should be no other way to have more collators
+		/// than the desired number.
 		#[pallet::weight(T::WeightInfo::set_desired_candidates())]
 		pub fn set_desired_candidates(
 			origin: OriginFor<T>,
@@ -346,9 +329,7 @@ pub mod pallet {
 				log::warn!("max > T::MaxCandidates; you might need to run benchmarks again");
 			}
 			<DesiredCandidates<T>>::put(&max);
-			Self::deposit_event(Event::NewDesiredCandidates {
-				desired_candidates: max,
-			});
+			Self::deposit_event(Event::NewDesiredCandidates { desired_candidates: max });
 			Ok(().into())
 		}
 
@@ -374,14 +355,8 @@ pub mod pallet {
 
 			// ensure we are below limit.
 			let length = <Candidates<T>>::decode_len().unwrap_or_default();
-			ensure!(
-				(length as u32) < Self::desired_candidates(),
-				Error::<T>::TooManyCandidates
-			);
-			ensure!(
-				!Self::invulnerables().contains(&who),
-				Error::<T>::AlreadyInvulnerable
-			);
+			ensure!((length as u32) < Self::desired_candidates(), Error::<T>::TooManyCandidates);
+			ensure!(!Self::invulnerables().contains(&who), Error::<T>::AlreadyInvulnerable);
 
 			let validator_key = T::ValidatorIdOf::convert(who.clone())
 				.ok_or(Error::<T>::NoAssociatedValidatorId)?;
@@ -405,9 +380,7 @@ pub mod pallet {
 						Err(Error::<T>::AlreadyCandidate)?
 					} else {
 						T::Currency::reserve(&who, deposit)?;
-						candidates
-							.try_push(incoming)
-							.map_err(|_| Error::<T>::TooManyCandidates)?;
+						candidates.try_push(incoming).map_err(|_| Error::<T>::TooManyCandidates)?;
 
 						// sort the candidates by total_stake
 						candidates.sort_by(|a, b| a.total_stake.cmp(&b.total_stake));
@@ -420,10 +393,7 @@ pub mod pallet {
 					}
 				})?;
 
-			Self::deposit_event(Event::CandidateAdded {
-				account_id: who,
-				deposit,
-			});
+			Self::deposit_event(Event::CandidateAdded { account_id: who, deposit });
 			Ok(Some(T::WeightInfo::register_as_candidate(current_count as u32)).into())
 		}
 
@@ -445,7 +415,8 @@ pub mod pallet {
 			Ok(Some(T::WeightInfo::leave_intent(current_count as u32)).into())
 		}
 
-		/// Delegate to an existing candidate, delegators stake a bond amount to support the selected candidate
+		/// Delegate to an existing candidate, delegators stake a bond amount to support the
+		/// selected candidate
 		#[pallet::weight(T::WeightInfo::leave_intent(T::MaxCandidates::get()))]
 		pub fn delegate(
 			origin: OriginFor<T>,
@@ -455,10 +426,7 @@ pub mod pallet {
 			let who = ensure_signed(origin)?;
 
 			// ensure the amount is above minimum
-			ensure!(
-				amount >= T::MinDelegationAmount::get(),
-				Error::<T>::TooFewCandidates
-			);
+			ensure!(amount >= T::MinDelegationAmount::get(), Error::<T>::TooFewCandidates);
 
 			let mut candidate =
 				Self::find_candidate(candidate_id).ok_or(Error::<T>::NotCandidate)?;
@@ -467,10 +435,7 @@ pub mod pallet {
 			<T as Config>::Currency::reserve(&who, amount)?;
 
 			// add the delegator to the list of delegators
-			let delegation_info = DelegationInfoOf::<T> {
-				who: who.clone(),
-				deposit: amount,
-			};
+			let delegation_info = DelegationInfoOf::<T> { who: who.clone(), deposit: amount };
 
 			candidate
 				.delegators
@@ -564,7 +529,9 @@ pub mod pallet {
 
 	impl<T: Config> Pallet<T> {
 		/// Get a unique, inaccessible account id from the `PotId`.
-		pub fn account_id() -> T::AccountId { T::PotId::get().into_account_truncating() }
+		pub fn account_id() -> T::AccountId {
+			T::PotId::get().into_account_truncating()
+		}
 
 		/// Removes a candidate if they exist and sends them back their deposit
 		fn try_remove_candidate(who: &T::AccountId) -> Result<usize, DispatchError> {
@@ -579,9 +546,7 @@ pub mod pallet {
 					<LastAuthoredBlock<T>>::remove(who.clone());
 					Ok(candidates.len())
 				})?;
-			Self::deposit_event(Event::CandidateRemoved {
-				account_id: who.clone(),
-			});
+			Self::deposit_event(Event::CandidateRemoved { account_id: who.clone() });
 			Ok(current_count)
 		}
 
@@ -594,7 +559,7 @@ pub mod pallet {
 		fn get_delegators(who: T::AccountId) -> BoundedVec<DelegationInfoOf<T>, T::MaxDelegators> {
 			let candidate = Candidates::<T>::get().into_iter().find(|c| c.who == who);
 			if let Some(candidate) = candidate {
-				return candidate.delegators;
+				return candidate.delegators
 			}
 			Default::default()
 		}

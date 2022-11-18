@@ -25,8 +25,7 @@ use polkadot_service::CollatorPair;
 // Substrate Imports
 use sc_client_api::ExecutorProvider;
 use sc_executor::NativeElseWasmExecutor;
-use sc_network::NetworkBlock;
-use sc_network::NetworkService;
+use sc_network::{NetworkBlock, NetworkService};
 use sc_service::{Configuration, PartialComponents, TFullBackend, TFullClient, TaskManager};
 use sc_telemetry::{Telemetry, TelemetryHandle, TelemetryWorker, TelemetryWorkerHandle};
 use sp_api::ConstructRuntimeApi;
@@ -44,7 +43,9 @@ impl sc_executor::NativeExecutionDispatch for TemplateRuntimeExecutor {
 		bitgreen_rococo_runtime::api::dispatch(method, data)
 	}
 
-	fn native_version() -> sc_executor::NativeVersion { bitgreen_rococo_runtime::native_version() }
+	fn native_version() -> sc_executor::NativeVersion {
+		bitgreen_rococo_runtime::native_version()
+	}
 }
 
 /// Starts a `ServiceBuilder` for a full service.
@@ -129,9 +130,7 @@ where
 	let telemetry_worker_handle = telemetry.as_ref().map(|(worker, _)| worker.handle());
 
 	let telemetry = telemetry.map(|(worker, telemetry)| {
-		task_manager
-			.spawn_handle()
-			.spawn("telemetry", None, worker.run());
+		task_manager.spawn_handle().spawn("telemetry", None, worker.run());
 		telemetry
 	});
 
@@ -171,17 +170,11 @@ async fn build_relay_chain_interface(
 	task_manager: &mut TaskManager,
 	collator_options: CollatorOptions,
 	hwbench: Option<sc_sysinfo::HwBench>,
-) -> RelayChainResult<(
-	Arc<(dyn RelayChainInterface + 'static)>,
-	Option<CollatorPair>,
-)> {
+) -> RelayChainResult<(Arc<(dyn RelayChainInterface + 'static)>, Option<CollatorPair>)> {
 	match collator_options.relay_chain_rpc_url {
 		Some(relay_chain_url) => {
 			let client = create_client_and_start_worker(relay_chain_url, task_manager).await?;
-			Ok((
-				Arc::new(RelayChainRpcInterface::new(client)) as Arc<_>,
-				None,
-			))
+			Ok((Arc::new(RelayChainRpcInterface::new(client)) as Arc<_>, None))
 		},
 		None => build_inprocess_relay_chain(
 			polkadot_config,
@@ -486,55 +479,49 @@ pub async fn start_parachain_node(
 				telemetry.clone(),
 			);
 
-			Ok(AuraConsensus::build::<
-				sp_consensus_aura::sr25519::AuthorityPair,
-				_,
-				_,
-				_,
-				_,
-				_,
-				_,
-			>(BuildAuraConsensusParams {
-				proposer_factory,
-				create_inherent_data_providers: move |_, (relay_parent, validation_data)| {
-					let relay_chain_interface = relay_chain_interface.clone();
-					async move {
-						let parachain_inherent =
+			Ok(AuraConsensus::build::<sp_consensus_aura::sr25519::AuthorityPair, _, _, _, _, _, _>(
+				BuildAuraConsensusParams {
+					proposer_factory,
+					create_inherent_data_providers: move |_, (relay_parent, validation_data)| {
+						let relay_chain_interface = relay_chain_interface.clone();
+						async move {
+							let parachain_inherent =
 							cumulus_primitives_parachain_inherent::ParachainInherentData::create_at(
 								relay_parent,
 								&relay_chain_interface,
 								&validation_data,
 								id,
 							).await;
-						let time = sp_timestamp::InherentDataProvider::from_system_time();
+							let time = sp_timestamp::InherentDataProvider::from_system_time();
 
-						let slot =
+							let slot =
 						sp_consensus_aura::inherents::InherentDataProvider::from_timestamp_and_slot_duration(
 							*time,
 							slot_duration,
 						);
 
-						let parachain_inherent = parachain_inherent.ok_or_else(|| {
-							Box::<dyn std::error::Error + Send + Sync>::from(
-								"Failed to create parachain inherent",
-							)
-						})?;
-						Ok((time, slot, parachain_inherent))
-					}
+							let parachain_inherent = parachain_inherent.ok_or_else(|| {
+								Box::<dyn std::error::Error + Send + Sync>::from(
+									"Failed to create parachain inherent",
+								)
+							})?;
+							Ok((time, slot, parachain_inherent))
+						}
+					},
+					block_import: client.clone(),
+					para_client: client,
+					backoff_authoring_blocks: Option::<()>::None,
+					sync_oracle,
+					keystore,
+					force_authoring,
+					slot_duration,
+					// We got around 500ms for proposing
+					block_proposal_slot_portion: SlotProportion::new(1f32 / 24f32),
+					// And a maximum of 750ms if slots are skipped
+					max_block_proposal_slot_portion: Some(SlotProportion::new(1f32 / 16f32)),
+					telemetry,
 				},
-				block_import: client.clone(),
-				para_client: client,
-				backoff_authoring_blocks: Option::<()>::None,
-				sync_oracle,
-				keystore,
-				force_authoring,
-				slot_duration,
-				// We got around 500ms for proposing
-				block_proposal_slot_portion: SlotProportion::new(1f32 / 24f32),
-				// And a maximum of 750ms if slots are skipped
-				max_block_proposal_slot_portion: Some(SlotProportion::new(1f32 / 16f32)),
-				telemetry,
-			}))
+			))
 		},
 		hwbench,
 	)

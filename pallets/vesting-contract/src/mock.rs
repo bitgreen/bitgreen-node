@@ -93,13 +93,13 @@ impl vesting_contract::Config for Test {
 
 // Build genesis storage according to the mock runtime.
 pub fn new_test_ext() -> sp_io::TestExternalities {
-	let t = system::GenesisConfig::default()
-		.build_storage::<Test>()
-		.unwrap();
+	let t = system::GenesisConfig::default().build_storage::<Test>().unwrap();
 	let mut ext: sp_io::TestExternalities = t.into();
 	// set to block 1 to test events
 	ext.execute_with(|| System::set_block_number(1));
 	ext
 }
 
-pub fn last_event() -> Event { System::events().pop().expect("Event expected").event }
+pub fn last_event() -> Event {
+	System::events().pop().expect("Event expected").event
+}

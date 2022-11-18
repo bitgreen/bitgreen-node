@@ -67,12 +67,8 @@ where
 		name: "name".as_bytes().to_vec().try_into().unwrap(),
 		description: "description".as_bytes().to_vec().try_into().unwrap(),
 		location: vec![(1, 1), (2, 2), (3, 3), (4, 4)].try_into().unwrap(),
-		images: vec!["image_link".as_bytes().to_vec().try_into().unwrap()]
-			.try_into()
-			.unwrap(),
-		videos: vec!["video_link".as_bytes().to_vec().try_into().unwrap()]
-			.try_into()
-			.unwrap(),
+		images: vec!["image_link".as_bytes().to_vec().try_into().unwrap()].try_into().unwrap(),
+		videos: vec!["video_link".as_bytes().to_vec().try_into().unwrap()].try_into().unwrap(),
 		documents: vec!["document_link".as_bytes().to_vec().try_into().unwrap()]
 			.try_into()
 			.unwrap(),

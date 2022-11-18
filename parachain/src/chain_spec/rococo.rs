@@ -11,7 +11,7 @@ pub fn rococo_config() -> RococoChainSpec {
 	let mut properties = sc_chain_spec::Properties::new();
 	properties.insert("tokenSymbol".into(), "BBB".into());
 	properties.insert("tokenDecimals".into(), 18.into());
-	properties.insert("ss58Format".into(), ROCOCO_PARA_ID.into());
+	properties.insert("ss58Format".into(), 2106);
 
 	RococoChainSpec::from_genesis(
 		// Name
@@ -48,10 +48,7 @@ pub fn rococo_config() -> RococoChainSpec {
 		// Properties
 		Some(properties),
 		// Extensions
-		Extensions {
-			relay_chain: "rococo".into(),
-			para_id: ROCOCO_PARA_ID,
-		},
+		Extensions { relay_chain: "rococo".into(), para_id: ROCOCO_PARA_ID },
 	)
 }
 
@@ -68,11 +65,7 @@ fn rococo_genesis(
 				.to_vec(),
 		},
 		balances: bitgreen_rococo_runtime::BalancesConfig {
-			balances: endowed_accounts
-				.iter()
-				.cloned()
-				.map(|k| (k, 1 << 80))
-				.collect(),
+			balances: endowed_accounts.iter().cloned().map(|k| (k, 1 << 80)).collect(),
 		},
 		parachain_info: bitgreen_rococo_runtime::ParachainInfoConfig { parachain_id: id },
 		parachain_staking: bitgreen_rococo_runtime::ParachainStakingConfig {
@@ -104,12 +97,8 @@ fn rococo_genesis(
 			members: [].to_vec().try_into().unwrap(),
 			phantom: Default::default(),
 		},
-		tokens: bitgreen_rococo_runtime::TokensConfig {
-			balances: [].to_vec(),
-		},
-		sudo: bitgreen_rococo_runtime::SudoConfig {
-			key: Some(root_key),
-		},
+		tokens: bitgreen_rococo_runtime::TokensConfig { balances: [].to_vec() },
+		sudo: bitgreen_rococo_runtime::SudoConfig { key: Some(root_key) },
 		nft: bitgreen_rococo_runtime::NftConfig { tokens: vec![] },
 		treasury: Default::default(),
 	}

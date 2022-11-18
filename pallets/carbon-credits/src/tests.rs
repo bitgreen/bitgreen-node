@@ -9,8 +9,7 @@ use frame_support::{
 };
 use frame_system::RawOrigin;
 use primitives::{Batch, RegistryDetails, RegistryName, Royalty, SDGDetails, SdgType};
-use sp_runtime::traits::AccountIdConversion;
-use sp_runtime::Percent;
+use sp_runtime::{traits::AccountIdConversion, Percent};
 use sp_std::convert::TryInto;
 
 use crate::{
@@ -166,12 +165,8 @@ where
 		name: "name".as_bytes().to_vec().try_into().unwrap(),
 		description: "description".as_bytes().to_vec().try_into().unwrap(),
 		location: vec![(1, 1), (2, 2), (3, 3), (4, 4)].try_into().unwrap(),
-		images: vec!["image_link".as_bytes().to_vec().try_into().unwrap()]
-			.try_into()
-			.unwrap(),
-		videos: vec!["video_link".as_bytes().to_vec().try_into().unwrap()]
-			.try_into()
-			.unwrap(),
+		images: vec!["image_link".as_bytes().to_vec().try_into().unwrap()].try_into().unwrap(),
+		videos: vec!["video_link".as_bytes().to_vec().try_into().unwrap()].try_into().unwrap(),
 		documents: vec!["document_link".as_bytes().to_vec().try_into().unwrap()]
 			.try_into()
 			.unwrap(),
@@ -198,16 +193,11 @@ fn add_new_authorized_accounts_should_work() {
 
 		assert_eq!(
 			last_event(),
-			CarbonCreditsEvent::AuthorizedAccountAdded {
-				account_id: authorised_account_one
-			}
-			.into()
+			CarbonCreditsEvent::AuthorizedAccountAdded { account_id: authorised_account_one }
+				.into()
 		);
 
-		assert_eq!(
-			CarbonCredits::authorized_accounts().first(),
-			Some(&authorised_account_one)
-		);
+		assert_eq!(CarbonCredits::authorized_accounts().first(), Some(&authorised_account_one));
 
 		assert_noop!(
 			CarbonCredits::force_add_authorized_account(
@@ -232,10 +222,8 @@ fn add_new_authorized_accounts_should_work() {
 
 		assert_eq!(
 			last_event(),
-			CarbonCreditsEvent::AuthorizedAccountAdded {
-				account_id: authorised_account_two
-			}
-			.into()
+			CarbonCreditsEvent::AuthorizedAccountAdded { account_id: authorised_account_two }
+				.into()
 		);
 	});
 }
@@ -248,10 +236,7 @@ fn force_remove_authorized_accounts_should_work() {
 			RawOrigin::Root.into(),
 			authorised_account_one,
 		));
-		assert_eq!(
-			CarbonCredits::authorized_accounts().first(),
-			Some(&authorised_account_one)
-		);
+		assert_eq!(CarbonCredits::authorized_accounts().first(), Some(&authorised_account_one));
 
 		assert_ok!(CarbonCredits::force_remove_authorized_account(
 			RawOrigin::Root.into(),
@@ -260,10 +245,8 @@ fn force_remove_authorized_accounts_should_work() {
 
 		assert_eq!(
 			last_event(),
-			CarbonCreditsEvent::AuthorizedAccountRemoved {
-				account_id: authorised_account_one
-			}
-			.into()
+			CarbonCreditsEvent::AuthorizedAccountRemoved { account_id: authorised_account_one }
+				.into()
 		);
 
 		assert_eq!(CarbonCredits::authorized_accounts().len(), 0);
@@ -289,10 +272,7 @@ fn create_works_for_single_batch() {
 
 		assert_eq!(stored_data.originator, originator_account);
 		assert_eq!(stored_data.name, creation_params.name);
-		assert_eq!(
-			stored_data.registry_details,
-			get_default_registry_details::<Test>()
-		);
+		assert_eq!(stored_data.registry_details, get_default_registry_details::<Test>());
 		assert_eq!(stored_data.sdg_details, get_default_sdg_details::<Test>());
 		assert_eq!(stored_data.batches, get_default_batch_group::<Test>());
 		assert_eq!(stored_data.unit_price, 100_u32.into());
@@ -303,11 +283,7 @@ fn create_works_for_single_batch() {
 
 		assert_eq!(
 			last_event(),
-			CarbonCreditsEvent::ProjectCreated {
-				project_id,
-				details: stored_data
-			}
-			.into()
+			CarbonCreditsEvent::ProjectCreated { project_id, details: stored_data }.into()
 		);
 	});
 }
@@ -333,10 +309,7 @@ fn create_works_for_multiple_batch() {
 
 		assert_eq!(stored_data.originator, originator_account);
 		assert_eq!(stored_data.name, creation_params.name);
-		assert_eq!(
-			stored_data.registry_details,
-			get_default_registry_details::<Test>()
-		);
+		assert_eq!(stored_data.registry_details, get_default_registry_details::<Test>());
 		assert_eq!(stored_data.sdg_details, get_default_sdg_details::<Test>());
 		assert_eq!(stored_data.batches, get_multiple_batch_group::<Test>());
 		assert_eq!(stored_data.unit_price, 100_u32.into());
@@ -348,11 +321,7 @@ fn create_works_for_multiple_batch() {
 
 		assert_eq!(
 			last_event(),
-			CarbonCreditsEvent::ProjectCreated {
-				project_id,
-				details: stored_data
-			}
-			.into()
+			CarbonCreditsEvent::ProjectCreated { project_id, details: stored_data }.into()
 		);
 	});
 }
@@ -440,10 +409,7 @@ fn resubmit_works() {
 
 		assert_eq!(stored_data.originator, originator_account);
 		assert_eq!(stored_data.name, creation_params.name);
-		assert_eq!(
-			stored_data.registry_details,
-			get_default_registry_details::<Test>()
-		);
+		assert_eq!(stored_data.registry_details, get_default_registry_details::<Test>());
 		assert_eq!(stored_data.sdg_details, get_default_sdg_details::<Test>());
 		assert_eq!(stored_data.batches, get_multiple_batch_group::<Test>());
 		assert_eq!(stored_data.unit_price, 100_u32.into());
@@ -455,11 +421,7 @@ fn resubmit_works() {
 
 		assert_eq!(
 			last_event(),
-			CarbonCreditsEvent::ProjectResubmitted {
-				project_id,
-				details: stored_data
-			}
-			.into()
+			CarbonCreditsEvent::ProjectResubmitted { project_id, details: stored_data }.into()
 		);
 
 		// authorise the account
@@ -513,16 +475,10 @@ fn cleanup_after_project_reject_works() {
 			false
 		),);
 
-		assert_eq!(
-			last_event(),
-			CarbonCreditsEvent::ProjectRejected { project_id }.into()
-		);
+		assert_eq!(last_event(), CarbonCreditsEvent::ProjectRejected { project_id }.into());
 
 		// remove the project from storage
-		assert_ok!(CarbonCredits::force_remove_project(
-			RawOrigin::Root.into(),
-			project_id,
-		),);
+		assert_ok!(CarbonCredits::force_remove_project(RawOrigin::Root.into(), project_id,),);
 
 		// ensure storage is cleaned
 		assert_eq!(CarbonCredits::get_project_details(project_id), None);
@@ -588,10 +544,7 @@ fn approve_project_works() {
 		let stored_data = Projects::<Test>::get(project_id).unwrap();
 		assert!(stored_data.approved);
 
-		assert_eq!(
-			last_event(),
-			CarbonCreditsEvent::ProjectApproved { project_id }.into()
-		);
+		assert_eq!(last_event(), CarbonCreditsEvent::ProjectApproved { project_id }.into());
 	});
 }
 
@@ -749,17 +702,11 @@ fn mint_without_list_to_marketplace_works_for_single_batch() {
 		// the originator should have the minted tokens
 		assert_eq!(Assets::total_issuance(expected_asset_id), amount_to_mint);
 		assert_eq!(Assets::minimum_balance(expected_asset_id), 1);
-		assert_eq!(
-			Assets::balance(expected_asset_id, originator_account),
-			amount_to_mint
-		);
+		assert_eq!(Assets::balance(expected_asset_id, originator_account), amount_to_mint);
 
 		// the minted token metadata should be set correctly
 		assert_eq!(Assets::name(expected_asset_id), "name".as_bytes().to_vec());
-		assert_eq!(
-			Assets::symbol(expected_asset_id),
-			"1001".as_bytes().to_vec()
-		);
+		assert_eq!(Assets::symbol(expected_asset_id), "1001".as_bytes().to_vec());
 		assert_eq!(Assets::decimals(expected_asset_id), 0_u8);
 
 		// the originator can freely transfer the tokens
@@ -857,10 +804,7 @@ fn mint_without_list_to_marketplace_works_for_multiple_batches() {
 		// the originator should have the minted tokens
 		assert_eq!(Assets::total_issuance(expected_asset_id), amount_to_mint);
 		assert_eq!(Assets::minimum_balance(expected_asset_id), 1);
-		assert_eq!(
-			Assets::balance(expected_asset_id, originator_account),
-			amount_to_mint
-		);
+		assert_eq!(Assets::balance(expected_asset_id, originator_account), amount_to_mint);
 
 		// the originator can freely transfer the tokens
 		assert_ok!(Assets::transfer(
@@ -1039,10 +983,7 @@ fn test_retire_for_single_batch() {
 		assert_eq!(batch_detail.retired, amount_to_retire);
 
 		// the originator should have lost the supply of retired tokens
-		assert_eq!(
-			Assets::total_issuance(expected_asset_id),
-			amount_to_mint - amount_to_retire
-		);
+		assert_eq!(Assets::total_issuance(expected_asset_id), amount_to_mint - amount_to_retire);
 		assert_eq!(Assets::minimum_balance(expected_asset_id), 1);
 		assert_eq!(
 			Assets::balance(expected_asset_id, originator_account),
@@ -1058,10 +999,7 @@ fn test_retire_for_single_batch() {
 			carbon_credits_pallet_account_id
 		);
 		// the originator should have received the item
-		assert_eq!(
-			Uniques::owner(expected_asset_id, 0).unwrap(),
-			originator_account
-		);
+		assert_eq!(Uniques::owner(expected_asset_id, 0).unwrap(), originator_account);
 
 		// Then NextItemId storage should be set correctly
 		assert_eq!(NextItemId::<Test>::get(expected_asset_id).unwrap(), 1);
@@ -1072,14 +1010,8 @@ fn test_retire_for_single_batch() {
 		assert_eq!(stored_retired_data.account, originator_account);
 		assert_eq!(stored_retired_data.retire_data.len(), 1);
 		let retired_batch = stored_retired_data.retire_data.first().unwrap();
-		assert_eq!(
-			retired_batch.name,
-			creation_params.batches.first().unwrap().name
-		);
-		assert_eq!(
-			retired_batch.uuid,
-			creation_params.batches.first().unwrap().uuid
-		);
+		assert_eq!(retired_batch.name, creation_params.batches.first().unwrap().name);
+		assert_eq!(retired_batch.uuid, creation_params.batches.first().unwrap().uuid);
 		assert_eq!(retired_batch.issuance_year, 2020);
 		assert_eq!(retired_batch.count, amount_to_retire);
 		assert_eq!(stored_retired_data.timestamp, 1);
@@ -1140,10 +1072,7 @@ fn test_retire_for_single_batch() {
 			carbon_credits_pallet_account_id
 		);
 		// the originator should have received the item
-		assert_eq!(
-			Uniques::owner(expected_asset_id, 1).unwrap(),
-			originator_account
-		);
+		assert_eq!(Uniques::owner(expected_asset_id, 1).unwrap(), originator_account);
 
 		// Then NextItemId storage should be set correctly
 		assert_eq!(NextItemId::<Test>::get(expected_asset_id).unwrap(), 2);
@@ -1152,14 +1081,8 @@ fn test_retire_for_single_batch() {
 		assert_eq!(stored_retired_data.account, originator_account);
 		assert_eq!(stored_retired_data.retire_data.len(), 1);
 		let retired_batch = stored_retired_data.retire_data.first().unwrap();
-		assert_eq!(
-			retired_batch.name,
-			creation_params.batches.first().unwrap().name
-		);
-		assert_eq!(
-			retired_batch.uuid,
-			creation_params.batches.first().unwrap().uuid
-		);
+		assert_eq!(retired_batch.name, creation_params.batches.first().unwrap().name);
+		assert_eq!(retired_batch.uuid, creation_params.batches.first().unwrap().uuid);
 		assert_eq!(retired_batch.issuance_year, 2020);
 		assert_eq!(retired_batch.count, amount_to_retire);
 		assert_eq!(stored_retired_data.timestamp, 1);
@@ -1232,10 +1155,7 @@ fn retire_for_multiple_batch() {
 		assert_eq!(batch_detail.issuance_year, 2020);
 
 		// the originator should have lost the supply of retired tokens
-		assert_eq!(
-			Assets::total_issuance(expected_asset_id),
-			amount_to_mint - amount_to_retire
-		);
+		assert_eq!(Assets::total_issuance(expected_asset_id), amount_to_mint - amount_to_retire);
 		assert_eq!(Assets::minimum_balance(expected_asset_id), 1);
 		assert_eq!(
 			Assets::balance(expected_asset_id, originator_account),
@@ -1251,10 +1171,7 @@ fn retire_for_multiple_batch() {
 			carbon_credits_pallet_account_id
 		);
 		// the originator should have received the item
-		assert_eq!(
-			Uniques::owner(expected_asset_id, 0).unwrap(),
-			originator_account
-		);
+		assert_eq!(Uniques::owner(expected_asset_id, 0).unwrap(), originator_account);
 
 		// Then NextItemId storage should be set correctly
 		assert_eq!(NextItemId::<Test>::get(expected_asset_id).unwrap(), 1);
@@ -1335,10 +1252,7 @@ fn retire_for_multiple_batch() {
 			carbon_credits_pallet_account_id
 		);
 		// the originator should have received the item
-		assert_eq!(
-			Uniques::owner(expected_asset_id, 1).unwrap(),
-			originator_account
-		);
+		assert_eq!(Uniques::owner(expected_asset_id, 1).unwrap(), originator_account);
 
 		// Then NextItemId storage should be set correctly
 		assert_eq!(NextItemId::<Test>::get(expected_asset_id).unwrap(), 2);
@@ -1347,8 +1261,8 @@ fn retire_for_multiple_batch() {
 		let mut stored_retired_data = RetiredCredits::<Test>::get(expected_asset_id, 1).unwrap();
 		assert_eq!(stored_retired_data.account, originator_account);
 		assert_eq!(stored_retired_data.retire_data.len(), 2);
-		// We retired a total of 150 tokens in the call, 50 of 2020 batch had been retired previously
-		// So in this retirement, we have 50 from 2020 and 100 from 2021
+		// We retired a total of 150 tokens in the call, 50 of 2020 batch had been retired
+		// previously So in this retirement, we have 50 from 2020 and 100 from 2021
 		let retired_batch = stored_retired_data.retire_data.pop().unwrap();
 		assert_eq!(retired_batch.issuance_year, 2021);
 		assert_eq!(retired_batch.count, 100);

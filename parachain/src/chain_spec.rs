@@ -3,8 +3,7 @@ use cumulus_primitives_core::ParaId;
 use sc_chain_spec::{ChainSpecExtension, ChainSpecGroup};
 use sc_service::ChainType;
 use serde::{Deserialize, Serialize};
-use sp_core::ByteArray;
-use sp_core::{sr25519, Pair, Public};
+use sp_core::{sr25519, ByteArray, Pair, Public};
 use sp_runtime::traits::{IdentifyAccount, Verify};
 
 mod rococo;
@@ -44,7 +43,9 @@ type AccountPublic = <Signature as Verify>::Signer;
 /// Generate collator keys from seed.
 ///
 /// This function's return type must always match the session keys of the chain in tuple format.
-pub fn get_collator_keys_from_seed(seed: &str) -> AuraId { get_public_from_seed::<AuraId>(seed) }
+pub fn get_collator_keys_from_seed(seed: &str) -> AuraId {
+	get_public_from_seed::<AuraId>(seed)
+}
 
 /// Helper function to generate an account ID from seed
 pub fn get_account_id_from_seed<TPublic: Public>(seed: &str) -> AccountId
@@ -202,11 +203,7 @@ fn testnet_genesis(
 				.to_vec(),
 		},
 		balances: bitgreen_rococo_runtime::BalancesConfig {
-			balances: endowed_accounts
-				.iter()
-				.cloned()
-				.map(|k| (k, 1 << 80))
-				.collect(),
+			balances: endowed_accounts.iter().cloned().map(|k| (k, 1 << 80)).collect(),
 		},
 		parachain_info: bitgreen_rococo_runtime::ParachainInfoConfig { parachain_id: id },
 		parachain_staking: bitgreen_rococo_runtime::ParachainStakingConfig {
@@ -238,9 +235,7 @@ fn testnet_genesis(
 			members: [].to_vec().try_into().unwrap(),
 			phantom: Default::default(),
 		},
-		tokens: bitgreen_rococo_runtime::TokensConfig {
-			balances: [].to_vec(),
-		},
+		tokens: bitgreen_rococo_runtime::TokensConfig { balances: [].to_vec() },
 		sudo: bitgreen_rococo_runtime::SudoConfig {
 			key: Some(get_account_id_from_seed::<sr25519::Public>("Alice")),
 		},

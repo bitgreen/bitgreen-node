@@ -131,7 +131,9 @@ sp_runtime::impl_opaque_keys! {
 }
 
 impl From<UintAuthorityId> for MockSessionKeys {
-	fn from(aura: sp_runtime::testing::UintAuthorityId) -> Self { Self { aura } }
+	fn from(aura: sp_runtime::testing::UintAuthorityId) -> Self {
+		Self { aura }
+	}
 }
 
 parameter_types! {
@@ -193,7 +195,9 @@ parameter_types! {
 
 pub struct IsRegistered;
 impl ValidatorRegistration<u64> for IsRegistered {
-	fn is_registered(id: &u64) -> bool { *id != 7u64 }
+	fn is_registered(id: &u64) -> bool {
+		*id != 7u64
+	}
 }
 
 impl Config for Test {
@@ -216,19 +220,13 @@ impl Config for Test {
 
 pub fn new_test_ext() -> sp_io::TestExternalities {
 	sp_tracing::try_init_simple();
-	let mut t = frame_system::GenesisConfig::default()
-		.build_storage::<Test>()
-		.unwrap();
+	let mut t = frame_system::GenesisConfig::default().build_storage::<Test>().unwrap();
 	let invulnerables = vec![1, 2];
 
 	let balances = vec![(1, 100), (2, 100), (3, 100), (4, 100), (5, 100)];
 	let keys = balances
 		.iter()
-		.map(|&(i, _)| {
-			(i, i, MockSessionKeys {
-				aura: UintAuthorityId(i),
-			})
-		})
+		.map(|&(i, _)| (i, i, MockSessionKeys { aura: UintAuthorityId(i) }))
 		.collect::<Vec<_>>();
 	let collator_selection = collator_selection::GenesisConfig::<Test> {
 		desired_candidates: 2,
