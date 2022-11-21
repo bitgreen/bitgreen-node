@@ -11,7 +11,7 @@ pub fn rococo_config() -> RococoChainSpec {
 	let mut properties = sc_chain_spec::Properties::new();
 	properties.insert("tokenSymbol".into(), "BBB".into());
 	properties.insert("tokenDecimals".into(), 18.into());
-	properties.insert("ss58Format".into(), 2106);
+	properties.insert("ss58Format".into(), ROCOCO_PARA_ID.into());
 
 	RococoChainSpec::from_genesis(
 		// Name
