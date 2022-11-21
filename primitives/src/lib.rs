@@ -27,6 +27,10 @@ pub mod currency {
 
 	/// The existential deposit. Set to 1/10 of the Connected Relay Chain.
 	pub const EXISTENTIAL_DEPOSIT: Balance = MILLIUNIT;
+
+	pub const fn deposit(items: u32, bytes: u32) -> Balance {
+		items as Balance * 2_000 * MILLIUNIT + (bytes as Balance) * 100 * MICROUNIT
+	}
 }
 
 /// Time and blocks.

@@ -19,7 +19,7 @@ use frame_support::{
 	construct_runtime,
 	pallet_prelude::ConstU32,
 	parameter_types,
-	traits::{AsEnsureOriginWithArg, ConstU128, Contains, Currency, Everything},
+	traits::{AsEnsureOriginWithArg, ConstU128, Contains, Currency, Everything, Nothing},
 	weights::{
 		constants::WEIGHT_PER_SECOND, ConstantMultiplier, DispatchClass, Weight,
 		WeightToFeeCoefficient, WeightToFeeCoefficients, WeightToFeePolynomial,
@@ -31,6 +31,10 @@ use frame_system::{
 	EnsureRoot,
 };
 use orml_traits::parameter_type_with_key;
+use pallet_contracts::{
+	weights::{SubstrateWeight, WeightInfo},
+	Config, DefaultAddressGenerator, Frame, Schedule,
+};
 use polkadot_runtime_common::{BlockHashCount, SlowAdjustingFeeUpdate};
 pub use primitives::{
 	currency::*,
@@ -645,6 +649,56 @@ impl pallet_vesting_contract::Config for Runtime {
 	type WeightInfo = ();
 }
 
+// Prints debug output of the `contracts` pallet to stdout if the node is
+// started with `-lruntime::contracts=debug`.
+pub const CONTRACTS_DEBUG_OUTPUT: bool = true;
+
+parameter_types! {
+	pub const DepositPerItem: Balance = deposit(1, 0);
+	pub const DepositPerByte: Balance = deposit(0, 1);
+	// The lazy deletion runs inside on_initialize.
+	pub DeletionWeightLimit: Weight = AVERAGE_ON_INITIALIZE_RATIO *
+		RuntimeBlockWeights::get().max_block;
+	// The weight needed for decoding the queue should be less or equal than a fifth
+	// of the overall weight dedicated to the lazy deletion.
+	pub DeletionQueueDepth: u32 = ((DeletionWeightLimit::get().ref_time() / (
+			<Runtime as Config>::WeightInfo::on_initialize_per_queue_item(1).ref_time() -
+			<Runtime as Config>::WeightInfo::on_initialize_per_queue_item(0).ref_time()
+		)) / 5) as u32;
+	pub MySchedule: Schedule<Runtime> = Default::default();
+}
+
+impl pallet_contracts::Config for Runtime {
+	type Time = Timestamp;
+	type Randomness = RandomnessCollectiveFlip;
+	type Currency = Balances;
+	type Event = Event;
+	type Call = Call;
+	/// The safest default is to allow no calls at all.
+	///
+	/// Runtimes should whitelist dispatchables that are allowed to be called from contracts
+	/// and make sure they are stable. Dispatchables exposed to contracts are not allowed to
+	/// change because that would break already deployed contracts. The `Call` structure itself
+	/// is not allowed to change the indices of existing pallets, too.
+	type CallFilter = Nothing;
+	type DepositPerItem = DepositPerItem;
+	type DepositPerByte = DepositPerByte;
+	type WeightPrice = pallet_transaction_payment::Pallet<Self>;
+	type WeightInfo = SubstrateWeight<Self>;
+	type ChainExtension = ();
+	type DeletionQueueDepth = DeletionQueueDepth;
+	type DeletionWeightLimit = DeletionWeightLimit;
+	type Schedule = MySchedule;
+	type CallStack = [Frame<Self>; 31];
+	type AddressGenerator = DefaultAddressGenerator;
+	type MaxCodeLen = ConstU32<{ 128 * 1024 }>;
+	type MaxStorageKeyLen = ConstU32<128>;
+	type ContractAccessWeight = pallet_contracts::DefaultContractAccessWeight<RuntimeBlockWeights>;
+	type RelaxedMaxCodeLen = ConstU32<{ 256 * 1024 }>;
+}
+
+impl pallet_randomness_collective_flip::Config for Runtime {}
+
 // Create the runtime by composing the FRAME pallets that were previously configured.
 construct_runtime!(
 	pub enum Runtime where
@@ -657,8 +711,9 @@ construct_runtime!(
 		ParachainSystem: cumulus_pallet_parachain_system::{
 			Pallet, Call, Config, Storage, Inherent, Event<T>, ValidateUnsigned,
 		} = 1,
-		Timestamp: pallet_timestamp::{Pallet, Call, Storage, Inherent} = 2,
-		ParachainInfo: parachain_info::{Pallet, Storage, Config} = 3,
+		RandomnessCollectiveFlip: pallet_randomness_collective_flip::{Pallet, Storage} = 2,
+		Timestamp: pallet_timestamp::{Pallet, Call, Storage, Inherent} = 3,
+		ParachainInfo: parachain_info::{Pallet, Storage, Config} = 4,
 
 		// Monetary stuff.
 		Balances: pallet_balances::{Pallet, Call, Storage, Config<T>, Event<T>} = 10,
@@ -691,6 +746,7 @@ construct_runtime!(
 		VCUPools: pallet_carbon_credits_pool::{Pallet, Call, Storage, Event<T>} = 55,
 		TransactionPause: pallet_transaction_pause::{Pallet, Call, Storage, Event<T>} = 56,
 		VestingContract: pallet_vesting_contract::{Pallet, Call, Storage, Event<T>} = 57,
+		Contracts: pallet_contracts::{Pallet, Call, Storage, Event<T>} = 58,
 	}
 );
 
@@ -818,6 +874,7 @@ impl_runtime_apis! {
 			ParachainSystem::collect_collation_info(header)
 		}
 	}
+
 
 	#[cfg(feature = "try-runtime")]
 	impl frame_try_runtime::TryRuntime<Block> for Runtime {
