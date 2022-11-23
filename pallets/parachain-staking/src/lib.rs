@@ -249,6 +249,8 @@ pub mod pallet {
 		NewDelegation { account_id: T::AccountId, candidate: T::AccountId, amount: BalanceOf<T> },
 		DelegationRemoved { account_id: T::AccountId, candidate: T::AccountId },
 		InflationAmountSet { amount: BalanceOf<T> },
+		CollatorRewardsTransferred { account_id: T::AccountId, amount: BalanceOf<T> },
+		DelegatorRewardsTransferred { account_id: T::AccountId, amount: BalanceOf<T> },
 	}
 
 	// Errors inform users that something went wrong.
@@ -634,15 +636,18 @@ pub mod pallet {
 						KeepAlive,
 					);
 					debug_assert!(_success.is_ok());
+					Self::deposit_event(Event::DelegatorRewardsTransferred { account_id: delegator.who.clone(), amount : reward_for_one_delegator });
 				}
 
 				// send rest of reward to collator
 				let collator_reward = Percent::from_percent(10).mul_floor(reward);
 				let _success = T::Currency::transfer(&pot, &author, collator_reward, KeepAlive);
+				Self::deposit_event(Event::CollatorRewardsTransferred { account_id: author.clone(), amount : collator_reward });
 				debug_assert!(_success.is_ok());
 			} else {
 				// `reward` pot account minus ED, this should never fail.
 				let _success = T::Currency::transfer(&pot, &author, reward, KeepAlive);
+				Self::deposit_event(Event::CollatorRewardsTransferred { account_id: author.clone(), amount : reward });
 				debug_assert!(_success.is_ok());
 			}
 

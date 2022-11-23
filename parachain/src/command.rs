@@ -28,6 +28,7 @@ fn load_spec(id: &str) -> std::result::Result<Box<dyn ChainSpec>, String> {
 	Ok(match id {
 		"dev" => Box::new(chain_spec::development_config()),
 		"rococo" => Box::new(chain_spec::rococo_config()),
+		"rococo-local" => Box::new(chain_spec::rococo_config_local()),
 		"" | "local" => Box::new(chain_spec::local_testnet_config()),
 		path =>
 			Box::new(chain_spec::RococoChainSpec::from_json_file(std::path::PathBuf::from(path))?),

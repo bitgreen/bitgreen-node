@@ -6,6 +6,53 @@ use super::*;
 pub type RococoChainSpec =
 	sc_service::GenericChainSpec<bitgreen_rococo_runtime::GenesisConfig, Extensions>;
 
+// same as rococo config but for local testing
+pub fn rococo_config_local() -> RococoChainSpec {
+	// Give your base currency a unit name and decimal places
+	let mut properties = sc_chain_spec::Properties::new();
+	properties.insert("tokenSymbol".into(), "BBB".into());
+	properties.insert("tokenDecimals".into(), 18.into());
+	properties.insert("ss58Format".into(), 2106.into());
+
+	RococoChainSpec::from_genesis(
+		// Name
+		"BitgreenRococo",
+		// ID
+		"bitgreen_rococo",
+		ChainType::Development,
+		move || {
+			rococo_genesis(
+				// Rootkey
+				hex!("dc31445d24993e946ebf9f444dd17a9698fe859eeb574b78910100baab083b75").into(),
+				// initial collators.
+				generate_collator_keys(&[
+					hex!("66a44eae61bbaa03111e4958c2ad47460de3945a8bc8e236ddc73706e34e8b31"),
+					hex!("b60ae0674d01cc80e9f60bdf2f4bfb07daa9bfc4f9958120ead06e6a79208a7b"),
+				]),
+				// initial endowed accounts
+				vec![
+					hex!("dc31445d24993e946ebf9f444dd17a9698fe859eeb574b78910100baab083b75").into(),
+					hex!("d8c3c271f6b7ab4c6fa6377dadff2426e88e8053bd112fbe8d575f1a79810629").into(),
+					hex!("e636a18707426928ea68120d9bff857446b1a12adebdb2e96b0e17d7095ce151").into(),
+				],
+				ROCOCO_PARA_ID.into(),
+			)
+		},
+		// Bootnodes
+		Vec::new(),
+		// Telemetry
+		None,
+		// Protocol ID
+		Some("bitgreen-rococo-local"),
+		// Fork ID
+		None,
+		// Properties
+		Some(properties),
+		// Extensions
+		Extensions { relay_chain: "rococo-local".into(), para_id: 2000 },
+	)
+}
+
 pub fn rococo_config() -> RococoChainSpec {
 	// Give your base currency a unit name and decimal places
 	let mut properties = sc_chain_spec::Properties::new();
