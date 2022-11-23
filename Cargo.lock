@@ -651,6 +651,7 @@ dependencies = [
  "pallet-contracts",
  "pallet-contracts-primitives",
  "pallet-membership",
+ "pallet-multisig",
  "pallet-parachain-staking",
  "pallet-randomness-collective-flip",
  "pallet-session",

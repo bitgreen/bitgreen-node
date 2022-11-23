@@ -58,6 +58,7 @@ sp-version = { git = "https://github.com/paritytech/substrate", default-features
 pallet-contracts = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.29" }
 pallet-contracts-primitives = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.29" }
 pallet-randomness-collective-flip = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.29" }
+pallet-multisig = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.29" }
 
 # Polkadot
 pallet-xcm = { git = "https://github.com/paritytech/polkadot", default-features = false, branch = "release-v0.9.29" }
@@ -151,6 +152,7 @@ std = [
   "pallet-contracts/std",
   "pallet-contracts-primitives/std",
   "pallet-randomness-collective-flip/std",
+  "pallet-multisig/std",
 
   "orml-traits/std",
   "orml-tokens/std",
