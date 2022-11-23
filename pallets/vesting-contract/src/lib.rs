@@ -3,18 +3,20 @@
 // This code is licensed under MIT license (see LICENSE.txt for details)
 //
 //! ## Vesting Contract Pallet
-//! The goal of the pallet is to create vesting contracts for uniques addresses. This is different from other vesting pallets since our goal
-//! is to use unique addresses for every payout/unlock rather than a scheduled payout to same address.
-//! For example, if a recipient has an amount of 100BBB vested over 50 blocks, and unlocked propotionality over 10 blocks.
-//! In this case we would have 20BBB every 10 blocks until the entire amount is vested after 50 blocks, to execute this the recipient
-//! has to create 5 different addresses (one account for every transaction) and these addresses and amounts are added as individual contracts
-//! to the pallet storage
+//! The goal of the pallet is to create vesting contracts for uniques addresses. This is different
+//! from other vesting pallets since our goal is to use unique addresses for every payout/unlock
+//! rather than a scheduled payout to same address. For example, if a recipient has an amount of
+//! 100BBB vested over 50 blocks, and unlocked propotionality over 10 blocks. In this case we would
+//! have 20BBB every 10 blocks until the entire amount is vested after 50 blocks, to execute this
+//! the recipient has to create 5 different addresses (one account for every transaction) and these
+//! addresses and amounts are added as individual contracts to the pallet storage
 //! Example : Account A -> 20 BBB -> Expiry at block 10
 //!   Account B -> 20 BBB -> Expiry at block 20
 //!   Account C -> 20 BBB -> Expiry at block 30
 //!   Account D -> 20 BBB -> Expiry at block 40
 //!   Account E -> 20 BBB -> Expiry at block 50
-//! This can also be used for individual one time contracts and future contracts can be modified or revoked.
+//! This can also be used for individual one time contracts and future contracts can be modified or
+//! revoked.
 //!
 //! ## Interface
 //!
@@ -29,7 +31,6 @@
 //! * `bulk_add_new_contracts`: Same as add_new_contract but for multiple contracts
 //! * `bulk_remove_new_contracts`: Same as remove_contract but for multiple contracts
 //! * `force_withdraw_vested`: Withdraw vested amount to a recipient
-//!
 #![cfg_attr(not(feature = "std"), no_std)]
 pub use pallet::*;
 
@@ -42,9 +43,11 @@ mod tests;
 #[cfg(feature = "runtime-benchmarks")]
 mod benchmarking;
 
-use frame_support::traits::{Currency, ExistenceRequirement::*};
 use frame_support::{
-	ensure, pallet_prelude::DispatchResult, sp_runtime::traits::AccountIdConversion, traits::Get,
+	ensure,
+	pallet_prelude::DispatchResult,
+	sp_runtime::traits::AccountIdConversion,
+	traits::{Currency, ExistenceRequirement::*, Get},
 };
 use sp_runtime::{
 	traits::{CheckedAdd, CheckedSub},
@@ -165,19 +168,11 @@ pub mod pallet {
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
 	pub enum Event<T: Config> {
 		/// A new contract has been added to storage
-		ContractAdded {
-			recipient: T::AccountId,
-			expiry: T::BlockNumber,
-			amount: BalanceOf<T>,
-		},
+		ContractAdded { recipient: T::AccountId, expiry: T::BlockNumber, amount: BalanceOf<T> },
 		/// Contract removed from storage
 		ContractRemoved { recipient: T::AccountId },
 		/// An existing contract has been completed/withdrawn
-		ContractWithdrawn {
-			recipient: T::AccountId,
-			expiry: T::BlockNumber,
-			amount: BalanceOf<T>,
-		},
+		ContractWithdrawn { recipient: T::AccountId, expiry: T::BlockNumber, amount: BalanceOf<T> },
 	}
 
 	// Errors inform users that something went wrong.
@@ -265,7 +260,8 @@ pub mod pallet {
 
 		/// Withdraw amount from a vested (expired) contract
 		///
-		/// WARNING: Insecure unless the chain includes `PrevalidateVestingWithdraw` as a `SignedExtension`.
+		/// WARNING: Insecure unless the chain includes `PrevalidateVestingWithdraw` as a
+		/// `SignedExtension`.
 		///
 		/// Unsigned Validation:
 		/// A call to withdraw vested is deemed valid if the sender has an existing contract

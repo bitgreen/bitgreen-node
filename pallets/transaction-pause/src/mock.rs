@@ -117,14 +117,14 @@ construct_runtime!(
 pub struct ExtBuilder;
 
 impl Default for ExtBuilder {
-	fn default() -> Self { ExtBuilder }
+	fn default() -> Self {
+		ExtBuilder
+	}
 }
 
 impl ExtBuilder {
 	pub fn build(self) -> sp_io::TestExternalities {
-		let t = frame_system::GenesisConfig::default()
-			.build_storage::<Runtime>()
-			.unwrap();
+		let t = frame_system::GenesisConfig::default().build_storage::<Runtime>().unwrap();
 
 		t.into()
 	}

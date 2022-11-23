@@ -3,15 +3,19 @@
 // This code is licensed under MIT license (see LICENSE.txt for details)
 //
 //! CarbonCredits Pallet
-//! The CarbonCredits pallet creates and retires CarbonCredits units that represent the Carbon Credits. These onchain CarbonCredits units can represent a
-//! single type of CarbonCredits or can build to represent a combination of different types of Carbon Credits.
+//! The CarbonCredits pallet creates and retires CarbonCredits units that represent the Carbon
+//! Credits. These onchain CarbonCredits units can represent a single type of CarbonCredits or can
+//! build to represent a combination of different types of Carbon Credits.
 //!
-//! The CarbonCredits units are created by an account that controls CarbonCredit units, represented in the pallet as the originator.
-//! The creation process will store the CarbonCredits details on the pallet storage and then mint the given amount of CarbonCredits units using the Asset Handler
-//! like pallet-assets. These newly minted CarbonCredits units will be transferred to the recipient, this can be any address.
-//! These units can then be sold/transferred to a buyer of carbon credits, these transactions can take place multiple times but the final goal
-//! of purchasing a CarbonCredits unit is to retire them. The current holder of the CarbonCredits units can call the `retire` extrinsic to burn these
-//! tokens (erase from storage), this process will store a reference of the tokens burned.
+//! The CarbonCredits units are created by an account that controls CarbonCredit units, represented
+//! in the pallet as the originator. The creation process will store the CarbonCredits details on
+//! the pallet storage and then mint the given amount of CarbonCredits units using the Asset Handler
+//! like pallet-assets. These newly minted CarbonCredits units will be transferred to the recipient,
+//! this can be any address. These units can then be sold/transferred to a buyer of carbon credits,
+//! these transactions can take place multiple times but the final goal of purchasing a
+//! CarbonCredits unit is to retire them. The current holder of the CarbonCredits units can call the
+//! `retire` extrinsic to burn these tokens (erase from storage), this process will store a
+//! reference of the tokens burned.
 //!
 //! ## Interface
 //!
@@ -31,7 +35,6 @@
 //! * `force_set_project_storage` : Set the project storage
 //! * `force_set_next_item_id` : Set the NextItemId storage
 //! * `force_set_retired_carbon_credit` : Set the RetiredCarbonCredits storage
-//!
 #![cfg_attr(not(feature = "std"), no_std)]
 
 pub use pallet::*;
@@ -60,8 +63,10 @@ pub mod pallet {
 	use frame_support::{
 		pallet_prelude::*,
 		traits::{
-			tokens::fungibles::{metadata::Mutate as MetadataMutate, Create, Destroy, Mutate},
-			tokens::nonfungibles::{Create as NFTCreate, Mutate as NFTMutate},
+			tokens::{
+				fungibles::{metadata::Mutate as MetadataMutate, Create, Destroy, Mutate},
+				nonfungibles::{Create as NFTCreate, Mutate as NFTMutate},
+			},
 			Contains,
 		},
 		transactional, PalletId,
@@ -325,8 +330,8 @@ pub mod pallet {
 
 		/// Mint tokens for an approved project
 		/// The tokens are always minted in the ascending order of credits, for example, if the
-		/// `amount_to_mint` is 150 and the project has 100 tokens of 2019 and 2020 year. Then we mint
-		/// 100 from 2019 and 50 from 2020.
+		/// `amount_to_mint` is 150 and the project has 100 tokens of 2019 and 2020 year. Then we
+		/// mint 100 from 2019 and 50 from 2020.
 		#[transactional]
 		#[pallet::weight(T::WeightInfo::mint())]
 		pub fn mint(
@@ -465,8 +470,8 @@ pub mod pallet {
 			Ok(())
 		}
 
-		/// Force remove an project asset from storage, can be used by ForceOrigin to remove unapproved projects
-		/// Can only be called by ForceOrigin
+		/// Force remove an project asset from storage, can be used by ForceOrigin to remove
+		/// unapproved projects Can only be called by ForceOrigin
 		#[transactional]
 		#[pallet::weight(T::WeightInfo::force_set_project_storage())]
 		pub fn force_remove_project(

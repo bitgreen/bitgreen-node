@@ -184,9 +184,7 @@ impl pallet_membership::Config for Test {
 
 // Build genesis storage according to the mock runtime.
 pub fn new_test_ext() -> sp_io::TestExternalities {
-	let mut t = system::GenesisConfig::default()
-		.build_storage::<Test>()
-		.unwrap();
+	let mut t = system::GenesisConfig::default().build_storage::<Test>().unwrap();
 
 	pallet_membership::GenesisConfig::<Test> {
 		members: bounded_vec![1, 3, 10],
@@ -201,4 +199,6 @@ pub fn new_test_ext() -> sp_io::TestExternalities {
 	ext
 }
 
-pub fn last_event() -> Event { System::events().pop().expect("Event expected").event }
+pub fn last_event() -> Event {
+	System::events().pop().expect("Event expected").event
+}

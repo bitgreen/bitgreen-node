@@ -1,6 +1,7 @@
 // This file is part of Bitgreen.
 // Modified from frame assets pallet to have a kyc check to be used before asset operations
-// The difference between this pallet and pallet_assets from substrate is only the addition of kyc check
+// The difference between this pallet and pallet_assets from substrate is only the addition of kyc
+// check
 //! # Assets Pallet
 //!
 //! A simple, secure module for dealing with fungible assets.
@@ -297,21 +298,24 @@ pub mod pallet {
 			for (id, owner, is_sufficient, min_balance) in &self.assets {
 				assert!(!Asset::<T, I>::contains_key(id), "Asset id already in use");
 				assert!(!min_balance.is_zero(), "Min balance should not be zero");
-				Asset::<T, I>::insert(id, AssetDetails {
-					owner: owner.clone(),
-					issuer: owner.clone(),
-					admin: owner.clone(),
-					freezer: owner.clone(),
-					supply: Zero::zero(),
-					deposit: Zero::zero(),
-					min_balance: *min_balance,
-					is_sufficient: *is_sufficient,
-					accounts: 0,
-					sufficients: 0,
-					approvals: 0,
-					is_frozen: false,
-					kyc_required: false,
-				});
+				Asset::<T, I>::insert(
+					id,
+					AssetDetails {
+						owner: owner.clone(),
+						issuer: owner.clone(),
+						admin: owner.clone(),
+						freezer: owner.clone(),
+						supply: Zero::zero(),
+						deposit: Zero::zero(),
+						min_balance: *min_balance,
+						is_sufficient: *is_sufficient,
+						accounts: 0,
+						sufficients: 0,
+						approvals: 0,
+						is_frozen: false,
+						kyc_required: false,
+					},
+				);
 			}
 
 			for (id, name, symbol, decimals) in &self.metadata {
@@ -355,17 +359,9 @@ pub mod pallet {
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
 	pub enum Event<T: Config<I>, I: 'static = ()> {
 		/// Some asset class was created.
-		Created {
-			asset_id: T::AssetId,
-			creator: T::AccountId,
-			owner: T::AccountId,
-		},
+		Created { asset_id: T::AssetId, creator: T::AccountId, owner: T::AccountId },
 		/// Some assets were issued.
-		Issued {
-			asset_id: T::AssetId,
-			owner: T::AccountId,
-			total_supply: T::Balance,
-		},
+		Issued { asset_id: T::AssetId, owner: T::AccountId, total_supply: T::Balance },
 		/// Some assets were transferred.
 		Transferred {
 			asset_id: T::AssetId,
@@ -374,11 +370,7 @@ pub mod pallet {
 			amount: T::Balance,
 		},
 		/// Some assets were destroyed.
-		Burned {
-			asset_id: T::AssetId,
-			owner: T::AccountId,
-			balance: T::Balance,
-		},
+		Burned { asset_id: T::AssetId, owner: T::AccountId, balance: T::Balance },
 		/// The management team changed.
 		TeamChanged {
 			asset_id: T::AssetId,
@@ -387,20 +379,11 @@ pub mod pallet {
 			freezer: T::AccountId,
 		},
 		/// The owner changed.
-		OwnerChanged {
-			asset_id: T::AssetId,
-			owner: T::AccountId,
-		},
+		OwnerChanged { asset_id: T::AssetId, owner: T::AccountId },
 		/// Some account `who` was frozen.
-		Frozen {
-			asset_id: T::AssetId,
-			who: T::AccountId,
-		},
+		Frozen { asset_id: T::AssetId, who: T::AccountId },
 		/// Some account `who` was thawed.
-		Thawed {
-			asset_id: T::AssetId,
-			who: T::AccountId,
-		},
+		Thawed { asset_id: T::AssetId, who: T::AccountId },
 		/// Some asset `asset_id` was frozen.
 		AssetFrozen { asset_id: T::AssetId },
 		/// Some asset `asset_id` was thawed.
@@ -408,10 +391,7 @@ pub mod pallet {
 		/// An asset class was destroyed.
 		Destroyed { asset_id: T::AssetId },
 		/// Some asset class was force-created.
-		ForceCreated {
-			asset_id: T::AssetId,
-			owner: T::AccountId,
-		},
+		ForceCreated { asset_id: T::AssetId, owner: T::AccountId },
 		/// New metadata has been set for an asset.
 		MetadataSet {
 			asset_id: T::AssetId,
@@ -430,11 +410,7 @@ pub mod pallet {
 			amount: T::Balance,
 		},
 		/// An approval for account `delegate` was cancelled by `owner`.
-		ApprovalCancelled {
-			asset_id: T::AssetId,
-			owner: T::AccountId,
-			delegate: T::AccountId,
-		},
+		ApprovalCancelled { asset_id: T::AssetId, owner: T::AccountId, delegate: T::AccountId },
 		/// An `amount` was transferred in its entirety from `owner` to `destination` by
 		/// the approved `delegate`.
 		TransferredApproved {
@@ -521,26 +497,25 @@ pub mod pallet {
 			let deposit = T::AssetDeposit::get();
 			T::Currency::reserve(&owner, deposit)?;
 
-			Asset::<T, I>::insert(id, AssetDetails {
-				owner: owner.clone(),
-				issuer: admin.clone(),
-				admin: admin.clone(),
-				freezer: admin.clone(),
-				supply: Zero::zero(),
-				deposit,
-				min_balance,
-				is_sufficient: false,
-				accounts: 0,
-				sufficients: 0,
-				approvals: 0,
-				is_frozen: false,
-				kyc_required: false,
-			});
-			Self::deposit_event(Event::Created {
-				asset_id: id,
-				creator: owner,
-				owner: admin,
-			});
+			Asset::<T, I>::insert(
+				id,
+				AssetDetails {
+					owner: owner.clone(),
+					issuer: admin.clone(),
+					admin: admin.clone(),
+					freezer: admin.clone(),
+					supply: Zero::zero(),
+					deposit,
+					min_balance,
+					is_sufficient: false,
+					accounts: 0,
+					sufficients: 0,
+					approvals: 0,
+					is_frozen: false,
+					kyc_required: false,
+				},
+			);
+			Self::deposit_event(Event::Created { asset_id: id, creator: owner, owner: admin });
 			Ok(())
 		}
 
@@ -667,10 +642,7 @@ pub mod pallet {
 			let origin = ensure_signed(origin)?;
 			let who = T::Lookup::lookup(who)?;
 
-			let f = DebitFlags {
-				keep_alive: false,
-				best_effort: true,
-			};
+			let f = DebitFlags { keep_alive: false, best_effort: true };
 			let _ = Self::do_burn(id, &who, amount, Some(origin), f)?;
 			Ok(())
 		}
@@ -703,11 +675,7 @@ pub mod pallet {
 			let origin = ensure_signed(origin)?;
 			let dest = T::Lookup::lookup(target)?;
 
-			let f = TransferFlags {
-				keep_alive: false,
-				best_effort: false,
-				burn_dust: false,
-			};
+			let f = TransferFlags { keep_alive: false, best_effort: false, burn_dust: false };
 			Self::do_transfer(id, &origin, &dest, amount, None, f).map(|_| ())
 		}
 
@@ -739,11 +707,7 @@ pub mod pallet {
 			let source = ensure_signed(origin)?;
 			let dest = T::Lookup::lookup(target)?;
 
-			let f = TransferFlags {
-				keep_alive: true,
-				best_effort: false,
-				burn_dust: false,
-			};
+			let f = TransferFlags { keep_alive: true, best_effort: false, burn_dust: false };
 			Self::do_transfer(id, &source, &dest, amount, None, f).map(|_| ())
 		}
 
@@ -778,11 +742,7 @@ pub mod pallet {
 			let source = T::Lookup::lookup(source)?;
 			let dest = T::Lookup::lookup(dest)?;
 
-			let f = TransferFlags {
-				keep_alive: false,
-				best_effort: false,
-				burn_dust: false,
-			};
+			let f = TransferFlags { keep_alive: false, best_effort: false, burn_dust: false };
 			Self::do_transfer(id, &source, &dest, amount, Some(origin), f).map(|_| ())
 		}
 
@@ -809,10 +769,7 @@ pub mod pallet {
 			let who = T::Lookup::lookup(who)?;
 
 			Account::<T, I>::try_mutate(id, &who, |maybe_account| -> DispatchResult {
-				maybe_account
-					.as_mut()
-					.ok_or(Error::<T, I>::NoAccount)?
-					.is_frozen = true;
+				maybe_account.as_mut().ok_or(Error::<T, I>::NoAccount)?.is_frozen = true;
 				Ok(())
 			})?;
 
@@ -843,10 +800,7 @@ pub mod pallet {
 			let who = T::Lookup::lookup(who)?;
 
 			Account::<T, I>::try_mutate(id, &who, |maybe_account| -> DispatchResult {
-				maybe_account
-					.as_mut()
-					.ok_or(Error::<T, I>::NoAccount)?
-					.is_frozen = false;
+				maybe_account.as_mut().ok_or(Error::<T, I>::NoAccount)?.is_frozen = false;
 				Ok(())
 			})?;
 
@@ -931,7 +885,7 @@ pub mod pallet {
 				let details = maybe_details.as_mut().ok_or(Error::<T, I>::Unknown)?;
 				ensure!(origin == details.owner, Error::<T, I>::NoPermission);
 				if details.owner == owner {
-					return Ok(());
+					return Ok(())
 				}
 
 				let metadata_deposit = Metadata::<T, I>::get(id).deposit;
@@ -942,10 +896,7 @@ pub mod pallet {
 
 				details.owner = owner.clone();
 
-				Self::deposit_event(Event::OwnerChanged {
-					asset_id: id,
-					owner,
-				});
+				Self::deposit_event(Event::OwnerChanged { asset_id: id, owner });
 				Ok(())
 			})
 		}
@@ -983,12 +934,7 @@ pub mod pallet {
 				details.admin = admin.clone();
 				details.freezer = freezer.clone();
 
-				Self::deposit_event(Event::TeamChanged {
-					asset_id: id,
-					issuer,
-					admin,
-					freezer,
-				});
+				Self::deposit_event(Event::TeamChanged { asset_id: id, issuer, admin, freezer });
 				Ok(())
 			})
 		}
@@ -1075,15 +1021,11 @@ pub mod pallet {
 		) -> DispatchResult {
 			T::ForceOrigin::ensure_origin(origin)?;
 
-			let bounded_name: BoundedVec<u8, T::StringLimit> = name
-				.clone()
-				.try_into()
-				.map_err(|_| Error::<T, I>::BadMetadata)?;
+			let bounded_name: BoundedVec<u8, T::StringLimit> =
+				name.clone().try_into().map_err(|_| Error::<T, I>::BadMetadata)?;
 
-			let bounded_symbol: BoundedVec<u8, T::StringLimit> = symbol
-				.clone()
-				.try_into()
-				.map_err(|_| Error::<T, I>::BadMetadata)?;
+			let bounded_symbol: BoundedVec<u8, T::StringLimit> =
+				symbol.clone().try_into().map_err(|_| Error::<T, I>::BadMetadata)?;
 
 			ensure!(Asset::<T, I>::contains_key(id), Error::<T, I>::Unknown);
 			Metadata::<T, I>::try_mutate_exists(id, |metadata| {
@@ -1247,11 +1189,7 @@ pub mod pallet {
 			d.approvals.saturating_dec();
 			Asset::<T, I>::insert(id, d);
 
-			Self::deposit_event(Event::ApprovalCancelled {
-				asset_id: id,
-				owner,
-				delegate,
-			});
+			Self::deposit_event(Event::ApprovalCancelled { asset_id: id, owner, delegate });
 			Ok(())
 		}
 
@@ -1293,11 +1231,7 @@ pub mod pallet {
 			d.approvals.saturating_dec();
 			Asset::<T, I>::insert(id, d);
 
-			Self::deposit_event(Event::ApprovalCancelled {
-				asset_id: id,
-				owner,
-				delegate,
-			});
+			Self::deposit_event(Event::ApprovalCancelled { asset_id: id, owner, delegate });
 			Ok(())
 		}
 

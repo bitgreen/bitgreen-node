@@ -47,12 +47,13 @@ pub type RoyaltyRecipientsOf<T> = BoundedVec<
 pub type BatchOf<T> = Batch<ShortStringOf<T>, <T as pallet::Config>::Balance>;
 
 /// A project can represent Carbon credits from multiple batches
-/// For example a project can have 100 tokens of 2019 vintage and 200 tokens of 2020 vintage. In this case
-/// the project can package these two vintages to create a carbon credit token that has a supply of 300 tokens.
-/// These vintages can be represented inside a batchgroup, in this case, it is important to remember that
-/// the minting and retirement always gives priority to the oldest vintage.
-/// Example : in the above case of 300 tokens, when the originator mints 100 tokens, we first mint the oldest (2019) credits
-/// and only once the supply is exhausted we move on the next vintage, same for retirement.
+/// For example a project can have 100 tokens of 2019 vintage and 200 tokens of 2020 vintage. In
+/// this case the project can package these two vintages to create a carbon credit token that has a
+/// supply of 300 tokens. These vintages can be represented inside a batchgroup, in this case, it is
+/// important to remember that the minting and retirement always gives priority to the oldest
+/// vintage. Example : in the above case of 300 tokens, when the originator mints 100 tokens, we
+/// first mint the oldest (2019) credits and only once the supply is exhausted we move on the next
+/// vintage, same for retirement.
 pub type BatchGroupOf<T> = BoundedVec<BatchOf<T>, <T as pallet::Config>::MaxGroupSize>;
 
 /// Inputs given by project originator during project creation

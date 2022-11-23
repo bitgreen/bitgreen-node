@@ -22,9 +22,7 @@ use super::*;
 impl<T: Config<I>, I: 'static> StoredMap<(T::AssetId, T::AccountId), T::Extra> for Pallet<T, I> {
 	fn get(id_who: &(T::AssetId, T::AccountId)) -> T::Extra {
 		let &(id, ref who) = id_who;
-		Account::<T, I>::get(id, who)
-			.map(|a| a.extra)
-			.unwrap_or_default()
+		Account::<T, I>::get(id, who).map(|a| a.extra).unwrap_or_default()
 	}
 
 	fn try_mutate_exists<R, E: From<DispatchError>>(
@@ -44,7 +42,7 @@ impl<T: Config<I>, I: 'static> StoredMap<(T::AssetId, T::AccountId), T::Extra> f
 				if let Some(ref mut account) = maybe_account {
 					account.extra = extra;
 				} else {
-					return Err(DispatchError::NoProviders.into());
+					return Err(DispatchError::NoProviders.into())
 				}
 			} else {
 				// They want to delete it. Let this pass if the item never existed anyway.

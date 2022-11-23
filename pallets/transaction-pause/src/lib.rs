@@ -49,15 +49,9 @@ pub mod module {
 	#[pallet::generate_deposit(fn deposit_event)]
 	pub enum Event<T: Config> {
 		/// Paused transaction
-		TransactionPaused {
-			pallet_name_bytes: Vec<u8>,
-			function_name_bytes: Vec<u8>,
-		},
+		TransactionPaused { pallet_name_bytes: Vec<u8>, function_name_bytes: Vec<u8> },
 		/// Unpaused transaction
-		TransactionUnpaused {
-			pallet_name_bytes: Vec<u8>,
-			function_name_bytes: Vec<u8>,
-		},
+		TransactionUnpaused { pallet_name_bytes: Vec<u8>, function_name_bytes: Vec<u8> },
 	}
 
 	/// The paused transaction map
@@ -134,10 +128,7 @@ where
 	<T as frame_system::Config>::Call: GetCallMetadata,
 {
 	fn contains(call: &T::Call) -> bool {
-		let CallMetadata {
-			function_name,
-			pallet_name,
-		} = call.get_call_metadata();
+		let CallMetadata { function_name, pallet_name } = call.get_call_metadata();
 		PausedTransactions::<T>::contains_key((pallet_name.as_bytes(), function_name.as_bytes()))
 	}
 }

@@ -74,21 +74,23 @@ pub struct Royalty<AccountId> {
 	pub percent_of_fees: Percent,
 }
 
-/// Credits in a project are represented in terms of batches, these batches are usually seperated in terms of 'vintages'. The vintage
-/// refers to the `age` of the credit. So a batch could hold 500credits with 2020 vintage.
-/// We use `issuance_year` to represent the vintage of the credit, this is important in minting and retirement options since in a project
-/// with multiple vintages we always mint/retire tokens from the oldest vintage.
+/// Credits in a project are represented in terms of batches, these batches are usually seperated in
+/// terms of 'vintages'. The vintage refers to the `age` of the credit. So a batch could hold
+/// 500credits with 2020 vintage. We use `issuance_year` to represent the vintage of the credit,
+/// this is important in minting and retirement options since in a project with multiple vintages we
+/// always mint/retire tokens from the oldest vintage.
 ///
-/// When a project is created, we take the total supply of the credits available (entire supply in the registry), then as the originator
-/// chooses, tokens can be minted for each credit at once or in a staggered manner. In every mint, the `minted` count is incremented and
-/// when credit is retired, the `retired` count is incremented.
+/// When a project is created, we take the total supply of the credits available (entire supply in
+/// the registry), then as the originator chooses, tokens can be minted for each credit at once or
+/// in a staggered manner. In every mint, the `minted` count is incremented and when credit is
+/// retired, the `retired` count is incremented.
 ///
 /// Conditions :
 ///    - `minted` is always less than or equal to `total_supply`
 ///     - `retired` is always less than or equal to `minted`
 ///
-///  Example : For a project that has a supply of 100 tokens, minted and retired 100 tokens, the struct will look as follows
-///   Batch {
+///  Example : For a project that has a supply of 100 tokens, minted and retired 100 tokens, the
+/// struct will look as follows   Batch {
 ///         ...,
 ///         total_supply : 100,
 ///         minted : 100,

@@ -32,10 +32,7 @@ fn minting_too_many_insufficient_assets_fails() {
 		Balances::make_free_balance_be(&1, 100);
 		assert_ok!(Assets::mint(Origin::signed(1), 0, 1, 100));
 		assert_ok!(Assets::mint(Origin::signed(1), 1, 1, 100));
-		assert_noop!(
-			Assets::mint(Origin::signed(1), 2, 1, 100),
-			TokenError::CannotCreate
-		);
+		assert_noop!(Assets::mint(Origin::signed(1), 2, 1, 100), TokenError::CannotCreate);
 
 		Balances::make_free_balance_be(&2, 1);
 		assert_ok!(Assets::transfer(Origin::signed(1), 0, 2, 100));
@@ -52,10 +49,7 @@ fn minting_insufficient_asset_with_deposit_should_work_when_consumers_exhausted(
 		Balances::make_free_balance_be(&1, 100);
 		assert_ok!(Assets::mint(Origin::signed(1), 0, 1, 100));
 		assert_ok!(Assets::mint(Origin::signed(1), 1, 1, 100));
-		assert_noop!(
-			Assets::mint(Origin::signed(1), 2, 1, 100),
-			TokenError::CannotCreate
-		);
+		assert_noop!(Assets::mint(Origin::signed(1), 2, 1, 100), TokenError::CannotCreate);
 
 		assert_ok!(Assets::touch(Origin::signed(1), 2));
 		assert_eq!(Balances::reserved_balance(&1), 10);
@@ -68,10 +62,7 @@ fn minting_insufficient_asset_with_deposit_should_work_when_consumers_exhausted(
 fn minting_insufficient_assets_with_deposit_without_consumer_should_work() {
 	new_test_ext().execute_with(|| {
 		assert_ok!(Assets::force_create(Origin::root(), 0, 1, false, 1));
-		assert_noop!(
-			Assets::mint(Origin::signed(1), 0, 1, 100),
-			TokenError::CannotCreate
-		);
+		assert_noop!(Assets::mint(Origin::signed(1), 0, 1, 100), TokenError::CannotCreate);
 		Balances::make_free_balance_be(&1, 100);
 		assert_ok!(Assets::touch(Origin::signed(1), 0));
 		assert_ok!(Assets::mint(Origin::signed(1), 0, 1, 100));
@@ -100,10 +91,7 @@ fn refunding_asset_deposit_with_burn_disallowed_should_fail() {
 		Balances::make_free_balance_be(&1, 100);
 		assert_ok!(Assets::touch(Origin::signed(1), 0));
 		assert_ok!(Assets::mint(Origin::signed(1), 0, 1, 100));
-		assert_noop!(
-			Assets::refund(Origin::signed(1), 0, false),
-			Error::<Test>::WouldBurn
-		);
+		assert_noop!(Assets::refund(Origin::signed(1), 0, false), Error::<Test>::WouldBurn);
 	});
 }
 
@@ -111,10 +99,7 @@ fn refunding_asset_deposit_with_burn_disallowed_should_fail() {
 fn refunding_asset_deposit_without_burn_should_work() {
 	new_test_ext().execute_with(|| {
 		assert_ok!(Assets::force_create(Origin::root(), 0, 1, false, 1));
-		assert_noop!(
-			Assets::mint(Origin::signed(1), 0, 1, 100),
-			TokenError::CannotCreate
-		);
+		assert_noop!(Assets::mint(Origin::signed(1), 0, 1, 100), TokenError::CannotCreate);
 		Balances::make_free_balance_be(&1, 100);
 		assert_ok!(Assets::touch(Origin::signed(1), 0));
 		assert_ok!(Assets::mint(Origin::signed(1), 0, 1, 100));
@@ -148,10 +133,7 @@ fn refunding_calls_died_hook() {
 fn approval_lifecycle_works() {
 	new_test_ext().execute_with(|| {
 		// can't approve non-existent token
-		assert_noop!(
-			Assets::approve_transfer(Origin::signed(1), 0, 2, 50),
-			Error::<Test>::Unknown
-		);
+		assert_noop!(Assets::approve_transfer(Origin::signed(1), 0, 2, 50), Error::<Test>::Unknown);
 		// so we create it :)
 		assert_ok!(Assets::force_create(Origin::root(), 0, 1, true, 1));
 		assert_ok!(Assets::mint(Origin::signed(1), 0, 1, 100));
@@ -173,10 +155,7 @@ fn approval_lifecycle_works() {
 fn transfer_approved_all_funds() {
 	new_test_ext().execute_with(|| {
 		// can't approve non-existent token
-		assert_noop!(
-			Assets::approve_transfer(Origin::signed(1), 0, 2, 50),
-			Error::<Test>::Unknown
-		);
+		assert_noop!(Assets::approve_transfer(Origin::signed(1), 0, 2, 50), Error::<Test>::Unknown);
 		// so we create it :)
 		assert_ok!(Assets::force_create(Origin::root(), 0, 1, true, 1));
 		assert_ok!(Assets::mint(Origin::signed(1), 0, 1, 100));
@@ -235,10 +214,7 @@ fn cannot_transfer_more_than_exists() {
 		Balances::make_free_balance_be(&1, 1);
 		assert_ok!(Assets::approve_transfer(Origin::signed(1), 0, 2, 101));
 		let e = Error::<Test>::BalanceLow;
-		assert_noop!(
-			Assets::transfer_approved(Origin::signed(2), 0, 1, 3, 101),
-			e
-		);
+		assert_noop!(Assets::transfer_approved(Origin::signed(2), 0, 1, 3, 101), e);
 	});
 }
 
@@ -250,25 +226,13 @@ fn cancel_approval_works() {
 		Balances::make_free_balance_be(&1, 1);
 		assert_ok!(Assets::approve_transfer(Origin::signed(1), 0, 2, 50));
 		assert_eq!(Asset::<Test>::get(0).unwrap().approvals, 1);
-		assert_noop!(
-			Assets::cancel_approval(Origin::signed(1), 1, 2),
-			Error::<Test>::Unknown
-		);
-		assert_noop!(
-			Assets::cancel_approval(Origin::signed(2), 0, 2),
-			Error::<Test>::Unknown
-		);
-		assert_noop!(
-			Assets::cancel_approval(Origin::signed(1), 0, 3),
-			Error::<Test>::Unknown
-		);
+		assert_noop!(Assets::cancel_approval(Origin::signed(1), 1, 2), Error::<Test>::Unknown);
+		assert_noop!(Assets::cancel_approval(Origin::signed(2), 0, 2), Error::<Test>::Unknown);
+		assert_noop!(Assets::cancel_approval(Origin::signed(1), 0, 3), Error::<Test>::Unknown);
 		assert_eq!(Asset::<Test>::get(0).unwrap().approvals, 1);
 		assert_ok!(Assets::cancel_approval(Origin::signed(1), 0, 2));
 		assert_eq!(Asset::<Test>::get(0).unwrap().approvals, 0);
-		assert_noop!(
-			Assets::cancel_approval(Origin::signed(1), 0, 2),
-			Error::<Test>::Unknown
-		);
+		assert_noop!(Assets::cancel_approval(Origin::signed(1), 0, 2), Error::<Test>::Unknown);
 	});
 }
 
@@ -312,13 +276,7 @@ fn lifecycle_should_work() {
 		assert_eq!(Balances::reserved_balance(&1), 1);
 		assert!(Asset::<Test>::contains_key(0));
 
-		assert_ok!(Assets::set_metadata(
-			Origin::signed(1),
-			0,
-			vec![0],
-			vec![0],
-			12
-		));
+		assert_ok!(Assets::set_metadata(Origin::signed(1), 0, vec![0], vec![0], 12));
 		assert_eq!(Balances::reserved_balance(&1), 4);
 		assert!(Metadata::<Test>::contains_key(0));
 
@@ -340,13 +298,7 @@ fn lifecycle_should_work() {
 		assert_eq!(Balances::reserved_balance(&1), 1);
 		assert!(Asset::<Test>::contains_key(0));
 
-		assert_ok!(Assets::set_metadata(
-			Origin::signed(1),
-			0,
-			vec![0],
-			vec![0],
-			12
-		));
+		assert_ok!(Assets::set_metadata(Origin::signed(1), 0, vec![0], vec![0], 12));
 		assert_eq!(Balances::reserved_balance(&1), 4);
 		assert!(Metadata::<Test>::contains_key(0));
 
@@ -372,10 +324,7 @@ fn destroy_with_bad_witness_should_not_work() {
 		let mut w = Asset::<Test>::get(0).unwrap().destroy_witness();
 		assert_ok!(Assets::mint(Origin::signed(1), 0, 10, 100));
 		// witness too low
-		assert_noop!(
-			Assets::destroy(Origin::signed(1), 0, w),
-			Error::<Test>::BadWitness
-		);
+		assert_noop!(Assets::destroy(Origin::signed(1), 0, w), Error::<Test>::BadWitness);
 		// witness too high is okay though
 		w.accounts += 2;
 		w.sufficients += 2;
@@ -412,15 +361,9 @@ fn non_providing_should_work() {
 		assert_ok!(Assets::mint(Origin::signed(1), 0, 0, 100));
 
 		// Cannot mint into account 2 since it doesn't (yet) exist...
-		assert_noop!(
-			Assets::mint(Origin::signed(1), 0, 1, 100),
-			TokenError::CannotCreate
-		);
+		assert_noop!(Assets::mint(Origin::signed(1), 0, 1, 100), TokenError::CannotCreate);
 		// ...or transfer...
-		assert_noop!(
-			Assets::transfer(Origin::signed(0), 0, 1, 50),
-			TokenError::CannotCreate
-		);
+		assert_noop!(Assets::transfer(Origin::signed(0), 0, 1, 50), TokenError::CannotCreate);
 		// ...or force-transfer
 		assert_noop!(
 			Assets::force_transfer(Origin::signed(1), 0, 0, 1, 50),
@@ -442,14 +385,8 @@ fn min_balance_should_work() {
 		assert_eq!(Asset::<Test>::get(0).unwrap().accounts, 1);
 
 		// Cannot create a new account with a balance that is below minimum...
-		assert_noop!(
-			Assets::mint(Origin::signed(1), 0, 2, 9),
-			TokenError::BelowMinimum
-		);
-		assert_noop!(
-			Assets::transfer(Origin::signed(1), 0, 2, 9),
-			TokenError::BelowMinimum
-		);
+		assert_noop!(Assets::mint(Origin::signed(1), 0, 2, 9), TokenError::BelowMinimum);
+		assert_noop!(Assets::transfer(Origin::signed(1), 0, 2, 9), TokenError::BelowMinimum);
 		assert_noop!(
 			Assets::force_transfer(Origin::signed(1), 0, 1, 2, 9),
 			TokenError::BelowMinimum
@@ -539,10 +476,7 @@ fn transferring_frozen_user_should_not_work() {
 		assert_ok!(Assets::mint(Origin::signed(1), 0, 1, 100));
 		assert_eq!(Assets::balance(0, 1), 100);
 		assert_ok!(Assets::freeze(Origin::signed(1), 0, 1));
-		assert_noop!(
-			Assets::transfer(Origin::signed(1), 0, 2, 50),
-			Error::<Test>::Frozen
-		);
+		assert_noop!(Assets::transfer(Origin::signed(1), 0, 2, 50), Error::<Test>::Frozen);
 		assert_ok!(Assets::thaw(Origin::signed(1), 0, 1));
 		assert_ok!(Assets::transfer(Origin::signed(1), 0, 2, 50));
 	});
@@ -555,10 +489,7 @@ fn transferring_frozen_asset_should_not_work() {
 		assert_ok!(Assets::mint(Origin::signed(1), 0, 1, 100));
 		assert_eq!(Assets::balance(0, 1), 100);
 		assert_ok!(Assets::freeze_asset(Origin::signed(1), 0));
-		assert_noop!(
-			Assets::transfer(Origin::signed(1), 0, 2, 50),
-			Error::<Test>::Frozen
-		);
+		assert_noop!(Assets::transfer(Origin::signed(1), 0, 2, 50), Error::<Test>::Frozen);
 		assert_ok!(Assets::thaw_asset(Origin::signed(1), 0));
 		assert_ok!(Assets::transfer(Origin::signed(1), 0, 2, 50));
 	});
@@ -572,10 +503,7 @@ fn approve_transfer_frozen_asset_should_not_work() {
 		assert_ok!(Assets::mint(Origin::signed(1), 0, 1, 100));
 		assert_eq!(Assets::balance(0, 1), 100);
 		assert_ok!(Assets::freeze_asset(Origin::signed(1), 0));
-		assert_noop!(
-			Assets::approve_transfer(Origin::signed(1), 0, 2, 50),
-			Error::<Test>::Frozen
-		);
+		assert_noop!(Assets::approve_transfer(Origin::signed(1), 0, 2, 50), Error::<Test>::Frozen);
 		assert_ok!(Assets::thaw_asset(Origin::signed(1), 0));
 		assert_ok!(Assets::approve_transfer(Origin::signed(1), 0, 2, 50));
 	});
@@ -590,35 +518,17 @@ fn origin_guards_should_work() {
 			Assets::transfer_ownership(Origin::signed(2), 0, 2),
 			Error::<Test>::NoPermission
 		);
-		assert_noop!(
-			Assets::set_team(Origin::signed(2), 0, 2, 2, 2),
-			Error::<Test>::NoPermission
-		);
-		assert_noop!(
-			Assets::freeze(Origin::signed(2), 0, 1),
-			Error::<Test>::NoPermission
-		);
-		assert_noop!(
-			Assets::thaw(Origin::signed(2), 0, 2),
-			Error::<Test>::NoPermission
-		);
-		assert_noop!(
-			Assets::mint(Origin::signed(2), 0, 2, 100),
-			Error::<Test>::NoPermission
-		);
-		assert_noop!(
-			Assets::burn(Origin::signed(2), 0, 1, 100),
-			Error::<Test>::NoPermission
-		);
+		assert_noop!(Assets::set_team(Origin::signed(2), 0, 2, 2, 2), Error::<Test>::NoPermission);
+		assert_noop!(Assets::freeze(Origin::signed(2), 0, 1), Error::<Test>::NoPermission);
+		assert_noop!(Assets::thaw(Origin::signed(2), 0, 2), Error::<Test>::NoPermission);
+		assert_noop!(Assets::mint(Origin::signed(2), 0, 2, 100), Error::<Test>::NoPermission);
+		assert_noop!(Assets::burn(Origin::signed(2), 0, 1, 100), Error::<Test>::NoPermission);
 		assert_noop!(
 			Assets::force_transfer(Origin::signed(2), 0, 1, 2, 100),
 			Error::<Test>::NoPermission
 		);
 		let w = Asset::<Test>::get(0).unwrap().destroy_witness();
-		assert_noop!(
-			Assets::destroy(Origin::signed(2), 0, w),
-			Error::<Test>::NoPermission
-		);
+		assert_noop!(Assets::destroy(Origin::signed(2), 0, w), Error::<Test>::NoPermission);
 	});
 }
 
@@ -641,13 +551,7 @@ fn transfer_owner_should_work() {
 		);
 
 		// Set metadata now and make sure that deposit gets transferred back.
-		assert_ok!(Assets::set_metadata(
-			Origin::signed(2),
-			0,
-			vec![0u8; 10],
-			vec![0u8; 10],
-			12
-		));
+		assert_ok!(Assets::set_metadata(Origin::signed(2), 0, vec![0u8; 10], vec![0u8; 10], 12));
 		assert_ok!(Assets::transfer_ownership(Origin::signed(2), 0, 1));
 		assert_eq!(Balances::reserved_balance(&1), 22);
 		assert_eq!(Balances::reserved_balance(&2), 0);
@@ -693,14 +597,8 @@ fn transferring_amount_more_than_available_balance_should_not_work() {
 		assert_eq!(Assets::balance(0, 2), 50);
 		assert_ok!(Assets::burn(Origin::signed(1), 0, 1, u64::MAX));
 		assert_eq!(Assets::balance(0, 1), 0);
-		assert_noop!(
-			Assets::transfer(Origin::signed(1), 0, 1, 50),
-			Error::<Test>::NoAccount
-		);
-		assert_noop!(
-			Assets::transfer(Origin::signed(2), 0, 1, 51),
-			Error::<Test>::BalanceLow
-		);
+		assert_noop!(Assets::transfer(Origin::signed(1), 0, 1, 50), Error::<Test>::NoAccount);
+		assert_noop!(Assets::transfer(Origin::signed(2), 0, 1, 51), Error::<Test>::BalanceLow);
 	});
 }
 
@@ -722,10 +620,7 @@ fn transferring_more_units_than_total_supply_should_not_work() {
 		assert_ok!(Assets::force_create(Origin::root(), 0, 1, true, 1));
 		assert_ok!(Assets::mint(Origin::signed(1), 0, 1, 100));
 		assert_eq!(Assets::balance(0, 1), 100);
-		assert_noop!(
-			Assets::transfer(Origin::signed(1), 0, 2, 101),
-			Error::<Test>::BalanceLow
-		);
+		assert_noop!(Assets::transfer(Origin::signed(1), 0, 2, 101), Error::<Test>::BalanceLow);
 	});
 }
 
@@ -746,10 +641,7 @@ fn burning_asset_balance_with_zero_balance_does_nothing() {
 		assert_ok!(Assets::force_create(Origin::root(), 0, 1, true, 1));
 		assert_ok!(Assets::mint(Origin::signed(1), 0, 1, 100));
 		assert_eq!(Assets::balance(0, 2), 0);
-		assert_noop!(
-			Assets::burn(Origin::signed(1), 0, 2, u64::MAX),
-			Error::<Test>::NoAccount
-		);
+		assert_noop!(Assets::burn(Origin::signed(1), 0, 2, u64::MAX), Error::<Test>::NoAccount);
 		assert_eq!(Assets::balance(0, 2), 0);
 		assert_eq!(Assets::total_supply(0), 100);
 	});
@@ -782,31 +674,13 @@ fn set_metadata_should_work() {
 
 		// Successfully add metadata and take deposit
 		Balances::make_free_balance_be(&1, 30);
-		assert_ok!(Assets::set_metadata(
-			Origin::signed(1),
-			0,
-			vec![0u8; 10],
-			vec![0u8; 10],
-			12
-		));
+		assert_ok!(Assets::set_metadata(Origin::signed(1), 0, vec![0u8; 10], vec![0u8; 10], 12));
 		assert_eq!(Balances::free_balance(&1), 9);
 
 		// Update deposit
-		assert_ok!(Assets::set_metadata(
-			Origin::signed(1),
-			0,
-			vec![0u8; 10],
-			vec![0u8; 5],
-			12
-		));
+		assert_ok!(Assets::set_metadata(Origin::signed(1), 0, vec![0u8; 10], vec![0u8; 5], 12));
 		assert_eq!(Balances::free_balance(&1), 14);
-		assert_ok!(Assets::set_metadata(
-			Origin::signed(1),
-			0,
-			vec![0u8; 10],
-			vec![0u8; 15],
-			12
-		));
+		assert_ok!(Assets::set_metadata(Origin::signed(1), 0, vec![0u8; 10], vec![0u8; 15], 12));
 		assert_eq!(Balances::free_balance(&1), 4);
 
 		// Cannot over-reserve
@@ -817,14 +691,8 @@ fn set_metadata_should_work() {
 
 		// Clear Metadata
 		assert!(Metadata::<Test>::contains_key(0));
-		assert_noop!(
-			Assets::clear_metadata(Origin::signed(2), 0),
-			Error::<Test>::NoPermission
-		);
-		assert_noop!(
-			Assets::clear_metadata(Origin::signed(1), 1),
-			Error::<Test>::Unknown
-		);
+		assert_noop!(Assets::clear_metadata(Origin::signed(2), 0), Error::<Test>::NoPermission);
+		assert_noop!(Assets::clear_metadata(Origin::signed(1), 1), Error::<Test>::Unknown);
 		assert_ok!(Assets::clear_metadata(Origin::signed(1), 0));
 		assert!(!Metadata::<Test>::contains_key(0));
 	});
@@ -861,10 +729,7 @@ fn freezer_should_work() {
 		assert_ok!(Assets::transfer(Origin::signed(1), 0, 2, 20));
 		// cannot transfer another 21 away as this would take the non-frozen balance (30) to below
 		// the minimum balance (10).
-		assert_noop!(
-			Assets::transfer(Origin::signed(1), 0, 2, 21),
-			Error::<Test>::BalanceLow
-		);
+		assert_noop!(Assets::transfer(Origin::signed(1), 0, 2, 21), Error::<Test>::BalanceLow);
 
 		// create an approved transfer...
 		Balances::make_free_balance_be(&1, 100);
@@ -976,10 +841,7 @@ fn force_metadata_should_work() {
 		assert!(!Metadata::<Test>::contains_key(0));
 
 		// Error handles clearing non-existent asset class
-		assert_noop!(
-			Assets::force_clear_metadata(Origin::root(), 1),
-			Error::<Test>::Unknown
-		);
+		assert_noop!(Assets::force_clear_metadata(Origin::root(), 1), Error::<Test>::Unknown);
 	});
 }
 
@@ -993,17 +855,7 @@ fn force_asset_status_should_work() {
 		assert_ok!(Assets::mint(Origin::signed(1), 0, 2, 150));
 
 		// force asset status to change min_balance > balance
-		assert_ok!(Assets::force_asset_status(
-			Origin::root(),
-			0,
-			1,
-			1,
-			1,
-			1,
-			100,
-			true,
-			false
-		));
+		assert_ok!(Assets::force_asset_status(Origin::root(), 0, 1, 1, 1, 1, 100, true, false));
 		assert_eq!(Assets::balance(0, 1), 50);
 
 		// account can recieve assets for balance < min_balance
@@ -1015,10 +867,7 @@ fn force_asset_status_should_work() {
 		assert_eq!(Assets::balance(0, 1), 0);
 
 		// won't create new account with balance below min_balance
-		assert_noop!(
-			Assets::transfer(Origin::signed(2), 0, 3, 50),
-			TokenError::BelowMinimum
-		);
+		assert_noop!(Assets::transfer(Origin::signed(2), 0, 3, 50), TokenError::BelowMinimum);
 
 		// force asset status will not execute for non-existent class
 		assert_noop!(
@@ -1027,17 +876,7 @@ fn force_asset_status_should_work() {
 		);
 
 		// account drains to completion when funds dip below min_balance
-		assert_ok!(Assets::force_asset_status(
-			Origin::root(),
-			0,
-			1,
-			1,
-			1,
-			1,
-			110,
-			true,
-			false
-		));
+		assert_ok!(Assets::force_asset_status(Origin::root(), 0, 1, 1, 1, 1, 110, true, false));
 		assert_ok!(Assets::transfer(Origin::signed(2), 0, 1, 110));
 		assert_eq!(Assets::balance(0, 1), 200);
 		assert_eq!(Assets::balance(0, 2), 0);
@@ -1053,13 +892,7 @@ fn balance_conversion_should_work() {
 		let id = 42;
 		assert_ok!(Assets::force_create(Origin::root(), id, 1, true, 10));
 		let not_sufficient = 23;
-		assert_ok!(Assets::force_create(
-			Origin::root(),
-			not_sufficient,
-			1,
-			false,
-			10
-		));
+		assert_ok!(Assets::force_create(Origin::root(), not_sufficient, 1, false, 10));
 
 		assert_eq!(
 			BalanceToAssetBalance::<Balances, Test, ConvertInto>::to_asset_balance(100, 1234),

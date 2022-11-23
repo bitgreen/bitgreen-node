@@ -2,8 +2,7 @@
 // Copyright (C) 2022 BitGreen.
 // This code is licensed under MIT license (see LICENSE.txt for details)
 //
-use frame_support::traits::Currency;
-use frame_support::{assert_noop, assert_ok, error::BadOrigin, PalletId};
+use frame_support::{assert_noop, assert_ok, error::BadOrigin, traits::Currency, PalletId};
 use frame_system::RawOrigin;
 use sp_runtime::traits::AccountIdConversion;
 
@@ -94,10 +93,7 @@ fn add_contract_works() {
 		// new contract is added in storage
 		assert_eq!(
 			VestingContracts::<Test>::get(recipient).unwrap(),
-			ContractDetail {
-				expiry: expiry_block,
-				amount: vesting_amount.into()
-			}
+			ContractDetail { expiry: expiry_block, amount: vesting_amount.into() }
 		);
 		// ensure accounting worked correctly
 		assert_eq!(VestingBalance::<Test>::get(), vesting_amount.into());
@@ -143,17 +139,11 @@ fn remove_contract_works() {
 		));
 
 		assert_eq!(VestingBalance::<Test>::get(), vesting_amount.into());
-		assert_ok!(VestingContract::remove_contract(
-			RawOrigin::Root.into(),
-			recipient
-		));
+		assert_ok!(VestingContract::remove_contract(RawOrigin::Root.into(), recipient));
 
 		// contract removed from storage
 		assert_eq!(VestingContracts::<Test>::get(recipient), None);
-		assert_eq!(
-			last_event(),
-			VestingContractEvent::ContractRemoved { recipient }.into()
-		);
+		assert_eq!(last_event(), VestingContractEvent::ContractRemoved { recipient }.into());
 	});
 }
 
@@ -187,9 +177,7 @@ fn withdraw_contract_works() {
 
 		// time travel to after expiry block to withdraw vested amount
 		System::set_block_number(expiry_block + 1);
-		assert_ok!(VestingContract::withdraw_vested(
-			RawOrigin::Signed(recipient).into(),
-		));
+		assert_ok!(VestingContract::withdraw_vested(RawOrigin::Signed(recipient).into(),));
 
 		// the user balance should be updated
 		assert_eq!(Balances::free_balance(recipient), vesting_amount.into());
@@ -241,10 +229,7 @@ fn force_withdraw_contract_works() {
 
 		// time travel to after expiry block to withdraw vested amount
 		System::set_block_number(expiry_block + 1);
-		assert_ok!(VestingContract::force_withdraw_vested(
-			RawOrigin::Root.into(),
-			recipient
-		));
+		assert_ok!(VestingContract::force_withdraw_vested(RawOrigin::Root.into(), recipient));
 
 		// the user balance should be updated
 		assert_eq!(Balances::free_balance(recipient), vesting_amount.into());

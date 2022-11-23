@@ -14,16 +14,9 @@ use sp_runtime::traits::BadOrigin;
 use super::*;
 
 const BALANCE_TRANSFER: &<Runtime as frame_system::Config>::Call =
-	&mock::Call::Balances(pallet_balances::Call::transfer {
-		dest: ALICE,
-		value: 10,
-	});
+	&mock::Call::Balances(pallet_balances::Call::transfer { dest: ALICE, value: 10 });
 const TOKENS_TRANSFER: &<Runtime as frame_system::Config>::Call =
-	&mock::Call::Tokens(orml_tokens::Call::transfer {
-		dest: ALICE,
-		currency_id: AUSD,
-		amount: 10,
-	});
+	&mock::Call::Tokens(orml_tokens::Call::transfer { dest: ALICE, currency_id: AUSD, amount: 10 });
 
 #[test]
 fn pause_transaction_work() {
@@ -124,12 +117,8 @@ fn unpause_transaction_work() {
 #[test]
 fn paused_transaction_filter_work() {
 	ExtBuilder::default().build().execute_with(|| {
-		assert!(!PausedTransactionFilter::<Runtime>::contains(
-			BALANCE_TRANSFER
-		));
-		assert!(!PausedTransactionFilter::<Runtime>::contains(
-			TOKENS_TRANSFER
-		));
+		assert!(!PausedTransactionFilter::<Runtime>::contains(BALANCE_TRANSFER));
+		assert!(!PausedTransactionFilter::<Runtime>::contains(TOKENS_TRANSFER));
 		assert_ok!(TransactionPause::pause_transaction(
 			Origin::signed(1),
 			b"Balances".to_vec(),
@@ -140,12 +129,8 @@ fn paused_transaction_filter_work() {
 			b"Tokens".to_vec(),
 			b"transfer".to_vec()
 		));
-		assert!(PausedTransactionFilter::<Runtime>::contains(
-			BALANCE_TRANSFER
-		));
-		assert!(PausedTransactionFilter::<Runtime>::contains(
-			TOKENS_TRANSFER
-		));
+		assert!(PausedTransactionFilter::<Runtime>::contains(BALANCE_TRANSFER));
+		assert!(PausedTransactionFilter::<Runtime>::contains(TOKENS_TRANSFER));
 		assert_ok!(TransactionPause::unpause_transaction(
 			Origin::signed(1),
 			b"Balances".to_vec(),
@@ -156,11 +141,7 @@ fn paused_transaction_filter_work() {
 			b"Tokens".to_vec(),
 			b"transfer".to_vec()
 		));
-		assert!(!PausedTransactionFilter::<Runtime>::contains(
-			BALANCE_TRANSFER
-		));
-		assert!(!PausedTransactionFilter::<Runtime>::contains(
-			TOKENS_TRANSFER
-		));
+		assert!(!PausedTransactionFilter::<Runtime>::contains(BALANCE_TRANSFER));
+		assert!(!PausedTransactionFilter::<Runtime>::contains(TOKENS_TRANSFER));
 	});
 }

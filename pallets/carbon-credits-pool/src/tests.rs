@@ -102,12 +102,8 @@ where
 		name: "name".as_bytes().to_vec().try_into().unwrap(),
 		description: "description".as_bytes().to_vec().try_into().unwrap(),
 		location: vec![(1, 1), (2, 2), (3, 3), (4, 4)].try_into().unwrap(),
-		images: vec!["image_link".as_bytes().to_vec().try_into().unwrap()]
-			.try_into()
-			.unwrap(),
-		videos: vec!["video_link".as_bytes().to_vec().try_into().unwrap()]
-			.try_into()
-			.unwrap(),
+		images: vec!["image_link".as_bytes().to_vec().try_into().unwrap()].try_into().unwrap(),
+		videos: vec!["video_link".as_bytes().to_vec().try_into().unwrap()].try_into().unwrap(),
 		documents: vec!["document_link".as_bytes().to_vec().try_into().unwrap()]
 			.try_into()
 			.unwrap(),
@@ -280,10 +276,7 @@ fn deposit_works() {
 		);
 
 		// The pool account should have the balance
-		assert_eq!(
-			Assets::total_issuance(project_id),
-			project_tokens_to_mint.into()
-		);
+		assert_eq!(Assets::total_issuance(project_id), project_tokens_to_mint.into());
 		assert_eq!(Assets::minimum_balance(project_id), 1);
 		//assert_eq!(Assets::balance(project_id, ), 1);
 
@@ -291,10 +284,7 @@ fn deposit_works() {
 		assert_eq!(Assets::balance(project_id, authorised_account_one), 1_u128);
 
 		// The depositor should have gained equal pool tokens
-		assert_eq!(
-			Assets::balance(pool_id, authorised_account_one),
-			project_tokens_to_deposit
-		);
+		assert_eq!(Assets::balance(pool_id, authorised_account_one), project_tokens_to_deposit);
 
 		// ensure storage updated correctly
 		let stored_pool = Pools::<Test>::get(pool_id).unwrap();
@@ -349,20 +339,14 @@ fn deposit_works_for_batch_credits() {
 		);
 
 		// The pool account should have the balance
-		assert_eq!(
-			Assets::total_issuance(project_id),
-			project_tokens_to_mint.into()
-		);
+		assert_eq!(Assets::total_issuance(project_id), project_tokens_to_mint.into());
 		assert_eq!(Assets::minimum_balance(project_id), 1);
 
 		// The depositor should have lost the balance
 		assert_eq!(Assets::balance(project_id, authorised_account_one), 1_u128);
 
 		// The depositor should have gained equal pool tokens
-		assert_eq!(
-			Assets::balance(pool_id, authorised_account_one),
-			project_tokens_to_deposit
-		);
+		assert_eq!(Assets::balance(pool_id, authorised_account_one), project_tokens_to_deposit);
 
 		// ensure storage updated correctly
 		let stored_pool = Pools::<Test>::get(pool_id).unwrap();
@@ -407,10 +391,7 @@ fn retire_works() {
 		));
 
 		// The pool account should have the balance
-		assert_eq!(
-			Assets::total_issuance(project_id),
-			project_tokens_to_mint.into()
-		);
+		assert_eq!(Assets::total_issuance(project_id), project_tokens_to_mint.into());
 		assert_eq!(Assets::minimum_balance(project_id), 1);
 		//assert_eq!(Assets::balance(project_id, ), 1);
 
@@ -418,10 +399,7 @@ fn retire_works() {
 		assert_eq!(Assets::balance(project_id, authorised_account_one), 1_u128);
 
 		// The depositor should have gained equal pool tokens
-		assert_eq!(
-			Assets::balance(pool_id, authorised_account_one),
-			project_tokens_to_deposit
-		);
+		assert_eq!(Assets::balance(pool_id, authorised_account_one), project_tokens_to_deposit);
 
 		// retire more than balance should fail
 		assert_noop!(
@@ -447,12 +425,8 @@ fn retire_works() {
 
 		assert_eq!(
 			last_event(),
-			CarbonCreditPoolEvent::Retired {
-				who: authorised_account_one,
-				pool_id,
-				amount: 90
-			}
-			.into()
+			CarbonCreditPoolEvent::Retired { who: authorised_account_one, pool_id, amount: 90 }
+				.into()
 		);
 
 		// the caller should have lost equivalent pool tokens

@@ -6,10 +6,14 @@ use crate::*;
 
 impl<T: Config> Pallet<T> {
 	/// The account ID of the CarbonCredits pallet
-	pub fn account_id() -> T::AccountId { T::PalletId::get().into_account_truncating() }
+	pub fn account_id() -> T::AccountId {
+		T::PalletId::get().into_account_truncating()
+	}
 
 	/// Get the free balance of the pallet account
-	pub fn pallet_free_balance() -> BalanceOf<T> { T::Currency::free_balance(&Self::account_id()) }
+	pub fn pallet_free_balance() -> BalanceOf<T> {
+		T::Currency::free_balance(&Self::account_id())
+	}
 
 	/// Get the total balance of the pallet account
 	pub fn pallet_total_balance() -> BalanceOf<T> {
@@ -29,10 +33,7 @@ impl<T: Config> Pallet<T> {
 		VestingContracts::<T>::try_mutate(
 			recipient.clone(),
 			|maybe_existing_contract| -> DispatchResult {
-				ensure!(
-					maybe_existing_contract.is_none(),
-					Error::<T>::ContractAlreadyExists
-				);
+				ensure!(maybe_existing_contract.is_none(), Error::<T>::ContractAlreadyExists);
 
 				let current_vesting_balance = VestingBalance::<T>::get();
 
@@ -53,11 +54,7 @@ impl<T: Config> Pallet<T> {
 				*maybe_existing_contract = Some(ContractDetail { expiry, amount });
 
 				// Emit an event.
-				Self::deposit_event(Event::ContractAdded {
-					recipient,
-					expiry,
-					amount,
-				});
+				Self::deposit_event(Event::ContractAdded { recipient, expiry, amount });
 
 				Ok(())
 			},
@@ -71,9 +68,8 @@ impl<T: Config> Pallet<T> {
 
 		// Update the total vesting balance
 		let current_vesting_balance = VestingBalance::<T>::get();
-		let new_vesting_balance = current_vesting_balance
-			.checked_sub(&amount)
-			.ok_or(ArithmeticError::Overflow)?;
+		let new_vesting_balance =
+			current_vesting_balance.checked_sub(&amount).ok_or(ArithmeticError::Overflow)?;
 		VestingBalance::<T>::put(new_vesting_balance);
 
 		// Emit an event.
@@ -92,20 +88,15 @@ impl<T: Config> Pallet<T> {
 
 		// Update the total vesting balance
 		let current_vesting_balance = VestingBalance::<T>::get();
-		let new_vesting_balance = current_vesting_balance
-			.checked_sub(&amount)
-			.ok_or(ArithmeticError::Overflow)?;
+		let new_vesting_balance =
+			current_vesting_balance.checked_sub(&amount).ok_or(ArithmeticError::Overflow)?;
 		VestingBalance::<T>::put(new_vesting_balance);
 
 		// transfer the amount to recipient
 		T::Currency::transfer(&Self::account_id(), &recipient, amount, KeepAlive)?;
 
 		// Emit an event.
-		Self::deposit_event(Event::ContractWithdrawn {
-			recipient,
-			expiry,
-			amount,
-		});
+		Self::deposit_event(Event::ContractWithdrawn { recipient, expiry, amount });
 
 		Ok(())
 	}

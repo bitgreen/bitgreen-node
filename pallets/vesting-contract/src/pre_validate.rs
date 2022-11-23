@@ -4,11 +4,13 @@
 //
 #![allow(clippy::all)]
 use codec::{Decode, Encode};
-use frame_support::dispatch::fmt::Debug;
-use frame_support::pallet_prelude::{
-	InvalidTransaction, TransactionValidity, TransactionValidityError, ValidTransaction,
+use frame_support::{
+	dispatch::fmt::Debug,
+	pallet_prelude::{
+		InvalidTransaction, TransactionValidity, TransactionValidityError, ValidTransaction,
+	},
+	traits::IsSubType,
 };
-use frame_support::traits::IsSubType;
 use scale_info::TypeInfo;
 use sp_runtime::traits::{DispatchInfoOf, SignedExtension};
 
@@ -33,7 +35,9 @@ where
 	}
 
 	#[cfg(not(feature = "std"))]
-	fn fmt(&self, _: &mut sp_std::fmt::Formatter) -> sp_std::fmt::Result { Ok(()) }
+	fn fmt(&self, _: &mut sp_std::fmt::Formatter) -> sp_std::fmt::Result {
+		Ok(())
+	}
 }
 
 impl<T: Config + Send + Sync> PrevalidateVestingWithdraw<T>
@@ -41,7 +45,9 @@ where
 	<T as frame_system::Config>::Call: IsSubType<Call<T>>,
 {
 	/// Create new `SignedExtension` to check runtime version.
-	pub fn new() -> Self { Self(sp_std::marker::PhantomData) }
+	pub fn new() -> Self {
+		Self(sp_std::marker::PhantomData)
+	}
 }
 
 impl<T: Config + Send + Sync> SignedExtension for PrevalidateVestingWithdraw<T>
@@ -98,5 +104,7 @@ pub enum ValidityError {
 }
 
 impl From<ValidityError> for u8 {
-	fn from(err: ValidityError) -> Self { err as u8 }
+	fn from(err: ValidityError) -> Self {
+		err as u8
+	}
 }

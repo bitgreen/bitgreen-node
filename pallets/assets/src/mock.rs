@@ -121,14 +121,16 @@ pub(crate) fn clear_frozen_balance(asset: u32, who: u64) {
 	FROZEN.with(|f| f.borrow_mut().remove(&(asset, who)));
 }
 
-pub(crate) fn hooks() -> Vec<Hook> { HOOKS.with(|h| h.borrow().clone()) }
+pub(crate) fn hooks() -> Vec<Hook> {
+	HOOKS.with(|h| h.borrow().clone())
+}
 
-pub(crate) fn take_hooks() -> Vec<Hook> { HOOKS.with(|h| h.take()) }
+pub(crate) fn take_hooks() -> Vec<Hook> {
+	HOOKS.with(|h| h.take())
+}
 
 pub(crate) fn new_test_ext() -> sp_io::TestExternalities {
-	let mut storage = frame_system::GenesisConfig::default()
-		.build_storage::<Test>()
-		.unwrap();
+	let mut storage = frame_system::GenesisConfig::default().build_storage::<Test>().unwrap();
 
 	let config: pallet_assets::GenesisConfig<Test> = pallet_assets::GenesisConfig {
 		assets: vec![
