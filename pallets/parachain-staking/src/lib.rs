@@ -70,7 +70,7 @@ pub mod pallet {
 		sp_runtime::traits::{AccountIdConversion, CheckedSub, Saturating, Zero},
 		traits::{
 			Currency, EnsureOrigin, ExistenceRequirement::KeepAlive, ReservableCurrency,
-			ValidatorRegistration,
+			ValidatorRegistration, WithdrawReasons,
 		},
 		weights::DispatchClass,
 		BoundedVec, PalletId,
@@ -137,9 +137,6 @@ pub mod pallet {
 
 		/// A stable ID for a validator.
 		type ValidatorId: Member + Parameter;
-
-		/// The origin which may forcibly set storage or add authorised accounts
-		type ForceOrigin: EnsureOrigin<Self::Origin>;
 
 		/// A conversion from account ID to validator ID.
 		///
@@ -282,6 +279,8 @@ pub mod pallet {
 		ArithmeticOverflow,
 		/// Not a delegator
 		NotDelegator,
+		/// Below Minimum delegation amount
+		LessThanMinimumDelegation,
 	}
 
 	#[pallet::hooks]
@@ -428,10 +427,10 @@ pub mod pallet {
 			let who = ensure_signed(origin)?;
 
 			// ensure the amount is above minimum
-			ensure!(amount >= T::MinDelegationAmount::get(), Error::<T>::TooFewCandidates);
+			ensure!(amount >= T::MinDelegationAmount::get(), Error::<T>::LessThanMinimumDelegation);
 
 			let mut candidate =
-				Self::find_candidate(candidate_id).ok_or(Error::<T>::NotCandidate)?;
+				Self::find_candidate(candidate_id.clone()).ok_or(Error::<T>::NotCandidate)?;
 
 			// try to reserve the delegation amount
 			<T as Config>::Currency::reserve(&who, amount)?;
@@ -452,8 +451,10 @@ pub mod pallet {
 			<Candidates<T>>::try_mutate(|candidates| -> Result<usize, DispatchError> {
 				let index = candidates
 					.iter()
-					.position(|candidate| candidate.who == who)
+					.position(|candidate| candidate.who == candidate_id)
 					.ok_or(Error::<T>::NotCandidate)?;
+
+				let _ = candidates.remove(index);
 
 				candidates
 					.try_insert(index, candidate.clone())
@@ -476,7 +477,7 @@ pub mod pallet {
 			let who = ensure_signed(origin)?;
 
 			let mut candidate =
-				Self::find_candidate(candidate_id).ok_or(Error::<T>::NotCandidate)?;
+				Self::find_candidate(candidate_id.clone()).ok_or(Error::<T>::NotCandidate)?;
 
 			// remove delegator from candidates
 			let delegator_index = candidate
@@ -487,7 +488,7 @@ pub mod pallet {
 			let delegator = candidate.delegators.swap_remove(delegator_index);
 
 			// try to unreserve the delegation amount
-			<T as Config>::Currency::reserve(&who, delegator.deposit)?;
+			let _ = <T as Config>::Currency::unreserve(&who, delegator.deposit);
 
 			candidate.total_stake = candidate
 				.total_stake
@@ -497,8 +498,10 @@ pub mod pallet {
 			<Candidates<T>>::try_mutate(|candidates| -> Result<usize, DispatchError> {
 				let index = candidates
 					.iter()
-					.position(|candidate| candidate.who == who)
+					.position(|candidate| candidate.who == candidate_id)
 					.ok_or(Error::<T>::NotCandidate)?;
+
+				let _ = candidates.remove(index);
 
 				candidates
 					.try_insert(index, candidate.clone())
@@ -521,7 +524,7 @@ pub mod pallet {
 			amount: BalanceOf<T>,
 		) -> DispatchResult {
 			// ensure the caller is allowed origin
-			T::ForceOrigin::ensure_origin(origin)?;
+			T::UpdateOrigin::ensure_origin(origin)?;
 			InflationAmountPerBlock::<T>::set(amount);
 			// emit event
 			Self::deposit_event(Event::InflationAmountSet { amount });
@@ -545,6 +548,12 @@ pub mod pallet {
 						.ok_or(Error::<T>::NotCandidate)?;
 					let candidate = candidates.remove(index);
 					T::Currency::unreserve(who, candidate.deposit);
+
+					// unreserve all delegators
+					for delegator in candidate.delegators.iter() {
+						T::Currency::unreserve(&delegator.who, delegator.deposit);
+					}
+
 					<LastAuthoredBlock<T>>::remove(who.clone());
 					Ok(candidates.len())
 				})?;
@@ -554,7 +563,7 @@ pub mod pallet {
 
 		/// Finds a candidate with AccountId if it exists
 		fn find_candidate(who: T::AccountId) -> Option<CandidateInfoOf<T>> {
-			Candidates::<T>::get().into_iter().find(|c| c.who == who)
+			Self::candidates().into_iter().find(|c| c.who == who)
 		}
 
 		/// Finds a candidate with AccountId if it exists
@@ -616,9 +625,22 @@ pub mod pallet {
 		fn note_author(author: T::AccountId) {
 			let pot = Self::account_id();
 			// assumes an ED will be sent to pot.
-			let reward = T::Currency::free_balance(&pot)
+			let fee_reward = T::Currency::free_balance(&pot)
 				.checked_sub(&T::Currency::minimum_balance())
 				.unwrap_or_else(Zero::zero);
+
+			// add inflation rewards to the parachain_staking_pot
+			let reward = Self::inflation_reward_per_block()
+				.checked_add(&fee_reward)
+				.unwrap_or_else(Zero::zero);
+
+			let _fee_imbalance = T::Currency::withdraw(
+				&pot,
+				fee_reward,
+				WithdrawReasons::TRANSACTION_PAYMENT,
+				KeepAlive,
+			);
+			debug_assert!(_fee_imbalance.is_ok());
 
 			// find the list of all delegators for this author
 			let delegators = Self::get_delegators(author.clone());
@@ -629,26 +651,27 @@ pub mod pallet {
 					.checked_div(&(delegators.len() as u32).into())
 					.unwrap_or_default();
 				for delegator in delegators.iter() {
-					let _success = T::Currency::transfer(
-						&pot,
-						&delegator.who,
-						reward_for_one_delegator,
-						KeepAlive,
-					);
-					debug_assert!(_success.is_ok());
-					Self::deposit_event(Event::DelegatorRewardsTransferred { account_id: delegator.who.clone(), amount : reward_for_one_delegator });
+					T::Currency::deposit_creating(&delegator.who, reward_for_one_delegator);
+					Self::deposit_event(Event::DelegatorRewardsTransferred {
+						account_id: delegator.who.clone(),
+						amount: reward_for_one_delegator,
+					});
 				}
 
 				// send rest of reward to collator
 				let collator_reward = Percent::from_percent(10).mul_floor(reward);
-				let _success = T::Currency::transfer(&pot, &author, collator_reward, KeepAlive);
-				Self::deposit_event(Event::CollatorRewardsTransferred { account_id: author.clone(), amount : collator_reward });
-				debug_assert!(_success.is_ok());
+				T::Currency::deposit_creating(&author, collator_reward);
+				Self::deposit_event(Event::CollatorRewardsTransferred {
+					account_id: author.clone(),
+					amount: collator_reward,
+				});
 			} else {
 				// `reward` pot account minus ED, this should never fail.
-				let _success = T::Currency::transfer(&pot, &author, reward, KeepAlive);
-				Self::deposit_event(Event::CollatorRewardsTransferred { account_id: author.clone(), amount : reward });
-				debug_assert!(_success.is_ok());
+				T::Currency::deposit_creating(&author, reward);
+				Self::deposit_event(Event::CollatorRewardsTransferred {
+					account_id: author.clone(),
+					amount: reward,
+				});
 			}
 
 			<LastAuthoredBlock<T>>::insert(author, frame_system::Pallet::<T>::block_number());
@@ -678,6 +701,8 @@ pub mod pallet {
 			let active_candidates = Self::kick_stale_candidates(candidates);
 			let removed = candidates_len_before - active_candidates.len();
 			let result = Self::assemble_collators(active_candidates);
+
+			log::info!("newvalidators for new session {} at #{:?}", index, result,);
 
 			frame_system::Pallet::<T>::register_extra_weight_unchecked(
 				T::WeightInfo::new_session(candidates_len_before as u32, removed as u32),

@@ -203,7 +203,7 @@ impl ValidatorRegistration<u64> for IsRegistered {
 impl Config for Test {
 	type Currency = Balances;
 	type Event = Event;
-	type ForceOrigin = EnsureRoot<u64>;
+	type UpdateOrigin = EnsureRoot<u64>;
 	type KickThreshold = Period;
 	type MaxCandidates = MaxCandidates;
 	type MaxDelegators = MaxDelegators;
@@ -211,7 +211,6 @@ impl Config for Test {
 	type MinCandidates = MinCandidates;
 	type MinDelegationAmount = MinDelegationAmount;
 	type PotId = PotId;
-	type UpdateOrigin = EnsureSignedBy<RootAccount, u64>;
 	type ValidatorId = <Self as frame_system::Config>::AccountId;
 	type ValidatorIdOf = IdentityCollator;
 	type ValidatorRegistration = IsRegistered;
