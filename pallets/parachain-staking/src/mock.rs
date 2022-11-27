@@ -8,7 +8,7 @@ use frame_support::{
 	PalletId,
 };
 use frame_system as system;
-use frame_system::{EnsureRoot, EnsureSignedBy};
+use frame_system::EnsureRoot;
 use scale_info::TypeInfo;
 use sp_core::H256;
 use sp_runtime::{

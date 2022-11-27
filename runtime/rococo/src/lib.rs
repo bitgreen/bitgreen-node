@@ -53,7 +53,7 @@ use sp_core::{crypto::KeyTypeId, OpaqueMetadata};
 pub use sp_runtime::BuildStorage;
 use sp_runtime::{
 	create_runtime_str, generic, impl_opaque_keys,
-	traits::{AccountIdLookup, BlakeTwo256, Block as BlockT},
+	traits::{AccountIdLookup, BlakeTwo256, Block as BlockT, One},
 	transaction_validity::{TransactionSource, TransactionValidity},
 	ApplyExtrinsicResult, Percent,
 };
@@ -421,8 +421,7 @@ impl pallet_parachain_staking::Config for Runtime {
 // orml pallets
 parameter_type_with_key! {
 	pub ExistentialDeposits: |_currency_id: primitives::CurrencyId| -> Balance {
-		// TODO : Calculate correct ED before launch
-		Zero::zero()
+		One::one()
 	};
 }
 
@@ -516,9 +515,17 @@ impl pallet_membership::Config for Runtime {
 parameter_types! {
   pub MarketplaceEscrowAccount : AccountId =  PalletId(*b"bitg/mkp").into_account_truncating();
   pub const VCUPalletId: PalletId = PalletId(*b"bitg/vcu");
+  pub const MaxAuthorizedAccountCount : u32 = 10;
+  pub const MaxCoordinatesLength : u32 = 10;
+  pub const MaxDocumentCount : u32 = 10;
+  pub const MaxGroupSize : u32 = 10;
+  pub const MaxIpfsReferenceLength : u32 = 1024;
+  pub const MaxLongStringLength : u32 = 3072;
+  pub const MaxRoyaltyRecipients : u32 = 10;
+  pub const MaxShortStringLength : u32 = 1024;
+  pub const MinProjectId : u32 = 1000;
 }
 
-// TODO : Ensure sensible values
 impl pallet_carbon_credits::Config for Runtime {
 	type AssetHandler = Assets;
 	type AssetId = u32;
@@ -528,15 +535,15 @@ impl pallet_carbon_credits::Config for Runtime {
 	type ItemId = u32;
 	type KYCProvider = KYCMembership;
 	type MarketplaceEscrow = MarketplaceEscrowAccount;
-	type MaxAuthorizedAccountCount = ConstU32<10>;
-	type MaxCoordinatesLength = ConstU32<8>;
-	type MaxDocumentCount = ConstU32<10>;
-	type MaxGroupSize = ConstU32<10>;
-	type MaxIpfsReferenceLength = ConstU32<300>;
-	type MaxLongStringLength = ConstU32<3000>;
-	type MaxRoyaltyRecipients = ConstU32<10>;
-	type MaxShortStringLength = ConstU32<300>;
-	type MinProjectId = ConstU32<1000>;
+	type MaxAuthorizedAccountCount = MaxAuthorizedAccountCount;
+	type MaxCoordinatesLength = MaxCoordinatesLength;
+	type MaxDocumentCount = MaxDocumentCount;
+	type MaxGroupSize = MaxGroupSize;
+	type MaxIpfsReferenceLength = MaxIpfsReferenceLength;
+	type MaxLongStringLength = MaxLongStringLength;
+	type MaxRoyaltyRecipients = MaxRoyaltyRecipients;
+	type MaxShortStringLength = MaxShortStringLength;
+	type MinProjectId = MinProjectId;
 	type NFTHandler = Uniques;
 	type PalletId = VCUPalletId;
 	type WeightInfo = ();
@@ -544,17 +551,22 @@ impl pallet_carbon_credits::Config for Runtime {
 
 parameter_types! {
 	pub const VCUPoolPalletId: PalletId = PalletId(*b"bit/vcup");
+	pub const MaxAssetSymbolLength : u32 = 10;
+	pub const MaxIssuanceYearCount : u32 = 20;
+	pub const MaxProjectIdList : u32 = 100;
+	pub const MaxRegistryListCount : u32 = 10;
+	pub const MinPoolId : u32 = 10000;
 }
 
 impl pallet_carbon_credits_pool::Config for Runtime {
 	type AssetHandler = Assets;
 	type Event = Event;
 	type ForceOrigin = EnsureRoot<AccountId>;
-	type MaxAssetSymbolLength = ConstU32<20>;
-	type MaxIssuanceYearCount = ConstU32<20>;
-	type MaxProjectIdList = ConstU32<100>;
-	type MaxRegistryListCount = ConstU32<5>;
-	type MinPoolId = ConstU32<10000>;
+	type MaxAssetSymbolLength = MaxAssetSymbolLength;
+	type MaxIssuanceYearCount = MaxIssuanceYearCount;
+	type MaxProjectIdList = MaxProjectIdList;
+	type MaxRegistryListCount = MaxRegistryListCount;
+	type MinPoolId = MinPoolId;
 	type PalletId = VCUPoolPalletId;
 	type PoolId = u32;
 	type WeightInfo = ();
