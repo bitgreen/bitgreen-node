@@ -19,7 +19,7 @@ use frame_support::{
 	construct_runtime,
 	pallet_prelude::ConstU32,
 	parameter_types,
-	traits::{AsEnsureOriginWithArg, ConstU128, Contains, Currency, Everything, Nothing},
+	traits::{AsEnsureOriginWithArg, ConstU128, ConstU16, Contains, Currency, Everything, Nothing},
 	weights::{
 		constants::WEIGHT_PER_SECOND, ConstantMultiplier, DispatchClass, Weight,
 		WeightToFeeCoefficient, WeightToFeeCoefficients, WeightToFeePolynomial,
@@ -710,6 +710,23 @@ impl pallet_contracts::Config for Runtime {
 
 impl pallet_randomness_collective_flip::Config for Runtime {}
 
+parameter_types! {
+	// One storage item; key size is 32; value is size 4+4+16+32 bytes = 56 bytes.
+	pub const DepositBase: Balance = deposit(1, 88);
+	// Additional storage item size of 32 bytes.
+	pub const DepositFactor: Balance = deposit(0, 32);
+}
+
+impl pallet_multisig::Config for Runtime {
+	type Event = Event;
+	type Call = Call;
+	type Currency = Balances;
+	type DepositBase = DepositBase;
+	type DepositFactor = DepositFactor;
+	type MaxSignatories = ConstU16<100>;
+	type WeightInfo = ();
+}
+
 // Create the runtime by composing the FRAME pallets that were previously configured.
 construct_runtime!(
 	pub enum Runtime where
@@ -758,6 +775,7 @@ construct_runtime!(
 		TransactionPause: pallet_transaction_pause::{Pallet, Call, Storage, Event<T>} = 56,
 		VestingContract: pallet_vesting_contract::{Pallet, Call, Storage, Event<T>} = 57,
 		Contracts: pallet_contracts::{Pallet, Call, Storage, Event<T>} = 58,
+		MultiSig: pallet_multisig::{Pallet, Call, Storage, Event<T>} = 59,
 	}
 );
 
