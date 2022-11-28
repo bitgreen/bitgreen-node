@@ -11,7 +11,11 @@ use pallet_balances::Error as BalancesError;
 use sp_runtime::traits::BadOrigin;
 
 use crate as collator_selection;
-use crate::{mock::*, types::CandidateInfoOf, Error};
+use crate::{
+	mock::*,
+	types::{CandidateInfoOf, DelegationInfoOf},
+	Error,
+};
 
 #[test]
 fn basic_setup_works() {
@@ -28,10 +32,7 @@ fn basic_setup_works() {
 fn it_should_set_invulnerables() {
 	new_test_ext().execute_with(|| {
 		let new_set = vec![1, 2, 3, 4];
-		assert_ok!(CollatorSelection::set_invulnerables(
-			Origin::signed(RootAccount::get()),
-			new_set.clone()
-		));
+		assert_ok!(CollatorSelection::set_invulnerables(Origin::root(), new_set.clone()));
 		assert_eq!(CollatorSelection::invulnerables(), new_set);
 
 		// cannot set with non-root.
@@ -40,7 +41,7 @@ fn it_should_set_invulnerables() {
 		// cannot set invulnerables without associated validator keys
 		let invulnerables = vec![7];
 		assert_noop!(
-			CollatorSelection::set_invulnerables(Origin::signed(RootAccount::get()), invulnerables),
+			CollatorSelection::set_invulnerables(Origin::root(), invulnerables),
 			Error::<Test>::ValidatorNotRegistered
 		);
 	});
@@ -53,10 +54,7 @@ fn set_desired_candidates_works() {
 		assert_eq!(CollatorSelection::desired_candidates(), 2);
 
 		// can set
-		assert_ok!(CollatorSelection::set_desired_candidates(
-			Origin::signed(RootAccount::get()),
-			7
-		));
+		assert_ok!(CollatorSelection::set_desired_candidates(Origin::root(), 7));
 		assert_eq!(CollatorSelection::desired_candidates(), 7);
 
 		// rejects bad origin
@@ -71,7 +69,7 @@ fn set_candidacy_bond() {
 		assert_eq!(CollatorSelection::candidacy_bond(), 10);
 
 		// can set
-		assert_ok!(CollatorSelection::set_candidacy_bond(Origin::signed(RootAccount::get()), 7));
+		assert_ok!(CollatorSelection::set_candidacy_bond(Origin::root(), 7));
 		assert_eq!(CollatorSelection::candidacy_bond(), 7);
 
 		// rejects bad origin.
@@ -234,6 +232,7 @@ fn authorship_event_handler() {
 	new_test_ext().execute_with(|| {
 		// put 100 in the pot + 5 for ED
 		Balances::make_free_balance_be(&CollatorSelection::account_id(), 105);
+		assert_ok!(CollatorSelection::set_block_inflation_reward(Origin::root(), 10));
 
 		// 4 is the default author.
 		assert_eq!(Balances::free_balance(4), 100);
@@ -251,8 +250,8 @@ fn authorship_event_handler() {
 		assert_eq!(CollatorSelection::candidates().pop().unwrap(), collator);
 		assert_eq!(CollatorSelection::last_authored_block(4), 0);
 
-		// all the amount goes to collators
-		assert_eq!(Balances::free_balance(4), 190);
+		// all the amount goes to collators + block reward
+		assert_eq!(Balances::free_balance(4), 200);
 		// half + ED stays.
 		assert_eq!(Balances::free_balance(CollatorSelection::account_id()), 5);
 	});
@@ -398,4 +397,139 @@ fn cannot_set_genesis_value_twice() {
 	};
 	// collator selection must be initialized before session.
 	collator_selection.assimilate_storage(&mut t).unwrap();
+}
+
+#[test]
+fn delegate_works() {
+	new_test_ext().execute_with(|| {
+		// delegate to non existing candidate should fail
+		assert_noop!(
+			CollatorSelection::delegate(Origin::signed(5), 3, 19),
+			Error::<Test>::NotCandidate
+		);
+
+		// add a new collator
+		assert_ok!(CollatorSelection::register_as_candidate(Origin::signed(3)));
+		initialize_to_block(10);
+
+		// delegate less than min delegation should fail
+		assert_noop!(
+			CollatorSelection::delegate(Origin::signed(5), 3, 9),
+			Error::<Test>::LessThanMinimumDelegation
+		);
+
+		assert_eq!(CollatorSelection::candidates().len(), 1);
+
+		// should fail if the amount is not available to reserve
+		assert_noop!(
+			CollatorSelection::delegate(Origin::signed(6), 3, 10),
+			pallet_balances::Error::<Test>::InsufficientBalance
+		);
+
+		assert_ok!(CollatorSelection::delegate(Origin::signed(5), 3, 10));
+		// storage should be updated correctly
+		let expected_delegator_info = DelegationInfoOf::<Test> { who: 5, deposit: 10 };
+		assert_eq!(CollatorSelection::candidates()[0].delegators, vec![expected_delegator_info]);
+		assert_eq!(CollatorSelection::candidates()[0].total_stake, 10 + 10);
+		// the balane should be reserved correctly
+		assert_eq!(Balances::reserved_balance(5), 10);
+	});
+}
+
+#[test]
+fn undelegate_works() {
+	new_test_ext().execute_with(|| {
+		// undelegate to non existing candidate should fail
+		assert_noop!(
+			CollatorSelection::undelegate(Origin::signed(5), 3),
+			Error::<Test>::NotCandidate
+		);
+
+		// add a new collator
+		assert_ok!(CollatorSelection::register_as_candidate(Origin::signed(3)));
+		initialize_to_block(10);
+
+		// undelegate without any delegation should fail
+		assert_noop!(
+			CollatorSelection::undelegate(Origin::signed(5), 3),
+			Error::<Test>::NotDelegator
+		);
+
+		assert_ok!(CollatorSelection::delegate(Origin::signed(5), 3, 10));
+		assert_ok!(CollatorSelection::undelegate(Origin::signed(5), 3));
+		assert_eq!(CollatorSelection::candidates().len(), 1);
+		// storage should be updated correctly
+		assert_eq!(CollatorSelection::candidates()[0].delegators, vec![]);
+		assert_eq!(CollatorSelection::candidates()[0].total_stake, 10);
+		// the balane should be reserved correctly
+		assert_eq!(Balances::reserved_balance(5), 0);
+		assert_eq!(Balances::free_balance(5), 100);
+	});
+}
+
+#[test]
+fn candidate_leave_removes_delegates() {
+	new_test_ext().execute_with(|| {
+		<crate::DesiredCandidates<Test>>::put(2);
+		// add a new collator
+		assert_ok!(CollatorSelection::register_as_candidate(Origin::signed(3)));
+		assert_ok!(CollatorSelection::register_as_candidate(Origin::signed(4)));
+		initialize_to_block(10);
+
+		// an account has delegated to this collator
+		assert_ok!(CollatorSelection::delegate(Origin::signed(5), 3, 10));
+		println!("{:?}", CollatorSelection::candidates());
+		assert_eq!(CollatorSelection::candidates().len(), 2);
+
+		// candidate leaves and bond is returned
+		assert_ok!(CollatorSelection::leave_intent(Origin::signed(3)));
+		assert_eq!(CollatorSelection::candidates().len(), 1);
+		assert_eq!(Balances::free_balance(3), 100);
+		assert_eq!(CollatorSelection::last_authored_block(3), 0);
+
+		// delegator bond is also returned
+		assert_eq!(Balances::free_balance(5), 100);
+	});
+}
+
+#[test]
+fn delegator_payout_works() {
+	new_test_ext().execute_with(|| {
+		// put 100 in the pot + 5 for ED
+		Balances::make_free_balance_be(&CollatorSelection::account_id(), 105);
+		// block inflation reward is 50
+		assert_ok!(CollatorSelection::set_block_inflation_reward(Origin::root(), 50));
+
+		// 4 is the default author.
+		assert_eq!(Balances::free_balance(4), 100);
+		assert_ok!(CollatorSelection::register_as_candidate(Origin::signed(4)));
+		// two delegators delegators to 4
+		assert_ok!(CollatorSelection::delegate(Origin::signed(3), 4, 10));
+		assert_ok!(CollatorSelection::delegate(Origin::signed(5), 4, 10));
+		// triggers `note_author`
+		Authorship::on_initialize(1);
+
+		let collator = CandidateInfoOf::<Test> {
+			who: 4,
+			deposit: 10,
+			delegators: vec![
+				DelegationInfoOf::<Test> { who: 3u64, deposit: 10 },
+				DelegationInfoOf::<Test> { who: 5u64, deposit: 10 },
+			]
+			.try_into()
+			.unwrap(),
+			total_stake: 30,
+		};
+
+		assert_eq!(CollatorSelection::candidates().pop().unwrap(), collator);
+		assert_eq!(CollatorSelection::last_authored_block(4), 0);
+
+		// block author balances is 90 (existing) + (15) 10% of reward
+		assert_eq!(Balances::free_balance(4), 90 + 15);
+		// delegator balances is 90 (existing) + (135) 90% of reward / 2
+		assert_eq!(Balances::free_balance(3), 90 + 67);
+		assert_eq!(Balances::free_balance(5), 90 + 67);
+		// half + ED stays.
+		assert_eq!(Balances::free_balance(CollatorSelection::account_id()), 5);
+	});
 }

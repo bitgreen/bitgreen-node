@@ -30,15 +30,8 @@ where
 			// transfer treasury portion to treasury
 			<Treasury<R> as OnUnbalanced<_>>::on_unbalanced(split.0);
 
-			// transfer author reward + inflation rewards to parachain staking
+			// transfer author rewards to parachain staking
 			let parachain_staking_pot = pallet_parachain_staking::Pallet::<R>::account_id();
-			// add inflation rewards to the parachain_staking_pot
-			let inflation_reward_per_block: pallet_balances::NegativeImbalance<R> =
-				NegativeImbalance::new(
-					<pallet_parachain_staking::Pallet<R>>::inflation_reward_per_block().into(),
-				);
-
-			inflation_reward_per_block.merge_into(&mut split.1);
 			<pallet_balances::Pallet<R>>::resolve_creating(&parachain_staking_pot, split.1);
 		}
 	}
