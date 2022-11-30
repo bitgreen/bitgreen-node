@@ -168,7 +168,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: create_runtime_str!("bitgreen-rococo"),
 	impl_name: create_runtime_str!("bitgreen-rococo"),
 	authoring_version: 1,
-	spec_version: 910, // v0.9.1
+	spec_version: 920, // v0.9.2
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 1,
@@ -727,6 +727,25 @@ impl pallet_multisig::Config for Runtime {
 	type WeightInfo = ();
 }
 
+// TODO: test limits are safe
+parameter_types! {
+	pub const DexPalletId: PalletId = PalletId(*b"bitg/dex");
+	pub const StableCurrencyId: primitives::CurrencyId = primitives::CurrencyId::AUSD;
+	pub const MinUnitsToCreateSellOrder : u32 = 100;
+	pub const MinPricePerUnit : u32 = 1;
+}
+
+impl pallet_dex::Config for Runtime {
+	type Event = Event;
+	type Asset = Assets;
+	type Currency = Tokens;
+	type StableCurrencyId = StableCurrencyId;
+	type PalletId = DexPalletId;
+	type MinPricePerUnit = MinPricePerUnit;
+	type MinUnitsToCreateSellOrder = MinUnitsToCreateSellOrder;
+	type ForceOrigin = EnsureRoot<AccountId>;
+}
+
 // Create the runtime by composing the FRAME pallets that were previously configured.
 construct_runtime!(
 	pub enum Runtime where
@@ -776,6 +795,7 @@ construct_runtime!(
 		VestingContract: pallet_vesting_contract::{Pallet, Call, Storage, Event<T>} = 57,
 		Contracts: pallet_contracts::{Pallet, Call, Storage, Event<T>} = 58,
 		MultiSig: pallet_multisig::{Pallet, Call, Storage, Event<T>} = 59,
+		Dex: pallet_dex::{Pallet, Call, Storage, Event<T>} = 60,
 	}
 );
 
