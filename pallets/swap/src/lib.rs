@@ -19,25 +19,16 @@ mod tests;
 mod benchmarking;
 
 #[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, Default, MaxEncodedLen, TypeInfo)]
-enum OrderStatus {
-    #[default]
-    OrderCreated,
-    OrderFulfilled,
-    OrderCancelled,
-}
-
-#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, Default, MaxEncodedLen, TypeInfo)]
 pub struct OrderInfo<AccountId, AssetId, Balance> {
     owner: AccountId,
     volume: Balance,
     price: Balance,
     token_id: AssetId,
-    status: OrderStatus,
 }
 
 #[frame_support::pallet]
 pub mod pallet {
-    use crate::{OrderInfo, OrderStatus};
+    use crate::{OrderInfo};
     use frame_support::{dispatch::PostDispatchInfo, pallet_prelude::*, transactional};
     use frame_system::pallet_prelude::{OriginFor, *};
     use pallet_assets::Pallet as Asset;
@@ -60,14 +51,6 @@ pub mod pallet {
         type Owner: Get<<Self as frame_system::Config>::AccountId>;
     }
 
-    // The pallet's runtime storage items.
-    // https://docs.substrate.io/main-docs/build/runtime-storage/
-    #[pallet::storage]
-    #[pallet::getter(fn something)]
-    // Learn more about declaring storage items:
-    // https://docs.substrate.io/main-docs/build/runtime-storage/#declaring-storage-items
-    pub type Something<T> = StorageValue<_, u32>;
-
     // owner of swap pool
     #[pallet::storage]
     #[pallet::getter(fn owner)]
@@ -88,10 +71,6 @@ pub mod pallet {
     #[pallet::event]
     #[pallet::generate_deposit(pub(super) fn deposit_event)]
     pub enum Event<T: Config> {
-        /// Event documentation should end with an array that provides descriptive names for event
-        /// parameters. [something, who]
-        SomethingStored(u32, T::AccountId),
-
         // parameters: [token_id, amount, price, owner]
         SellOrderCreated(T::AssetId, T::Balance, T::Balance, T::AccountId),
         // parameters: [order_id, status]
@@ -103,11 +82,6 @@ pub mod pallet {
     // Errors inform users that something went wrong.
     #[pallet::error]
     pub enum Error<T> {
-        /// Error names should be descriptive.
-        NoneValue,
-        /// Errors should have helpful documentation associated with them.
-        StorageOverflow,
-
         OrderIdOverflow,
         InvalidOrderId,
         InvalidOrderOwner,
@@ -122,50 +96,6 @@ pub mod pallet {
     // Dispatchable functions must be annotated with a weight and must return a DispatchResult.
     #[pallet::call]
     impl<T: Config> Pallet<T> {
-        /// An example dispatchable that takes a singles value as a parameter, writes the value to
-        /// storage and emits an event. This function must be dispatched by a signed extrinsic.
-        #[transactional]
-        #[pallet::weight(10_000 + T::DbWeight::get().writes(1).ref_time())]
-        pub fn do_something(origin: OriginFor<T>, something: u32) -> DispatchResult {
-            // Check that the extrinsic was signed and get the signer.
-            // This function will return an error if the extrinsic is not signed.
-            // https://docs.substrate.io/main-docs/build/origins/
-            let who = ensure_signed(origin)?;
-
-            // Update storage.
-            <Something<T>>::put(something);
-
-            const ACCOUNT_ALICE: u64 = 1;
-            const ACCOUNT_BOB: u64 = 2;
-            const COUNT_AIRDROP_RECIPIENTS: u64 = 2;
-            const TOKENS_FIXED_SUPPLY: u64 = 100;
-
-            // Emit an event.
-            Self::deposit_event(Event::SomethingStored(something, who));
-            // Return a successful DispatchResultWithPostInfo
-            Ok(())
-        }
-
-        /// An example dispatchable that may throw a custom error.
-        #[transactional]
-        #[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1).ref_time())]
-        pub fn cause_error(origin: OriginFor<T>) -> DispatchResult {
-            let _who = ensure_signed(origin)?;
-
-            // Read a value from storage.
-            match <Something<T>>::get() {
-                // Return an error if the value has not been set.
-                None => return Err(Error::<T>::NoneValue.into()),
-                Some(old) => {
-                    // Increment the value read from storage; will error in the event of overflow.
-                    let new = old.checked_add(1).ok_or(Error::<T>::StorageOverflow)?;
-                    // Update the value in storage with the incremented result.
-                    <Something<T>>::put(new);
-                    Ok(())
-                }
-            }
-        }
-
         #[transactional]
         #[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1, 2).ref_time())]
         pub fn create_sell_order(
@@ -192,7 +122,6 @@ pub mod pallet {
                     volume: volume,
                     price: price,
                     token_id: token_id,
-                    status: OrderStatus::OrderCreated,
                 },
             );
 
@@ -207,21 +136,9 @@ pub mod pallet {
             let seller = ensure_signed(origin.clone())?;
 
             // check validity
-            let mut order = Self::order_info(order_id).ok_or(Error::<T>::InvalidOrderId)?;
-            // ensure!(order_id <= Self::order_count(), Error::<T>::InvalidOrderId);
+            let mut order = Orders::<T>::take(order_id).ok_or(Error::<T>::InvalidOrderId)?;
 
             ensure!(seller == order.owner, Error::<T>::InvalidOrderOwner);
-            // ensure!(seller == Self::order_owner(order_id), Error::<T>::NotOwner);
-            ensure!(
-                OrderStatus::OrderCreated == order.status,
-                Error::<T>::OrderCancelledOrFulfilled
-            );
-            // ensure!(Self::order_status(order_id), Error::<T>::AlreadyCancelled);
-
-            order.status = OrderStatus::OrderCancelled;
-
-            Orders::<T>::insert(order_id, order.clone());
-            // OrderStatus::<T>::insert(order_id, false);
 
             let owner = T::Owner::get();
             // // transfer token to owner
@@ -231,7 +148,6 @@ pub mod pallet {
                 T::Lookup::unlookup(owner),
                 order.volume,
             )?;
-            // ERC20::<T>::transfer_from(origin, seller, Self::owner(), Self::order_volume(order_id))?;
 
             Self::deposit_event(Event::SellOrderCancelled(order_id, true));
             Ok(())
@@ -254,57 +170,22 @@ pub mod pallet {
             let mut order = Self::order_info(order_id).ok_or(Error::<T>::InvalidOrderId)?;
             // ensure!(order_id <= Self::order_count(), Error::<T>::InvalidOrderId);
 
-            ensure!(
-                OrderStatus::OrderCreated == order.status,
-                Error::<T>::OrderCancelledOrFulfilled
-            );
-            // ensure!(
-            //     Self::order_status(order_id),
-            //     Error::<T>::CancelledOrFulfilled
-            // );
-
             ensure!(token_id == order.token_id, Error::<T>::InvalidAssetId);
             ensure!(volume <= order.volume, Error::<T>::OrderVolumeOverflow);
-            // ensure!(
-            //     Self::order_volume(order_id) >= volume,
-            //     Error::<T>::VolumeTooMuch
-            // );
 
             let required_currency = order.price * volume;
-            // // calculate necessary currency values
-            // let price = Self::order_price(order_id);
-            // let required_currency = BalanceOf::<T>::try_from((price * volume).as_u128())
-            //     .ok()
-            //     .ok_or(Error::<T>::BalanceError)?;
-
             let payment_fee = required_currency * T::Balance::from(2u32) / T::Balance::from(100u32);
-            // // calculate fee
-            // let payment_fee =
-            //     required_currency * BalanceOf::<T>::from(2u32) / BalanceOf::<T>::from(100u32);
             let purchase_fee = volume * T::Balance::from(2u32) / T::Balance::from(10u32);
-            // let purchase_fee = BalanceOf::<T>::try_from(volume.as_u128())
-            //     .ok()
-            //     .ok_or(Error::<T>::BalanceError)?
-            //     * BalanceOf::<T>::from(2u32)
-            //     / BalanceOf::<T>::from(10u32);
-
+            
             let total_fee = payment_fee + purchase_fee;
-            // let total_fee = payment_fee + purchase_fee;
 
             ensure!(
                 currency_amount >= required_currency + total_fee,
                 Error::<T>::InsufficientCurrency
             );
-            // // ensure payment amount
-            // ensure!(
-            //     currency_amount >= required_currency + total_fee,
-            //     Error::<T>::InsufficientCurrency
-            // );
 
             let seller = order.owner.clone();
-            // let seller = Self::order_owner(order_id);
 
-            order.status = OrderStatus::OrderFulfilled;
             Orders::<T>::insert(order_id, order.clone());
             // // mark order as fulfilled
             // OrderStatus::<T>::insert(order_id, false);

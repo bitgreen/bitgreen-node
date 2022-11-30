@@ -1,6 +1,6 @@
 [package]
 authors = ["Bitgreen"]
-description = "dex pallet"
+description = "Bitgreen DEX pallet"
 edition = "2021"
 license = "Unlicense"
 name = "pallet-dex"
