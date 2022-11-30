@@ -1,10 +1,9 @@
 // This file is part of BitGreen.
 // Copyright (C) 2022 BitGreen.
 // This code is licensed under MIT license (see LICENSE.txt for details)
-use super::*;
 use frame_support::{
-	bounded_vec, construct_runtime, parameter_types,
-	traits::{AsEnsureOriginWithArg, ConstU128, ConstU32, Everything, GenesisBuild, Nothing},
+	parameter_types,
+	traits::{ConstU32, Everything, GenesisBuild, Nothing},
 	PalletId,
 };
 use frame_system as system;
@@ -14,12 +13,11 @@ use primitives::{Amount, Balance, CurrencyId};
 use sp_core::H256;
 use sp_runtime::{
 	testing::Header,
-	traits::{AccountIdConversion, BlakeTwo256, IdentityLookup},
+	traits::{BlakeTwo256, IdentityLookup},
 };
 use sp_std::convert::{TryFrom, TryInto};
 
 pub type AccountId = u64;
-pub const ALICE: AccountId = 1;
 pub const AUSD: CurrencyId = CurrencyId::AUSD;
 
 use crate as pallet_dex;

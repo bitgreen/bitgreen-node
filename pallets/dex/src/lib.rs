@@ -23,7 +23,7 @@
 //! * `force_set_purchase_fee` : Set the purchase fee percentage for the dex
 //! * `force_set_payment_fee` : Set the payment fee percentage for the dex
 #![cfg_attr(not(feature = "std"), no_std)]
-
+#![allow(clippy::type_complexity, clippy::too_many_arguments)]
 use codec::{Decode, Encode, MaxEncodedLen};
 
 use frame_support::RuntimeDebug;
@@ -51,24 +51,15 @@ pub struct OrderInfo<AccountId, AssetId, AssetBalance, TokenBalance> {
 #[frame_support::pallet]
 pub mod pallet {
 	use crate::OrderInfo;
-	use codec::HasCompact;
 	use frame_support::{
-		dispatch::PostDispatchInfo,
 		pallet_prelude::*,
-		traits::{
-			fungibles::{Create, Inspect, MutateHold, Transfer},
-			ExistenceRequirement,
-		},
+		traits::fungibles::{Inspect, Transfer},
 		transactional, PalletId,
 	};
 	use frame_system::pallet_prelude::{OriginFor, *};
 	use orml_traits::MultiCurrency;
-	use pallet_assets::Pallet as Asset;
 	use sp_runtime::{
-		traits::{
-			AccountIdConversion, AtLeast32BitUnsigned, CheckedAdd, CheckedMul, CheckedSub,
-			Saturating, StaticLookup, Zero,
-		},
+		traits::{AccountIdConversion, CheckedSub, Zero},
 		Percent,
 	};
 
@@ -155,12 +146,24 @@ pub mod pallet {
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
 	pub enum Event<T: Config> {
-		// parameters: [asset_id, amount, price, owner]
-		SellOrderCreated(AssetIdOf<T>, AssetBalanceOf<T>, CurrencyBalanceOf<T>, T::AccountId),
-		// parameters: [order_id]
-		SellOrderCancelled(u64),
-		// parameters: [order_id, amount of token sold, amount paid, seller, buyer]
-		BuyOrderFilled(u64, AssetBalanceOf<T>, CurrencyBalanceOf<T>, T::AccountId, T::AccountId),
+		// A new sell order has been created
+		SellOrderCreated {
+			order_id: u64,
+			asset_id: AssetIdOf<T>,
+			units: AssetBalanceOf<T>,
+			price_per_unit: CurrencyBalanceOf<T>,
+			owner: T::AccountId,
+		},
+		/// A sell order was cancelled
+		SellOrderCancelled { order_id: u64 },
+		/// A buy order was processed successfully
+		BuyOrderFilled {
+			order_id: u64,
+			units: AssetBalanceOf<T>,
+			price_per_unit: CurrencyBalanceOf<T>,
+			seller: T::AccountId,
+			buyer: T::AccountId,
+		},
 	}
 
 	// Errors inform users that something went wrong.
@@ -196,7 +199,7 @@ pub mod pallet {
 			asset_id: AssetIdOf<T>,
 			units: AssetBalanceOf<T>,
 			price_per_unit: CurrencyBalanceOf<T>,
-		) -> DispatchResultWithPostInfo {
+		) -> DispatchResult {
 			let seller = ensure_signed(origin.clone())?;
 
 			// ensure minimums are satisfied
@@ -216,9 +219,15 @@ pub mod pallet {
 				OrderInfo { owner: seller.clone(), units, price_per_unit, asset_id },
 			);
 
-			Self::deposit_event(Event::SellOrderCreated(asset_id, units, price_per_unit, seller));
+			Self::deposit_event(Event::SellOrderCreated {
+				order_id,
+				asset_id,
+				units,
+				price_per_unit,
+				owner: seller,
+			});
 
-			Ok(PostDispatchInfo::from(Some(0)))
+			Ok(())
 		}
 
 		#[transactional]
@@ -240,7 +249,7 @@ pub mod pallet {
 				false,
 			)?;
 
-			Self::deposit_event(Event::SellOrderCancelled(order_id));
+			Self::deposit_event(Event::SellOrderCancelled { order_id });
 			Ok(())
 		}
 
@@ -258,8 +267,8 @@ pub mod pallet {
 				return Ok(())
 			}
 
-			Orders::<T>::try_mutate(order_id, |order| -> DispatchResult {
-				let order = order.as_mut().ok_or(Error::<T>::InvalidOrderId)?;
+			Orders::<T>::try_mutate(order_id, |maybe_order| -> DispatchResult {
+				let mut order = maybe_order.take().ok_or(Error::<T>::InvalidOrderId)?;
 
 				// ensure the expected token matches the order
 				ensure!(asset_id == order.asset_id, Error::<T>::InvalidAssetId);
@@ -285,9 +294,6 @@ pub mod pallet {
 
 				let required_fees =
 					payment_fee.checked_add(purchase_fee).ok_or(Error::<T>::OrderUnitsOverflow)?;
-				let required_currency_with_fees = required_fees
-					.checked_add(required_currency)
-					.ok_or(Error::<T>::OrderUnitsOverflow)?;
 
 				// send purchase price to seller
 				T::Currency::transfer(
@@ -308,13 +314,18 @@ pub mod pallet {
 				// transfer asset to buyer
 				T::Asset::transfer(order.asset_id, &Self::account_id(), &buyer, units, false)?;
 
-				Self::deposit_event(Event::BuyOrderFilled(
+				Self::deposit_event(Event::BuyOrderFilled {
 					order_id,
 					units,
-					order.price_per_unit,
-					order.owner.clone(),
+					price_per_unit: order.price_per_unit,
+					seller: order.owner.clone(),
 					buyer,
-				));
+				});
+
+				// remove the sell order if all units are filled
+				if !order.units.is_zero() {
+					*maybe_order = Some(order)
+				}
 
 				Ok(())
 			})

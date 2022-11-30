@@ -5,7 +5,7 @@ edition = "2021"
 license = "Unlicense"
 name = "pallet-dex"
 readme = "README.md"
-version = "0.1.0"
+version = "0.0.1"
 publish = false
 
 [package.metadata.docs.rs]
@@ -19,12 +19,14 @@ scale-info = { version = "2.1.1", default-features = false, features = ["derive"
 frame-benchmarking = { version = "4.0.0-dev", default-features = false, optional = true,  git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.29"  }
 frame-support = { version = "4.0.0-dev", default-features = false,  git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.29" }
 frame-system = { version = "4.0.0-dev", default-features = false, git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.29" }
-pallet-assets = { version = "4.0.0-dev", default-features = false, git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.29" }
 sp-runtime = { version = "6.0.0", default-features = false, git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.29" }
 sp-std = { default-features = false, git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.29" }
 orml-traits = { git = "https://github.com/open-web3-stack/open-runtime-module-library", default-features = false, branch = "polkadot-v0.9.29" }
 pallet-balances = { git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.29", default-features = false }
 orml-tokens = { git = "https://github.com/open-web3-stack/open-runtime-module-library", default-features = false, branch = "polkadot-v0.9.29" }
+
+# Local dependencies
+pallet-assets = { package = 'pallet-assets', path = '../assets', default-features = false }
 primitives = { package = 'bitgreen-primitives', path = '../../primitives', default-features = false }
 
 [dev-dependencies]
