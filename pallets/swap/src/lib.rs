@@ -1,3 +1,27 @@
+// This file is part of BitGreen.
+// Copyright (C) 2022 BitGreen.
+// This code is licensed under MIT license (see LICENSE.txt for details)
+//
+//! Bitgreen DEX Pallet
+//! The DEX pallet allows permissionless listing and buying of carbon credits. The pallet currently
+//! only supports fixed price purchase of carbon credits from a listing. A user can create a listing
+//! with the amount of Carbon credits for sale and the price expected for each unit, this sale order
+//! remains onchain until cancelled by the user or completely filled. While the listing is active,
+//! any user can call buy_order specifying the number of Carbon credits to purchase, the amount from
+//! the buyer is transferred to the seller and any fees applicable to the pallet account.
+//!
+//! ## Interface
+//!
+//! ### Permissionless Functions
+//!
+//! * `create_sell_order`: Creates a new project onchain with details of batches of credits
+//! * `cancel_sell_order`: Cancel an existing sell order
+//! * `buy_order`: Purchase units from exising sell order
+//!
+//! ### Permissioned Functions
+//!
+//! * `force_set_purchase_fee` : Set the purchase fee percentage for the dex
+//! * `force_set_payment_fee` : Set the payment fee percentage for the dex
 #![cfg_attr(not(feature = "std"), no_std)]
 
 use codec::{Decode, Encode, MaxEncodedLen};
@@ -43,7 +67,7 @@ pub mod pallet {
 	use sp_runtime::{
 		traits::{
 			AccountIdConversion, AtLeast32BitUnsigned, CheckedAdd, CheckedMul, CheckedSub,
-			Saturating, StaticLookup,
+			Saturating, StaticLookup, Zero,
 		},
 		Percent,
 	};
@@ -72,21 +96,29 @@ pub mod pallet {
 		type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
 
 		// Asset manager config
-		type Asset: MutateHold<Self::AccountId> + Transfer<Self::AccountId>;
+		type Asset: Transfer<Self::AccountId>;
 
 		// Token handler config - this is what the pallet accepts as payment
 		type Currency: MultiCurrency<Self::AccountId>;
+
+		/// The origin which may forcibly set storage or add authorised accounts
+		type ForceOrigin: EnsureOrigin<Self::Origin>;
 
 		/// The CurrencyId of the stable currency we accept as payment
 		#[pallet::constant]
 		type StableCurrencyId: Get<CurrencyIdOf<Self>>;
 
+		/// The minimum units of asset to create a sell order
+		#[pallet::constant]
+		type MinUnitsToCreateSellOrder: Get<AssetBalanceOf<Self>>;
+
+		/// The minimum price per unit of asset to create a sell order
+		#[pallet::constant]
+		type MinPricePerUnit: Get<CurrencyBalanceOf<Self>>;
+
 		/// The DEX pallet id
 		#[pallet::constant]
 		type PalletId: Get<PalletId>;
-
-		/// The origin which may forcibly set storage or add authorised accounts
-		type ForceOrigin: EnsureOrigin<Self::Origin>;
 	}
 
 	// owner of swap pool
@@ -97,7 +129,7 @@ pub mod pallet {
 	// orders information
 	#[pallet::storage]
 	#[pallet::getter(fn order_count)]
-	pub type OrderCount<T: Config> = StorageValue<_, u64>;
+	pub type OrderCount<T: Config> = StorageValue<_, u64, ValueQuery>;
 
 	// Payment fees charged by dex
 	#[pallet::storage]
@@ -134,13 +166,22 @@ pub mod pallet {
 	// Errors inform users that something went wrong.
 	#[pallet::error]
 	pub enum Error<T> {
+		/// Error when calculating orderId
 		OrderIdOverflow,
+		/// The orderId does not exist
 		InvalidOrderId,
+		/// Only the order owner can perform this call
 		InvalidOrderOwner,
-		OrderCancelledOrFulfilled,
+		/// The expected asset_id does not match the order
 		InvalidAssetId,
+		/// Error when calculating order units
 		OrderUnitsOverflow,
+		/// The amount does not cover fees + transaction
 		InsufficientCurrency,
+		/// Below minimum price
+		BelowMinimumPrice,
+		/// Below minimum units
+		BelowMinimumUnits,
 	}
 
 	// Dispatchable functions allows users to interact with the pallet and invoke state changes.
@@ -158,10 +199,14 @@ pub mod pallet {
 		) -> DispatchResultWithPostInfo {
 			let seller = ensure_signed(origin.clone())?;
 
-			// hold asset from the seller
-			T::Asset::hold(asset_id, &seller, units)?;
+			// ensure minimums are satisfied
+			ensure!(units >= T::MinUnitsToCreateSellOrder::get(), Error::<T>::BelowMinimumUnits);
+			ensure!(price_per_unit >= T::MinPricePerUnit::get(), Error::<T>::BelowMinimumPrice);
 
-			let order_id = Self::order_count().ok_or(Error::<T>::OrderIdOverflow)?;
+			// transfer assets from seller to pallet
+			T::Asset::transfer(asset_id, &seller, &Self::account_id(), units, false)?;
+
+			let order_id = Self::order_count();
 
 			OrderCount::<T>::put(order_id + 1);
 
@@ -186,8 +231,14 @@ pub mod pallet {
 
 			ensure!(seller == order.owner, Error::<T>::InvalidOrderOwner);
 
-			// remove hold on asset
-			T::Asset::release(order.asset_id, &seller, order.units, true)?;
+			// transfer assets from pallet to seller
+			T::Asset::transfer(
+				order.asset_id,
+				&Self::account_id(),
+				&order.owner,
+				order.units,
+				false,
+			)?;
 
 			Self::deposit_event(Event::SellOrderCancelled(order_id));
 			Ok(())
@@ -200,9 +251,12 @@ pub mod pallet {
 			order_id: u64,
 			asset_id: AssetIdOf<T>,
 			units: AssetBalanceOf<T>,
-			currency_amount: CurrencyBalanceOf<T>,
 		) -> DispatchResult {
 			let buyer = ensure_signed(origin.clone())?;
+
+			if units.is_zero() {
+				return Ok(())
+			}
 
 			Orders::<T>::try_mutate(order_id, |order| -> DispatchResult {
 				let order = order.as_mut().ok_or(Error::<T>::InvalidOrderId)?;
@@ -235,11 +289,6 @@ pub mod pallet {
 					.checked_add(required_currency)
 					.ok_or(Error::<T>::OrderUnitsOverflow)?;
 
-				ensure!(
-					currency_amount >= required_currency_with_fees.into(),
-					Error::<T>::InsufficientCurrency
-				);
-
 				// send purchase price to seller
 				T::Currency::transfer(
 					T::StableCurrencyId::get(),
@@ -256,9 +305,8 @@ pub mod pallet {
 					required_fees.into(),
 				)?;
 
-				// release asset from seller and transfer to buyer
-				T::Asset::release(order.asset_id, &order.owner, order.units, true)?;
-				T::Asset::transfer(order.asset_id, &order.owner, &buyer, order.units, false)?;
+				// transfer asset to buyer
+				T::Asset::transfer(order.asset_id, &Self::account_id(), &buyer, units, false)?;
 
 				Self::deposit_event(Event::BuyOrderFilled(
 					order_id,

@@ -5550,11 +5550,14 @@ dependencies = [
 name = "pallet-dex"
 version = "0.1.0"
 dependencies = [
+ "bitgreen-primitives",
  "frame-benchmarking",
  "frame-support",
  "frame-system",
+ "orml-tokens",
  "orml-traits",
  "pallet-assets 4.0.0-dev (git+https://github.com/paritytech/substrate.git?branch=polkadot-v0.9.29)",
+ "pallet-balances",
  "parity-scale-codec",
  "scale-info",
  "sp-core",
