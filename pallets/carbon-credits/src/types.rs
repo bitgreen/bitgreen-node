@@ -82,8 +82,6 @@ pub struct ProjectCreateParams<T: pallet::Config> {
 	pub sdg_details: SDGTypesListOf<T>,
 	/// List of batches in the project
 	pub batches: BatchGroupOf<T>,
-	// Price in USD for a single credit
-	pub unit_price: T::Balance,
 	/// The royalties to be paid when tokens are purchased
 	pub royalties: Option<RoyaltyRecipientsOf<T>>,
 }
@@ -138,8 +136,6 @@ pub struct ProjectDetail<T: pallet::Config> {
 	pub minted: T::Balance,
 	/// The count of tokens retired related to the project
 	pub retired: T::Balance,
-	// Price in USD for a single credit
-	pub unit_price: T::Balance,
 }
 
 /// Batch retire data used by pallet

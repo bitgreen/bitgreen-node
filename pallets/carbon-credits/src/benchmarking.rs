@@ -74,7 +74,6 @@ where
 		sdg_details: get_default_sdg_details::<T>(),
 		batches: get_default_batch_group::<T>(),
 		royalties: None,
-		unit_price: 100_u32.into(),
 	};
 
 	creation_params
@@ -190,7 +189,6 @@ benchmarks! {
 			total_supply: 0_u32.into(),
 			minted: 0_u32.into(),
 			retired: 0_u32.into(),
-			unit_price: params.unit_price,
 		};
 	}: _(RawOrigin::Root, project_id, new_project)
 	verify {

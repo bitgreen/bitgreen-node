@@ -91,9 +91,6 @@ impl<T: Config> Pallet<T> {
 
 		ensure!(project_id >= T::MinProjectId::get(), Error::<T>::ProjectIdLowerThanPermitted);
 
-		// the unit price should not be zero
-		ensure!(!params.unit_price.is_zero(), Error::<T>::UnitPriceIsZero);
-
 		Projects::<T>::try_mutate(project_id, |project| -> DispatchResult {
 			ensure!(project.is_none(), Error::<T>::ProjectAlreadyExists);
 
@@ -135,7 +132,6 @@ impl<T: Config> Pallet<T> {
 				total_supply: batch_total_supply,
 				minted: Zero::zero(),
 				retired: Zero::zero(),
-				unit_price: params.unit_price,
 			};
 
 			*project = Some(new_project.clone());
@@ -175,9 +171,6 @@ impl<T: Config> Pallet<T> {
 			// only originator can resubmit
 			ensure!(project.originator == admin, Error::<T>::NotAuthorised);
 
-			// the unit price should not be zero
-			ensure!(!params.unit_price.is_zero(), Error::<T>::UnitPriceIsZero);
-
 			// the total supply of project must match the supply of all batches
 			let mut batch_total_supply: T::Balance = Zero::zero();
 			for batch in params.batches.iter() {
@@ -216,7 +209,6 @@ impl<T: Config> Pallet<T> {
 				total_supply: batch_total_supply,
 				minted: Zero::zero(),
 				retired: Zero::zero(),
-				unit_price: params.unit_price,
 			};
 
 			*project = new_project.clone();

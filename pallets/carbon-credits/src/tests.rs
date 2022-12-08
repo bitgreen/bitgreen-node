@@ -174,7 +174,6 @@ where
 		sdg_details: get_default_sdg_details::<T>(),
 		batches: get_default_batch_group::<T>(),
 		royalties: Some(vec![royalty].try_into().unwrap()),
-		unit_price: 100_u32.into(),
 	};
 
 	creation_params
@@ -275,7 +274,7 @@ fn create_works_for_single_batch() {
 		assert_eq!(stored_data.registry_details, get_default_registry_details::<Test>());
 		assert_eq!(stored_data.sdg_details, get_default_sdg_details::<Test>());
 		assert_eq!(stored_data.batches, get_default_batch_group::<Test>());
-		assert_eq!(stored_data.unit_price, 100_u32.into());
+
 		assert_eq!(stored_data.total_supply, 100_u32.into());
 		assert_eq!(stored_data.minted, 0_u32.into());
 		assert_eq!(stored_data.retired, 0_u32.into());
@@ -312,7 +311,7 @@ fn create_works_for_multiple_batch() {
 		assert_eq!(stored_data.registry_details, get_default_registry_details::<Test>());
 		assert_eq!(stored_data.sdg_details, get_default_sdg_details::<Test>());
 		assert_eq!(stored_data.batches, get_multiple_batch_group::<Test>());
-		assert_eq!(stored_data.unit_price, 100_u32.into());
+
 		// the supply of both batches should be added correctly
 		assert_eq!(stored_data.total_supply, 200_u32.into());
 		assert_eq!(stored_data.minted, 0_u32.into());
@@ -412,7 +411,7 @@ fn resubmit_works() {
 		assert_eq!(stored_data.registry_details, get_default_registry_details::<Test>());
 		assert_eq!(stored_data.sdg_details, get_default_sdg_details::<Test>());
 		assert_eq!(stored_data.batches, get_multiple_batch_group::<Test>());
-		assert_eq!(stored_data.unit_price, 100_u32.into());
+
 		// the supply of both batches should be added correctly
 		assert_eq!(stored_data.total_supply, 200_u32.into());
 		assert_eq!(stored_data.minted, 0_u32.into());
@@ -687,7 +686,7 @@ fn mint_without_list_to_marketplace_works_for_single_batch() {
 		let stored_data = CarbonCredits::get_project_details(project_id).unwrap();
 		assert_eq!(stored_data.originator, originator_account);
 		assert_eq!(stored_data.sdg_details, get_default_sdg_details::<Test>());
-		assert_eq!(stored_data.unit_price, 100_u32.into());
+
 		assert_eq!(stored_data.total_supply, 100_u32.into());
 		assert_eq!(stored_data.minted, amount_to_mint);
 		assert_eq!(stored_data.retired, 0_u32.into());
@@ -777,7 +776,7 @@ fn mint_without_list_to_marketplace_works_for_multiple_batches() {
 		let stored_data = Projects::<Test>::get(project_id).unwrap();
 		assert_eq!(stored_data.originator, originator_account);
 		assert_eq!(stored_data.sdg_details, get_default_sdg_details::<Test>());
-		assert_eq!(stored_data.unit_price, 100_u32.into());
+
 		assert_eq!(stored_data.total_supply, 200_u32.into());
 		assert_eq!(stored_data.minted, amount_to_mint);
 		assert_eq!(stored_data.retired, 0_u32.into());
@@ -860,7 +859,7 @@ fn mint_without_list_to_marketplace_works_for_multiple_batches() {
 		let stored_data = Projects::<Test>::get(project_id).unwrap();
 		assert_eq!(stored_data.originator, originator_account);
 		assert_eq!(stored_data.sdg_details, get_default_sdg_details::<Test>());
-		assert_eq!(stored_data.unit_price, 100_u32.into());
+
 		assert_eq!(stored_data.total_supply, 200_u32.into());
 		assert_eq!(stored_data.minted, 200_u32.into());
 		assert_eq!(stored_data.retired, 0_u32.into());
@@ -970,7 +969,7 @@ fn test_retire_for_single_batch() {
 		let stored_data = Projects::<Test>::get(project_id).unwrap();
 		assert_eq!(stored_data.originator, originator_account);
 		assert_eq!(stored_data.sdg_details, get_default_sdg_details::<Test>());
-		assert_eq!(stored_data.unit_price, 100_u32.into());
+
 		assert_eq!(stored_data.total_supply, 100_u32.into());
 		assert_eq!(stored_data.minted, amount_to_mint);
 		assert_eq!(stored_data.retired, amount_to_retire);
@@ -1038,7 +1037,7 @@ fn test_retire_for_single_batch() {
 		let stored_data = Projects::<Test>::get(project_id).unwrap();
 		assert_eq!(stored_data.originator, originator_account);
 		assert_eq!(stored_data.sdg_details, get_default_sdg_details::<Test>());
-		assert_eq!(stored_data.unit_price, 100_u32.into());
+
 		assert_eq!(stored_data.total_supply, 100_u32.into());
 		assert_eq!(stored_data.minted, amount_to_mint);
 		assert_eq!(stored_data.retired, amount_to_mint);
@@ -1132,7 +1131,7 @@ fn retire_for_multiple_batch() {
 		let mut stored_data = Projects::<Test>::get(project_id).unwrap();
 		assert_eq!(stored_data.originator, originator_account);
 		assert_eq!(stored_data.sdg_details, get_default_sdg_details::<Test>());
-		assert_eq!(stored_data.unit_price, 100_u32.into());
+
 		assert_eq!(stored_data.total_supply, amount_to_mint);
 		assert_eq!(stored_data.minted, amount_to_mint);
 		assert_eq!(stored_data.retired, amount_to_retire);
@@ -1209,7 +1208,7 @@ fn retire_for_multiple_batch() {
 		let mut stored_data = Projects::<Test>::get(project_id).unwrap();
 		assert_eq!(stored_data.originator, originator_account);
 		assert_eq!(stored_data.sdg_details, get_default_sdg_details::<Test>());
-		assert_eq!(stored_data.unit_price, 100_u32.into());
+
 		assert_eq!(stored_data.total_supply, amount_to_mint);
 		assert_eq!(stored_data.minted, amount_to_mint);
 		assert_eq!(stored_data.retired, amount_to_mint);
@@ -1309,7 +1308,7 @@ fn force_approve_and_mint_credits_works() {
 		let stored_data = CarbonCredits::get_project_details(project_id).unwrap();
 		assert_eq!(stored_data.originator, originator_account);
 		assert_eq!(stored_data.sdg_details, get_default_sdg_details::<Test>());
-		assert_eq!(stored_data.unit_price, 100_u32.into());
+
 		assert_eq!(stored_data.total_supply, 100_u32.into());
 		assert_eq!(stored_data.minted, amount_to_mint);
 		assert_eq!(stored_data.retired, 0_u32.into());

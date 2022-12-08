@@ -111,7 +111,6 @@ where
 		sdg_details: get_default_sdg_details::<T>(),
 		batches: get_default_batch_group::<T>(),
 		royalties: Some(vec![royalty].try_into().unwrap()),
-		unit_price: 100_u32.into(),
 	};
 
 	creation_params
