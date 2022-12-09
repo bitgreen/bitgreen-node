@@ -20,9 +20,9 @@ use sp_runtime::traits::{AccountIdConversion, CheckedAdd, CheckedSub, One, Zero}
 use sp_std::{cmp, convert::TryInto, vec::Vec};
 
 use crate::{
-	AuthorizedAccounts, BatchRetireDataList, BatchRetireDataOf, Config, Error, Event, NextAssetId,
-	NextItemId, NextProjectId, Pallet, ProjectCreateParams, ProjectDetail, Projects,
-	RetiredCarbonCreditsData, RetiredCredits,
+	AssetIdLookup, AuthorizedAccounts, BatchRetireDataList, BatchRetireDataOf, Config, Error,
+	Event, NextAssetId, NextItemId, NextProjectId, Pallet, ProjectCreateParams, ProjectDetail,
+	Projects, RetiredCarbonCreditsData, RetiredCredits,
 };
 
 impl<T: Config> Pallet<T> {
@@ -65,7 +65,7 @@ impl<T: Config> Pallet<T> {
 
 			// if approved, create assets
 			if is_approved {
-				for (_group_id, mut group) in project.batch_groups.iter_mut() {
+				for (group_id, mut group) in project.batch_groups.iter_mut() {
 					let asset_id = Self::next_asset_id();
 					let next_asset_id =
 						asset_id.checked_add(&1u32.into()).ok_or(Error::<T>::Overflow)?;
@@ -85,6 +85,8 @@ impl<T: Config> Pallet<T> {
 
 					// set the asset id
 					group.asset_id = asset_id;
+
+					AssetIdLookup::<T>::insert(group.asset_id, (project_id, group_id));
 				}
 
 				Self::deposit_event(Event::ProjectApproved { project_id });
@@ -96,14 +98,18 @@ impl<T: Config> Pallet<T> {
 		})
 	}
 
-	// /// Calculate the issuance year for a project
-	// /// For a project with a single batch it's the issuance year of that batch
-	// /// For a project with multiple batches, its the issuance year of the oldest batch
-	// pub fn calculate_issuance_year(project: ProjectDetail<T>) -> Option<u16> {
-	// 	// the data is stored sorted in ascending order of issuance year, hence first() will always
-	// 	// return oldest batch
-	// 	project.batches.first().map(|x| x.issuance_year)
-	// }
+	/// Calculate the issuance year for a group
+	/// For a project with a single batch it's the issuance year of that batch
+	/// For a project with multiple batches, its the issuance year of the oldest batch
+	pub fn calculate_issuance_year(project: ProjectDetail<T>, group_id: T::GroupId) -> Option<u16> {
+		// the data is stored sorted in ascending order of issuance year, hence first() will always
+		// return oldest batch
+		if let Some(group) = project.batch_groups.get(&group_id) {
+			group.batches.first().map(|x| x.issuance_year)
+		} else {
+			None
+		}
+	}
 
 	/// Create a new project with `params`
 	pub fn create_project(

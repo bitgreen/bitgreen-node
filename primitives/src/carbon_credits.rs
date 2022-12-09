@@ -1,6 +1,5 @@
 use super::*;
-use frame_support::pallet_prelude::Get;
-use frame_support::BoundedVec;
+use frame_support::{pallet_prelude::Get, BoundedVec};
 pub type IssuanceYear = u16;
 
 /// The possible values for Registry Names
@@ -136,13 +135,21 @@ pub struct BatchRetireData<StringType, Balance> {
 /// Representation of a group of credits. Groups are collections of batches of credits
 #[derive(Clone, Encode, Decode, Eq, PartialEq, TypeInfo, Default, Debug, MaxEncodedLen)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub struct BatchGroup<StringType, AssetId, Balance, SDGTypesList, RoyaltyRecipients, Batch, MaxBatches : Get<u32>> {
+pub struct BatchGroup<
+	StringType,
+	AssetId,
+	Balance,
+	SDGTypesList,
+	RoyaltyRecipients,
+	Batch,
+	MaxBatches: Get<u32>,
+> {
 	/// Descriptive name for this batch of credits
 	pub name: StringType,
 	/// UUID for this batch group
 	pub uuid: StringType,
 	/// AssetId representing the asset for this group
-	pub asset_id : AssetId,
+	pub asset_id: AssetId,
 	/// The total_supply of the credits - this represents the total supply of the
 	/// credits in all the batches of group.
 	pub total_supply: Balance,
@@ -156,13 +163,12 @@ pub struct BatchGroup<StringType, AssetId, Balance, SDGTypesList, RoyaltyRecipie
 	pub royalties: Option<RoyaltyRecipients>,
 	/// The list of batches of credits
 	/// A group can represent Carbon credits from multiple batches
-	/// For example a project can have 100 tokens of 2019 vintage and 200 tokens of 2020 vintage. In
-	/// this case the project can package these two vintages to create a carbon credit token that has a
-	/// supply of 300 tokens. These vintages can be represented inside a batchgroup, in this case, it is
-	/// important to remember that the minting and retirement always gives priority to the oldest
-	/// vintage. Example : in the above case of 300 tokens, when the originator mints 100 tokens, we
-	/// first mint the oldest (2019) credits and only once the supply is exhausted we move on the next
-	/// vintage, same for retirement.
+	/// For example a project can have 100 tokens of 2019 vintage and 200 tokens of 2020 vintage.
+	/// In this case the project can package these two vintages to create a carbon credit token
+	/// that has a supply of 300 tokens. These vintages can be represented inside a batchgroup, in
+	/// this case, it is important to remember that the minting and retirement always gives
+	/// priority to the oldest vintage. Example : in the above case of 300 tokens, when the
+	/// originator mints 100 tokens, we first mint the oldest (2019) credits and only once the
+	/// supply is exhausted we move on the next vintage, same for retirement.
 	pub batches: BoundedVec<Batch, MaxBatches>,
 }
-

@@ -230,6 +230,12 @@ pub mod pallet {
 		StorageMap<_, Blake2_128Concat, T::ProjectId, ProjectDetail<T>>;
 
 	#[pallet::storage]
+	#[pallet::getter(fn asset_id_lookup)]
+	/// AssetId details for project/group
+	pub(super) type AssetIdLookup<T: Config> =
+		StorageMap<_, Blake2_128Concat, T::AssetId, (T::ProjectId, T::GroupId)>;
+
+	#[pallet::storage]
 	#[pallet::getter(fn retired_carbon_credits)]
 	/// The retired CarbonCredits record
 	pub(super) type RetiredCredits<T: Config> = StorageDoubleMap<

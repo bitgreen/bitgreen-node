@@ -121,12 +121,7 @@ pub mod pallet {
 		/// A new pool was created
 		PoolCreated { admin: T::AccountId, id: T::PoolId, config: PoolConfigOf<T> },
 		/// A new deposit was added to pool
-		Deposit {
-			who: T::AccountId,
-			pool_id: T::PoolId,
-			project_id: T::AssetId,
-			amount: T::Balance,
-		},
+		Deposit { who: T::AccountId, pool_id: T::PoolId, asset_id: T::AssetId, amount: T::Balance },
 		/// Pool tokens were retired
 		Retired { who: T::AccountId, pool_id: T::PoolId, amount: T::Balance },
 	}
@@ -238,7 +233,7 @@ pub mod pallet {
 		pub fn deposit(
 			origin: OriginFor<T>,
 			pool_id: T::PoolId,
-			project_id: T::AssetId,
+			asset_id: T::AssetId,
 			amount: T::Balance,
 		) -> DispatchResultWithPostInfo {
 			let who = ensure_signed(origin)?;
@@ -247,6 +242,10 @@ pub mod pallet {
 
 			Pools::<T>::try_mutate(pool_id, |pool| -> DispatchResultWithPostInfo {
 				let pool = pool.as_mut().ok_or(Error::<T>::InvalidPoolId)?;
+
+				let (project_id, group_id) =
+					pallet_carbon_credits::Pallet::<T>::asset_id_lookup(asset_id)
+						.ok_or(Error::<T>::InvalidPoolId)?;
 
 				// get the details of project
 				let project_details: pallet_carbon_credits::ProjectDetail<T> =
@@ -269,19 +268,21 @@ pub mod pallet {
 
 				if let Some(project_id_list) = &pool.config.project_id_list {
 					ensure!(
-						project_id_list.contains(&project_id),
+						project_id_list.contains(&asset_id),
 						Error::<T>::ProjectIdNotWhitelisted
 					)
 				}
 
 				// calculate the issuance year for the project
-				let project_issuance_year =
-					pallet_carbon_credits::Pallet::calculate_issuance_year(project_details)
-						.ok_or(Error::<T>::ProjectIssuanceYearError)?;
+				let project_issuance_year = pallet_carbon_credits::Pallet::calculate_issuance_year(
+					project_details,
+					group_id,
+				)
+				.ok_or(Error::<T>::ProjectIssuanceYearError)?;
 
 				// transfer the tokens to pallet account
 				<T as pallet::Config>::AssetHandler::transfer(
-					project_id,
+					asset_id,
 					&who,
 					&Self::account_id(),
 					amount,
@@ -294,7 +295,7 @@ pub mod pallet {
 				// If the issuance year tokens have been deposited to the pool previously
 				// insert the project details
 				if let Some(project_map) = issuance_year_map {
-					let project_details = project_map.get_mut(&project_id);
+					let project_details = project_map.get_mut(&asset_id);
 					// If the project tokens have been previoulsy deposited to the
 					// pool, increment the counter
 					if let Some(existing_amount) = project_details {
@@ -303,14 +304,14 @@ pub mod pallet {
 							.ok_or(Error::<T>::UnexpectedOverflow)?;
 
 						project_map
-							.try_insert(project_id, new_amount)
+							.try_insert(asset_id, new_amount)
 							.map_err(|_| Error::<T>::UnexpectedOverflow)?;
 					}
 					// If the project tokens have been NOT been previoulsy deposited to the
 					// pool, create a new entry
 					else {
 						project_map
-							.try_insert(project_id, amount)
+							.try_insert(asset_id, amount)
 							.map_err(|_| Error::<T>::UnexpectedOverflow)?;
 					}
 				}
@@ -319,7 +320,7 @@ pub mod pallet {
 				else {
 					let mut project_map: ProjectDetails<T> = Default::default();
 					project_map
-						.try_insert(project_id, amount)
+						.try_insert(asset_id, amount)
 						.map_err(|_| Error::<T>::UnexpectedOverflow)?;
 					pool.credits
 						.try_insert(project_issuance_year, project_map)
@@ -330,7 +331,7 @@ pub mod pallet {
 				<T as pallet::Config>::AssetHandler::mint_into(pool_id.into(), &who, amount)?;
 
 				// Emit an event.
-				Self::deposit_event(Event::Deposit { who, pool_id, project_id, amount });
+				Self::deposit_event(Event::Deposit { who, pool_id, asset_id, amount });
 
 				Ok(().into())
 			})
@@ -368,8 +369,7 @@ pub mod pallet {
 				for (_year, project_map) in pool_credits_temp.iter_mut() {
 					// the iterator is sorted by key (year), so retire all from year before moving
 					// to next year we dont care about the project order
-					for (project_id, available_amount) in
-						project_map.clone().into_inner().iter_mut()
+					for (asset_id, available_amount) in project_map.clone().into_inner().iter_mut()
 					{
 						let actual: T::Balance;
 
@@ -383,9 +383,13 @@ pub mod pallet {
 							*available_amount = 0_u32.into();
 						}
 
+						let (project_id, group_id) =
+							pallet_carbon_credits::Pallet::<T>::asset_id_lookup(asset_id)
+								.ok_or(Error::<T>::InvalidPoolId)?;
+
 						// transfer the CarbonCredits tokens to caller
 						<T as pallet::Config>::AssetHandler::transfer(
-							*project_id,
+							*asset_id,
 							&Self::account_id(),
 							&who,
 							actual,
@@ -394,14 +398,15 @@ pub mod pallet {
 						// Retire the transferred tokens
 						pallet_carbon_credits::Pallet::<T>::retire_carbon_credits(
 							who.clone(),
-							*project_id,
+							project_id,
+							group_id,
 							actual,
 						)?;
 
 						// Update value in storage
 						// TODO : Remove entry if value is zero
 						project_map
-							.try_insert(*project_id, *available_amount)
+							.try_insert(*asset_id, *available_amount)
 							.map_err(|_| Error::<T>::UnexpectedOverflow)?;
 
 						// this is safe since actual is <= remaining
