@@ -153,6 +153,7 @@ impl<T: Config> Pallet<T> {
 
 				// sort batch data in ascending order of issuance year
 				group.batches.sort_by(|x, y| x.issuance_year.cmp(&y.issuance_year));
+				group.total_supply = group_total_supply;
 
 				// insert the group to BTreeMap
 				batch_group_map
@@ -234,6 +235,7 @@ impl<T: Config> Pallet<T> {
 
 				// sort batch data in ascending order of issuance year
 				group.batches.sort_by(|x, y| x.issuance_year.cmp(&y.issuance_year));
+				group.total_supply = group_total_supply;
 
 				// insert the group to BTreeMap
 				batch_group_map

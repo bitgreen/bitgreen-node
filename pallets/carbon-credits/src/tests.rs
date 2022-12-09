@@ -5,7 +5,7 @@
 use frame_support::{
 	assert_noop, assert_ok,
 	traits::tokens::fungibles::{metadata::Inspect as MetadataInspect, Inspect},
-	PalletId,
+	BoundedVec, PalletId,
 };
 use frame_system::RawOrigin;
 use primitives::{Batch, RegistryDetails, RegistryName, Royalty, SDGDetails, SdgType};
@@ -13,8 +13,8 @@ use sp_runtime::{traits::AccountIdConversion, Percent};
 use sp_std::convert::TryInto;
 
 use crate::{
-	mock::*, BatchGroupOf, Config, Error, NextItemId, ProjectCreateParams, Projects,
-	RegistryListOf, RetiredCredits, SDGTypesListOf,
+	mock::*, BatchGroupListOf, BatchGroupOf, BatchOf, Config, Error, NextItemId,
+	ProjectCreateParams, Projects, RegistryListOf, RetiredCredits, SDGTypesListOf,
 };
 
 pub type CarbonCreditsEvent = crate::Event<Test>;
@@ -43,9 +43,8 @@ fn get_default_sdg_details<T: Config>() -> SDGTypesListOf<T> {
 	sdg_details
 }
 
-/// helper function to generate standard batch details
-fn get_default_batch_group<T: Config>() -> BatchGroupOf<T> {
-	let batches: BatchGroupOf<T> = vec![Batch {
+fn get_single_batch_list<T: Config>() -> BoundedVec<BatchOf<T>, T::MaxGroupSize> {
+	vec![Batch {
 		name: "batch_name".as_bytes().to_vec().try_into().unwrap(),
 		uuid: "batch_uuid".as_bytes().to_vec().try_into().unwrap(),
 		issuance_year: 2020_u16,
@@ -56,14 +55,11 @@ fn get_default_batch_group<T: Config>() -> BatchGroupOf<T> {
 		retired: 0_u32.into(),
 	}]
 	.try_into()
-	.unwrap();
-
-	batches
+	.unwrap()
 }
 
-/// helper function to generate multiple batch details
-fn get_multiple_batch_group<T: Config>() -> BatchGroupOf<T> {
-	let batches: BatchGroupOf<T> = vec![
+fn get_multiple_batch_list<T: Config>() -> BoundedVec<BatchOf<T>, T::MaxGroupSize> {
+	vec![
 		Batch {
 			name: "batch_name".as_bytes().to_vec().try_into().unwrap(),
 			uuid: "batch_uuid".as_bytes().to_vec().try_into().unwrap(),
@@ -86,18 +82,65 @@ fn get_multiple_batch_group<T: Config>() -> BatchGroupOf<T> {
 		},
 	]
 	.try_into()
-	.unwrap();
+	.unwrap()
+}
 
-	batches
+/// helper function to generate standard batch details
+fn get_default_batch_group<T: Config>() -> BatchGroupListOf<T>
+where
+	<T as frame_system::Config>::AccountId: From<u32>,
+{
+	let royalty = Royalty::<T::AccountId> {
+		account_id: 1_u32.into(),
+		percent_of_fees: Percent::from_percent(0),
+	};
+
+	vec![BatchGroupOf::<T> {
+		name: "batch_group_name".as_bytes().to_vec().try_into().unwrap(),
+		uuid: "batch_group_uuid".as_bytes().to_vec().try_into().unwrap(),
+		asset_id: 0_u32.into(),
+		total_supply: 100_u32.into(),
+		minted: 0_u32.into(),
+		retired: 0_u32.into(),
+		sdg_details: get_default_sdg_details::<T>(),
+		royalties: Some(vec![royalty].try_into().unwrap()),
+		batches: get_single_batch_list::<T>(),
+	}]
+	.try_into()
+	.unwrap()
+}
+
+/// helper function to generate multiple batch details
+fn get_multiple_batch_group<T: Config>() -> BatchGroupListOf<T>
+where
+	<T as frame_system::Config>::AccountId: From<u32>,
+{
+	let royalty = Royalty::<T::AccountId> {
+		account_id: 1_u32.into(),
+		percent_of_fees: Percent::from_percent(0),
+	};
+
+	vec![BatchGroupOf::<T> {
+		name: "batch_group_name".as_bytes().to_vec().try_into().unwrap(),
+		uuid: "batch_group_uuid".as_bytes().to_vec().try_into().unwrap(),
+		asset_id: 0_u32.into(),
+		total_supply: 100_u32.into(),
+		minted: 0_u32.into(),
+		retired: 0_u32.into(),
+		sdg_details: get_default_sdg_details::<T>(),
+		royalties: Some(vec![royalty].try_into().unwrap()),
+		batches: get_multiple_batch_list::<T>(),
+	}]
+	.try_into()
+	.unwrap()
 }
 
 /// helper function to create and approve tokens
-fn create_and_approve_project(project_id: u32, originator_account: u64, authorised_account: u64) {
+fn create_and_approve_project(originator_account: u64, authorised_account: u64) {
 	// create the project to approve
 	let creation_params = get_default_creation_params::<Test>();
 	assert_ok!(CarbonCredits::create(
 		RawOrigin::Signed(originator_account).into(),
-		project_id,
 		creation_params
 	));
 
@@ -106,9 +149,10 @@ fn create_and_approve_project(project_id: u32, originator_account: u64, authoris
 		RawOrigin::Root.into(),
 		authorised_account
 	));
+
 	assert_ok!(CarbonCredits::approve_project(
 		RawOrigin::Signed(authorised_account).into(),
-		project_id,
+		0u32.into(),
 		true
 	),);
 }
@@ -123,20 +167,16 @@ fn add_authorised_account(authorised_account: u64) {
 }
 
 /// helper function to create and approve tokens in batch config
-fn create_and_approve_project_batch(
-	project_id: u32,
-	originator_account: u64,
-	authorised_account: u64,
-) {
+fn create_and_approve_project_batch(originator_account: u64, authorised_account: u64) {
+	let project_id = 0u32;
 	// create the project to approve
 	let mut creation_params = get_default_creation_params::<Test>();
 	// replace the default with mutiple batches
-	let created_batch_list = get_multiple_batch_group::<Test>();
-	creation_params.batches = created_batch_list;
+	let created_batch_group = get_multiple_batch_group::<Test>();
+	creation_params.batch_groups = created_batch_group;
 
 	assert_ok!(CarbonCredits::create(
 		RawOrigin::Signed(originator_account).into(),
-		project_id,
 		creation_params
 	));
 
@@ -157,10 +197,6 @@ fn get_default_creation_params<T: Config>() -> ProjectCreateParams<T>
 where
 	<T as frame_system::Config>::AccountId: From<u32>,
 {
-	let royalty = Royalty::<T::AccountId> {
-		account_id: 1_u32.into(),
-		percent_of_fees: Percent::from_percent(0),
-	};
 	let creation_params = ProjectCreateParams {
 		name: "name".as_bytes().to_vec().try_into().unwrap(),
 		description: "description".as_bytes().to_vec().try_into().unwrap(),
@@ -171,9 +207,7 @@ where
 			.try_into()
 			.unwrap(),
 		registry_details: get_default_registry_details::<T>(),
-		sdg_details: get_default_sdg_details::<T>(),
-		batches: get_default_batch_group::<T>(),
-		royalties: Some(vec![royalty].try_into().unwrap()),
+		batch_groups: get_default_batch_group::<T>(),
 	};
 
 	creation_params
@@ -256,13 +290,12 @@ fn force_remove_authorized_accounts_should_work() {
 fn create_works_for_single_batch() {
 	new_test_ext().execute_with(|| {
 		let originator_account = 1;
-		let project_id = 1001;
+		let project_id = 0;
 
 		let creation_params = get_default_creation_params::<Test>();
 
 		assert_ok!(CarbonCredits::create(
 			RawOrigin::Signed(originator_account).into(),
-			project_id,
 			creation_params.clone()
 		));
 
@@ -272,18 +305,16 @@ fn create_works_for_single_batch() {
 		assert_eq!(stored_data.originator, originator_account);
 		assert_eq!(stored_data.name, creation_params.name);
 		assert_eq!(stored_data.registry_details, get_default_registry_details::<Test>());
-		assert_eq!(stored_data.sdg_details, get_default_sdg_details::<Test>());
-		assert_eq!(stored_data.batches, get_default_batch_group::<Test>());
-
-		assert_eq!(stored_data.total_supply, 100_u32.into());
-		assert_eq!(stored_data.minted, 0_u32.into());
-		assert_eq!(stored_data.retired, 0_u32.into());
 		assert!(!stored_data.approved);
 
-		assert_eq!(
-			last_event(),
-			CarbonCreditsEvent::ProjectCreated { project_id, details: stored_data }.into()
-		);
+		let group_data = stored_data.batch_groups.get(&0u32).unwrap();
+		assert_eq!(group_data.sdg_details, get_default_sdg_details::<Test>());
+		assert_eq!(group_data.batches, get_single_batch_list::<Test>());
+		assert_eq!(group_data.total_supply, 100_u32.into());
+		assert_eq!(group_data.minted, 0_u32.into());
+		assert_eq!(group_data.retired, 0_u32.into());
+
+		assert_eq!(last_event(), CarbonCreditsEvent::ProjectCreated { project_id }.into());
 	});
 }
 
@@ -291,15 +322,14 @@ fn create_works_for_single_batch() {
 fn create_works_for_multiple_batch() {
 	new_test_ext().execute_with(|| {
 		let originator_account = 1;
-		let project_id = 1001;
+		let project_id = 0;
 
 		let mut creation_params = get_default_creation_params::<Test>();
 		// replace the default with mutiple batches
-		creation_params.batches = get_multiple_batch_group::<Test>();
+		creation_params.batch_groups = get_multiple_batch_group::<Test>();
 
 		assert_ok!(CarbonCredits::create(
 			RawOrigin::Signed(originator_account).into(),
-			project_id,
 			creation_params.clone()
 		));
 
@@ -309,19 +339,16 @@ fn create_works_for_multiple_batch() {
 		assert_eq!(stored_data.originator, originator_account);
 		assert_eq!(stored_data.name, creation_params.name);
 		assert_eq!(stored_data.registry_details, get_default_registry_details::<Test>());
-		assert_eq!(stored_data.sdg_details, get_default_sdg_details::<Test>());
-		assert_eq!(stored_data.batches, get_multiple_batch_group::<Test>());
-
-		// the supply of both batches should be added correctly
-		assert_eq!(stored_data.total_supply, 200_u32.into());
-		assert_eq!(stored_data.minted, 0_u32.into());
-		assert_eq!(stored_data.retired, 0_u32.into());
 		assert!(!stored_data.approved);
 
-		assert_eq!(
-			last_event(),
-			CarbonCreditsEvent::ProjectCreated { project_id, details: stored_data }.into()
-		);
+		let group_data = stored_data.batch_groups.get(&0u32).unwrap();
+		assert_eq!(group_data.sdg_details, get_default_sdg_details::<Test>());
+		assert_eq!(group_data.batches, get_multiple_batch_list::<Test>());
+		assert_eq!(group_data.total_supply, 200_u32.into());
+		assert_eq!(group_data.minted, 0_u32.into());
+		assert_eq!(group_data.retired, 0_u32.into());
+
+		assert_eq!(last_event(), CarbonCreditsEvent::ProjectCreated { project_id }.into());
 	});
 }
 
@@ -329,11 +356,10 @@ fn create_works_for_multiple_batch() {
 fn create_fails_for_multiple_batch_with_single_batch_supply_zero() {
 	new_test_ext().execute_with(|| {
 		let originator_account = 1;
-		let project_id = 1001;
 
 		let mut creation_params = get_default_creation_params::<Test>();
 		// replace the default with mutiple batches
-		creation_params.batches = vec![
+		let batches: BoundedVec<BatchOf<Test>, <Test as Config>::MaxGroupSize> = vec![
 			Batch {
 				name: "batch_name".as_bytes().to_vec().try_into().unwrap(),
 				uuid: "batch_uuid".as_bytes().to_vec().try_into().unwrap(),
@@ -358,12 +384,24 @@ fn create_fails_for_multiple_batch_with_single_batch_supply_zero() {
 		.try_into()
 		.unwrap();
 
+		let batch_groups = vec![BatchGroupOf::<Test> {
+			name: "batch_group_name".as_bytes().to_vec().try_into().unwrap(),
+			uuid: "batch_group_uuid".as_bytes().to_vec().try_into().unwrap(),
+			asset_id: 0_u32.into(),
+			total_supply: 100_u32.into(),
+			minted: 0_u32.into(),
+			retired: 0_u32.into(),
+			sdg_details: get_default_sdg_details::<Test>(),
+			royalties: None,
+			batches,
+		}]
+		.try_into()
+		.unwrap();
+
+		creation_params.batch_groups = batch_groups;
+
 		assert_noop!(
-			CarbonCredits::create(
-				RawOrigin::Signed(originator_account).into(),
-				project_id,
-				creation_params
-			),
+			CarbonCredits::create(RawOrigin::Signed(originator_account).into(), creation_params),
 			Error::<Test>::CannotCreateProjectWithoutCredits
 		);
 	});
@@ -374,15 +412,14 @@ fn resubmit_works() {
 	new_test_ext().execute_with(|| {
 		let originator_account = 1;
 		let authorised_account = 10;
-		let project_id = 1001;
+		let project_id = 0;
 
 		let mut creation_params = get_default_creation_params::<Test>();
 		// replace the default with mutiple batches
-		creation_params.batches = get_multiple_batch_group::<Test>();
+		creation_params.batch_groups = get_multiple_batch_group::<Test>();
 
 		assert_ok!(CarbonCredits::create(
 			RawOrigin::Signed(originator_account).into(),
-			project_id,
 			creation_params.clone()
 		));
 
@@ -405,18 +442,17 @@ fn resubmit_works() {
 
 		// ensure the storage is populated correctly
 		let stored_data = Projects::<Test>::get(project_id).unwrap();
-
 		assert_eq!(stored_data.originator, originator_account);
 		assert_eq!(stored_data.name, creation_params.name);
 		assert_eq!(stored_data.registry_details, get_default_registry_details::<Test>());
-		assert_eq!(stored_data.sdg_details, get_default_sdg_details::<Test>());
-		assert_eq!(stored_data.batches, get_multiple_batch_group::<Test>());
+		assert!(!stored_data.approved);
 
 		// the supply of both batches should be added correctly
-		assert_eq!(stored_data.total_supply, 200_u32.into());
-		assert_eq!(stored_data.minted, 0_u32.into());
-		assert_eq!(stored_data.retired, 0_u32.into());
-		assert!(!stored_data.approved);
+		let group_data = stored_data.batch_groups.get(&0u32).unwrap();
+		assert_eq!(group_data.batches, get_multiple_batch_list::<Test>());
+		assert_eq!(group_data.total_supply, 200_u32.into());
+		assert_eq!(group_data.minted, 0_u32.into());
+		assert_eq!(group_data.retired, 0_u32.into());
 
 		assert_eq!(
 			last_event(),
@@ -447,50 +483,12 @@ fn resubmit_works() {
 }
 
 #[test]
-fn cleanup_after_project_reject_works() {
-	new_test_ext().execute_with(|| {
-		let originator_account = 1;
-		let authorised_account = 10;
-		let project_id = 1001;
-
-		// authorise the account
-		assert_ok!(CarbonCredits::force_add_authorized_account(
-			RawOrigin::Root.into(),
-			authorised_account
-		));
-
-		// create the project to approve
-		let creation_params = get_default_creation_params::<Test>();
-		assert_ok!(CarbonCredits::create(
-			RawOrigin::Signed(originator_account).into(),
-			project_id,
-			creation_params
-		));
-
-		// reject the project
-		assert_ok!(CarbonCredits::approve_project(
-			RawOrigin::Signed(authorised_account).into(),
-			project_id,
-			false
-		),);
-
-		assert_eq!(last_event(), CarbonCreditsEvent::ProjectRejected { project_id }.into());
-
-		// remove the project from storage
-		assert_ok!(CarbonCredits::force_remove_project(RawOrigin::Root.into(), project_id,),);
-
-		// ensure storage is cleaned
-		assert_eq!(CarbonCredits::get_project_details(project_id), None);
-		assert_eq!(Assets::total_issuance(project_id), 0);
-	});
-}
-
-#[test]
 fn approve_project_works() {
 	new_test_ext().execute_with(|| {
 		let originator_account = 1;
 		let authorised_account = 10;
-		let project_id = 1001;
+		let project_id = 0;
+		let asset_id = 0;
 
 		// non authorised account should trigger an error
 		assert_noop!(
@@ -522,7 +520,6 @@ fn approve_project_works() {
 		let creation_params = get_default_creation_params::<Test>();
 		assert_ok!(CarbonCredits::create(
 			RawOrigin::Signed(originator_account).into(),
-			project_id,
 			creation_params
 		));
 
@@ -542,8 +539,50 @@ fn approve_project_works() {
 		// ensure storage changed correctly
 		let stored_data = Projects::<Test>::get(project_id).unwrap();
 		assert!(stored_data.approved);
+		// the asset_id should be set correctly
+		let group_data = stored_data.batch_groups.get(&0u32).unwrap();
+		assert_eq!(group_data.asset_id, asset_id);
+		assert_eq!(Assets::total_issuance(asset_id), 0);
 
 		assert_eq!(last_event(), CarbonCreditsEvent::ProjectApproved { project_id }.into());
+	});
+}
+
+#[test]
+fn cleanup_after_project_reject_works() {
+	new_test_ext().execute_with(|| {
+		let originator_account = 1;
+		let authorised_account = 10;
+		let project_id = 0;
+
+		// authorise the account
+		assert_ok!(CarbonCredits::force_add_authorized_account(
+			RawOrigin::Root.into(),
+			authorised_account
+		));
+
+		// create the project to approve
+		let creation_params = get_default_creation_params::<Test>();
+		assert_ok!(CarbonCredits::create(
+			RawOrigin::Signed(originator_account).into(),
+			creation_params
+		));
+
+		// approve the project to create asset
+		assert_ok!(CarbonCredits::approve_project(
+			RawOrigin::Signed(authorised_account).into(),
+			project_id,
+			true
+		),);
+
+		assert_eq!(last_event(), CarbonCreditsEvent::ProjectApproved { project_id }.into());
+
+		// remove the project from storage
+		assert_ok!(CarbonCredits::force_remove_project(RawOrigin::Root.into(), project_id,),);
+
+		// ensure storage is cleaned
+		assert_eq!(CarbonCredits::get_project_details(project_id), None);
+		assert_eq!(Assets::total_issuance(0), 0);
 	});
 }
 
@@ -551,7 +590,7 @@ fn approve_project_works() {
 fn mint_non_authorised_account_should_fail() {
 	new_test_ext().execute_with(|| {
 		assert_noop!(
-			CarbonCredits::mint(RawOrigin::Signed(1).into(), 1001, 100, false),
+			CarbonCredits::mint(RawOrigin::Signed(1).into(), 1001, 100, 100, false),
 			Error::<Test>::NotAuthorised
 		);
 	});
@@ -564,7 +603,7 @@ fn mint_non_existent_project_should_fail() {
 
 		// minting a non existent project should fail
 		assert_noop!(
-			CarbonCredits::mint(RawOrigin::Signed(1).into(), 1001, 100, false),
+			CarbonCredits::mint(RawOrigin::Signed(1).into(), 1001, 100, 100, false),
 			Error::<Test>::ProjectNotFound
 		);
 	});
@@ -574,7 +613,8 @@ fn mint_non_existent_project_should_fail() {
 fn mint_non_approved_project_should_fail() {
 	new_test_ext().execute_with(|| {
 		let originator_account = 1;
-		let project_id = 1001;
+		let project_id = 0;
+		let group_id = 0;
 		// token minting params
 		let amount_to_mint = 50;
 		let list_to_marketplace = false;
@@ -583,7 +623,6 @@ fn mint_non_approved_project_should_fail() {
 		let creation_params = get_default_creation_params::<Test>();
 		assert_ok!(CarbonCredits::create(
 			RawOrigin::Signed(originator_account).into(),
-			project_id,
 			creation_params
 		));
 
@@ -592,6 +631,7 @@ fn mint_non_approved_project_should_fail() {
 			CarbonCredits::mint(
 				RawOrigin::Signed(10).into(),
 				project_id,
+				group_id,
 				amount_to_mint,
 				list_to_marketplace
 			),
@@ -611,7 +651,7 @@ fn mint_non_approved_project_should_fail() {
 //         let list_to_marketplace = false;
 
 //         // create the project to approve
-//         create_and_approve_project(project_id, originator_account, authorised_account);
+//         create_and_approve_project(originator_account, authorised_account);
 
 //         // only originator can mint tokens
 //         assert_noop!(
@@ -630,19 +670,21 @@ fn mint_non_approved_project_should_fail() {
 fn test_cannot_mint_more_than_supply() {
 	new_test_ext().execute_with(|| {
 		let originator_account = 1;
-		let project_id = 1001;
+		let project_id = 0;
+		let group_id = 0;
 		// token minting params
 		let authorised_account = 10;
 		let list_to_marketplace = false;
 
 		// create the project to approve
-		create_and_approve_project(project_id, originator_account, authorised_account);
+		create_and_approve_project(originator_account, authorised_account);
 
 		// cannot mint more than supply
 		assert_noop!(
 			CarbonCredits::mint(
 				RawOrigin::Signed(authorised_account).into(),
 				project_id,
+				group_id,
 				10_000,
 				list_to_marketplace
 			),
@@ -656,18 +698,20 @@ fn mint_without_list_to_marketplace_works_for_single_batch() {
 	new_test_ext().execute_with(|| {
 		let originator_account = 1;
 		let authorised_account = 10;
-		let project_id = 1001;
+		let project_id = 0;
+		let group_id = 0;
 		// token minting params
-		let amount_to_mint = 50;
+		let amount_to_mint: u128 = 50;
 		let list_to_marketplace = false;
 		let expected_asset_id = project_id;
 
-		create_and_approve_project(project_id, originator_account, authorised_account);
+		create_and_approve_project(originator_account, authorised_account);
 
 		// mint should work with all params correct
 		assert_ok!(CarbonCredits::mint(
 			RawOrigin::Signed(authorised_account).into(),
 			project_id,
+			group_id,
 			amount_to_mint,
 			list_to_marketplace
 		));
@@ -685,15 +729,15 @@ fn mint_without_list_to_marketplace_works_for_single_batch() {
 		// ensure minting worked correctly
 		let stored_data = CarbonCredits::get_project_details(project_id).unwrap();
 		assert_eq!(stored_data.originator, originator_account);
-		assert_eq!(stored_data.sdg_details, get_default_sdg_details::<Test>());
 
-		assert_eq!(stored_data.total_supply, 100_u32.into());
-		assert_eq!(stored_data.minted, amount_to_mint);
-		assert_eq!(stored_data.retired, 0_u32.into());
+		let group_data = stored_data.batch_groups.get(&group_id).unwrap();
+		assert_eq!(group_data.total_supply, 100_u32.into());
+		assert_eq!(group_data.minted, amount_to_mint);
+		assert_eq!(group_data.retired, 0_u32.into());
 		assert!(stored_data.approved);
 
 		// the batch should also be updated with minted count
-		let batch_detail = stored_data.batches.first().unwrap();
+		let batch_detail = group_data.batches.first().unwrap();
 		assert_eq!(batch_detail.total_supply, 100_u32.into());
 		assert_eq!(batch_detail.minted, amount_to_mint);
 		assert_eq!(batch_detail.retired, 0);
@@ -704,8 +748,8 @@ fn mint_without_list_to_marketplace_works_for_single_batch() {
 		assert_eq!(Assets::balance(expected_asset_id, originator_account), amount_to_mint);
 
 		// the minted token metadata should be set correctly
-		assert_eq!(Assets::name(expected_asset_id), "name".as_bytes().to_vec());
-		assert_eq!(Assets::symbol(expected_asset_id), "1001".as_bytes().to_vec());
+		assert_eq!(Assets::name(expected_asset_id), "0".as_bytes().to_vec());
+		assert_eq!(Assets::symbol(expected_asset_id), "0".as_bytes().to_vec());
 		assert_eq!(Assets::decimals(expected_asset_id), 0_u8);
 
 		// the originator can freely transfer the tokens
@@ -746,18 +790,20 @@ fn mint_without_list_to_marketplace_works_for_multiple_batches() {
 	new_test_ext().execute_with(|| {
 		let originator_account = 1;
 		let authorised_account = 10;
-		let project_id = 1001;
+		let project_id = 0;
+		let group_id = 0;
 		// the amount will consume full of first batch and half of second batch
-		let amount_to_mint = 150;
+		let amount_to_mint: u128 = 150;
 		let list_to_marketplace = false;
 		let expected_asset_id = project_id;
 
-		create_and_approve_project_batch(project_id, originator_account, authorised_account);
+		create_and_approve_project_batch(originator_account, authorised_account);
 
 		// mint should work with all params correct
 		assert_ok!(CarbonCredits::mint(
 			RawOrigin::Signed(authorised_account).into(),
 			project_id,
+			group_id,
 			amount_to_mint,
 			list_to_marketplace
 		));
@@ -775,18 +821,18 @@ fn mint_without_list_to_marketplace_works_for_multiple_batches() {
 		// ensure minting worked correctly
 		let stored_data = Projects::<Test>::get(project_id).unwrap();
 		assert_eq!(stored_data.originator, originator_account);
-		assert_eq!(stored_data.sdg_details, get_default_sdg_details::<Test>());
 
-		assert_eq!(stored_data.total_supply, 200_u32.into());
-		assert_eq!(stored_data.minted, amount_to_mint);
-		assert_eq!(stored_data.retired, 0_u32.into());
+		let group_data = stored_data.batch_groups.get(&group_id).unwrap();
+		assert_eq!(group_data.total_supply, 200_u32.into());
+		assert_eq!(group_data.minted, amount_to_mint);
+		assert_eq!(group_data.retired, 0_u32.into());
 		assert!(stored_data.approved);
 
 		// the batch should also be updated with minted count
 		// we have a total supply of 200, with 100 in each batch
 		// we minted 150 tokens so 100 should be minted from the oldest batch
 		// and the rest 50 should be minted from the next batch
-		let mut stored_batches: Vec<Batch<_, _>> = stored_data.batches.into_iter().collect();
+		let mut stored_batches: Vec<Batch<_, _>> = group_data.batches.clone().into_iter().collect();
 		// this should have been sorted so arranged in the ascending order of issuance date
 		let newest_batch = stored_batches.pop().unwrap();
 		assert_eq!(newest_batch.issuance_year, 2021);
@@ -841,6 +887,7 @@ fn mint_without_list_to_marketplace_works_for_multiple_batches() {
 			CarbonCredits::mint(
 				RawOrigin::Signed(authorised_account).into(),
 				project_id,
+				group_id,
 				amount_to_mint,
 				list_to_marketplace
 			),
@@ -851,25 +898,24 @@ fn mint_without_list_to_marketplace_works_for_multiple_batches() {
 		assert_ok!(CarbonCredits::mint(
 			RawOrigin::Signed(authorised_account).into(),
 			project_id,
+			group_id,
 			50,
 			list_to_marketplace
 		));
 
 		// ensure minting worked correctly
 		let stored_data = Projects::<Test>::get(project_id).unwrap();
-		assert_eq!(stored_data.originator, originator_account);
-		assert_eq!(stored_data.sdg_details, get_default_sdg_details::<Test>());
-
-		assert_eq!(stored_data.total_supply, 200_u32.into());
-		assert_eq!(stored_data.minted, 200_u32.into());
-		assert_eq!(stored_data.retired, 0_u32.into());
+		let group_data = stored_data.batch_groups.get(&group_id).unwrap();
+		assert_eq!(group_data.total_supply, 200_u32.into());
+		assert_eq!(group_data.minted, 200_u32.into());
+		assert_eq!(group_data.retired, 0_u32.into());
 		assert!(stored_data.approved);
 
 		// the batch should also be updated with minted count
 		// we have a total supply of 200, with 100 in each batch
 		// we minted 150 tokens in the previous run, 100 from oldest batch and 50 from newest batch
 		// so the new 50 tokens should be minted from the newest batch
-		let mut stored_batches: Vec<Batch<_, _>> = stored_data.batches.into_iter().collect();
+		let mut stored_batches: Vec<Batch<_, _>> = group_data.batches.clone().into_iter().collect();
 		// this should have been sorted so arranged in the ascending order of issuance date
 		let newest_batch = stored_batches.pop().unwrap();
 		assert_eq!(newest_batch.issuance_year, 2021);
@@ -885,14 +931,14 @@ fn mint_without_list_to_marketplace_works_for_multiple_batches() {
 	});
 }
 
-// TODO : Add tests for list_marketplace true
+// // TODO : Add tests for list_marketplace true
 
 #[test]
 fn retire_non_existent_project_should_fail() {
 	new_test_ext().execute_with(|| {
 		// retire a non existent project should fail
 		assert_noop!(
-			CarbonCredits::retire(RawOrigin::Signed(10).into(), 1001, 100,),
+			CarbonCredits::retire(RawOrigin::Signed(10).into(), 1001, 100, 100,),
 			Error::<Test>::ProjectNotFound
 		);
 	});
@@ -902,19 +948,15 @@ fn retire_non_existent_project_should_fail() {
 fn test_retire_non_minted_project_should_fail() {
 	new_test_ext().execute_with(|| {
 		let originator_account = 1;
-		let project_id = 1001;
+		let project_id = 0;
+		let group_id = 0;
 
 		// create the project
-		let creation_params = get_default_creation_params::<Test>();
-		assert_ok!(CarbonCredits::create(
-			RawOrigin::Signed(originator_account).into(),
-			project_id,
-			creation_params
-		));
+		create_and_approve_project_batch(originator_account, 10);
 
 		// calling retire from a non minted project should fail
 		assert_noop!(
-			CarbonCredits::retire(RawOrigin::Signed(3).into(), project_id, 100,),
+			CarbonCredits::retire(RawOrigin::Signed(3).into(), project_id, group_id, 100u128),
 			pallet_assets::Error::<Test>::NoAccount
 		);
 	});
@@ -925,26 +967,33 @@ fn test_retire_for_single_batch() {
 	new_test_ext().execute_with(|| {
 		let originator_account = 1;
 		let authorised_account = 10;
-		let project_id = 1001;
+		let project_id = 0;
+		let group_id = 0;
 		// token minting params
-		let amount_to_mint = 100;
-		let amount_to_retire = 50;
+		let amount_to_mint: u128 = 100;
+		let amount_to_retire: u128 = 50;
 		let list_to_marketplace = false;
-		let expected_asset_id = project_id;
+		let expected_asset_id = 0;
 
-		create_and_approve_project(project_id, originator_account, authorised_account);
+		create_and_approve_project(originator_account, authorised_account);
 
 		// mint should work with all params correct
 		assert_ok!(CarbonCredits::mint(
 			RawOrigin::Signed(authorised_account).into(),
 			project_id,
+			group_id,
 			amount_to_mint,
 			list_to_marketplace
 		));
 
 		// calling retire from an account that holds no token should fail
 		assert_noop!(
-			CarbonCredits::retire(RawOrigin::Signed(3).into(), project_id, amount_to_mint,),
+			CarbonCredits::retire(
+				RawOrigin::Signed(3).into(),
+				project_id,
+				group_id,
+				amount_to_mint,
+			),
 			pallet_assets::Error::<Test>::NoAccount
 		);
 
@@ -953,6 +1002,7 @@ fn test_retire_for_single_batch() {
 			CarbonCredits::retire(
 				RawOrigin::Signed(originator_account).into(),
 				project_id,
+				group_id,
 				amount_to_mint + 1,
 			),
 			pallet_assets::Error::<Test>::BalanceLow
@@ -962,21 +1012,20 @@ fn test_retire_for_single_batch() {
 		assert_ok!(CarbonCredits::retire(
 			RawOrigin::Signed(originator_account).into(),
 			project_id,
+			group_id,
 			amount_to_retire
 		));
 
 		// Ensure the retirement happend correctly
 		let stored_data = Projects::<Test>::get(project_id).unwrap();
 		assert_eq!(stored_data.originator, originator_account);
-		assert_eq!(stored_data.sdg_details, get_default_sdg_details::<Test>());
-
-		assert_eq!(stored_data.total_supply, 100_u32.into());
-		assert_eq!(stored_data.minted, amount_to_mint);
-		assert_eq!(stored_data.retired, amount_to_retire);
-		assert!(stored_data.approved);
+		let group_data = stored_data.batch_groups.get(&group_id).unwrap();
+		assert_eq!(group_data.total_supply, 100_u32.into());
+		assert_eq!(group_data.minted, amount_to_mint);
+		assert_eq!(group_data.retired, amount_to_retire);
 
 		// the batch should also be updated with retired count
-		let batch_detail = stored_data.batches.first().unwrap();
+		let batch_detail = group_data.batches.first().unwrap();
 		assert_eq!(batch_detail.total_supply, 100_u32.into());
 		assert_eq!(batch_detail.minted, amount_to_mint);
 		assert_eq!(batch_detail.retired, amount_to_retire);
@@ -1009,8 +1058,14 @@ fn test_retire_for_single_batch() {
 		assert_eq!(stored_retired_data.account, originator_account);
 		assert_eq!(stored_retired_data.retire_data.len(), 1);
 		let retired_batch = stored_retired_data.retire_data.first().unwrap();
-		assert_eq!(retired_batch.name, creation_params.batches.first().unwrap().name);
-		assert_eq!(retired_batch.uuid, creation_params.batches.first().unwrap().uuid);
+		assert_eq!(
+			retired_batch.name,
+			creation_params.batch_groups.first().unwrap().batches.first().unwrap().name
+		);
+		assert_eq!(
+			retired_batch.uuid,
+			creation_params.batch_groups.first().unwrap().batches.first().unwrap().uuid
+		);
 		assert_eq!(retired_batch.issuance_year, 2020);
 		assert_eq!(retired_batch.count, amount_to_retire);
 		assert_eq!(stored_retired_data.timestamp, 1);
@@ -1030,21 +1085,20 @@ fn test_retire_for_single_batch() {
 		assert_ok!(CarbonCredits::retire(
 			RawOrigin::Signed(originator_account).into(),
 			project_id,
+			group_id,
 			amount_to_mint - amount_to_retire
 		));
 
 		// Ensure the retirement happend correctly
 		let stored_data = Projects::<Test>::get(project_id).unwrap();
 		assert_eq!(stored_data.originator, originator_account);
-		assert_eq!(stored_data.sdg_details, get_default_sdg_details::<Test>());
-
-		assert_eq!(stored_data.total_supply, 100_u32.into());
-		assert_eq!(stored_data.minted, amount_to_mint);
-		assert_eq!(stored_data.retired, amount_to_mint);
-		assert!(stored_data.approved);
+		let group_data = stored_data.batch_groups.get(&group_id).unwrap();
+		assert_eq!(group_data.total_supply, 100_u32.into());
+		assert_eq!(group_data.minted, amount_to_mint);
+		assert_eq!(group_data.retired, amount_to_mint);
 
 		// the batch should also be updated with retired count
-		let batch_detail = stored_data.batches.first().unwrap();
+		let batch_detail = group_data.batches.first().unwrap();
 		assert_eq!(batch_detail.total_supply, 100_u32.into());
 		assert_eq!(batch_detail.minted, amount_to_mint);
 		assert_eq!(batch_detail.retired, amount_to_mint);
@@ -1059,6 +1113,7 @@ fn test_retire_for_single_batch() {
 			CarbonCredits::mint(
 				RawOrigin::Signed(authorised_account).into(),
 				project_id,
+				group_id,
 				amount_to_mint,
 				list_to_marketplace
 			),
@@ -1080,8 +1135,14 @@ fn test_retire_for_single_batch() {
 		assert_eq!(stored_retired_data.account, originator_account);
 		assert_eq!(stored_retired_data.retire_data.len(), 1);
 		let retired_batch = stored_retired_data.retire_data.first().unwrap();
-		assert_eq!(retired_batch.name, creation_params.batches.first().unwrap().name);
-		assert_eq!(retired_batch.uuid, creation_params.batches.first().unwrap().uuid);
+		assert_eq!(
+			retired_batch.name,
+			creation_params.batch_groups.first().unwrap().batches.first().unwrap().name
+		);
+		assert_eq!(
+			retired_batch.uuid,
+			creation_params.batch_groups.first().unwrap().batches.first().unwrap().uuid
+		);
 		assert_eq!(retired_batch.issuance_year, 2020);
 		assert_eq!(retired_batch.count, amount_to_retire);
 		assert_eq!(stored_retired_data.timestamp, 1);
@@ -1093,19 +1154,21 @@ fn retire_for_multiple_batch() {
 	new_test_ext().execute_with(|| {
 		let originator_account = 1;
 		let authorised_account = 10;
-		let project_id = 1001;
+		let project_id = 0;
+		let group_id = 0;
 		// token minting params
-		let amount_to_mint = 200;
-		let amount_to_retire = 50;
+		let amount_to_mint: u128 = 200;
+		let amount_to_retire: u128 = 50;
 		let list_to_marketplace = false;
-		let expected_asset_id = project_id;
+		let expected_asset_id = 0;
 
-		create_and_approve_project_batch(project_id, originator_account, authorised_account);
+		create_and_approve_project_batch(originator_account, authorised_account);
 
 		// mint should work with all params correct
 		assert_ok!(CarbonCredits::mint(
 			RawOrigin::Signed(authorised_account).into(),
 			project_id,
+			group_id,
 			amount_to_mint,
 			list_to_marketplace
 		));
@@ -1115,6 +1178,7 @@ fn retire_for_multiple_batch() {
 			CarbonCredits::retire(
 				RawOrigin::Signed(originator_account).into(),
 				project_id,
+				group_id,
 				amount_to_mint + 1,
 			),
 			pallet_assets::Error::<Test>::BalanceLow
@@ -1124,30 +1188,29 @@ fn retire_for_multiple_batch() {
 		assert_ok!(CarbonCredits::retire(
 			RawOrigin::Signed(originator_account).into(),
 			project_id,
+			group_id,
 			amount_to_retire
 		));
 
 		// Ensure the retirement happend correctly
 		let mut stored_data = Projects::<Test>::get(project_id).unwrap();
 		assert_eq!(stored_data.originator, originator_account);
-		assert_eq!(stored_data.sdg_details, get_default_sdg_details::<Test>());
-
-		assert_eq!(stored_data.total_supply, amount_to_mint);
-		assert_eq!(stored_data.minted, amount_to_mint);
-		assert_eq!(stored_data.retired, amount_to_retire);
-		assert!(stored_data.approved);
+		let group_data = stored_data.batch_groups.get_mut(&group_id).unwrap();
+		assert_eq!(group_data.total_supply, amount_to_mint);
+		assert_eq!(group_data.minted, amount_to_mint);
+		assert_eq!(group_data.retired, amount_to_retire);
 
 		// the batch should be udpated correctly, should be retired from the oldest batch
 		// this should have been sorted so arranged in the ascending order of issuance date
 		// the newest should not have any retired
-		let batch_detail = stored_data.batches.pop().unwrap();
+		let batch_detail = group_data.batches.pop().unwrap();
 		assert_eq!(batch_detail.total_supply, 100_u32.into());
 		assert_eq!(batch_detail.minted, 100);
 		assert_eq!(batch_detail.retired, 0);
 		assert_eq!(batch_detail.issuance_year, 2021);
 
 		// the oldest batch should have retired the amount
-		let batch_detail = stored_data.batches.pop().unwrap();
+		let batch_detail = group_data.batches.pop().unwrap();
 		assert_eq!(batch_detail.total_supply, 100_u32.into());
 		assert_eq!(batch_detail.minted, 100);
 		assert_eq!(batch_detail.retired, amount_to_retire);
@@ -1201,29 +1264,28 @@ fn retire_for_multiple_batch() {
 		assert_ok!(CarbonCredits::retire(
 			RawOrigin::Signed(originator_account).into(),
 			project_id,
+			group_id,
 			amount_to_mint - amount_to_retire
 		));
 
 		// Ensure the retirement happend correctly
 		let mut stored_data = Projects::<Test>::get(project_id).unwrap();
 		assert_eq!(stored_data.originator, originator_account);
-		assert_eq!(stored_data.sdg_details, get_default_sdg_details::<Test>());
-
-		assert_eq!(stored_data.total_supply, amount_to_mint);
-		assert_eq!(stored_data.minted, amount_to_mint);
-		assert_eq!(stored_data.retired, amount_to_mint);
-		assert!(stored_data.approved);
+		let group_data = stored_data.batch_groups.get_mut(&group_id).unwrap();
+		assert_eq!(group_data.total_supply, amount_to_mint);
+		assert_eq!(group_data.minted, amount_to_mint);
+		assert_eq!(group_data.retired, amount_to_mint);
 
 		// the batch should be udpated correctly, should be retired from the oldest batch
 		// this should have been sorted so arranged in the ascending order of issuance date
-		let batch_detail = stored_data.batches.pop().unwrap();
+		let batch_detail = group_data.batches.pop().unwrap();
 		assert_eq!(batch_detail.total_supply, 100_u32.into());
 		assert_eq!(batch_detail.minted, 100);
 		assert_eq!(batch_detail.retired, 100);
 		assert_eq!(batch_detail.issuance_year, 2021);
 
 		// the oldest batch should have retired the amount
-		let batch_detail = stored_data.batches.pop().unwrap();
+		let batch_detail = group_data.batches.pop().unwrap();
 		assert_eq!(batch_detail.total_supply, 100_u32.into());
 		assert_eq!(batch_detail.minted, 100);
 		assert_eq!(batch_detail.retired, 100);
@@ -1239,6 +1301,7 @@ fn retire_for_multiple_batch() {
 			CarbonCredits::mint(
 				RawOrigin::Signed(authorised_account).into(),
 				project_id,
+				group_id,
 				amount_to_mint,
 				list_to_marketplace
 			),
@@ -1277,9 +1340,10 @@ fn retire_for_multiple_batch() {
 fn force_approve_and_mint_credits_works() {
 	new_test_ext().execute_with(|| {
 		let originator_account = 1;
-		let project_id = 1001;
+		let project_id = 0;
+		let group_id = 0;
 		// token minting params
-		let amount_to_mint = 50;
+		let amount_to_mint: u128 = 50;
 		let list_to_marketplace = false;
 
 		let creation_params = get_default_creation_params::<Test>();
@@ -1288,10 +1352,10 @@ fn force_approve_and_mint_credits_works() {
 		assert_ok!(CarbonCredits::force_approve_and_mint_credits(
 			RawOrigin::Root.into(),
 			originator_account,
-			project_id,
 			creation_params,
 			amount_to_mint,
-			list_to_marketplace
+			list_to_marketplace,
+			group_id,
 		));
 
 		assert_eq!(
@@ -1307,11 +1371,10 @@ fn force_approve_and_mint_credits_works() {
 		// ensure minting worked correctly
 		let stored_data = CarbonCredits::get_project_details(project_id).unwrap();
 		assert_eq!(stored_data.originator, originator_account);
-		assert_eq!(stored_data.sdg_details, get_default_sdg_details::<Test>());
-
-		assert_eq!(stored_data.total_supply, 100_u32.into());
-		assert_eq!(stored_data.minted, amount_to_mint);
-		assert_eq!(stored_data.retired, 0_u32.into());
+		let group_data = stored_data.batch_groups.get(&group_id).unwrap();
+		assert_eq!(group_data.total_supply, 100_u32.into());
+		assert_eq!(group_data.minted, amount_to_mint);
+		assert_eq!(group_data.retired, 0_u32.into());
 		assert!(stored_data.approved);
 	});
 }
