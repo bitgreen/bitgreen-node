@@ -3,9 +3,7 @@
 // This code is licensed under MIT license (see LICENSE.txt for details)
 //! Vesting Contract pallet benchmarking
 use frame_benchmarking::{account, benchmarks, vec};
-use frame_support::PalletId;
 use frame_system::RawOrigin;
-use sp_runtime::traits::Saturating;
 
 use super::*;
 use crate::Pallet as VestingContract;

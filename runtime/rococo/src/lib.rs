@@ -13,6 +13,7 @@ include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 pub mod impls;
 mod weights;
 pub mod xcm_config;
+use codec::{Decode, Encode, MaxEncodedLen};
 use cumulus_pallet_parachain_system::RelayNumberStrictlyIncreases;
 // Polkadot Imports
 use frame_support::{
@@ -518,17 +519,20 @@ parameter_types! {
   pub const MaxAuthorizedAccountCount : u32 = 10;
   pub const MaxCoordinatesLength : u32 = 10;
   pub const MaxDocumentCount : u32 = 10;
-  pub const MaxGroupSize : u32 = 10;
   pub const MaxIpfsReferenceLength : u32 = 1024;
   pub const MaxLongStringLength : u32 = 3072;
   pub const MaxRoyaltyRecipients : u32 = 10;
   pub const MaxShortStringLength : u32 = 1024;
   pub const MinProjectId : u32 = 1000;
+  #[derive(Debug, Clone, Copy, PartialEq, Eq, Encode, Decode, MaxEncodedLen, TypeInfo)]
+  pub const MaxGroupSize : u32 = 10;
 }
 
 impl pallet_carbon_credits::Config for Runtime {
 	type AssetHandler = Assets;
 	type AssetId = u32;
+	type ProjectId = u32;
+	type GroupId = u32;
 	type Balance = u128;
 	type Event = Event;
 	type ForceOrigin = EnsureRoot<AccountId>;

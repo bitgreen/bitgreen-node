@@ -2,8 +2,8 @@
 // Copyright (C) 2022 BitGreen.
 // This code is licensed under MIT license (see LICENSE.txt for details)
 use codec::{Decode, Encode, MaxEncodedLen};
-use frame_support::pallet_prelude::*;
-use primitives::{Batch, BatchRetireData, RegistryDetails, Royalty, SDGDetails};
+use frame_support::{pallet_prelude::*, BoundedBTreeMap};
+use primitives::{Batch, BatchGroup, BatchRetireData, RegistryDetails, Royalty, SDGDetails};
 
 use crate::pallet;
 
@@ -46,15 +46,24 @@ pub type RoyaltyRecipientsOf<T> = BoundedVec<
 // Type of batch used by the pallet
 pub type BatchOf<T> = Batch<ShortStringOf<T>, <T as pallet::Config>::Balance>;
 
-/// A project can represent Carbon credits from multiple batches
-/// For example a project can have 100 tokens of 2019 vintage and 200 tokens of 2020 vintage. In
-/// this case the project can package these two vintages to create a carbon credit token that has a
-/// supply of 300 tokens. These vintages can be represented inside a batchgroup, in this case, it is
-/// important to remember that the minting and retirement always gives priority to the oldest
-/// vintage. Example : in the above case of 300 tokens, when the originator mints 100 tokens, we
-/// first mint the oldest (2019) credits and only once the supply is exhausted we move on the next
-/// vintage, same for retirement.
-pub type BatchGroupOf<T> = BoundedVec<BatchOf<T>, <T as pallet::Config>::MaxGroupSize>;
+// Type of group used by the pallet
+pub type BatchGroupOf<T> = BatchGroup<
+	ShortStringOf<T>,
+	<T as pallet::Config>::AssetId,
+	<T as pallet::Config>::Balance,
+	BatchOf<T>,
+	<T as pallet::Config>::MaxGroupSize,
+>;
+
+// List of groups used by the pallet
+pub type BatchGroupListOf<T> = BoundedVec<BatchGroupOf<T>, <T as pallet::Config>::MaxGroupSize>;
+
+// Map of groups used by the GroupId
+pub type BatchGroupMapOf<T> = BoundedBTreeMap<
+	<T as pallet::Config>::GroupId,
+	BatchGroupOf<T>,
+	<T as pallet::Config>::MaxGroupSize,
+>;
 
 /// Inputs given by project originator during project creation
 #[derive(Clone, Encode, Decode, Eq, PartialEq, TypeInfo, MaxEncodedLen)]
@@ -80,12 +89,10 @@ pub struct ProjectCreateParams<T: pallet::Config> {
 	pub registry_details: RegistryListOf<T>,
 	/// SDG details
 	pub sdg_details: SDGTypesListOf<T>,
-	/// List of batches in the project
-	pub batches: BatchGroupOf<T>,
-	// Price in USD for a single credit
-	pub unit_price: T::Balance,
 	/// The royalties to be paid when tokens are purchased
 	pub royalties: Option<RoyaltyRecipientsOf<T>>,
+	/// List of batch groups in the project
+	pub batch_groups: BatchGroupListOf<T>,
 }
 
 /// Details of the project stored on-chain
@@ -114,11 +121,10 @@ pub struct ProjectDetail<T: pallet::Config> {
 	pub registry_details: RegistryListOf<T>,
 	/// SDG details
 	pub sdg_details: SDGTypesListOf<T>,
-	/// List of batches in the project
-	pub batches: BatchGroupOf<T>,
 	/// The royalties to be paid when tokens are purchased
 	pub royalties: Option<RoyaltyRecipientsOf<T>>,
-
+	/// groups included in the project
+	pub batch_groups: BatchGroupMapOf<T>,
 	// origination details
 	/// Creation time of project
 	pub created: T::BlockNumber,
@@ -127,19 +133,6 @@ pub struct ProjectDetail<T: pallet::Config> {
 
 	/// approval status - a project can only mint tokens once approved
 	pub approved: bool,
-
-	// credits details
-	/// The total_supply of the project, in case of a single batch
-	/// this value is equal to the batch total_supply, in case of multiple
-	/// batches (batch group) this value is the sum of all the total_supply of
-	/// all the batches in the group.
-	pub total_supply: T::Balance,
-	/// The count of tokens minted related to the project
-	pub minted: T::Balance,
-	/// The count of tokens retired related to the project
-	pub retired: T::Balance,
-	// Price in USD for a single credit
-	pub unit_price: T::Balance,
 }
 
 /// Batch retire data used by pallet

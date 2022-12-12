@@ -105,7 +105,40 @@ pub mod pallet {
 			+ Into<u32>
 			+ sp_std::fmt::Display
 			+ sp_std::cmp::PartialOrd
-			+ sp_std::cmp::Ord;
+			+ sp_std::cmp::Ord
+			+ CheckedAdd;
+
+		/// Identifier for a project
+		type ProjectId: Member
+			+ Parameter
+			+ Default
+			+ Copy
+			+ HasCompact
+			+ MaybeSerializeDeserialize
+			+ MaxEncodedLen
+			+ TypeInfo
+			+ From<u32>
+			+ Into<u32>
+			+ sp_std::fmt::Display
+			+ sp_std::cmp::PartialOrd
+			+ sp_std::cmp::Ord
+			+ CheckedAdd;
+
+		/// Identifier for a group
+		type GroupId: Member
+			+ Parameter
+			+ Default
+			+ Copy
+			+ HasCompact
+			+ MaybeSerializeDeserialize
+			+ MaxEncodedLen
+			+ TypeInfo
+			+ From<u32>
+			+ Into<u32>
+			+ sp_std::fmt::Display
+			+ sp_std::cmp::PartialOrd
+			+ sp_std::cmp::Ord
+			+ CheckedAdd;
 
 		/// Identifier for the individual instances of NFT
 		type ItemId: Member
@@ -119,7 +152,8 @@ pub mod pallet {
 			+ CheckedAdd
 			+ One
 			+ From<u32>
-			+ Into<u32>;
+			+ Into<u32>
+			+ CheckedAdd;
 
 		/// The CarbonCredits pallet id
 		#[pallet::constant]
@@ -155,7 +189,7 @@ pub mod pallet {
 		/// Maximum count of documents for one type
 		type MaxDocumentCount: Get<u32>;
 		/// Maximum amount of carbon credits in a bundle
-		type MaxGroupSize: Get<u32>;
+		type MaxGroupSize: Get<u32> + TypeInfo + Clone + Parameter;
 		/// Maximum amount of location cordinates to store
 		type MaxCoordinatesLength: Get<u32>;
 		/// Minimum value of AssetId for CarbonCredits
@@ -174,6 +208,16 @@ pub mod pallet {
 	pub type NextItemId<T: Config> = StorageMap<_, Blake2_128Concat, T::AssetId, T::ItemId>;
 
 	#[pallet::storage]
+	#[pallet::getter(fn next_asset_id)]
+	// NextAssetId for CC tokens to be created for every project
+	pub type NextAssetId<T: Config> = StorageValue<_, T::AssetId, ValueQuery>;
+
+	#[pallet::storage]
+	#[pallet::getter(fn next_project_id)]
+	// NextAssetId for CC tokens to be created for every project
+	pub type NextProjectId<T: Config> = StorageValue<_, T::ProjectId, ValueQuery>;
+
+	#[pallet::storage]
 	#[pallet::getter(fn authorized_accounts)]
 	// List of AuthorizedAccounts for the pallet
 	pub type AuthorizedAccounts<T: Config> =
@@ -183,7 +227,13 @@ pub mod pallet {
 	#[pallet::getter(fn projects)]
 	/// The details of a CarbonCredits
 	pub(super) type Projects<T: Config> =
-		StorageMap<_, Blake2_128Concat, T::AssetId, ProjectDetail<T>>;
+		StorageMap<_, Blake2_128Concat, T::ProjectId, ProjectDetail<T>>;
+
+	#[pallet::storage]
+	#[pallet::getter(fn asset_id_lookup)]
+	/// AssetId details for project/group
+	pub(super) type AssetIdLookup<T: Config> =
+		StorageMap<_, Blake2_128Concat, T::AssetId, (T::ProjectId, T::GroupId)>;
 
 	#[pallet::storage]
 	#[pallet::getter(fn retired_carbon_credits)]
@@ -207,31 +257,29 @@ pub mod pallet {
 		/// A new CarbonCredits has been created
 		ProjectCreated {
 			/// The T::AssetId of the created project
-			project_id: T::AssetId,
-			/// The details of the created project
-			details: ProjectDetail<T>,
+			project_id: T::ProjectId,
 		},
 		/// A project details has been resubmitted
 		ProjectResubmitted {
 			/// The T::AssetId of the created project
-			project_id: T::AssetId,
+			project_id: T::ProjectId,
 			/// The details of the created project
 			details: ProjectDetail<T>,
 		},
 		/// Project has been approved
 		ProjectApproved {
 			/// The T::AssetId of the approved project
-			project_id: T::AssetId,
+			project_id: T::ProjectId,
 		},
 		/// Project has been rejected
 		ProjectRejected {
 			/// The T::AssetId of the approved project
-			project_id: T::AssetId,
+			project_id: T::ProjectId,
 		},
 		// An amount of Carbon Credits was minted
 		CarbonCreditMinted {
 			/// The T::AssetId of the minted CarbonCredits
-			project_id: T::AssetId,
+			project_id: T::ProjectId,
 			/// The AccountId that received the minted CarbonCredits
 			recipient: T::AccountId,
 			/// The amount of CarbonCredits units minted
@@ -240,7 +288,7 @@ pub mod pallet {
 		// An existing CarbonCredits was retired
 		CarbonCreditRetired {
 			/// The T::AssetId of the retired CarbonCredits
-			project_id: T::AssetId,
+			project_id: T::ProjectId,
 			/// The AccountId that retired the CarbonCredits
 			account: T::AccountId,
 			/// The amount of CarbonCredits units retired
@@ -283,6 +331,10 @@ pub mod pallet {
 		ProjectIdLowerThanPermitted,
 		/// Cannot resubmit an approved project
 		CannotModifyApprovedProject,
+		/// group max exceeded
+		TooManyGroups,
+		/// the group does not exist
+		GroupNotFound,
 	}
 
 	#[pallet::call]
@@ -291,14 +343,13 @@ pub mod pallet {
 		/// This new project can mint tokens after approval from an authorised account
 		#[transactional]
 		#[pallet::weight(T::WeightInfo::create())]
-		pub fn create(
-			origin: OriginFor<T>,
-			project_id: T::AssetId,
-			params: ProjectCreateParams<T>,
-		) -> DispatchResult {
+		pub fn create(origin: OriginFor<T>, params: ProjectCreateParams<T>) -> DispatchResult {
 			let sender = ensure_signed(origin)?;
 			Self::check_kyc_approval(&sender)?;
-			Self::create_project(sender, project_id, params)
+			let project_id = Self::create_project(sender, params)?;
+			// emit event
+			Self::deposit_event(Event::ProjectCreated { project_id });
+			Ok(())
 		}
 
 		/// Resubmit a approval rejected project data onchain
@@ -307,7 +358,7 @@ pub mod pallet {
 		#[pallet::weight(T::WeightInfo::create())]
 		pub fn resubmit(
 			origin: OriginFor<T>,
-			project_id: T::AssetId,
+			project_id: T::ProjectId,
 			params: ProjectCreateParams<T>,
 		) -> DispatchResult {
 			let sender = ensure_signed(origin)?;
@@ -320,7 +371,7 @@ pub mod pallet {
 		#[pallet::weight(T::WeightInfo::approve_project())]
 		pub fn approve_project(
 			origin: OriginFor<T>,
-			project_id: T::AssetId,
+			project_id: T::ProjectId,
 			is_approved: bool,
 		) -> DispatchResult {
 			let sender = ensure_signed(origin)?;
@@ -336,14 +387,21 @@ pub mod pallet {
 		#[pallet::weight(T::WeightInfo::mint())]
 		pub fn mint(
 			origin: OriginFor<T>,
-			project_id: T::AssetId,
+			project_id: T::ProjectId,
+			group_id: T::GroupId,
 			amount_to_mint: T::Balance,
 			list_to_marketplace: bool,
 		) -> DispatchResult {
 			let sender = ensure_signed(origin)?;
 			Self::check_authorized_account(&sender)?;
 			// Self::check_kyc_approval(&sender)?;
-			Self::mint_carbon_credits(sender, project_id, amount_to_mint, list_to_marketplace)
+			Self::mint_carbon_credits(
+				sender,
+				project_id,
+				group_id,
+				amount_to_mint,
+				list_to_marketplace,
+			)
 		}
 
 		/// Retire existing credits from owner
@@ -354,12 +412,13 @@ pub mod pallet {
 		#[pallet::weight(T::WeightInfo::retire())]
 		pub fn retire(
 			origin: OriginFor<T>,
-			project_id: T::AssetId,
+			project_id: T::ProjectId,
+			group_id: T::GroupId,
 			amount: T::Balance,
 		) -> DispatchResult {
 			let sender = ensure_signed(origin)?;
 			Self::check_kyc_approval(&sender)?;
-			Self::retire_carbon_credits(sender, project_id, amount)
+			Self::retire_carbon_credits(sender, project_id, group_id, amount)
 		}
 
 		/// Add a new account to the list of authorised Accounts
@@ -413,7 +472,7 @@ pub mod pallet {
 		#[pallet::weight(T::WeightInfo::force_set_project_storage())]
 		pub fn force_set_project_storage(
 			origin: OriginFor<T>,
-			project_id: T::AssetId,
+			project_id: T::ProjectId,
 			detail: ProjectDetail<T>,
 		) -> DispatchResult {
 			T::ForceOrigin::ensure_origin(origin)?;
@@ -427,11 +486,11 @@ pub mod pallet {
 		#[pallet::weight(T::WeightInfo::force_set_next_item_id())]
 		pub fn force_set_next_item_id(
 			origin: OriginFor<T>,
-			project_id: T::AssetId,
+			asset_id: T::AssetId,
 			item_id: T::ItemId,
 		) -> DispatchResult {
 			T::ForceOrigin::ensure_origin(origin)?;
-			NextItemId::<T>::insert(project_id, item_id);
+			NextItemId::<T>::insert(asset_id, item_id);
 			Ok(())
 		}
 
@@ -441,12 +500,12 @@ pub mod pallet {
 		#[pallet::weight(T::WeightInfo::force_set_retired_carbon_credit())]
 		pub fn force_set_retired_carbon_credit(
 			origin: OriginFor<T>,
-			project_id: T::AssetId,
+			asset_id: T::AssetId,
 			item_id: T::ItemId,
 			credits_data: RetiredCarbonCreditsData<T>,
 		) -> DispatchResult {
 			T::ForceOrigin::ensure_origin(origin)?;
-			RetiredCredits::<T>::insert(project_id, item_id, credits_data);
+			RetiredCredits::<T>::insert(asset_id, item_id, credits_data);
 			Ok(())
 		}
 
@@ -457,16 +516,22 @@ pub mod pallet {
 		pub fn force_approve_and_mint_credits(
 			origin: OriginFor<T>,
 			sender: T::AccountId,
-			project_id: T::AssetId,
 			params: ProjectCreateParams<T>,
 			amount_to_mint: T::Balance,
 			list_to_marketplace: bool,
+			group_id: T::GroupId,
 		) -> DispatchResult {
 			T::ForceOrigin::ensure_origin(origin)?;
 			Self::check_kyc_approval(&sender)?;
-			Self::create_project(sender.clone(), project_id, params)?;
+			let project_id = Self::create_project(sender.clone(), params)?;
 			Self::do_approve_project(project_id, true)?;
-			Self::mint_carbon_credits(sender, project_id, amount_to_mint, list_to_marketplace)?;
+			Self::mint_carbon_credits(
+				sender,
+				project_id,
+				group_id,
+				amount_to_mint,
+				list_to_marketplace,
+			)?;
 			Ok(())
 		}
 
@@ -476,12 +541,17 @@ pub mod pallet {
 		#[pallet::weight(T::WeightInfo::force_set_project_storage())]
 		pub fn force_remove_project(
 			origin: OriginFor<T>,
-			project_id: T::AssetId,
+			project_id: T::ProjectId,
 		) -> DispatchResult {
 			T::ForceOrigin::ensure_origin(origin)?;
-			let destroy_witness = T::AssetHandler::get_destroy_witness(&project_id)
-				.ok_or(Error::<T>::ProjectNotFound)?;
-			T::AssetHandler::destroy(project_id, destroy_witness, None)?;
+			let project = Projects::<T>::get(project_id).ok_or(Error::<T>::ProjectNotFound)?;
+			// remove all assets connected to this project
+			for (_group_id, group) in project.batch_groups.iter() {
+				let destroy_witness = T::AssetHandler::get_destroy_witness(&group.asset_id)
+					.ok_or(Error::<T>::ProjectNotFound)?;
+				T::AssetHandler::destroy(group.asset_id, destroy_witness, None)?;
+			}
+			// remove project from storage
 			Projects::<T>::take(project_id);
 			Ok(())
 		}

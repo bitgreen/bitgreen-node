@@ -2,6 +2,7 @@
 // Copyright (C) 2022 BitGreen.
 // This code is licensed under MIT license (see LICENSE.txt for details)
 //
+use codec::{Decode, Encode, MaxEncodedLen};
 use frame_support::{
 	bounded_vec, parameter_types,
 	traits::{AsEnsureOriginWithArg, ConstU128, ConstU32, Everything, GenesisBuild},
@@ -9,6 +10,7 @@ use frame_support::{
 };
 use frame_system as system;
 use frame_system::EnsureRoot;
+use scale_info::TypeInfo;
 use sp_core::H256;
 use sp_runtime::{
 	testing::Header,
@@ -127,6 +129,8 @@ parameter_types! {
   pub const MarketplaceEscrowAccount : u64 = 10;
   pub const CarbonCreditsPalletId: PalletId = PalletId(*b"bitg/ccp");
   pub CarbonCreditsPalletAcccount : u64 = PalletId(*b"bitg/ccp").into_account_truncating();
+  #[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Encode, Decode, MaxEncodedLen, TypeInfo, Debug)]
+  pub const MaxGroupSize: u32 = 10;
 }
 
 impl pallet_carbon_credits::Config for Test {
@@ -136,12 +140,14 @@ impl pallet_carbon_credits::Config for Test {
 	type Event = Event;
 	type ForceOrigin = frame_system::EnsureRoot<u64>;
 	type ItemId = u32;
+	type ProjectId = u32;
+	type GroupId = u32;
 	type KYCProvider = KYCMembership;
 	type MarketplaceEscrow = MarketplaceEscrowAccount;
 	type MaxAuthorizedAccountCount = ConstU32<2>;
 	type MaxCoordinatesLength = ConstU32<8>;
 	type MaxDocumentCount = ConstU32<2>;
-	type MaxGroupSize = ConstU32<5>;
+	type MaxGroupSize = MaxGroupSize;
 	type MaxIpfsReferenceLength = ConstU32<20>;
 	type MaxLongStringLength = ConstU32<100>;
 	type MaxRoyaltyRecipients = ConstU32<5>;

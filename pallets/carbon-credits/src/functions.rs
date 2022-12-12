@@ -13,14 +13,16 @@ use frame_support::{
 		},
 		Contains, Get,
 	},
+	BoundedBTreeMap,
 };
 use primitives::BatchRetireData;
 use sp_runtime::traits::{AccountIdConversion, CheckedAdd, CheckedSub, One, Zero};
 use sp_std::{cmp, convert::TryInto, vec::Vec};
 
 use crate::{
-	AuthorizedAccounts, BatchRetireDataList, BatchRetireDataOf, Config, Error, Event, NextItemId,
-	Pallet, ProjectCreateParams, ProjectDetail, Projects, RetiredCarbonCreditsData, RetiredCredits,
+	AssetIdLookup, AuthorizedAccounts, BatchRetireDataList, BatchRetireDataOf, Config, Error,
+	Event, NextAssetId, NextItemId, NextProjectId, Pallet, ProjectCreateParams, ProjectDetail,
+	Projects, RetiredCarbonCreditsData, RetiredCredits,
 };
 
 impl<T: Config> Pallet<T> {
@@ -30,7 +32,7 @@ impl<T: Config> Pallet<T> {
 	}
 
 	/// Get the project details from AssetId
-	pub fn get_project_details(project_id: T::AssetId) -> Option<ProjectDetail<T>> {
+	pub fn get_project_details(project_id: T::ProjectId) -> Option<ProjectDetail<T>> {
 		Projects::<T>::get(project_id)
 	}
 
@@ -54,15 +56,39 @@ impl<T: Config> Pallet<T> {
 	}
 
 	/// Approve/reject a project
-	pub fn do_approve_project(project_id: T::AssetId, is_approved: bool) -> DispatchResult {
+	pub fn do_approve_project(project_id: T::ProjectId, is_approved: bool) -> DispatchResult {
 		Projects::<T>::try_mutate(project_id, |project| -> DispatchResult {
-			// ensure the Project exists
+			// ensure the project exists
 			let project = project.as_mut().ok_or(Error::<T>::ProjectNotFound)?;
 
 			project.approved = is_approved;
 
-			// emit event
+			// if approved, create assets
 			if is_approved {
+				for (group_id, mut group) in project.batch_groups.iter_mut() {
+					let asset_id = Self::next_asset_id();
+					let next_asset_id =
+						asset_id.checked_add(&1u32.into()).ok_or(Error::<T>::Overflow)?;
+					NextAssetId::<T>::put(next_asset_id);
+
+					// create the asset
+					T::AssetHandler::create(asset_id, Self::account_id(), true, 1_u32.into())?;
+
+					// set metadata for the asset
+					T::AssetHandler::set(
+						asset_id,
+						&Self::account_id(),
+						project_id.to_string().as_bytes().to_vec(), // asset name
+						project_id.to_string().as_bytes().to_vec(), // asset symbol
+						0,
+					)?;
+
+					// set the asset id
+					group.asset_id = asset_id;
+
+					AssetIdLookup::<T>::insert(group.asset_id, (project_id, group_id));
+				}
+
 				Self::deposit_event(Event::ProjectApproved { project_id });
 			} else {
 				Self::deposit_event(Event::ProjectRejected { project_id });
@@ -72,50 +98,76 @@ impl<T: Config> Pallet<T> {
 		})
 	}
 
-	/// Calculate the issuance year for a project
+	/// Calculate the issuance year for a group
 	/// For a project with a single batch it's the issuance year of that batch
 	/// For a project with multiple batches, its the issuance year of the oldest batch
-	pub fn calculate_issuance_year(project: ProjectDetail<T>) -> Option<u16> {
+	pub fn calculate_issuance_year(project: ProjectDetail<T>, group_id: T::GroupId) -> Option<u16> {
 		// the data is stored sorted in ascending order of issuance year, hence first() will always
 		// return oldest batch
-		project.batches.first().map(|x| x.issuance_year)
+		if let Some(group) = project.batch_groups.get(&group_id) {
+			group.batches.first().map(|x| x.issuance_year)
+		} else {
+			None
+		}
 	}
 
 	/// Create a new project with `params`
 	pub fn create_project(
 		admin: T::AccountId,
-		project_id: T::AssetId,
-		mut params: ProjectCreateParams<T>,
-	) -> DispatchResult {
+		params: ProjectCreateParams<T>,
+	) -> Result<T::ProjectId, DispatchError> {
 		let now = frame_system::Pallet::<T>::block_number();
 
-		ensure!(project_id >= T::MinProjectId::get(), Error::<T>::ProjectIdLowerThanPermitted);
+		let project_id = Self::next_project_id();
+		let next_project_id = project_id.checked_add(&1u32.into()).ok_or(Error::<T>::Overflow)?;
+		NextProjectId::<T>::put(next_project_id);
 
-		// the unit price should not be zero
-		ensure!(!params.unit_price.is_zero(), Error::<T>::UnitPriceIsZero);
-
-		Projects::<T>::try_mutate(project_id, |project| -> DispatchResult {
+		Projects::<T>::try_mutate(project_id, |project| -> Result<T::ProjectId, DispatchError> {
 			ensure!(project.is_none(), Error::<T>::ProjectAlreadyExists);
 
-			// the total supply of project must match the supply of all batches
-			let mut batch_total_supply: T::Balance = Zero::zero();
-			for batch in params.batches.iter() {
+			let mut batch_group_map: BoundedBTreeMap<_, _, _> = Default::default();
+			let mut group_id: T::GroupId = 0u32.into();
+
+			// ensure the groups are formed correctly and convert to BTreeMap
+			for mut group in params.batch_groups.into_iter() {
+				let mut group_total_supply: T::Balance = Zero::zero();
+				for batch in group.batches.iter() {
+					ensure!(
+						batch.total_supply > Zero::zero(),
+						Error::<T>::CannotCreateProjectWithoutCredits
+					);
+
+					ensure!(
+						batch.minted == Zero::zero(),
+						Error::<T>::CannotCreateProjectWithoutCredits
+					);
+
+					ensure!(
+						batch.retired == Zero::zero(),
+						Error::<T>::CannotCreateProjectWithoutCredits
+					);
+
+					group_total_supply = group_total_supply
+						.checked_add(&batch.total_supply)
+						.ok_or(Error::<T>::Overflow)?;
+				}
+
 				ensure!(
-					batch.total_supply > Zero::zero(),
+					group_total_supply > Zero::zero(),
 					Error::<T>::CannotCreateProjectWithoutCredits
 				);
-				batch_total_supply = batch_total_supply
-					.checked_add(&batch.total_supply)
-					.ok_or(Error::<T>::Overflow)?;
+
+				// sort batch data in ascending order of issuance year
+				group.batches.sort_by(|x, y| x.issuance_year.cmp(&y.issuance_year));
+				group.total_supply = group_total_supply;
+
+				// insert the group to BTreeMap
+				batch_group_map
+					.try_insert(group_id, group.clone())
+					.map_err(|_| Error::<T>::TooManyGroups)?;
+
+				group_id = group_id.checked_add(&1u32.into()).ok_or(Error::<T>::Overflow)?;
 			}
-
-			ensure!(
-				batch_total_supply > Zero::zero(),
-				Error::<T>::CannotCreateProjectWithoutCredits
-			);
-
-			// sort batch data in ascending order of issuance year
-			params.batches.sort_by(|x, y| x.issuance_year.cmp(&y.issuance_year));
 
 			let new_project = ProjectDetail {
 				originator: admin,
@@ -126,44 +178,25 @@ impl<T: Config> Pallet<T> {
 				videos: params.videos,
 				documents: params.documents,
 				registry_details: params.registry_details,
+				batch_groups: batch_group_map,
 				sdg_details: params.sdg_details,
 				royalties: params.royalties,
-				batches: params.batches,
 				created: now,
 				updated: None,
 				approved: false,
-				total_supply: batch_total_supply,
-				minted: Zero::zero(),
-				retired: Zero::zero(),
-				unit_price: params.unit_price,
 			};
 
-			*project = Some(new_project.clone());
+			*project = Some(new_project);
 
-			// create the asset
-			T::AssetHandler::create(project_id, Self::account_id(), true, 1_u32.into())?;
-
-			// set metadata for the asset
-			T::AssetHandler::set(
-				project_id,
-				&Self::account_id(),
-				new_project.name.clone().into_inner(),      // asset name
-				project_id.to_string().as_bytes().to_vec(), // asset symbol
-				0,
-			)?;
-
-			// emit event
-			Self::deposit_event(Event::ProjectCreated { project_id, details: new_project });
-
-			Ok(())
+			Ok(project_id)
 		})
 	}
 
 	/// Resubmit a project after approval is rejected
 	pub fn resubmit_project(
 		admin: T::AccountId,
-		project_id: T::AssetId,
-		mut params: ProjectCreateParams<T>,
+		project_id: T::ProjectId,
+		params: ProjectCreateParams<T>,
 	) -> DispatchResult {
 		let now = frame_system::Pallet::<T>::block_number();
 
@@ -172,31 +205,53 @@ impl<T: Config> Pallet<T> {
 
 			// approved projects cannot be modified
 			ensure!(!project.approved, Error::<T>::CannotModifyApprovedProject);
+
 			// only originator can resubmit
 			ensure!(project.originator == admin, Error::<T>::NotAuthorised);
 
-			// the unit price should not be zero
-			ensure!(!params.unit_price.is_zero(), Error::<T>::UnitPriceIsZero);
+			let mut batch_group_map: BoundedBTreeMap<_, _, _> = Default::default();
+			let mut group_id: T::GroupId = 0u32.into();
 
-			// the total supply of project must match the supply of all batches
-			let mut batch_total_supply: T::Balance = Zero::zero();
-			for batch in params.batches.iter() {
+			// ensure the groups are formed correctly and convert to BTreeMap
+			for mut group in params.batch_groups.into_iter() {
+				let mut group_total_supply: T::Balance = Zero::zero();
+				for batch in group.batches.iter() {
+					ensure!(
+						batch.total_supply > Zero::zero(),
+						Error::<T>::CannotCreateProjectWithoutCredits
+					);
+
+					ensure!(
+						batch.minted == Zero::zero(),
+						Error::<T>::CannotCreateProjectWithoutCredits
+					);
+
+					ensure!(
+						batch.retired == Zero::zero(),
+						Error::<T>::CannotCreateProjectWithoutCredits
+					);
+
+					group_total_supply = group_total_supply
+						.checked_add(&batch.total_supply)
+						.ok_or(Error::<T>::Overflow)?;
+				}
+
 				ensure!(
-					batch.total_supply > Zero::zero(),
+					group_total_supply > Zero::zero(),
 					Error::<T>::CannotCreateProjectWithoutCredits
 				);
-				batch_total_supply = batch_total_supply
-					.checked_add(&batch.total_supply)
-					.ok_or(Error::<T>::Overflow)?;
+
+				// sort batch data in ascending order of issuance year
+				group.batches.sort_by(|x, y| x.issuance_year.cmp(&y.issuance_year));
+				group.total_supply = group_total_supply;
+
+				// insert the group to BTreeMap
+				batch_group_map
+					.try_insert(group_id, group.clone())
+					.map_err(|_| Error::<T>::TooManyGroups)?;
+
+				group_id = group_id.checked_add(&1u32.into()).ok_or(Error::<T>::Overflow)?;
 			}
-
-			ensure!(
-				batch_total_supply > Zero::zero(),
-				Error::<T>::CannotCreateProjectWithoutCredits
-			);
-
-			// sort batch data in ascending order of issuance year
-			params.batches.sort_by(|x, y| x.issuance_year.cmp(&y.issuance_year));
 
 			let new_project = ProjectDetail {
 				originator: admin,
@@ -209,14 +264,10 @@ impl<T: Config> Pallet<T> {
 				registry_details: params.registry_details,
 				sdg_details: params.sdg_details,
 				royalties: params.royalties,
-				batches: params.batches,
+				batch_groups: batch_group_map,
 				created: project.created,
 				updated: Some(now),
 				approved: false,
-				total_supply: batch_total_supply,
-				minted: Zero::zero(),
-				retired: Zero::zero(),
-				unit_price: params.unit_price,
 			};
 
 			*project = new_project.clone();
@@ -230,7 +281,8 @@ impl<T: Config> Pallet<T> {
 
 	pub fn mint_carbon_credits(
 		_sender: T::AccountId,
-		project_id: T::AssetId,
+		project_id: T::ProjectId,
+		group_id: T::GroupId,
 		amount_to_mint: T::Balance,
 		list_to_marketplace: bool,
 	) -> DispatchResult {
@@ -245,22 +297,27 @@ impl<T: Config> Pallet<T> {
 			// ensure the project is approved
 			ensure!(project.approved, Error::<T>::ProjectNotApproved);
 
+			// ensure the group exists
+			let mut group =
+				project.batch_groups.get_mut(&group_id).ok_or(Error::<T>::GroupNotFound)?;
+
 			// ensure the amount_to_mint does not exceed limit
 			let projected_total_supply =
-				amount_to_mint.checked_add(&project.minted).ok_or(Error::<T>::Overflow)?;
+				amount_to_mint.checked_add(&group.minted).ok_or(Error::<T>::Overflow)?;
 
 			ensure!(
-				projected_total_supply <= project.total_supply,
+				projected_total_supply <= group.total_supply,
 				Error::<T>::AmountGreaterThanSupply
 			);
 
 			let recipient = match list_to_marketplace {
-				true => T::MarketplaceEscrow::get(),
+				// TODO : Support marketplace escrow
+				true => project.originator.clone(),
 				false => project.originator.clone(),
 			};
 
 			// Mint in the individual batches too
-			let mut batch_list: Vec<_> = project.batches.clone().into_iter().collect();
+			let mut batch_list: Vec<_> = group.batches.clone().into_iter().collect();
 
 			let mut remaining = amount_to_mint;
 			for batch in batch_list.iter_mut() {
@@ -283,17 +340,16 @@ impl<T: Config> Pallet<T> {
 			// lets be safe
 			ensure!(remaining == Zero::zero(), Error::<T>::AmountGreaterThanSupply);
 
-			project.batches = batch_list.try_into().map_err(|_| Error::<T>::Overflow)?;
+			group.batches = batch_list.try_into().map_err(|_| Error::<T>::Overflow)?;
 
 			// increase the minted count
-			project.minted =
-				project.minted.checked_add(&amount_to_mint).ok_or(Error::<T>::Overflow)?;
+			group.minted = group.minted.checked_add(&amount_to_mint).ok_or(Error::<T>::Overflow)?;
 
 			// another check to ensure accounting is correct
-			ensure!(project.minted <= project.total_supply, Error::<T>::AmountGreaterThanSupply);
+			ensure!(group.minted <= group.total_supply, Error::<T>::AmountGreaterThanSupply);
 
 			// mint the asset to the recipient
-			T::AssetHandler::mint_into(project_id, &recipient, amount_to_mint)?;
+			T::AssetHandler::mint_into(group.asset_id, &recipient, amount_to_mint)?;
 
 			// emit event
 			Self::deposit_event(Event::CarbonCreditMinted {
@@ -309,7 +365,8 @@ impl<T: Config> Pallet<T> {
 	/// Retire carbon credits for given project_id
 	pub fn retire_carbon_credits(
 		from: T::AccountId,
-		project_id: T::AssetId,
+		project_id: T::ProjectId,
+		group_id: T::GroupId,
 		amount: T::Balance,
 	) -> DispatchResult {
 		let now = frame_system::Pallet::<T>::block_number();
@@ -322,20 +379,25 @@ impl<T: Config> Pallet<T> {
 			// ensure the project exists
 			let project = project.as_mut().ok_or(Error::<T>::ProjectNotFound)?;
 
+			// ensure the project is approved
+			ensure!(project.approved, Error::<T>::ProjectNotApproved);
+
+			// ensure the group exists
+			let mut group =
+				project.batch_groups.get_mut(&group_id).ok_or(Error::<T>::GroupNotFound)?;
+
 			// attempt to burn the tokens from the caller
-			T::AssetHandler::burn_from(project_id, &from, amount)?;
+			T::AssetHandler::burn_from(group.asset_id, &from, amount)?;
 
 			// reduce the supply of the CarbonCredits
-			project.retired = project
-				.retired
-				.checked_add(&amount)
-				.ok_or(Error::<T>::AmountGreaterThanSupply)?;
+			group.retired =
+				group.retired.checked_add(&amount).ok_or(Error::<T>::AmountGreaterThanSupply)?;
 
 			// another check to ensure accounting is correct
-			ensure!(project.retired <= project.minted, Error::<T>::AmountGreaterThanSupply);
+			ensure!(group.retired <= group.minted, Error::<T>::AmountGreaterThanSupply);
 
 			// Retire in the individual batches too
-			let mut batch_list: Vec<_> = project.batches.clone().into_iter().collect();
+			let mut batch_list: Vec<_> = group.batches.clone().into_iter().collect();
 
 			// list to store retirement data
 			let mut batch_retire_data_list: BatchRetireDataList<T> = Default::default();
@@ -375,13 +437,13 @@ impl<T: Config> Pallet<T> {
 			ensure!(remaining == Zero::zero(), Error::<T>::AmountGreaterThanSupply);
 
 			// sanity checks to ensure accounting is correct
-			ensure!(project.minted <= project.total_supply, Error::<T>::AmountGreaterThanSupply);
-			ensure!(project.retired <= project.minted, Error::<T>::AmountGreaterThanSupply);
+			ensure!(group.minted <= group.total_supply, Error::<T>::AmountGreaterThanSupply);
+			ensure!(group.retired <= group.minted, Error::<T>::AmountGreaterThanSupply);
 
-			project.batches = batch_list.try_into().map_err(|_| Error::<T>::Overflow)?;
+			group.batches = batch_list.try_into().map_err(|_| Error::<T>::Overflow)?;
 
 			// Get the item-id of the NFT to mint
-			let maybe_item_id = NextItemId::<T>::get(&project_id);
+			let maybe_item_id = NextItemId::<T>::get(&group.asset_id);
 
 			// handle the case of first retirement of proejct
 			let item_id = match maybe_item_id {
@@ -389,7 +451,7 @@ impl<T: Config> Pallet<T> {
 					// If the item-id does not exist it implies this is the first retirement of
 					// project tokens create a collection and use default item-id
 					T::NFTHandler::create_collection(
-						&project_id,
+						&group.asset_id,
 						&Self::account_id(),
 						&Self::account_id(),
 					)?;
@@ -399,11 +461,11 @@ impl<T: Config> Pallet<T> {
 			};
 
 			// mint the NFT to caller
-			T::NFTHandler::mint_into(&project_id, &item_id, &from)?;
+			T::NFTHandler::mint_into(&group.asset_id, &item_id, &from)?;
 			// Increment the NextItemId storage
 			let next_item_id: T::ItemId =
 				item_id.checked_add(&One::one()).ok_or(Error::<T>::Overflow)?;
-			NextItemId::<T>::insert::<T::AssetId, T::ItemId>(project_id, next_item_id);
+			NextItemId::<T>::insert::<T::AssetId, T::ItemId>(group.asset_id, next_item_id);
 
 			// form the retire CarbonCredits data
 			let retired_carbon_credit_data = RetiredCarbonCreditsData::<T> {
@@ -414,7 +476,7 @@ impl<T: Config> Pallet<T> {
 			};
 
 			//Store the details of retired batches in storage
-			RetiredCredits::<T>::insert(project_id, item_id, retired_carbon_credit_data);
+			RetiredCredits::<T>::insert(group.asset_id, item_id, retired_carbon_credit_data);
 
 			// emit event
 			Self::deposit_event(Event::CarbonCreditRetired {
