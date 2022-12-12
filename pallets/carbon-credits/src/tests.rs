@@ -138,7 +138,7 @@ fn create_and_approve_project(originator_account: u64, authorised_account: u64) 
 
 	assert_ok!(CarbonCredits::approve_project(
 		RawOrigin::Signed(authorised_account).into(),
-		0u32.into(),
+		0u32,
 		true
 	),);
 }
@@ -380,7 +380,7 @@ fn create_fails_for_multiple_batch_with_single_batch_supply_zero() {
 		let batch_groups = vec![BatchGroupOf::<Test> {
 			name: "batch_group_name".as_bytes().to_vec().try_into().unwrap(),
 			uuid: "batch_group_uuid".as_bytes().to_vec().try_into().unwrap(),
-			asset_id: 0_u32.into(),
+			asset_id: 0_u32,
 			total_supply: 100_u32.into(),
 			minted: 0_u32.into(),
 			retired: 0_u32.into(),

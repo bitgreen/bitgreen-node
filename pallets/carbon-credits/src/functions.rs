@@ -186,7 +186,7 @@ impl<T: Config> Pallet<T> {
 				approved: false,
 			};
 
-			*project = Some(new_project.clone());
+			*project = Some(new_project);
 
 			Ok(project_id)
 		})
