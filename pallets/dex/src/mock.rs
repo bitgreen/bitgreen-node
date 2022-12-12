@@ -150,6 +150,7 @@ impl pallet_dex::Config for Test {
 	type MinPricePerUnit = MinPricePerUnit;
 	type MinUnitsToCreateSellOrder = MinUnitsToCreateSellOrder;
 	type ForceOrigin = EnsureRoot<AccountId>;
+	type WeightInfo = ();
 }
 
 // Build genesis storage according to the mock runtime.

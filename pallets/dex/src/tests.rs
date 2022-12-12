@@ -69,6 +69,22 @@ fn create_sell_order_less_than_minimum_should_fail() {
 }
 
 #[test]
+fn create_sell_order_should_fail_if_caller_does_not_have_asset_balance() {
+	new_test_ext().execute_with(|| {
+		let asset_id = 0;
+		let seller = 1;
+		assert_ok!(Assets::force_create(Origin::root(), asset_id, 1, true, 1));
+		assert_ok!(Assets::mint(Origin::signed(seller), asset_id, 1, 100));
+		assert_eq!(Assets::balance(asset_id, seller), 100);
+		// should not be able to create a sell order since the amount is greater than seller balance
+		assert_noop!(
+			Dex::create_sell_order(Origin::signed(seller), asset_id, 101, 1),
+			pallet_assets::Error::<Test>::BalanceLow
+		);
+	});
+}
+
+#[test]
 fn cancel_sell_order_should_work() {
 	new_test_ext().execute_with(|| {
 		let asset_id = 0;
@@ -225,6 +241,47 @@ fn sell_order_is_removed_if_all_units_bought() {
 
 		// sell order should be removed since all units have been bought
 		assert!(Orders::<Test>::get(0).is_none());
+
+		// Token balance should be set correctly
+		// seller gets the price_per_unit
+		assert_eq!(Tokens::free_balance(AUSD, &seller), 50);
+		// buyer spends price_per_unit + fees (50 + 5 + 5)
+		assert_eq!(Tokens::free_balance(AUSD, &buyer), 40);
+		// pallet gets fees (5 + 5)
+		assert_eq!(Tokens::free_balance(AUSD, &dex_account), 10);
+	});
+}
+
+#[test]
+fn partial_fill_and_cancel_works() {
+	new_test_ext().execute_with(|| {
+		let asset_id = 0;
+		let seller = 1;
+		let buyer = 4;
+		let dex_account: u64 = PalletId(*b"bitg/dex").into_account_truncating();
+
+		assert_ok!(Assets::force_create(Origin::root(), asset_id, 1, true, 1));
+		assert_ok!(Assets::mint(Origin::signed(seller), asset_id, 1, 100));
+		assert_eq!(Assets::balance(asset_id, seller), 100);
+
+		// set fee values
+		assert_ok!(Dex::force_set_payment_fee(Origin::root(), Percent::from_percent(10)));
+		assert_ok!(Dex::force_set_purchase_fee(Origin::root(), Percent::from_percent(10)));
+
+		// should be able to create a sell order
+		assert_ok!(Dex::create_sell_order(Origin::signed(seller), asset_id, 50, 10));
+
+		// user should be able to purchase
+		assert_ok!(Dex::buy_order(Origin::signed(buyer), 0, asset_id, 5));
+
+		// cancel sell order should return the remaining units
+		assert_ok!(Dex::cancel_sell_order(Origin::signed(seller), 0));
+
+		// Balance should be returned correctly
+		assert_eq!(Assets::balance(asset_id, seller), 95);
+		assert_eq!(Assets::balance(asset_id, dex_account), 0);
+
+		assert_eq!(last_event(), Event::SellOrderCancelled { order_id: 0 }.into());
 
 		// Token balance should be set correctly
 		// seller gets the price_per_unit

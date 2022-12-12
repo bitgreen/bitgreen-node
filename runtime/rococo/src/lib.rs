@@ -744,6 +744,7 @@ impl pallet_dex::Config for Runtime {
 	type MinPricePerUnit = MinPricePerUnit;
 	type MinUnitsToCreateSellOrder = MinUnitsToCreateSellOrder;
 	type ForceOrigin = EnsureRoot<AccountId>;
+	type WeightInfo = ();
 }
 
 // Create the runtime by composing the FRAME pallets that were previously configured.
@@ -814,6 +815,7 @@ mod benches {
 		[cumulus_pallet_xcmp_queue, XcmpQueue]
 		[pallet_carbon_credits, VCU]
 		[pallet_vesting_contract, VestingContract]
+		[pallet_dex, Dex]
 	);
 }
 

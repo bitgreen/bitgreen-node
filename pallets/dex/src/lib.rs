@@ -40,6 +40,9 @@ mod tests;
 #[cfg(feature = "runtime-benchmarks")]
 mod benchmarking;
 
+mod weights;
+pub use weights::WeightInfo;
+
 #[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, Default, MaxEncodedLen, TypeInfo)]
 pub struct OrderInfo<AccountId, AssetId, AssetBalance, TokenBalance> {
 	owner: AccountId,
@@ -48,9 +51,11 @@ pub struct OrderInfo<AccountId, AssetId, AssetBalance, TokenBalance> {
 	asset_id: AssetId,
 }
 
+pub type OrderId = u64;
+
 #[frame_support::pallet]
 pub mod pallet {
-	use crate::OrderInfo;
+	use crate::{OrderId, OrderInfo, WeightInfo};
 	use frame_support::{
 		pallet_prelude::*,
 		traits::fungibles::{Inspect, Transfer},
@@ -59,7 +64,7 @@ pub mod pallet {
 	use frame_system::pallet_prelude::{OriginFor, *};
 	use orml_traits::MultiCurrency;
 	use sp_runtime::{
-		traits::{AccountIdConversion, CheckedSub, Zero},
+		traits::{AccountIdConversion, CheckedSub, One, Zero},
 		Percent,
 	};
 
@@ -110,6 +115,9 @@ pub mod pallet {
 		/// The DEX pallet id
 		#[pallet::constant]
 		type PalletId: Get<PalletId>;
+
+		/// Weight information for extrinsics in this pallet.
+		type WeightInfo: WeightInfo;
 	}
 
 	// owner of swap pool
@@ -120,7 +128,7 @@ pub mod pallet {
 	// orders information
 	#[pallet::storage]
 	#[pallet::getter(fn order_count)]
-	pub type OrderCount<T: Config> = StorageValue<_, u64, ValueQuery>;
+	pub type OrderCount<T: Config> = StorageValue<_, OrderId, ValueQuery>;
 
 	// Payment fees charged by dex
 	#[pallet::storage]
@@ -137,28 +145,26 @@ pub mod pallet {
 	pub type Orders<T: Config> = StorageMap<
 		_,
 		Blake2_128Concat,
-		u64,
+		OrderId,
 		OrderInfo<T::AccountId, AssetIdOf<T>, AssetBalanceOf<T>, CurrencyBalanceOf<T>>,
 	>;
 
-	// Pallets use events to inform users when important changes are made.
-	// https://docs.substrate.io/main-docs/build/events-errors/
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
 	pub enum Event<T: Config> {
-		// A new sell order has been created
+		/// A new sell order has been created
 		SellOrderCreated {
-			order_id: u64,
+			order_id: OrderId,
 			asset_id: AssetIdOf<T>,
 			units: AssetBalanceOf<T>,
 			price_per_unit: CurrencyBalanceOf<T>,
 			owner: T::AccountId,
 		},
 		/// A sell order was cancelled
-		SellOrderCancelled { order_id: u64 },
+		SellOrderCancelled { order_id: OrderId },
 		/// A buy order was processed successfully
 		BuyOrderFilled {
-			order_id: u64,
+			order_id: OrderId,
 			units: AssetBalanceOf<T>,
 			price_per_unit: CurrencyBalanceOf<T>,
 			seller: T::AccountId,
@@ -185,15 +191,15 @@ pub mod pallet {
 		BelowMinimumPrice,
 		/// Below minimum units
 		BelowMinimumUnits,
+		/// Arithmetic overflow
+		ArithmeticError,
 	}
 
-	// Dispatchable functions allows users to interact with the pallet and invoke state changes.
-	// These functions materialize as "extrinsics", which are often compared to transactions.
-	// Dispatchable functions must be annotated with a weight and must return a DispatchResult.
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
+		/// Create a new sell order for given `asset_id`
 		#[transactional]
-		#[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1, 2).ref_time())]
+		#[pallet::weight(T::WeightInfo::create_sell_order())]
 		pub fn create_sell_order(
 			origin: OriginFor<T>,
 			asset_id: AssetIdOf<T>,
@@ -210,8 +216,9 @@ pub mod pallet {
 			T::Asset::transfer(asset_id, &seller, &Self::account_id(), units, false)?;
 
 			let order_id = Self::order_count();
-
-			OrderCount::<T>::put(order_id + 1);
+			let next_order_id =
+				order_id.checked_add(One::one()).ok_or(Error::<T>::OrderIdOverflow)?;
+			OrderCount::<T>::put(next_order_id);
 
 			// order values
 			Orders::<T>::insert(
@@ -230,9 +237,10 @@ pub mod pallet {
 			Ok(())
 		}
 
+		/// Cancel an existing sell order with `order_id`
 		#[transactional]
-		#[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1, 1).ref_time())]
-		pub fn cancel_sell_order(origin: OriginFor<T>, order_id: u64) -> DispatchResult {
+		#[pallet::weight(T::WeightInfo::cancel_sell_order())]
+		pub fn cancel_sell_order(origin: OriginFor<T>, order_id: OrderId) -> DispatchResult {
 			let seller = ensure_signed(origin.clone())?;
 
 			// check validity
@@ -253,11 +261,12 @@ pub mod pallet {
 			Ok(())
 		}
 
+		/// Buy `units` of `asset_id` from the given `order_id`
 		#[transactional]
-		#[pallet::weight(10_000)]
+		#[pallet::weight(T::WeightInfo::buy_order())]
 		pub fn buy_order(
 			origin: OriginFor<T>,
-			order_id: u64,
+			order_id: OrderId,
 			asset_id: AssetIdOf<T>,
 			units: AssetBalanceOf<T>,
 		) -> DispatchResult {
@@ -270,7 +279,7 @@ pub mod pallet {
 			Orders::<T>::try_mutate(order_id, |maybe_order| -> DispatchResult {
 				let mut order = maybe_order.take().ok_or(Error::<T>::InvalidOrderId)?;
 
-				// ensure the expected token matches the order
+				// ensure the expected asset matches the order
 				ensure!(asset_id == order.asset_id, Error::<T>::InvalidAssetId);
 
 				// ensure volume remaining can cover the buy order
@@ -282,12 +291,12 @@ pub mod pallet {
 
 				// calculate fees
 				let units_as_u32: u32 =
-					units.try_into().map_err(|_| Error::<T>::OrderUnitsOverflow)?;
+					units.try_into().map_err(|_| Error::<T>::ArithmeticError)?;
 				let price_per_unit_as_u32: u32 =
-					order.price_per_unit.try_into().map_err(|_| Error::<T>::OrderUnitsOverflow)?;
+					order.price_per_unit.try_into().map_err(|_| Error::<T>::ArithmeticError)?;
 				let required_currency = price_per_unit_as_u32
 					.checked_mul(units_as_u32)
-					.ok_or(Error::<T>::OrderUnitsOverflow)?;
+					.ok_or(Error::<T>::ArithmeticError)?;
 
 				let payment_fee = PaymentFees::<T>::get().mul_floor(required_currency);
 				let purchase_fee = PurchaseFees::<T>::get().mul_floor(required_currency);
@@ -334,7 +343,7 @@ pub mod pallet {
 		/// Force set PaymentFees value
 		/// Can only be called by ForceOrigin
 		#[transactional]
-		#[pallet::weight(10_000)]
+		#[pallet::weight(T::WeightInfo::force_set_payment_fee())]
 		pub fn force_set_payment_fee(origin: OriginFor<T>, payment_fee: Percent) -> DispatchResult {
 			T::ForceOrigin::ensure_origin(origin)?;
 			PaymentFees::<T>::set(payment_fee);
@@ -344,7 +353,7 @@ pub mod pallet {
 		/// Force set PurchaseFee value
 		/// Can only be called by ForceOrigin
 		#[transactional]
-		#[pallet::weight(10_000)]
+		#[pallet::weight(T::WeightInfo::force_set_purchase_fee())]
 		pub fn force_set_purchase_fee(
 			origin: OriginFor<T>,
 			purchase_fee: Percent,

@@ -188,4 +188,5 @@ runtime-benchmarks = [
   "pallet-vesting-contract/runtime-benchmarks",
   "orml-authority/runtime-benchmarks",
   "pallet-parachain-staking/runtime-benchmarks",
+  "pallet-dex/runtime-benchmarks",
 ]
