@@ -3,7 +3,7 @@
 // This code is licensed under MIT license (see LICENSE.txt for details)
 use frame_support::{
 	parameter_types,
-	traits::{ConstU32, Everything, GenesisBuild, Nothing},
+	traits::{ConstU32, Contains, Everything, GenesisBuild, Nothing},
 	PalletId,
 };
 use frame_system as system;
@@ -134,6 +134,13 @@ impl orml_tokens::Config for Test {
 	type WeightInfo = ();
 }
 
+pub struct DummyValidator;
+impl Contains<u32> for DummyValidator {
+	fn contains(_asset_id: &u32) -> bool {
+		true
+	}
+}
+
 parameter_types! {
 	pub const DexPalletId: PalletId = PalletId(*b"bitg/dex");
 	pub StableCurrencyId: CurrencyId = CurrencyId::AUSD;
@@ -148,6 +155,7 @@ impl pallet_dex::Config for Test {
 	type StableCurrencyId = StableCurrencyId;
 	type PalletId = DexPalletId;
 	type MinPricePerUnit = MinPricePerUnit;
+	type AssetValidator = DummyValidator;
 	type MinUnitsToCreateSellOrder = MinUnitsToCreateSellOrder;
 	type ForceOrigin = EnsureRoot<AccountId>;
 	type WeightInfo = ();

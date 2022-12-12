@@ -55,6 +55,7 @@ mod functions;
 pub use functions::*;
 
 mod weights;
+use frame_support::traits::Contains;
 pub use weights::WeightInfo;
 
 #[frame_support::pallet]
@@ -62,12 +63,9 @@ pub mod pallet {
 	use codec::HasCompact;
 	use frame_support::{
 		pallet_prelude::*,
-		traits::{
-			tokens::{
-				fungibles::{metadata::Mutate as MetadataMutate, Create, Destroy, Mutate},
-				nonfungibles::{Create as NFTCreate, Mutate as NFTMutate},
-			},
-			Contains,
+		traits::tokens::{
+			fungibles::{metadata::Mutate as MetadataMutate, Create, Destroy, Mutate},
+			nonfungibles::{Create as NFTCreate, Mutate as NFTMutate},
 		},
 		transactional, PalletId,
 	};
@@ -555,5 +553,14 @@ pub mod pallet {
 			Projects::<T>::take(project_id);
 			Ok(())
 		}
+	}
+}
+
+/// Struct to verify if a given asset_id is representing a carbon credit project
+pub struct CarbonCreditsAssetValidator<T>(sp_std::marker::PhantomData<T>);
+impl<T: Config> Contains<T::AssetId> for CarbonCreditsAssetValidator<T> {
+	// Returns true if the AssetId represents a CarbonCredits project
+	fn contains(asset_id: &T::AssetId) -> bool {
+		AssetIdLookup::<T>::contains_key(asset_id)
 	}
 }
