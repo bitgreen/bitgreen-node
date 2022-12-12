@@ -135,15 +135,7 @@ pub struct BatchRetireData<StringType, Balance> {
 /// Representation of a group of credits. Groups are collections of batches of credits
 #[derive(Clone, Encode, Decode, Eq, PartialEq, TypeInfo, Default, Debug, MaxEncodedLen)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub struct BatchGroup<
-	StringType,
-	AssetId,
-	Balance,
-	SDGTypesList,
-	RoyaltyRecipients,
-	Batch,
-	MaxBatches: Get<u32>,
-> {
+pub struct BatchGroup<StringType, AssetId, Balance, Batch, MaxBatches: Get<u32>> {
 	/// Descriptive name for this batch of credits
 	pub name: StringType,
 	/// UUID for this batch group
@@ -157,10 +149,6 @@ pub struct BatchGroup<
 	pub minted: Balance,
 	/// The amount of tokens minted for this group
 	pub retired: Balance,
-	/// SDG details
-	pub sdg_details: SDGTypesList,
-	/// The royalties to be paid when tokens are purchased
-	pub royalties: Option<RoyaltyRecipients>,
 	/// The list of batches of credits
 	/// A group can represent Carbon credits from multiple batches
 	/// For example a project can have 100 tokens of 2019 vintage and 200 tokens of 2020 vintage.

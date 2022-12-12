@@ -51,8 +51,6 @@ pub type BatchGroupOf<T> = BatchGroup<
 	ShortStringOf<T>,
 	<T as pallet::Config>::AssetId,
 	<T as pallet::Config>::Balance,
-	SDGTypesListOf<T>,
-	RoyaltyRecipientsOf<T>,
 	BatchOf<T>,
 	<T as pallet::Config>::MaxGroupSize,
 >;
@@ -89,6 +87,10 @@ pub struct ProjectCreateParams<T: pallet::Config> {
 	pub documents: IpfsLinkListsOf<T>,
 	/// Details of the project as represented in registry
 	pub registry_details: RegistryListOf<T>,
+	/// SDG details
+	pub sdg_details: SDGTypesListOf<T>,
+	/// The royalties to be paid when tokens are purchased
+	pub royalties: Option<RoyaltyRecipientsOf<T>>,
 	/// List of batch groups in the project
 	pub batch_groups: BatchGroupListOf<T>,
 }
@@ -117,9 +119,12 @@ pub struct ProjectDetail<T: pallet::Config> {
 	pub documents: IpfsLinkListsOf<T>,
 	/// Details of the project as represented in registry
 	pub registry_details: RegistryListOf<T>,
+	/// SDG details
+	pub sdg_details: SDGTypesListOf<T>,
+	/// The royalties to be paid when tokens are purchased
+	pub royalties: Option<RoyaltyRecipientsOf<T>>,
 	/// groups included in the project
 	pub batch_groups: BatchGroupMapOf<T>,
-
 	// origination details
 	/// Creation time of project
 	pub created: T::BlockNumber,

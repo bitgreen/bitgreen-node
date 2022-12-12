@@ -90,11 +90,6 @@ fn get_default_batch_group<T: Config>() -> BatchGroupListOf<T>
 where
 	<T as frame_system::Config>::AccountId: From<u32>,
 {
-	let royalty = Royalty::<T::AccountId> {
-		account_id: 1_u32.into(),
-		percent_of_fees: Percent::from_percent(0),
-	};
-
 	vec![BatchGroupOf::<T> {
 		name: "batch_group_name".as_bytes().to_vec().try_into().unwrap(),
 		uuid: "batch_group_uuid".as_bytes().to_vec().try_into().unwrap(),
@@ -102,8 +97,6 @@ where
 		total_supply: 100_u32.into(),
 		minted: 0_u32.into(),
 		retired: 0_u32.into(),
-		sdg_details: get_default_sdg_details::<T>(),
-		royalties: Some(vec![royalty].try_into().unwrap()),
 		batches: get_single_batch_list::<T>(),
 	}]
 	.try_into()
@@ -115,11 +108,6 @@ fn get_multiple_batch_group<T: Config>() -> BatchGroupListOf<T>
 where
 	<T as frame_system::Config>::AccountId: From<u32>,
 {
-	let royalty = Royalty::<T::AccountId> {
-		account_id: 1_u32.into(),
-		percent_of_fees: Percent::from_percent(0),
-	};
-
 	vec![BatchGroupOf::<T> {
 		name: "batch_group_name".as_bytes().to_vec().try_into().unwrap(),
 		uuid: "batch_group_uuid".as_bytes().to_vec().try_into().unwrap(),
@@ -127,8 +115,6 @@ where
 		total_supply: 100_u32.into(),
 		minted: 0_u32.into(),
 		retired: 0_u32.into(),
-		sdg_details: get_default_sdg_details::<T>(),
-		royalties: Some(vec![royalty].try_into().unwrap()),
 		batches: get_multiple_batch_list::<T>(),
 	}]
 	.try_into()
@@ -197,6 +183,11 @@ fn get_default_creation_params<T: Config>() -> ProjectCreateParams<T>
 where
 	<T as frame_system::Config>::AccountId: From<u32>,
 {
+	let royalty = Royalty::<T::AccountId> {
+		account_id: 1_u32.into(),
+		percent_of_fees: Percent::from_percent(0),
+	};
+
 	let creation_params = ProjectCreateParams {
 		name: "name".as_bytes().to_vec().try_into().unwrap(),
 		description: "description".as_bytes().to_vec().try_into().unwrap(),
@@ -207,6 +198,8 @@ where
 			.try_into()
 			.unwrap(),
 		registry_details: get_default_registry_details::<T>(),
+		sdg_details: get_default_sdg_details::<T>(),
+		royalties: Some(vec![royalty].try_into().unwrap()),
 		batch_groups: get_default_batch_group::<T>(),
 	};
 
@@ -308,7 +301,7 @@ fn create_works_for_single_batch() {
 		assert!(!stored_data.approved);
 
 		let group_data = stored_data.batch_groups.get(&0u32).unwrap();
-		assert_eq!(group_data.sdg_details, get_default_sdg_details::<Test>());
+		assert_eq!(stored_data.sdg_details, get_default_sdg_details::<Test>());
 		assert_eq!(group_data.batches, get_single_batch_list::<Test>());
 		assert_eq!(group_data.total_supply, 100_u32.into());
 		assert_eq!(group_data.minted, 0_u32.into());
@@ -342,7 +335,7 @@ fn create_works_for_multiple_batch() {
 		assert!(!stored_data.approved);
 
 		let group_data = stored_data.batch_groups.get(&0u32).unwrap();
-		assert_eq!(group_data.sdg_details, get_default_sdg_details::<Test>());
+		assert_eq!(stored_data.sdg_details, get_default_sdg_details::<Test>());
 		assert_eq!(group_data.batches, get_multiple_batch_list::<Test>());
 		assert_eq!(group_data.total_supply, 200_u32.into());
 		assert_eq!(group_data.minted, 0_u32.into());
@@ -391,8 +384,6 @@ fn create_fails_for_multiple_batch_with_single_batch_supply_zero() {
 			total_supply: 100_u32.into(),
 			minted: 0_u32.into(),
 			retired: 0_u32.into(),
-			sdg_details: get_default_sdg_details::<Test>(),
-			royalties: None,
 			batches,
 		}]
 		.try_into()
