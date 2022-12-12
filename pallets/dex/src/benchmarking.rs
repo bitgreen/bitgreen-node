@@ -17,10 +17,6 @@ fn get_currency_id() -> CurrencyId {
 	primitives::CurrencyId::AUSD
 }
 
-// fn assert_last_event<T: Config>(generic_event: <T as Config>::Event) {
-// 	frame_system::Pallet::<T>::assert_last_event(generic_event.into());
-// }
-
 fn create_default_asset<T: Config + pallet_assets::Config>(
 	is_sufficient: bool,
 ) -> (T::AccountId, <T::Lookup as StaticLookup>::Source) {
@@ -66,7 +62,7 @@ benchmarks! {
 	create_sell_order {
 		create_default_minted_asset::<T>(true, 100u32.into());
 		let caller: T::AccountId = whitelisted_caller();
-	}: _(RawOrigin::Signed(caller.into()), 0u32.into(), 10u32.into(), 10u32.into())
+	}: _(RawOrigin::Signed(caller.into()), 0u32.into(), 100u32.into(), 10u32.into())
 	verify {
 		assert!(Orders::<T>::get(0u64).is_some())
 	}
@@ -74,7 +70,7 @@ benchmarks! {
 	cancel_sell_order {
 		create_default_minted_asset::<T>(true, 100u32.into());
 		let caller: T::AccountId = whitelisted_caller();
-		Dex::<T>::create_sell_order(RawOrigin::Signed(caller.clone()).into(), 0u32.into(), 10u32.into(), 10u32.into())?;
+		Dex::<T>::create_sell_order(RawOrigin::Signed(caller.clone()).into(), 0u32.into(), 100u32.into(), 10u32.into())?;
 	}: _(RawOrigin::Signed(caller.into()), 0u64)
 	verify {
 		assert!(Orders::<T>::get(0u64).is_none())
@@ -83,9 +79,9 @@ benchmarks! {
 	buy_order {
 		create_default_minted_asset::<T>(true, 100u32.into());
 		let caller: T::AccountId = whitelisted_caller();
-		Dex::<T>::create_sell_order(RawOrigin::Signed(caller.clone()).into(), 0u32.into(), 10u32.into(), 10u32.into())?;
+		Dex::<T>::create_sell_order(RawOrigin::Signed(caller.clone()).into(), 0u32.into(), 100u32.into(), 1u32.into())?;
 		// give the caller some tokens to pay
-		<orml_tokens::Pallet<T>>::deposit(get_currency_id(), &caller, 100u32.into())?;
+		<orml_tokens::Pallet<T>>::deposit(get_currency_id(), &caller, 1000u32.into())?;
 	}: _(RawOrigin::Signed(caller.into()), 0u64, 0u32.into(), 1u32.into())
 	verify {}
 
