@@ -18,7 +18,7 @@ pub enum RegistryName {
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct RegistryDetails<StringType> {
 	/// The name of registry the project belongs to
-	pub registry: RegistryName,
+	pub reg_name: RegistryName,
 	/// The name of the project in the registry
 	pub name: StringType,
 	/// The id of the project in the registry

@@ -22,7 +22,7 @@ pub type CarbonCreditPoolEvent = crate::Event<Test>;
 /// helper function to generate standard registry details
 fn get_default_registry_details<T: Config>() -> RegistryListOf<T> {
 	let registry_details = RegistryDetails {
-		registry: RegistryName::Verra,
+		reg_name: RegistryName::Verra,
 		name: "reg_name".as_bytes().to_vec().try_into().unwrap(),
 		id: "reg_id".as_bytes().to_vec().try_into().unwrap(),
 		summary: "reg_summary".as_bytes().to_vec().try_into().unwrap(),
