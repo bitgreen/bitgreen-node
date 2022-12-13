@@ -58,7 +58,10 @@ pub mod pallet {
 	use crate::{OrderId, OrderInfo, WeightInfo};
 	use frame_support::{
 		pallet_prelude::*,
-		traits::fungibles::{Inspect, Transfer},
+		traits::{
+			fungibles::{Inspect, Transfer},
+			Contains,
+		},
 		transactional, PalletId,
 	};
 	use frame_system::pallet_prelude::{OriginFor, *};
@@ -99,6 +102,9 @@ pub mod pallet {
 
 		/// The origin which may forcibly set storage or add authorised accounts
 		type ForceOrigin: EnsureOrigin<Self::Origin>;
+
+		/// Verify if the asset can be listed on the dex
+		type AssetValidator: Contains<AssetIdOf<Self>>;
 
 		/// The CurrencyId of the stable currency we accept as payment
 		#[pallet::constant]
@@ -193,6 +199,8 @@ pub mod pallet {
 		BelowMinimumUnits,
 		/// Arithmetic overflow
 		ArithmeticError,
+		/// Asset not permitted to be listed
+		AssetNotPermitted,
 	}
 
 	#[pallet::call]
@@ -207,6 +215,9 @@ pub mod pallet {
 			price_per_unit: CurrencyBalanceOf<T>,
 		) -> DispatchResult {
 			let seller = ensure_signed(origin.clone())?;
+
+			// ensure the asset_id can be listed
+			ensure!(T::AssetValidator::contains(&asset_id), Error::<T>::AssetNotPermitted);
 
 			// ensure minimums are satisfied
 			ensure!(units >= T::MinUnitsToCreateSellOrder::get(), Error::<T>::BelowMinimumUnits);
