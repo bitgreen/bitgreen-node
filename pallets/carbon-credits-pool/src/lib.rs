@@ -261,7 +261,7 @@ pub mod pallet {
 						.first()
 						.ok_or(Error::<T>::ProjectNotFound)?;
 					ensure!(
-						registry_list.contains(&project_registry.registry),
+						registry_list.contains(&project_registry.reg_name),
 						Error::<T>::RegistryNotPermitted
 					);
 				}

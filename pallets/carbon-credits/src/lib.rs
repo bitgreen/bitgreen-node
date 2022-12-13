@@ -492,6 +492,19 @@ pub mod pallet {
 			Ok(())
 		}
 
+		/// Force modify NextAssetId storage
+		/// Can only be called by ForceOrigin
+		#[transactional]
+		#[pallet::weight(T::WeightInfo::force_set_next_item_id())]
+		pub fn force_set_next_asset_id(
+			origin: OriginFor<T>,
+			asset_id: T::AssetId,
+		) -> DispatchResult {
+			T::ForceOrigin::ensure_origin(origin)?;
+			NextAssetId::<T>::set(asset_id);
+			Ok(())
+		}
+
 		/// Force modify retired CarbonCredits storage
 		/// Can only be called by ForceOrigin
 		#[transactional]
