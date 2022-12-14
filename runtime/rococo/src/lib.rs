@@ -20,7 +20,9 @@ use frame_support::{
 	construct_runtime,
 	pallet_prelude::ConstU32,
 	parameter_types,
-	traits::{AsEnsureOriginWithArg, ConstU128, ConstU16, Contains, Currency, Everything, Nothing},
+	traits::{
+		AsEnsureOriginWithArg, ConstU128, ConstU16, Contains, Currency, Nothing, PrivilegeCmp,
+	},
 	weights::{
 		constants::WEIGHT_PER_SECOND, ConstantMultiplier, DispatchClass, Weight,
 		WeightToFeeCoefficient, WeightToFeeCoefficients, WeightToFeePolynomial,
@@ -62,7 +64,7 @@ pub use sp_runtime::{
 	traits::{AccountIdConversion, Zero},
 	MultiAddress, Perbill, Permill,
 };
-use sp_std::{convert::TryInto, prelude::*};
+use sp_std::{cmp::Ordering, convert::TryInto, prelude::*};
 #[cfg(feature = "std")]
 use sp_version::NativeVersion;
 use sp_version::RuntimeVersion;
@@ -219,7 +221,7 @@ impl frame_system::Config for Runtime {
 	/// The identifier used to distinguish between accounts.
 	type AccountId = AccountId;
 	/// The basic call filter to use in dispatchable.
-	type BaseCallFilter = Everything;
+	type BaseCallFilter = impls::BaseFilter;
 	/// Maximum number of block number to block hash mappings to keep (oldest pruned first).
 	type BlockHashCount = BlockHashCount;
 	/// The maximum length of a block (in bytes).
@@ -448,21 +450,6 @@ impl orml_tokens::Config for Runtime {
 	type ReserveIdentifier = [u8; 8];
 	type WeightInfo = ();
 }
-
-impl orml_nft::Config for Runtime {
-	type ClassData = Vec<u8>;
-	type ClassId = u32;
-	type MaxClassMetadata = ConstU32<1024>;
-	type MaxTokenMetadata = ConstU32<1024>;
-	type TokenData = Vec<u8>;
-	type TokenId = u32;
-}
-
-// Bitgreen pallets
-// Contracts price units.
-pub const MILLICENTS: Balance = 1_000_000_000;
-pub const CENTS: Balance = 1_000 * MILLICENTS;
-pub const DOLLARS: Balance = 100 * CENTS;
 
 // Asset pallet
 parameter_types! {
@@ -734,7 +721,7 @@ impl pallet_multisig::Config for Runtime {
 // TODO: test limits are safe
 parameter_types! {
 	pub const DexPalletId: PalletId = PalletId(*b"bitg/dex");
-	pub const StableCurrencyId: primitives::CurrencyId = primitives::CurrencyId::AUSD;
+	pub const StableCurrencyId: primitives::CurrencyId = primitives::CurrencyId::USDT;
 	pub const MinUnitsToCreateSellOrder : u32 = 100;
 	pub const MinPricePerUnit : u32 = 1;
 }
@@ -750,6 +737,67 @@ impl pallet_dex::Config for Runtime {
 	type MinUnitsToCreateSellOrder = MinUnitsToCreateSellOrder;
 	type ForceOrigin = EnsureRoot<AccountId>;
 	type WeightInfo = ();
+}
+
+impl pallet_utility::Config for Runtime {
+	type Event = Event;
+	type Call = Call;
+	type PalletsOrigin = OriginCaller;
+	type WeightInfo = ();
+}
+
+parameter_types! {
+	pub MaximumSchedulerWeight: Weight = NORMAL_DISPATCH_RATIO * RuntimeBlockWeights::get().max_block;
+	pub const MaxScheduledPerBlock: u32 = 50;
+	pub const NoPreimagePostponement: Option<u32> = Some(10);
+}
+
+/// Used the compare the privilege of an origin inside the scheduler.
+pub struct OriginPrivilegeCmp;
+
+impl PrivilegeCmp<OriginCaller> for OriginPrivilegeCmp {
+	fn cmp_privilege(left: &OriginCaller, right: &OriginCaller) -> Option<Ordering> {
+		if left == right {
+			return Some(Ordering::Equal)
+		}
+
+		match (left, right) {
+			// Root is greater than anything.
+			(OriginCaller::system(frame_system::RawOrigin::Root), _) => Some(Ordering::Greater),
+			// For every other origin we don't care, as they are not used for `ScheduleOrigin`.
+			_ => None,
+		}
+	}
+}
+
+impl pallet_scheduler::Config for Runtime {
+	type Origin = Origin;
+	type Event = Event;
+	type PalletsOrigin = OriginCaller;
+	type Call = Call;
+	type MaximumWeight = MaximumSchedulerWeight;
+	type ScheduleOrigin = EnsureRoot<AccountId>;
+	type MaxScheduledPerBlock = MaxScheduledPerBlock;
+	type WeightInfo = ();
+	type OriginPrivilegeCmp = OriginPrivilegeCmp;
+	type PreimageProvider = Preimage;
+	type NoPreimagePostponement = NoPreimagePostponement;
+}
+
+parameter_types! {
+	pub const PreimageMaxSize: u32 = 4096 * 1024;
+	pub const PreimageBaseDeposit: Balance = deposit(2, 64);
+	pub const PreimageByteDeposit: Balance = deposit(0, 1);
+}
+
+impl pallet_preimage::Config for Runtime {
+	type WeightInfo = ();
+	type Event = Event;
+	type Currency = Balances;
+	type ManagerOrigin = EnsureRoot<AccountId>;
+	type MaxSize = PreimageMaxSize;
+	type BaseDeposit = PreimageBaseDeposit;
+	type ByteDeposit = PreimageByteDeposit;
 }
 
 // Create the runtime by composing the FRAME pallets that were previously configured.
@@ -787,8 +835,7 @@ construct_runtime!(
 		DmpQueue: cumulus_pallet_dmp_queue::{Pallet, Call, Storage, Event<T>} = 33,
 
 		// orml pallets
-		Tokens: orml_tokens::{Pallet, Storage, Event<T>, Config<T>} = 41,
-		Nft: orml_nft::{Pallet, Call, Storage, Config<T>}= 42,
+		Tokens: orml_tokens::{Pallet, Call, Storage, Event<T>, Config<T>} = 41,
 
 		// Bitgreen pallets
 		KYCMembership: pallet_membership::{Pallet, Call, Storage, Config<T>, Event<T>} = 50,
@@ -802,6 +849,11 @@ construct_runtime!(
 		Contracts: pallet_contracts::{Pallet, Call, Storage, Event<T>} = 58,
 		MultiSig: pallet_multisig::{Pallet, Call, Storage, Event<T>} = 59,
 		Dex: pallet_dex::{Pallet, Call, Storage, Event<T>} = 60,
+
+		// Utility pallets
+		Utility: pallet_utility::{Pallet, Call, Event} = 61,
+		Scheduler: pallet_scheduler::{Pallet, Call, Storage, Event<T>} = 62,
+		Preimage: pallet_preimage::{Pallet, Call, Storage, Event<T>} = 63,
 	}
 );
 

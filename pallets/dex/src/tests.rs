@@ -203,11 +203,11 @@ fn buy_order_should_work() {
 
 		// Token balance should be set correctly
 		// seller gets the price_per_unit
-		assert_eq!(Tokens::free_balance(AUSD, &seller), 10);
+		assert_eq!(Tokens::free_balance(USDT, &seller), 10);
 		// buyer spends price_per_unit + fees (10 + 1 + 1)
-		assert_eq!(Tokens::free_balance(AUSD, &buyer), 88);
+		assert_eq!(Tokens::free_balance(USDT, &buyer), 88);
 		// pallet gets fees (1 + 1)
-		assert_eq!(Tokens::free_balance(AUSD, &dex_account), 2);
+		assert_eq!(Tokens::free_balance(USDT, &dex_account), 2);
 
 		assert_eq!(
 			last_event(),
@@ -244,11 +244,11 @@ fn sell_order_is_removed_if_all_units_bought() {
 
 		// Token balance should be set correctly
 		// seller gets the price_per_unit
-		assert_eq!(Tokens::free_balance(AUSD, &seller), 50);
+		assert_eq!(Tokens::free_balance(USDT, &seller), 50);
 		// buyer spends price_per_unit + fees (50 + 5 + 5)
-		assert_eq!(Tokens::free_balance(AUSD, &buyer), 40);
+		assert_eq!(Tokens::free_balance(USDT, &buyer), 40);
 		// pallet gets fees (5 + 5)
-		assert_eq!(Tokens::free_balance(AUSD, &dex_account), 10);
+		assert_eq!(Tokens::free_balance(USDT, &dex_account), 10);
 	});
 }
 
@@ -285,10 +285,10 @@ fn partial_fill_and_cancel_works() {
 
 		// Token balance should be set correctly
 		// seller gets the price_per_unit
-		assert_eq!(Tokens::free_balance(AUSD, &seller), 50);
+		assert_eq!(Tokens::free_balance(USDT, &seller), 50);
 		// buyer spends price_per_unit + fees (50 + 5 + 5)
-		assert_eq!(Tokens::free_balance(AUSD, &buyer), 40);
+		assert_eq!(Tokens::free_balance(USDT, &buyer), 40);
 		// pallet gets fees (5 + 5)
-		assert_eq!(Tokens::free_balance(AUSD, &dex_account), 10);
+		assert_eq!(Tokens::free_balance(USDT, &dex_account), 10);
 	});
 }
