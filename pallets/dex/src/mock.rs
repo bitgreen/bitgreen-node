@@ -18,7 +18,7 @@ use sp_runtime::{
 use sp_std::convert::{TryFrom, TryInto};
 
 pub type AccountId = u64;
-pub const AUSD: CurrencyId = CurrencyId::AUSD;
+pub const USDT: CurrencyId = CurrencyId::USDT;
 
 use crate as pallet_dex;
 type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
@@ -143,7 +143,7 @@ impl Contains<u32> for DummyValidator {
 
 parameter_types! {
 	pub const DexPalletId: PalletId = PalletId(*b"bitg/dex");
-	pub StableCurrencyId: CurrencyId = CurrencyId::AUSD;
+	pub StableCurrencyId: CurrencyId = CurrencyId::USDT;
 	pub const MinUnitsToCreateSellOrder : u32 = 2;
 	pub const MinPricePerUnit : u32 = 1;
 }
@@ -165,7 +165,7 @@ impl pallet_dex::Config for Test {
 pub fn new_test_ext() -> sp_io::TestExternalities {
 	let mut t = system::GenesisConfig::default().build_storage::<Test>().unwrap();
 
-	orml_tokens::GenesisConfig::<Test> { balances: vec![(4, AUSD, 100)] }
+	orml_tokens::GenesisConfig::<Test> { balances: vec![(4, USDT, 100)] }
 		.assimilate_storage(&mut t)
 		.unwrap();
 

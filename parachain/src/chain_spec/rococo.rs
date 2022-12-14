@@ -146,7 +146,6 @@ fn rococo_genesis(
 		},
 		tokens: bitgreen_rococo_runtime::TokensConfig { balances: [].to_vec() },
 		sudo: bitgreen_rococo_runtime::SudoConfig { key: Some(root_key) },
-		nft: bitgreen_rococo_runtime::NftConfig { tokens: vec![] },
 		treasury: Default::default(),
 	}
 }

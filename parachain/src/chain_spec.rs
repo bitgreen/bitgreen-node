@@ -239,7 +239,6 @@ fn testnet_genesis(
 		sudo: bitgreen_rococo_runtime::SudoConfig {
 			key: Some(get_account_id_from_seed::<sr25519::Public>("Alice")),
 		},
-		nft: bitgreen_rococo_runtime::NftConfig { tokens: vec![] },
 		treasury: Default::default(),
 	}
 }

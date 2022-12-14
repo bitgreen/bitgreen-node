@@ -14,7 +14,7 @@ use crate::Pallet as Dex;
 use sp_runtime::Percent;
 
 fn get_currency_id() -> CurrencyId {
-	primitives::CurrencyId::AUSD
+	primitives::CurrencyId::USDT
 }
 
 fn create_default_asset<T: Config + pallet_assets::Config>(

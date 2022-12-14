@@ -28,6 +28,12 @@ pub mod currency {
 	/// The existential deposit. Set to 1/10 of the Connected Relay Chain.
 	pub const EXISTENTIAL_DEPOSIT: Balance = MILLIUNIT;
 
+	/// Base token value in USD
+	// We assume a value of 10 cents for 1BBB
+	pub const DOLLARS: Balance = UNIT * 10;
+	pub const CENTS: Balance = DOLLARS / 100;
+	pub const MILLICENTS: Balance = CENTS / 1_000;
+
 	pub const fn deposit(items: u32, bytes: u32) -> Balance {
 		items as Balance * 2_000 * MILLIUNIT + (bytes as Balance) * 100 * MICROUNIT
 	}
@@ -114,8 +120,8 @@ pub type AccountId = <<Signature as Verify>::Signer as IdentifyAccount>::Account
 #[allow(clippy::unnecessary_cast)]
 pub enum CurrencyId {
 	DOT = 0,
-	ACA = 1,
-	AUSD = 2,
+	USDT = 1,
+	USDC = 2,
 }
 
 impl TryFrom<u8> for CurrencyId {
@@ -124,8 +130,8 @@ impl TryFrom<u8> for CurrencyId {
 	fn try_from(v: u8) -> Result<Self, Self::Error> {
 		match v {
 			0 => Ok(CurrencyId::DOT),
-			1 => Ok(CurrencyId::ACA),
-			2 => Ok(CurrencyId::AUSD),
+			1 => Ok(CurrencyId::USDT),
+			2 => Ok(CurrencyId::USDC),
 			_ => Err(()),
 		}
 	}
