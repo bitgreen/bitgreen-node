@@ -7,7 +7,7 @@
 
 use std::sync::Arc;
 
-use bitgreen_rococo_runtime::{opaque::Block, AccountId, Balance, Index as Nonce};
+use bitgreen_runtime::{opaque::Block, AccountId, Balance, Index as Nonce};
 use sc_client_api::AuxStore;
 pub use sc_rpc::{DenyUnsafe, SubscriptionTaskExecutor};
 use sc_transaction_pool_api::TransactionPool;
