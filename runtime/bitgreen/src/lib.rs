@@ -168,8 +168,8 @@ impl_opaque_keys! {
 
 #[sp_version::runtime_version]
 pub const VERSION: RuntimeVersion = RuntimeVersion {
-	spec_name: create_runtime_str!("bitgreen-rococo"),
-	impl_name: create_runtime_str!("bitgreen-rococo"),
+	spec_name: create_runtime_str!("bitgreen-parachain"),
+	impl_name: create_runtime_str!("bitgreen-parachain"),
 	authoring_version: 1,
 	spec_version: 1001, // v1.0.1
 	impl_version: 0,
