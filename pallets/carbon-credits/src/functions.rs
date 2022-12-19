@@ -65,6 +65,8 @@ impl<T: Config> Pallet<T> {
 
 			// if approved, create assets
 			if is_approved {
+				let mut created_asset_ids: Vec<T::AssetId> = Default::default();
+
 				for (group_id, mut group) in project.batch_groups.iter_mut() {
 					let asset_id = Self::next_asset_id();
 					let next_asset_id =
@@ -87,9 +89,15 @@ impl<T: Config> Pallet<T> {
 					group.asset_id = asset_id;
 
 					AssetIdLookup::<T>::insert(group.asset_id, (project_id, group_id));
+
+					// add the assetId for event updation
+					created_asset_ids.push(asset_id);
 				}
 
-				Self::deposit_event(Event::ProjectApproved { project_id });
+				Self::deposit_event(Event::ProjectApproved {
+					project_id,
+					asset_ids: created_asset_ids,
+				});
 			} else {
 				Self::deposit_event(Event::ProjectRejected { project_id });
 			}
@@ -125,12 +133,16 @@ impl<T: Config> Pallet<T> {
 		Projects::<T>::try_mutate(project_id, |project| -> Result<T::ProjectId, DispatchError> {
 			ensure!(project.is_none(), Error::<T>::ProjectAlreadyExists);
 
+			// cannot create a new project with empty batch_groups
+			ensure!(!params.batch_groups.is_empty(), Error::<T>::CannotCreateProjectWithoutCredits);
+
 			let mut batch_group_map: BoundedBTreeMap<_, _, _> = Default::default();
 			let mut group_id: T::GroupId = 0u32.into();
 
 			// ensure the groups are formed correctly and convert to BTreeMap
 			for mut group in params.batch_groups.into_iter() {
 				let mut group_total_supply: T::Balance = Zero::zero();
+
 				for batch in group.batches.iter() {
 					ensure!(
 						batch.total_supply > Zero::zero(),
