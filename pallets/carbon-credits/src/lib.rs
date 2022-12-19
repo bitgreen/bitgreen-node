@@ -254,29 +254,31 @@ pub mod pallet {
 		AuthorizedAccountRemoved { account_id: T::AccountId },
 		/// A new CarbonCredits has been created
 		ProjectCreated {
-			/// The T::AssetId of the created project
+			/// The ProjectId of the created project
 			project_id: T::ProjectId,
 		},
 		/// A project details has been resubmitted
 		ProjectResubmitted {
-			/// The T::AssetId of the created project
+			/// The ProjectId of the created project
 			project_id: T::ProjectId,
 			/// The details of the created project
 			details: ProjectDetail<T>,
 		},
 		/// Project has been approved
 		ProjectApproved {
-			/// The T::AssetId of the approved project
+			/// The ProjectId of the approved project
 			project_id: T::ProjectId,
+			/// The AssetIds created by the project
+			asset_ids: Vec<T::AssetId>,
 		},
 		/// Project has been rejected
 		ProjectRejected {
-			/// The T::AssetId of the approved project
+			/// The ProjectId of the approved project
 			project_id: T::ProjectId,
 		},
 		// An amount of Carbon Credits was minted
 		CarbonCreditMinted {
-			/// The T::AssetId of the minted CarbonCredits
+			/// The ProjectId of the minted CarbonCredits
 			project_id: T::ProjectId,
 			/// The AccountId that received the minted CarbonCredits
 			recipient: T::AccountId,
@@ -285,7 +287,7 @@ pub mod pallet {
 		},
 		// An existing CarbonCredits was retired
 		CarbonCreditRetired {
-			/// The T::AssetId of the retired CarbonCredits
+			/// The ProjectId of the retired CarbonCredits
 			project_id: T::ProjectId,
 			/// The AccountId that retired the CarbonCredits
 			account: T::AccountId,

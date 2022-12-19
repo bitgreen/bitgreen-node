@@ -535,7 +535,10 @@ fn approve_project_works() {
 		assert_eq!(group_data.asset_id, asset_id);
 		assert_eq!(Assets::total_issuance(asset_id), 0);
 
-		assert_eq!(last_event(), CarbonCreditsEvent::ProjectApproved { project_id }.into());
+		assert_eq!(
+			last_event(),
+			CarbonCreditsEvent::ProjectApproved { project_id, asset_ids: vec![0u32] }.into()
+		);
 	});
 }
 
@@ -566,7 +569,10 @@ fn cleanup_after_project_reject_works() {
 			true
 		),);
 
-		assert_eq!(last_event(), CarbonCreditsEvent::ProjectApproved { project_id }.into());
+		assert_eq!(
+			last_event(),
+			CarbonCreditsEvent::ProjectApproved { project_id, asset_ids: vec![0u32] }.into()
+		);
 
 		// remove the project from storage
 		assert_ok!(CarbonCredits::force_remove_project(RawOrigin::Root.into(), project_id,),);
