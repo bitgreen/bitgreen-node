@@ -399,6 +399,49 @@ fn create_fails_for_multiple_batch_with_single_batch_supply_zero() {
 }
 
 #[test]
+fn create_fails_for_empty_batch_group() {
+	new_test_ext().execute_with(|| {
+		let originator_account = 1;
+
+		let mut creation_params = get_default_creation_params::<Test>();
+		// replace the batch value with empty
+		creation_params.batch_groups = Default::default();
+
+		assert_noop!(
+			CarbonCredits::create(RawOrigin::Signed(originator_account).into(), creation_params),
+			Error::<Test>::CannotCreateProjectWithoutCredits
+		);
+	});
+}
+
+#[test]
+fn create_fails_for_empty_batches() {
+	new_test_ext().execute_with(|| {
+		let originator_account = 1;
+
+		let mut creation_params = get_default_creation_params::<Test>();
+		let batch_groups = vec![BatchGroupOf::<Test> {
+			name: "batch_group_name".as_bytes().to_vec().try_into().unwrap(),
+			uuid: "batch_group_uuid".as_bytes().to_vec().try_into().unwrap(),
+			asset_id: 0_u32,
+			total_supply: 100_u32.into(),
+			minted: 0_u32.into(),
+			retired: 0_u32.into(),
+			batches: Default::default(), // empty batches
+		}]
+		.try_into()
+		.unwrap();
+
+		creation_params.batch_groups = batch_groups;
+
+		assert_noop!(
+			CarbonCredits::create(RawOrigin::Signed(originator_account).into(), creation_params),
+			Error::<Test>::CannotCreateProjectWithoutCredits
+		);
+	});
+}
+
+#[test]
 fn resubmit_works() {
 	new_test_ext().execute_with(|| {
 		let originator_account = 1;

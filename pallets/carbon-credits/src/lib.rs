@@ -71,7 +71,7 @@ pub mod pallet {
 	};
 	use frame_system::pallet_prelude::*;
 	use sp_runtime::traits::{AtLeast32BitUnsigned, CheckedAdd, One};
-	use sp_std::convert::TryInto;
+	use sp_std::{convert::TryInto, vec::Vec};
 
 	use super::*;
 

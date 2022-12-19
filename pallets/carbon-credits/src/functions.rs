@@ -133,6 +133,9 @@ impl<T: Config> Pallet<T> {
 		Projects::<T>::try_mutate(project_id, |project| -> Result<T::ProjectId, DispatchError> {
 			ensure!(project.is_none(), Error::<T>::ProjectAlreadyExists);
 
+			// cannot create a new project with empty batch_groups
+			ensure!(!params.batch_groups.is_empty(), Error::<T>::CannotCreateProjectWithoutCredits);
+
 			let mut batch_group_map: BoundedBTreeMap<_, _, _> = Default::default();
 			let mut group_id: T::GroupId = 0u32.into();
 
