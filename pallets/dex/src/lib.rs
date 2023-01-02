@@ -201,6 +201,8 @@ pub mod pallet {
 		ArithmeticError,
 		/// Asset not permitted to be listed
 		AssetNotPermitted,
+		/// Seller and buyer cannot be same
+		SellerAndBuyerCannotBeSame,
 	}
 
 	#[pallet::call]
@@ -292,6 +294,9 @@ pub mod pallet {
 
 				// ensure the expected asset matches the order
 				ensure!(asset_id == order.asset_id, Error::<T>::InvalidAssetId);
+
+				// ensure the seller and buyer are not the same
+				ensure!(buyer != order.owner, Error::<T>::SellerAndBuyerCannotBeSame);
 
 				// ensure volume remaining can cover the buy order
 				ensure!(units <= order.units, Error::<T>::OrderUnitsOverflow);

@@ -186,6 +186,12 @@ fn buy_order_should_work() {
 			orml_tokens::Error::<Test>::BalanceTooLow
 		);
 
+		// should fail if the buyer and seller are same
+		assert_noop!(
+			Dex::buy_order(Origin::signed(1), 0, asset_id, 1),
+			Error::<Test>::SellerAndBuyerCannotBeSame
+		);
+
 		// use should be able to purchase
 		assert_ok!(Dex::buy_order(Origin::signed(buyer), 0, asset_id, 1));
 
