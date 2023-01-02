@@ -14,7 +14,7 @@
 //!
 //! ### Permissionless Functions
 //!
-//! * `create_sell_order`: Creates a new project onchain with details of batches of credits
+//! * `create_sell_order`: Creates a new sell order onchain
 //! * `cancel_sell_order`: Cancel an existing sell order
 //! * `buy_order`: Purchase units from exising sell order
 //!
@@ -118,6 +118,10 @@ pub mod pallet {
 		#[pallet::constant]
 		type MinPricePerUnit: Get<CurrencyBalanceOf<Self>>;
 
+		/// The maximum payment fee that can be set
+		#[pallet::constant]
+		type MaxPaymentFee: Get<Percent>;
+
 		/// The DEX pallet id
 		#[pallet::constant]
 		type PalletId: Get<PalletId>;
@@ -144,7 +148,7 @@ pub mod pallet {
 	// purchase fees charged by dex
 	#[pallet::storage]
 	#[pallet::getter(fn purchase_fees)]
-	pub type PurchaseFees<T: Config> = StorageValue<_, Percent, ValueQuery>;
+	pub type PurchaseFees<T: Config> = StorageValue<_, CurrencyBalanceOf<T>, ValueQuery>;
 
 	#[pallet::storage]
 	#[pallet::getter(fn order_info)]
@@ -203,6 +207,8 @@ pub mod pallet {
 		AssetNotPermitted,
 		/// Seller and buyer cannot be same
 		SellerAndBuyerCannotBeSame,
+		/// Cannot set more than the maximum payment fee
+		CannotSetMoreThanMaxPaymentFee,
 	}
 
 	#[pallet::call]
@@ -315,7 +321,8 @@ pub mod pallet {
 					.ok_or(Error::<T>::ArithmeticError)?;
 
 				let payment_fee = PaymentFees::<T>::get().mul_floor(required_currency);
-				let purchase_fee = PurchaseFees::<T>::get().mul_floor(required_currency);
+				let purchase_fee: u32 =
+					PurchaseFees::<T>::get().try_into().map_err(|_| Error::<T>::ArithmeticError)?;
 
 				let required_fees =
 					payment_fee.checked_add(purchase_fee).ok_or(Error::<T>::OrderUnitsOverflow)?;
@@ -362,6 +369,10 @@ pub mod pallet {
 		#[pallet::weight(T::WeightInfo::force_set_payment_fee())]
 		pub fn force_set_payment_fee(origin: OriginFor<T>, payment_fee: Percent) -> DispatchResult {
 			T::ForceOrigin::ensure_origin(origin)?;
+			ensure!(
+				payment_fee <= T::MaxPaymentFee::get(),
+				Error::<T>::CannotSetMoreThanMaxPaymentFee
+			);
 			PaymentFees::<T>::set(payment_fee);
 			Ok(())
 		}
@@ -372,7 +383,7 @@ pub mod pallet {
 		#[pallet::weight(T::WeightInfo::force_set_purchase_fee())]
 		pub fn force_set_purchase_fee(
 			origin: OriginFor<T>,
-			purchase_fee: Percent,
+			purchase_fee: CurrencyBalanceOf<T>,
 		) -> DispatchResult {
 			T::ForceOrigin::ensure_origin(origin)?;
 			PurchaseFees::<T>::set(purchase_fee);

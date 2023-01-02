@@ -724,6 +724,7 @@ parameter_types! {
 	pub const StableCurrencyId: primitives::CurrencyId = primitives::CurrencyId::USDT;
 	pub const MinUnitsToCreateSellOrder : u32 = 100;
 	pub const MinPricePerUnit : u32 = 1;
+	pub const MaxPaymentFee : Percent = Percent::from_percent(10);
 }
 
 impl pallet_dex::Config for Runtime {
@@ -736,6 +737,7 @@ impl pallet_dex::Config for Runtime {
 	type MinPricePerUnit = MinPricePerUnit;
 	type MinUnitsToCreateSellOrder = MinUnitsToCreateSellOrder;
 	type ForceOrigin = EnsureRoot<AccountId>;
+	type MaxPaymentFee = MaxPaymentFee;
 	type WeightInfo = ();
 }
 

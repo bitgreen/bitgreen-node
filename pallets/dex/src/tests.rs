@@ -146,7 +146,7 @@ fn buy_order_should_work() {
 
 		// set fee values
 		assert_ok!(Dex::force_set_payment_fee(Origin::root(), Percent::from_percent(10)));
-		assert_ok!(Dex::force_set_purchase_fee(Origin::root(), Percent::from_percent(10)));
+		assert_ok!(Dex::force_set_purchase_fee(Origin::root(), 10u32.into()));
 
 		// should be able to create a sell order
 		assert_ok!(Dex::create_sell_order(Origin::signed(seller), asset_id, 5, 10));
@@ -210,10 +210,10 @@ fn buy_order_should_work() {
 		// Token balance should be set correctly
 		// seller gets the price_per_unit
 		assert_eq!(Tokens::free_balance(USDT, &seller), 10);
-		// buyer spends price_per_unit + fees (10 + 1 + 1)
-		assert_eq!(Tokens::free_balance(USDT, &buyer), 88);
-		// pallet gets fees (1 + 1)
-		assert_eq!(Tokens::free_balance(USDT, &dex_account), 2);
+		// buyer spends price_per_unit + fees (10 + 1 + 10)
+		assert_eq!(Tokens::free_balance(USDT, &buyer), 79);
+		// pallet gets fees (1 + 10)
+		assert_eq!(Tokens::free_balance(USDT, &dex_account), 11);
 
 		assert_eq!(
 			last_event(),
@@ -237,7 +237,7 @@ fn sell_order_is_removed_if_all_units_bought() {
 
 		// set fee values
 		assert_ok!(Dex::force_set_payment_fee(Origin::root(), Percent::from_percent(10)));
-		assert_ok!(Dex::force_set_purchase_fee(Origin::root(), Percent::from_percent(10)));
+		assert_ok!(Dex::force_set_purchase_fee(Origin::root(), 10u32.into()));
 
 		// should be able to create a sell order
 		assert_ok!(Dex::create_sell_order(Origin::signed(seller), asset_id, 5, 10));
@@ -251,10 +251,10 @@ fn sell_order_is_removed_if_all_units_bought() {
 		// Token balance should be set correctly
 		// seller gets the price_per_unit
 		assert_eq!(Tokens::free_balance(USDT, &seller), 50);
-		// buyer spends price_per_unit + fees (50 + 5 + 5)
-		assert_eq!(Tokens::free_balance(USDT, &buyer), 40);
-		// pallet gets fees (5 + 5)
-		assert_eq!(Tokens::free_balance(USDT, &dex_account), 10);
+		// buyer spends price_per_unit + fees (50 + 5 + 10)
+		assert_eq!(Tokens::free_balance(USDT, &buyer), 35);
+		// pallet gets fees (5 + 10)
+		assert_eq!(Tokens::free_balance(USDT, &dex_account), 15);
 	});
 }
 
@@ -272,7 +272,7 @@ fn partial_fill_and_cancel_works() {
 
 		// set fee values
 		assert_ok!(Dex::force_set_payment_fee(Origin::root(), Percent::from_percent(10)));
-		assert_ok!(Dex::force_set_purchase_fee(Origin::root(), Percent::from_percent(10)));
+		assert_ok!(Dex::force_set_purchase_fee(Origin::root(), 10u32.into()));
 
 		// should be able to create a sell order
 		assert_ok!(Dex::create_sell_order(Origin::signed(seller), asset_id, 50, 10));
@@ -292,9 +292,21 @@ fn partial_fill_and_cancel_works() {
 		// Token balance should be set correctly
 		// seller gets the price_per_unit
 		assert_eq!(Tokens::free_balance(USDT, &seller), 50);
-		// buyer spends price_per_unit + fees (50 + 5 + 5)
-		assert_eq!(Tokens::free_balance(USDT, &buyer), 40);
-		// pallet gets fees (5 + 5)
-		assert_eq!(Tokens::free_balance(USDT, &dex_account), 10);
+		// buyer spends price_per_unit + fees (50 + 5 + 10)
+		assert_eq!(Tokens::free_balance(USDT, &buyer), 35);
+		// pallet gets fees (5 + 10)
+		assert_eq!(Tokens::free_balance(USDT, &dex_account), 15);
+	});
+}
+
+#[test]
+fn cannot_set_more_than_max_fee() {
+	new_test_ext().execute_with(|| {
+		// set fee values
+		assert_noop!(
+			Dex::force_set_payment_fee(Origin::root(), Percent::from_percent(51)),
+			Error::<Test>::CannotSetMoreThanMaxPaymentFee
+		);
+		assert_ok!(Dex::force_set_payment_fee(Origin::root(), Percent::from_percent(10)));
 	});
 }

@@ -14,6 +14,7 @@ use sp_core::H256;
 use sp_runtime::{
 	testing::Header,
 	traits::{BlakeTwo256, IdentityLookup},
+	Percent,
 };
 use sp_std::convert::{TryFrom, TryInto};
 
@@ -146,6 +147,7 @@ parameter_types! {
 	pub StableCurrencyId: CurrencyId = CurrencyId::USDT;
 	pub const MinUnitsToCreateSellOrder : u32 = 2;
 	pub const MinPricePerUnit : u32 = 1;
+	pub const MaxPaymentFee : Percent = Percent::from_percent(50);
 }
 
 impl pallet_dex::Config for Test {
@@ -158,6 +160,7 @@ impl pallet_dex::Config for Test {
 	type AssetValidator = DummyValidator;
 	type MinUnitsToCreateSellOrder = MinUnitsToCreateSellOrder;
 	type ForceOrigin = EnsureRoot<AccountId>;
+	type MaxPaymentFee = MaxPaymentFee;
 	type WeightInfo = ();
 }
 
