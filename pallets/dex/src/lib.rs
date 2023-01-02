@@ -320,7 +320,7 @@ pub mod pallet {
 					.checked_mul(units_as_u32)
 					.ok_or(Error::<T>::ArithmeticError)?;
 
-				let payment_fee = PaymentFees::<T>::get().mul_floor(required_currency);
+				let payment_fee = PaymentFees::<T>::get().mul_ceil(required_currency);
 				let purchase_fee: u32 =
 					PurchaseFees::<T>::get().try_into().map_err(|_| Error::<T>::ArithmeticError)?;
 
