@@ -164,36 +164,48 @@ fn buy_order_should_work() {
 
 		// non existing order should fail
 		assert_noop!(
-			Dex::buy_order(Origin::signed(buyer), 10, 0, 1),
+			Dex::buy_order(Origin::signed(buyer), 10, 0, 1, 100),
 			Error::<Test>::InvalidOrderId
 		);
 
 		// non matching asset_id should fail
 		assert_noop!(
-			Dex::buy_order(Origin::signed(buyer), 0, 10, 1),
+			Dex::buy_order(Origin::signed(buyer), 0, 10, 1, 100),
 			Error::<Test>::InvalidAssetId
 		);
 
 		// more than listed volume should fail
 		assert_noop!(
-			Dex::buy_order(Origin::signed(buyer), 0, asset_id, 1000),
+			Dex::buy_order(Origin::signed(buyer), 0, asset_id, 1000, 100),
 			Error::<Test>::OrderUnitsOverflow
 		);
 
 		// should fail if the user does not have enough balance
 		assert_noop!(
-			Dex::buy_order(Origin::signed(5), 0, asset_id, 1),
+			Dex::buy_order(Origin::signed(5), 0, asset_id, 1, 100),
 			orml_tokens::Error::<Test>::BalanceTooLow
 		);
 
 		// should fail if the buyer and seller are same
 		assert_noop!(
-			Dex::buy_order(Origin::signed(1), 0, asset_id, 1),
+			Dex::buy_order(Origin::signed(1), 0, asset_id, 1, 100),
 			Error::<Test>::SellerAndBuyerCannotBeSame
 		);
 
+		// should fail if the fee is zero
+		assert_noop!(
+			Dex::buy_order(Origin::signed(buyer), 0, asset_id, 1, 0),
+			Error::<Test>::FeeExceedsUserLimit
+		);
+
+		// should fail if the fee is less than expected
+		assert_noop!(
+			Dex::buy_order(Origin::signed(buyer), 0, asset_id, 1, 0),
+			Error::<Test>::FeeExceedsUserLimit
+		);
+
 		// use should be able to purchase
-		assert_ok!(Dex::buy_order(Origin::signed(buyer), 0, asset_id, 1));
+		assert_ok!(Dex::buy_order(Origin::signed(buyer), 0, asset_id, 1, 11));
 
 		// storage should be updated correctly
 		let sell_order_storage = Orders::<Test>::get(0).unwrap();
@@ -243,7 +255,7 @@ fn sell_order_is_removed_if_all_units_bought() {
 		assert_ok!(Dex::create_sell_order(Origin::signed(seller), asset_id, 5, 10));
 
 		// user should be able to purchase
-		assert_ok!(Dex::buy_order(Origin::signed(buyer), 0, asset_id, 5));
+		assert_ok!(Dex::buy_order(Origin::signed(buyer), 0, asset_id, 5, 100));
 
 		// sell order should be removed since all units have been bought
 		assert!(Orders::<Test>::get(0).is_none());
@@ -278,7 +290,7 @@ fn partial_fill_and_cancel_works() {
 		assert_ok!(Dex::create_sell_order(Origin::signed(seller), asset_id, 50, 10));
 
 		// user should be able to purchase
-		assert_ok!(Dex::buy_order(Origin::signed(buyer), 0, asset_id, 5));
+		assert_ok!(Dex::buy_order(Origin::signed(buyer), 0, asset_id, 5, 100));
 
 		// cancel sell order should return the remaining units
 		assert_ok!(Dex::cancel_sell_order(Origin::signed(seller), 0));

@@ -51,7 +51,7 @@ pub struct OrderInfo<AccountId, AssetId, AssetBalance, TokenBalance> {
 	asset_id: AssetId,
 }
 
-pub type OrderId = u64;
+pub type OrderId = u128;
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -209,6 +209,8 @@ pub mod pallet {
 		SellerAndBuyerCannotBeSame,
 		/// Cannot set more than the maximum payment fee
 		CannotSetMoreThanMaxPaymentFee,
+		/// The fee amount exceeds the limit set by user
+		FeeExceedsUserLimit,
 	}
 
 	#[pallet::call]
@@ -288,6 +290,7 @@ pub mod pallet {
 			order_id: OrderId,
 			asset_id: AssetIdOf<T>,
 			units: AssetBalanceOf<T>,
+			max_fee: CurrencyBalanceOf<T>,
 		) -> DispatchResult {
 			let buyer = ensure_signed(origin.clone())?;
 
@@ -326,6 +329,8 @@ pub mod pallet {
 
 				let required_fees =
 					payment_fee.checked_add(purchase_fee).ok_or(Error::<T>::OrderUnitsOverflow)?;
+
+				ensure!(max_fee >= required_fees.into(), Error::<T>::FeeExceedsUserLimit);
 
 				// send purchase price to seller
 				T::Currency::transfer(
