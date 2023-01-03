@@ -351,7 +351,7 @@ fn fee_is_more_expensive_when_order_is_split() {
 		assert_eq!(Tokens::free_balance(USDT, &dex_account), 375);
 
 		// Let the user make a purchse of 1 unit 50 times
-		for i in 0..50 {
+		for _i in 0..50 {
 			assert_ok!(Dex::buy_order(Origin::signed(buyer), 0, asset_id, 1, 1000));
 		}
 
