@@ -322,3 +322,40 @@ fn cannot_set_more_than_max_fee() {
 		assert_ok!(Dex::force_set_payment_fee(Origin::root(), Percent::from_percent(10)));
 	});
 }
+
+#[test]
+fn fee_is_more_expensive_when_order_is_split() {
+	new_test_ext().execute_with(|| {
+		// Assuming a 75 price, and fees at 10%; if a user buys 50 units they’ll pay 750 in fees
+		// If they instead have 50 separate orders of 1 unit each, they should pay 775 in fees
+		// Here we assume purchase fee is zero, since this is to test the payment fee calculation
+		let asset_id = 0;
+		let seller = 1;
+		let buyer = 10;
+		let dex_account: u64 = PalletId(*b"bitg/dex").into_account_truncating();
+
+		assert_ok!(Assets::force_create(Origin::root(), asset_id, 1, true, 1));
+		assert_ok!(Assets::mint(Origin::signed(seller), asset_id, 1, 100));
+		assert_eq!(Assets::balance(asset_id, seller), 100);
+
+		// set fee values
+		assert_ok!(Dex::force_set_payment_fee(Origin::root(), Percent::from_percent(10)));
+		assert_ok!(Dex::force_set_purchase_fee(Origin::root(), 0u32.into()));
+
+		// should be able to create a sell order
+		assert_ok!(Dex::create_sell_order(Origin::signed(seller), asset_id, 100, 75));
+
+		// Let the user make a single purchase of 50 units
+		assert_ok!(Dex::buy_order(Origin::signed(buyer), 0, asset_id, 50, 1000));
+		// pallet gets fees (10%)
+		assert_eq!(Tokens::free_balance(USDT, &dex_account), 375);
+
+		// Let the user make a purchse of 1 unit 50 times
+		for i in 0..50 {
+			assert_ok!(Dex::buy_order(Origin::signed(buyer), 0, asset_id, 1, 1000));
+		}
+
+		// pallet gets more than 20% (750)
+		assert_eq!(Tokens::free_balance(USDT, &dex_account), 775);
+	});
+}

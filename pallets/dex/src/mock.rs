@@ -154,6 +154,8 @@ impl pallet_dex::Config for Test {
 	type Event = Event;
 	type Asset = Assets;
 	type Currency = Tokens;
+	type CurrencyBalance = u128;
+	type AssetBalance = u128;
 	type StableCurrencyId = StableCurrencyId;
 	type PalletId = DexPalletId;
 	type MinPricePerUnit = MinPricePerUnit;
@@ -168,7 +170,7 @@ impl pallet_dex::Config for Test {
 pub fn new_test_ext() -> sp_io::TestExternalities {
 	let mut t = system::GenesisConfig::default().build_storage::<Test>().unwrap();
 
-	orml_tokens::GenesisConfig::<Test> { balances: vec![(4, USDT, 100)] }
+	orml_tokens::GenesisConfig::<Test> { balances: vec![(4, USDT, 100), (10, USDT, 10000)] }
 		.assimilate_storage(&mut t)
 		.unwrap();
 

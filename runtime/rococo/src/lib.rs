@@ -731,6 +731,8 @@ impl pallet_dex::Config for Runtime {
 	type Event = Event;
 	type Asset = Assets;
 	type Currency = Tokens;
+	type CurrencyBalance = u128;
+	type AssetBalance = u128;
 	type StableCurrencyId = StableCurrencyId;
 	type PalletId = DexPalletId;
 	type AssetValidator = pallet_carbon_credits::CarbonCreditsAssetValidator<Runtime>;

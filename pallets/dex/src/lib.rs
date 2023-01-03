@@ -67,7 +67,10 @@ pub mod pallet {
 	use frame_system::pallet_prelude::{OriginFor, *};
 	use orml_traits::MultiCurrency;
 	use sp_runtime::{
-		traits::{AccountIdConversion, CheckedSub, One, Zero},
+		traits::{
+			AccountIdConversion, AtLeast32BitUnsigned, CheckedAdd, CheckedMul, CheckedSub, One,
+			Zero,
+		},
 		Percent,
 	};
 
@@ -94,11 +97,33 @@ pub mod pallet {
 		/// Because this pallet emits events, it depends on the runtime's definition of an event.
 		type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
 
+		/// The units in which we record currency balance.
+		type CurrencyBalance: Member
+			+ Parameter
+			+ AtLeast32BitUnsigned
+			+ Default
+			+ Copy
+			+ MaybeSerializeDeserialize
+			+ MaxEncodedLen
+			+ TypeInfo
+			+ From<u128>;
+
+		/// The units in which we record assets
+		type AssetBalance: Member
+			+ Parameter
+			+ AtLeast32BitUnsigned
+			+ Default
+			+ Copy
+			+ MaybeSerializeDeserialize
+			+ MaxEncodedLen
+			+ TypeInfo
+			+ From<u128>;
+
 		// Asset manager config
-		type Asset: Transfer<Self::AccountId>;
+		type Asset: Transfer<Self::AccountId, Balance = Self::AssetBalance>;
 
 		// Token handler config - this is what the pallet accepts as payment
-		type Currency: MultiCurrency<Self::AccountId>;
+		type Currency: MultiCurrency<Self::AccountId, Balance = Self::CurrencyBalance>;
 
 		/// The origin which may forcibly set storage or add authorised accounts
 		type ForceOrigin: EnsureOrigin<Self::Origin>;
@@ -315,20 +340,22 @@ pub mod pallet {
 					order.units.checked_sub(&units).ok_or(Error::<T>::OrderUnitsOverflow)?;
 
 				// calculate fees
-				let units_as_u32: u32 =
+				let units_as_u128: u128 =
 					units.try_into().map_err(|_| Error::<T>::ArithmeticError)?;
-				let price_per_unit_as_u32: u32 =
+				let price_per_unit_as_u128: u128 =
 					order.price_per_unit.try_into().map_err(|_| Error::<T>::ArithmeticError)?;
-				let required_currency = price_per_unit_as_u32
-					.checked_mul(units_as_u32)
+
+				let required_currency = price_per_unit_as_u128
+					.checked_mul(units_as_u128)
 					.ok_or(Error::<T>::ArithmeticError)?;
 
 				let payment_fee = PaymentFees::<T>::get().mul_ceil(required_currency);
 				let purchase_fee: u32 =
 					PurchaseFees::<T>::get().try_into().map_err(|_| Error::<T>::ArithmeticError)?;
 
-				let required_fees =
-					payment_fee.checked_add(purchase_fee).ok_or(Error::<T>::OrderUnitsOverflow)?;
+				let required_fees = payment_fee
+					.checked_add(purchase_fee.into())
+					.ok_or(Error::<T>::OrderUnitsOverflow)?;
 
 				ensure!(max_fee >= required_fees.into(), Error::<T>::FeeExceedsUserLimit);
 
