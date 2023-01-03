@@ -121,7 +121,7 @@ benchmarks! {
 		CarbonCredits::<T>::create(RawOrigin::Signed(caller.clone()).into(), creation_params)?;
 	}: _(RawOrigin::Signed(caller.into()), project_id, true)
 	verify {
-		assert_last_event::<T>(Event::ProjectApproved { project_id }.into());
+		assert_last_event::<T>(Event::ProjectApproved { project_id, asset_ids: vec![0u32.into()] }.into());
 	}
 
 	mint {
