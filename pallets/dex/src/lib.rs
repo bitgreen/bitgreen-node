@@ -67,10 +67,7 @@ pub mod pallet {
 	use frame_system::pallet_prelude::{OriginFor, *};
 	use orml_traits::MultiCurrency;
 	use sp_runtime::{
-		traits::{
-			AccountIdConversion, AtLeast32BitUnsigned, CheckedAdd, CheckedMul, CheckedSub, One,
-			Zero,
-		},
+		traits::{AccountIdConversion, AtLeast32BitUnsigned, CheckedSub, One, Zero},
 		Percent,
 	};
 
