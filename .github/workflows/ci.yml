@@ -30,7 +30,7 @@ jobs:
          with:
           profile: minimal
           components: rustfmt
-          toolchain: nightly-2022-05-15
+          toolchain: nightly-2022-12-26
           target: wasm32-unknown-unknown
 
       - name: Check Build
@@ -54,12 +54,12 @@ jobs:
          with:
           profile: minimal
           components: rustfmt
-          toolchain: nightly-2022-05-15
+          toolchain: nightly-2022-12-26
           target: wasm32-unknown-unknown
 
       - name: Run clippy
         run: | 
-          rustup component add clippy --toolchain nightly-2022-05-15-x86_64-unknown-linux-gnu
+          rustup component add clippy --toolchain nightly-2022-12-26-x86_64-unknown-linux-gnu
           cargo clippy --all-targets --workspace -- --deny warnings
 
       - name: Unit tests
@@ -82,7 +82,7 @@ jobs:
          with:
           profile: minimal
           components: rustfmt
-          toolchain: nightly-2022-05-15
+          toolchain: nightly-2022-12-26
           target: wasm32-unknown-unknown
     
       - name: Unit tests
