@@ -724,18 +724,22 @@ parameter_types! {
 	pub const StableCurrencyId: primitives::CurrencyId = primitives::CurrencyId::USDT;
 	pub const MinUnitsToCreateSellOrder : u32 = 100;
 	pub const MinPricePerUnit : u32 = 1;
+	pub const MaxPaymentFee : Percent = Percent::from_percent(10);
 }
 
 impl pallet_dex::Config for Runtime {
 	type Event = Event;
 	type Asset = Assets;
 	type Currency = Tokens;
+	type CurrencyBalance = u128;
+	type AssetBalance = u128;
 	type StableCurrencyId = StableCurrencyId;
 	type PalletId = DexPalletId;
 	type AssetValidator = pallet_carbon_credits::CarbonCreditsAssetValidator<Runtime>;
 	type MinPricePerUnit = MinPricePerUnit;
 	type MinUnitsToCreateSellOrder = MinUnitsToCreateSellOrder;
 	type ForceOrigin = EnsureRoot<AccountId>;
+	type MaxPaymentFee = MaxPaymentFee;
 	type WeightInfo = ();
 }
 

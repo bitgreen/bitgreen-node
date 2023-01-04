@@ -455,7 +455,7 @@ impl<T: Config> Pallet<T> {
 			group.batches = batch_list.try_into().map_err(|_| Error::<T>::Overflow)?;
 
 			// Get the item-id of the NFT to mint
-			let maybe_item_id = NextItemId::<T>::get(&group.asset_id);
+			let maybe_item_id = NextItemId::<T>::get(group.asset_id);
 
 			// handle the case of first retirement of proejct
 			let item_id = match maybe_item_id {
