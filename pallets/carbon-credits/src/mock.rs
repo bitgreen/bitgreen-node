@@ -105,6 +105,7 @@ impl pallet_assets::Config for Test {
 	type Extra = ();
 	type ForceOrigin = frame_system::EnsureRoot<u64>;
 	type Freezer = ();
+	type CreateOrigin = AsEnsureOriginWithArg<frame_system::EnsureSigned<u64>>;
 	type MetadataDepositBase = MetadataDepositBase;
 	type MetadataDepositPerByte = MetadataDepositPerByte;
 	type StringLimit = ConstU32<50>;
@@ -204,6 +205,6 @@ pub fn new_test_ext() -> sp_io::TestExternalities {
 	ext
 }
 
-pub fn last_event() -> Event {
+pub fn last_event() -> RuntimeEvent {
 	System::events().pop().expect("Event expected").event
 }

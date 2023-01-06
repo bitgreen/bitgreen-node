@@ -128,9 +128,7 @@ impl orml_tokens::Config for Test {
 	type ExistentialDeposits = ExistentialDeposits;
 	type MaxLocks = ();
 	type MaxReserves = ();
-	type OnDust = ();
-	type OnKilledTokenAccount = ();
-	type OnNewTokenAccount = ();
+	type CurrencyHooks = ();
 	type ReserveIdentifier = [u8; 8];
 	type WeightInfo = ();
 }
@@ -180,6 +178,6 @@ pub fn new_test_ext() -> sp_io::TestExternalities {
 	ext
 }
 
-pub fn last_event() -> Event {
+pub fn last_event() -> RuntimeEvent {
 	System::events().pop().expect("Event expected").event
 }

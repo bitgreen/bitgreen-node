@@ -100,6 +100,6 @@ pub fn new_test_ext() -> sp_io::TestExternalities {
 	ext
 }
 
-pub fn last_event() -> Event {
+pub fn last_event() -> RuntimeEvent {
 	System::events().pop().expect("Event expected").event
 }
