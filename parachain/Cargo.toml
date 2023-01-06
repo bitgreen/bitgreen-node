@@ -16,13 +16,13 @@ name = 'bitgreen-parachain'
 targets = ['x86_64-unknown-linux-gnu']
 
 [dependencies]
-clap = { version = "3.2.6", features = ["derive"] }
+clap = { version = "4.0.17", features = ["derive"] }
 codec = { package = "parity-scale-codec", version = "3.0.0" }
 derive_more = "0.99.2"
-hex-literal = "0.3.4"
 jsonrpsee = { version = "0.15.0", features = ["server"] }
 log = "0.4.14"
 serde = { version = "1.0.132", features = ["derive"] }
+hex-literal = "0.3.4"
 
 # Local
 bitgreen-rococo-runtime = { path = "../runtime/rococo" }
@@ -42,6 +42,7 @@ sc-keystore = { git = "https://github.com/paritytech/substrate", branch = "polka
 sc-network = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.33" }
 sc-rpc = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.33" }
 sc-rpc-api = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.33" }
+sc-network-common = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.33" }
 sc-service = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.33", features = ["wasmtime"] }
 sc-sysinfo = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.33" }
 sc-telemetry = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.33" }
@@ -77,6 +78,7 @@ cumulus-client-cli = { git = "https://github.com/paritytech/cumulus", branch = "
 cumulus-client-collator = { git = "https://github.com/paritytech/cumulus", branch = "polkadot-v0.9.33" }
 cumulus-client-consensus-aura = { git = "https://github.com/paritytech/cumulus", branch = "polkadot-v0.9.33" }
 cumulus-client-consensus-common = { git = "https://github.com/paritytech/cumulus", branch = "polkadot-v0.9.33" }
+cumulus-relay-chain-minimal-node = { git = "https://github.com/paritytech/cumulus", branch = "polkadot-v0.9.33" }
 cumulus-client-network = { git = "https://github.com/paritytech/cumulus", branch = "polkadot-v0.9.33" }
 cumulus-client-service = { git = "https://github.com/paritytech/cumulus", branch = "polkadot-v0.9.33" }
 cumulus-primitives-core = { git = "https://github.com/paritytech/cumulus", branch = "polkadot-v0.9.33" }
@@ -89,7 +91,10 @@ cumulus-relay-chain-rpc-interface = { git = "https://github.com/paritytech/cumul
 substrate-build-script-utils = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.33" }
 
 [features]
+default = []
 runtime-benchmarks = [
-  "bitgreen-runtime/runtime-benchmarks",
-  "polkadot-cli/runtime-benchmarks",
+	"bitgreen-runtime/runtime-benchmarks",
+  "bitgreen-rococo-runtime/runtime-benchmarks",
+	"polkadot-cli/runtime-benchmarks",
 ]
+try-runtime = ["bitgreen-runtime/try-runtime", "bitgreen-rococo-runtime/try-runtime"]

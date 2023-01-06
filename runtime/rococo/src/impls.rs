@@ -39,9 +39,9 @@ where
 // Don't allow permission-less asset creation.
 pub struct BaseFilter;
 impl Contains<RuntimeCall> for BaseFilter {
-	fn contains(RuntimeCall: &RuntimeCall) -> bool {
+	fn contains(call: &RuntimeCall) -> bool {
 		if matches!(
-			RuntimeCall,
+			call,
 			RuntimeCall::Timestamp(_) | RuntimeCall::ParachainSystem(_) | RuntimeCall::System(_)
 		) {
 			// always allow core RuntimeCall
@@ -50,14 +50,14 @@ impl Contains<RuntimeCall> for BaseFilter {
 			return true
 		}
 
-		if pallet_transaction_pause::PausedTransactionFilter::<Runtime>::contains(RuntimeCall) {
+		if pallet_transaction_pause::PausedTransactionFilter::<Runtime>::contains(call) {
 			// no paused RuntimeCall
 			return false
 		}
 
 		#[allow(clippy::match_like_matches_macro)]
 		// keep CallFilter with explicit true/false for documentation
-		match RuntimeCall {
+		match call {
 			// Explicitly DISALLOWED calls
             | RuntimeCall::Assets(_) // Filter Assets. Assets should only be accessed by CarbonCreditsPallet.
 			| RuntimeCall::Uniques(_) // Filter Uniques, which should only be accessed by CarbonCreditsPallet.

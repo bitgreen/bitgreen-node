@@ -18,14 +18,13 @@ use cumulus_pallet_parachain_system::RelayNumberStrictlyIncreases;
 // Polkadot Imports
 use frame_support::{
 	construct_runtime,
+	dispatch::DispatchClass,
 	pallet_prelude::ConstU32,
 	parameter_types,
-	traits::{
-		AsEnsureOriginWithArg, ConstU128, ConstU16, Contains, Currency, Nothing, PrivilegeCmp,
-	},
+	traits::{AsEnsureOriginWithArg, ConstU128, Contains, Currency, Nothing, PrivilegeCmp},
 	weights::{
-		constants::WEIGHT_PER_SECOND, ConstantMultiplier, DispatchClass, Weight,
-		WeightToFeeCoefficient, WeightToFeeCoefficients, WeightToFeePolynomial,
+		constants::WEIGHT_PER_SECOND, ConstantMultiplier, Weight, WeightToFeeCoefficient,
+		WeightToFeeCoefficients, WeightToFeePolynomial,
 	},
 	PalletId,
 };

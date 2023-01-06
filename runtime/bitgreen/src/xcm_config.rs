@@ -104,13 +104,13 @@ where
 	Allow: ShouldExecute,
 {
 	fn should_execute<RuntimeCall>(
-		RuntimeOrigin: &MultiLocation,
+		origin: &MultiLocation,
 		message: &mut Xcm<RuntimeCall>,
 		max_weight: XCMWeight,
 		weight_credit: &mut XCMWeight,
 	) -> Result<(), ()> {
-		Deny::should_execute(RuntimeOrigin, message, max_weight, weight_credit)?;
-		Allow::should_execute(RuntimeOrigin, message, max_weight, weight_credit)
+		Deny::should_execute(origin, message, max_weight, weight_credit)?;
+		Allow::should_execute(origin, message, max_weight, weight_credit)
 	}
 }
 
@@ -118,7 +118,7 @@ where
 pub struct DenyReserveTransferToRelayChain;
 impl ShouldExecute for DenyReserveTransferToRelayChain {
 	fn should_execute<RuntimeCall>(
-		RuntimeOrigin: &MultiLocation,
+		origin: &MultiLocation,
 		message: &mut Xcm<RuntimeCall>,
 		_max_weight: XCMWeight,
 		_weight_credit: &mut XCMWeight,
@@ -141,7 +141,7 @@ impl ShouldExecute for DenyReserveTransferToRelayChain {
 
 		// An unexpected reserve transfer has arrived from the Relay Chain. Generally, `IsReserve`
 		// should not allow this, but we just log it here.
-		if matches!(RuntimeOrigin, MultiLocation { parents: 1, interior: Here }) &&
+		if matches!(origin, MultiLocation { parents: 1, interior: Here }) &&
 			message.0.iter().any(|inst| matches!(inst, ReserveAssetDeposited { .. }))
 		{
 			log::warn!(

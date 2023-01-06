@@ -18,7 +18,7 @@ substrate-wasm-builder = { git = "https://github.com/paritytech/substrate", bran
 hex = { version = "0.4", default-features = false }
 hex-literal = { version = "0.3.4", optional = true }
 libsecp256k1 = { version = "0.7", default-features = false, optional = true }
-scale-info = { version = "2.0.1", default-features = false, features = ["derive"] }
+scale-info = { version = "2.2.0", default-features = false, features = ["derive"] }
 serde = { version = "1.0.136", optional = true, default-features = false }
 serde_json = { version = "1.0.68", default-features = false, features = ["alloc"] }
 smallvec = "1.4.0"
@@ -194,4 +194,24 @@ runtime-benchmarks = [
   "orml-authority/runtime-benchmarks",
   "pallet-parachain-staking/runtime-benchmarks",
   "pallet-dex/runtime-benchmarks",
+]
+
+try-runtime = [
+	"cumulus-pallet-aura-ext/try-runtime",
+	"cumulus-pallet-dmp-queue/try-runtime",
+	"cumulus-pallet-parachain-system/try-runtime",
+	"cumulus-pallet-xcm/try-runtime",
+	"cumulus-pallet-xcmp-queue/try-runtime",
+	"frame-executive/try-runtime",
+	"frame-system/try-runtime",
+	"frame-try-runtime",
+	"pallet-aura/try-runtime",
+	"pallet-authorship/try-runtime",
+	"pallet-balances/try-runtime",
+	"pallet-session/try-runtime",
+	"pallet-sudo/try-runtime",
+	"pallet-timestamp/try-runtime",
+	"pallet-transaction-payment/try-runtime",
+	"pallet-xcm/try-runtime",
+	"parachain-info/try-runtime",
 ]
