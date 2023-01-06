@@ -107,7 +107,7 @@
 //!
 //! * [`System`](../frame_system/index.html)
 //! * [`Support`](../frame_support/index.html)
-
+#![allow(clippy::all)]
 // Ensure we're `no_std` when compiling for Wasm.
 #![cfg_attr(not(feature = "std"), no_std)]
 
