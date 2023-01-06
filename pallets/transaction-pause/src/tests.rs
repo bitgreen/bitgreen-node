@@ -8,15 +8,19 @@
 #![cfg(test)]
 
 use frame_support::{assert_noop, assert_ok};
-use mock::{Event, *};
+use mock::{RuntimeEvent, *};
 use sp_runtime::traits::BadOrigin;
 
 use super::*;
 
-const BALANCE_TRANSFER: &<Runtime as frame_system::Config>::Call =
-	&mock::Call::Balances(pallet_balances::Call::transfer { dest: ALICE, value: 10 });
-const TOKENS_TRANSFER: &<Runtime as frame_system::Config>::Call =
-	&mock::Call::Tokens(orml_tokens::Call::transfer { dest: ALICE, currency_id: USDT, amount: 10 });
+const BALANCE_TRANSFER: &<Runtime as frame_system::Config>::RuntimeCall =
+	&mock::RuntimeCall::Balances(pallet_balances::Call::transfer { dest: ALICE, value: 10 });
+const TOKENS_TRANSFER: &<Runtime as frame_system::Config>::RuntimeCall =
+	&mock::RuntimeCall::Tokens(orml_tokens::Call::transfer {
+		dest: ALICE,
+		currency_id: USDT,
+		amount: 10,
+	});
 
 #[test]
 fn pause_transaction_work() {
@@ -41,10 +45,12 @@ fn pause_transaction_work() {
 			b"Balances".to_vec(),
 			b"transfer".to_vec()
 		));
-		System::assert_last_event(Event::TransactionPause(crate::Event::TransactionPaused {
-			pallet_name_bytes: b"Balances".to_vec(),
-			function_name_bytes: b"transfer".to_vec(),
-		}));
+		System::assert_last_event(RuntimeEvent::TransactionPause(
+			crate::Event::TransactionPaused {
+				pallet_name_bytes: b"Balances".to_vec(),
+				function_name_bytes: b"transfer".to_vec(),
+			},
+		));
 		assert_eq!(
 			TransactionPause::paused_transactions((b"Balances".to_vec(), b"transfer".to_vec())),
 			Some(())
@@ -103,10 +109,12 @@ fn unpause_transaction_work() {
 			b"Balances".to_vec(),
 			b"transfer".to_vec()
 		));
-		System::assert_last_event(Event::TransactionPause(crate::Event::TransactionUnpaused {
-			pallet_name_bytes: b"Balances".to_vec(),
-			function_name_bytes: b"transfer".to_vec(),
-		}));
+		System::assert_last_event(RuntimeEvent::TransactionPause(
+			crate::Event::TransactionUnpaused {
+				pallet_name_bytes: b"Balances".to_vec(),
+				function_name_bytes: b"transfer".to_vec(),
+			},
+		));
 		assert_eq!(
 			TransactionPause::paused_transactions((b"Balances".to_vec(), b"transfer".to_vec())),
 			None

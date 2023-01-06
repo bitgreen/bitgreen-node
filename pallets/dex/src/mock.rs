@@ -3,7 +3,7 @@
 // This code is licensed under MIT license (see LICENSE.txt for details)
 use frame_support::{
 	parameter_types,
-	traits::{ConstU32, Contains, Everything, GenesisBuild, Nothing},
+	traits::{AsEnsureOriginWithArg, ConstU32, Contains, Everything, GenesisBuild, Nothing},
 	PalletId,
 };
 use frame_system as system;
@@ -97,6 +97,7 @@ parameter_types! {
 }
 
 impl pallet_assets::Config for Test {
+	type CreateOrigin = AsEnsureOriginWithArg<frame_system::EnsureSigned<u64>>;
 	type ApprovalDeposit = AssetDepositBase;
 	type AssetAccountDeposit = AssetDepositBase;
 	type AssetDeposit = AssetDepositBase;

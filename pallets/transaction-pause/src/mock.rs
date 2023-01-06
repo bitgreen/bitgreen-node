@@ -81,9 +81,7 @@ impl orml_tokens::Config for Runtime {
 	type ExistentialDeposits = ExistentialDeposits;
 	type MaxLocks = ();
 	type MaxReserves = ();
-	type OnDust = ();
-	type OnKilledTokenAccount = ();
-	type OnNewTokenAccount = ();
+	type CurrencyHooks = ();
 	type ReserveIdentifier = [u8; 8];
 	type WeightInfo = ();
 }

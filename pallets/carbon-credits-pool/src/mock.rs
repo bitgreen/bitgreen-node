@@ -98,6 +98,7 @@ parameter_types! {
 }
 
 impl pallet_assets::Config for Test {
+	type CreateOrigin = AsEnsureOriginWithArg<frame_system::EnsureSigned<u64>>;
 	type ApprovalDeposit = AssetDepositBase;
 	type AssetAccountDeposit = AssetDepositBase;
 	type AssetDeposit = AssetDepositBase;
@@ -195,7 +196,6 @@ parameter_types! {
 }
 
 impl pallet_carbon_credits_pool::Config for Test {
-	type CreateOrigin = AsEnsureOriginWithArg<frame_system::EnsureSigned<u64>>;
 	type AssetHandler = Assets;
 	type RuntimeEvent = RuntimeEvent;
 	type ForceOrigin = frame_system::EnsureRoot<u64>;
