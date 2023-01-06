@@ -79,7 +79,7 @@ pub mod pallet {
 	#[pallet::config]
 	pub trait Config: frame_system::Config {
 		/// Because this pallet emits events, it depends on the runtime's definition of an event.
-		type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
+		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 		/// The units in which we record balances.
 		type Balance: Member
 			+ Parameter
@@ -171,7 +171,7 @@ pub mod pallet {
 		type KYCProvider: Contains<Self::AccountId>;
 
 		/// The origin which may forcibly set storage or add authorised accounts
-		type ForceOrigin: EnsureOrigin<Self::Origin>;
+		type ForceOrigin: EnsureOrigin<Self::RuntimeOrigin>;
 		/// Marketplace Escrow provider
 		type MarketplaceEscrow: Get<Self::AccountId>;
 		/// Maximum amount of authorised accounts permitted

@@ -51,9 +51,9 @@ impl system::Config for Test {
 	type BlockLength = ();
 	type BlockNumber = u64;
 	type BlockWeights = ();
-	type Call = Call;
+	type RuntimeCall = RuntimeCall;
 	type DbWeight = ();
-	type Event = Event;
+	type RuntimeEvent = RuntimeEvent;
 	type Hash = H256;
 	type Hashing = BlakeTwo256;
 	type Header = Header;
@@ -63,7 +63,7 @@ impl system::Config for Test {
 	type OnKilledAccount = ();
 	type OnNewAccount = ();
 	type OnSetCode = ();
-	type Origin = Origin;
+	type RuntimeOrigin = RuntimeOrigin;
 	type PalletInfo = PalletInfo;
 	type SS58Prefix = SS58Prefix;
 	type SystemWeightInfo = ();
@@ -78,7 +78,7 @@ impl pallet_balances::Config for Test {
 	type AccountStore = System;
 	type Balance = u128;
 	type DustRemoval = ();
-	type Event = Event;
+	type RuntimeEvent = RuntimeEvent;
 	type ExistentialDeposit = ExistentialDeposit;
 	type MaxLocks = ();
 	type MaxReserves = ();
@@ -101,7 +101,7 @@ impl pallet_assets::Config for Test {
 	type AssetId = u32;
 	type Balance = u128;
 	type Currency = Balances;
-	type Event = Event;
+	type RuntimeEvent = RuntimeEvent;
 	type Extra = ();
 	type ForceOrigin = frame_system::EnsureRoot<u64>;
 	type Freezer = ();
@@ -134,7 +134,7 @@ impl pallet_carbon_credits::Config for Test {
 	type AssetHandler = Assets;
 	type AssetId = u32;
 	type Balance = u128;
-	type Event = Event;
+	type RuntimeEvent = RuntimeEvent;
 	type ForceOrigin = frame_system::EnsureRoot<u64>;
 	type ItemId = u32;
 	type ProjectId = u32;
@@ -162,7 +162,7 @@ impl pallet_uniques::Config for Test {
 	type CreateOrigin = AsEnsureOriginWithArg<frame_system::EnsureSigned<u64>>;
 	type Currency = Balances;
 	type DepositPerByte = ConstU128<1>;
-	type Event = Event;
+	type RuntimeEvent = RuntimeEvent;
 	type ForceOrigin = frame_system::EnsureRoot<u64>;
 	type ItemDeposit = ConstU128<0>;
 	type ItemId = u32;
@@ -176,7 +176,7 @@ impl pallet_uniques::Config for Test {
 
 impl pallet_membership::Config for Test {
 	type AddOrigin = EnsureRoot<u64>;
-	type Event = Event;
+	type RuntimeEvent = RuntimeEvent;
 	type MaxMembers = ConstU32<10>;
 	type MembershipChanged = ();
 	type MembershipInitialized = ();

@@ -1,25 +1,11 @@
-// This file is part of Substrate.
-
-// Copyright (C) 2017-2022 Parity Technologies (UK) Ltd.
-// SPDX-License-Identifier: Apache-2.0
-
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-// 	http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
+// This file is part of BitGreen.
+// Copyright (C) 2022 BitGreen.
+// This code is licensed under MIT license (see LICENSE.txt for details)
 
 //! Functions for the Assets pallet.
 
-use frame_support::{traits::Get, BoundedVec};
-
 use super::*;
+use frame_support::{traits::Get, BoundedVec};
 
 #[must_use]
 pub(super) enum DeadConsequence {
@@ -300,10 +286,10 @@ impl<T: Config<I>, I: 'static> Pallet<T, I> {
 	pub(super) fn do_touch(id: T::AssetId, who: T::AccountId) -> DispatchResult {
 		ensure!(!Account::<T, I>::contains_key(id, &who), Error::<T, I>::AlreadyExists);
 		let deposit = T::AssetAccountDeposit::get();
-		let mut details = Asset::<T, I>::get(id).ok_or(Error::<T, I>::Unknown)?;
+		let mut details = Asset::<T, I>::get(&id).ok_or(Error::<T, I>::Unknown)?;
 		let reason = Self::new_account(&who, &mut details, Some(deposit))?;
 		T::Currency::reserve(&who, deposit)?;
-		Asset::<T, I>::insert(id, details);
+		Asset::<T, I>::insert(&id, details);
 		Account::<T, I>::insert(
 			id,
 			&who,
@@ -321,7 +307,7 @@ impl<T: Config<I>, I: 'static> Pallet<T, I> {
 	pub(super) fn do_refund(id: T::AssetId, who: T::AccountId, allow_burn: bool) -> DispatchResult {
 		let mut account = Account::<T, I>::get(id, &who).ok_or(Error::<T, I>::NoDeposit)?;
 		let deposit = account.reason.take_deposit().ok_or(Error::<T, I>::NoDeposit)?;
-		let mut details = Asset::<T, I>::get(id).ok_or(Error::<T, I>::Unknown)?;
+		let mut details = Asset::<T, I>::get(&id).ok_or(Error::<T, I>::Unknown)?;
 
 		ensure!(account.balance.is_zero() || allow_burn, Error::<T, I>::WouldBurn);
 		ensure!(!details.is_frozen, Error::<T, I>::Frozen);
@@ -334,7 +320,7 @@ impl<T: Config<I>, I: 'static> Pallet<T, I> {
 		} else {
 			debug_assert!(false, "refund did not result in dead account?!");
 		}
-		Asset::<T, I>::insert(id, details);
+		Asset::<T, I>::insert(&id, details);
 		// Executing a hook here is safe, since it is not in a `mutate`.
 		T::Freezer::died(id, &who);
 		Ok(())
@@ -547,7 +533,7 @@ impl<T: Config<I>, I: 'static> Pallet<T, I> {
 		let (credit, maybe_burn) = Self::prep_credit(id, dest, amount, debit, f.burn_dust)?;
 
 		let mut source_account =
-			Account::<T, I>::get(id, source).ok_or(Error::<T, I>::NoAccount)?;
+			Account::<T, I>::get(id, &source).ok_or(Error::<T, I>::NoAccount)?;
 		let mut source_died: Option<DeadConsequence> = None;
 
 		Asset::<T, I>::try_mutate(id, |maybe_details| -> DispatchResult {
@@ -575,7 +561,7 @@ impl<T: Config<I>, I: 'static> Pallet<T, I> {
 			debug_assert!(source_account.balance >= debit, "checked in prep; qed");
 			source_account.balance = source_account.balance.saturating_sub(debit);
 
-			Account::<T, I>::try_mutate(id, dest, |maybe_account| -> DispatchResult {
+			Account::<T, I>::try_mutate(id, &dest, |maybe_account| -> DispatchResult {
 				match maybe_account {
 					Some(ref mut account) => {
 						// Calculate new balance; this will not saturate since it's already checked
@@ -604,11 +590,11 @@ impl<T: Config<I>, I: 'static> Pallet<T, I> {
 				source_died =
 					Some(Self::dead_account(source, details, &source_account.reason, false));
 				if let Some(Remove) = source_died {
-					Account::<T, I>::remove(id, source);
+					Account::<T, I>::remove(id, &source);
 					return Ok(())
 				}
 			}
-			Account::<T, I>::insert(id, source, &source_account);
+			Account::<T, I>::insert(id, &source, &source_account);
 			Ok(())
 		})?;
 
@@ -634,7 +620,6 @@ impl<T: Config<I>, I: 'static> Pallet<T, I> {
 		owner: T::AccountId,
 		is_sufficient: bool,
 		min_balance: T::Balance,
-		kyc_required: bool,
 	) -> DispatchResult {
 		ensure!(!Asset::<T, I>::contains_key(id), Error::<T, I>::InUse);
 		ensure!(!min_balance.is_zero(), Error::<T, I>::MinBalanceZero);
@@ -654,7 +639,6 @@ impl<T: Config<I>, I: 'static> Pallet<T, I> {
 				sufficients: 0,
 				approvals: 0,
 				is_frozen: false,
-				kyc_required,
 			},
 		);
 		Self::deposit_event(Event::ForceCreated { asset_id: id, owner });
@@ -696,7 +680,7 @@ impl<T: Config<I>, I: 'static> Pallet<T, I> {
 				debug_assert_eq!(details.accounts, 0);
 				debug_assert_eq!(details.sufficients, 0);
 
-				let metadata = Metadata::<T, I>::take(id);
+				let metadata = Metadata::<T, I>::take(&id);
 				T::Currency::unreserve(
 					&details.owner,
 					details.deposit.saturating_add(metadata.deposit),

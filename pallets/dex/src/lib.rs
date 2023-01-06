@@ -92,7 +92,7 @@ pub mod pallet {
 	#[pallet::config]
 	pub trait Config: frame_system::Config {
 		/// Because this pallet emits events, it depends on the runtime's definition of an event.
-		type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
+		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 
 		/// The units in which we record currency balance.
 		type CurrencyBalance: Member
@@ -123,7 +123,7 @@ pub mod pallet {
 		type Currency: MultiCurrency<Self::AccountId, Balance = Self::CurrencyBalance>;
 
 		/// The origin which may forcibly set storage or add authorised accounts
-		type ForceOrigin: EnsureOrigin<Self::Origin>;
+		type ForceOrigin: EnsureOrigin<Self::RuntimeOrigin>;
 
 		/// Verify if the asset can be listed on the dex
 		type AssetValidator: Contains<AssetIdOf<Self>>;

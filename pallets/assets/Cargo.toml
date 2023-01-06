@@ -1,47 +1,47 @@
 [package]
 name = "pallet-assets"
-version = "4.0.0-dev"
-authors = ["Bitgreen"]
-edition = "2021"
-homepage = "https://substrate.io"
-license = "Apache-2.0"
-readme = "README.md"
-repository = "https://github.com/paritytech/substrate/"
-description = "FRAME asset management pallet"
+version = '0.0.1'
+authors = ['BitGreen <https://bitgreen.org>']
+edition = '2021'
+homepage = 'https://bitgreen.org'
+license = 'MIT'
+repository = 'https://github.com/bitgreen/bitgreen-node'
 
 [package.metadata.docs.rs]
 targets = ["x86_64-unknown-linux-gnu"]
 
 [dependencies]
 codec = { package = "parity-scale-codec", version = "3.0.0", default-features = false }
-frame-benchmarking = { git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.29", default-features = false }
-frame-support = { git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.29", default-features = false }
-frame-system = { git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.29", default-features = false }
 scale-info = { version = "2.1.1", default-features = false, features = ["derive"] }
-sp-runtime = { git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.29", default-features = false }
-sp-std = { git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.29", default-features = false }
+sp-std = { git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.33", default-features = false }
+# Needed for various traits. In our case, `OnFinalize`.
+sp-runtime = { git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.33", default-features = false }
+# Needed for type-safe access to storage DB.
+frame-support = { git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.33", default-features = false }
+# `system` module provides us with all sorts of useful stuff and macros depend on it being around.
+frame-system = { git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.33", default-features = false }
+frame-benchmarking = { git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.33", default-features = false, optional = true }
 
 [dev-dependencies]
-pallet-balances = { git = "https://github.com/paritytech/substrate.git", default-features = false, branch = "polkadot-v0.9.29" }
-sp-core = { git = "https://github.com/paritytech/substrate.git", default-features = false, branch = "polkadot-v0.9.29" }
-sp-io = { git = "https://github.com/paritytech/substrate.git", default-features = false, branch = "polkadot-v0.9.29" }
-sp-std = { git = "https://github.com/paritytech/substrate.git", default-features = false, branch = "polkadot-v0.9.29" }
+sp-core = { git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.33", default-features = false }
+sp-std = { git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.33", default-features = false }
+sp-io = { git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.33", default-features = false }
+pallet-balances = { git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.33", default-features = false }
 
 [features]
 default = ["std"]
 std = [
-  "codec/std",
-  "scale-info/std",
-  "sp-std/std",
-  "sp-runtime/std",
-  "frame-support/std",
-  "frame-system/std",
-  "frame-benchmarking/std",
-  "pallet-balances/std",
+	"codec/std",
+	"scale-info/std",
+	"sp-std/std",
+	"sp-runtime/std",
+	"frame-support/std",
+	"frame-system/std",
+	"frame-benchmarking?/std",
 ]
 runtime-benchmarks = [
-  "frame-benchmarking/runtime-benchmarks",
-  "sp-runtime/runtime-benchmarks",
-  "frame-system/runtime-benchmarks",
+	"frame-benchmarking/runtime-benchmarks",
+	"sp-runtime/runtime-benchmarks",
+	"frame-system/runtime-benchmarks",
 ]
 try-runtime = ["frame-support/try-runtime"]

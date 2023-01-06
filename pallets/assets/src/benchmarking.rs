@@ -1,12 +1,12 @@
 // This file is part of BitGreen.
 // Copyright (C) 2022 BitGreen.
 // This code is licensed under MIT license (see LICENSE.txt for details)
-//
 
 //! Assets pallet benchmarking.
 
 #![cfg(feature = "runtime-benchmarks")]
 
+use super::*;
 use frame_benchmarking::{
 	account, benchmarks_instance_pallet, whitelist_account, whitelisted_caller,
 };
@@ -18,14 +18,13 @@ use frame_system::RawOrigin as SystemOrigin;
 use sp_runtime::traits::Bounded;
 use sp_std::prelude::*;
 
-use super::*;
 use crate::Pallet as Assets;
 
 const SEED: u32 = 0;
 
 fn create_default_asset<T: Config<I>, I: 'static>(
 	is_sufficient: bool,
-) -> (T::AccountId, <T::Lookup as StaticLookup>::Source) {
+) -> (T::AccountId, AccountIdLookupOf<T>) {
 	let caller: T::AccountId = whitelisted_caller();
 	let caller_lookup = T::Lookup::unlookup(caller.clone());
 	let root = SystemOrigin::Root.into();
@@ -43,7 +42,7 @@ fn create_default_asset<T: Config<I>, I: 'static>(
 fn create_default_minted_asset<T: Config<I>, I: 'static>(
 	is_sufficient: bool,
 	amount: T::Balance,
-) -> (T::AccountId, <T::Lookup as StaticLookup>::Source) {
+) -> (T::AccountId, AccountIdLookupOf<T>) {
 	let (caller, caller_lookup) = create_default_asset::<T, I>(is_sufficient);
 	if !is_sufficient {
 		T::Currency::make_free_balance_be(&caller, T::Currency::minimum_balance());
@@ -128,22 +127,24 @@ fn add_approvals<T: Config<I>, I: 'static>(minter: T::AccountId, n: u32) {
 	}
 }
 
-fn assert_last_event<T: Config<I>, I: 'static>(generic_event: <T as Config<I>>::Event) {
+fn assert_last_event<T: Config<I>, I: 'static>(generic_event: <T as Config<I>>::RuntimeEvent) {
 	frame_system::Pallet::<T>::assert_last_event(generic_event.into());
 }
 
-fn assert_event<T: Config<I>, I: 'static>(generic_event: <T as Config<I>>::Event) {
+fn assert_event<T: Config<I>, I: 'static>(generic_event: <T as Config<I>>::RuntimeEvent) {
 	frame_system::Pallet::<T>::assert_has_event(generic_event.into());
 }
 
 benchmarks_instance_pallet! {
 	create {
-		let caller: T::AccountId = whitelisted_caller();
+		let asset_id = Default::default();
+		let origin = T::CreateOrigin::successful_origin(&asset_id);
+		let caller = T::CreateOrigin::ensure_origin(origin, &asset_id).unwrap();
 		let caller_lookup = T::Lookup::unlookup(caller.clone());
 		T::Currency::make_free_balance_be(&caller, DepositBalanceOf::<T, I>::max_value());
-	}: _(SystemOrigin::Signed(caller.clone()), Default::default(), caller_lookup, 1u32.into())
+	}: _(SystemOrigin::Signed(caller.clone()), asset_id, caller_lookup, 1u32.into())
 	verify {
-		assert_last_event::<T, I>(Event::Created { asset_id: Default::default(), creator: caller.clone(), owner: caller }.into());
+		assert_last_event::<T, I>(Event::Created { asset_id, creator: caller.clone(), owner: caller }.into());
 	}
 
 	force_create {
