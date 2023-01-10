@@ -2,7 +2,7 @@
 // Copyright (C) 2022 BitGreen.
 // This code is licensed under MIT license (see LICENSE.txt for details)
 //! Dex pallet benchmarking
-use frame_benchmarking::{benchmarks, whitelisted_caller};
+use frame_benchmarking::{account, benchmarks, whitelisted_caller};
 use frame_system::{RawOrigin, RawOrigin as SystemOrigin};
 use orml_traits::MultiCurrency;
 use primitives::CurrencyId;
@@ -80,9 +80,10 @@ benchmarks! {
 		create_default_minted_asset::<T>(true, 100u32.into());
 		let caller: T::AccountId = whitelisted_caller();
 		Dex::<T>::create_sell_order(RawOrigin::Signed(caller.clone()).into(), 0u32.into(), 100u32.into(), 1u32.into())?;
-		// give the caller some tokens to pay
-		<orml_tokens::Pallet<T>>::deposit(get_currency_id(), &caller, 1000u32.into())?;
-	}: _(RawOrigin::Signed(caller.into()), 0u128, 0u32.into(), 1u32.into(), 100u32.into())
+		// give the buyer some tokens to pay
+		let buyer : T::AccountId = account("account_id", 0, 1);
+		<orml_tokens::Pallet<T>>::deposit(get_currency_id(), &buyer, 1000u32.into())?;
+	}: _(RawOrigin::Signed(buyer.into()), 0u128, 0u32.into(), 1u32.into(), 100u32.into())
 	verify {}
 
 
