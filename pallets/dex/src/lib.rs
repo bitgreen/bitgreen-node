@@ -144,6 +144,10 @@ pub mod pallet {
 		#[pallet::constant]
 		type MaxPaymentFee: Get<Percent>;
 
+		/// The maximum purchase fee that can be set
+		#[pallet::constant]
+		type MaxPurchaseFee: Get<CurrencyBalanceOf<Self>>;
+
 		/// The DEX pallet id
 		#[pallet::constant]
 		type PalletId: Get<PalletId>;
@@ -233,6 +237,8 @@ pub mod pallet {
 		CannotSetMoreThanMaxPaymentFee,
 		/// The fee amount exceeds the limit set by user
 		FeeExceedsUserLimit,
+		/// The purchasea fee amount exceeds the limit
+		CannotSetMoreThanMaxPurchaseFee,
 	}
 
 	#[pallet::call]
@@ -347,12 +353,11 @@ pub mod pallet {
 					.ok_or(Error::<T>::ArithmeticError)?;
 
 				let payment_fee = PaymentFees::<T>::get().mul_ceil(required_currency);
-				let purchase_fee: u32 =
+				let purchase_fee: u128 =
 					PurchaseFees::<T>::get().try_into().map_err(|_| Error::<T>::ArithmeticError)?;
 
-				let required_fees = payment_fee
-					.checked_add(purchase_fee.into())
-					.ok_or(Error::<T>::OrderUnitsOverflow)?;
+				let required_fees =
+					payment_fee.checked_add(purchase_fee).ok_or(Error::<T>::OrderUnitsOverflow)?;
 
 				ensure!(max_fee >= required_fees.into(), Error::<T>::FeeExceedsUserLimit);
 
@@ -415,6 +420,10 @@ pub mod pallet {
 			purchase_fee: CurrencyBalanceOf<T>,
 		) -> DispatchResult {
 			T::ForceOrigin::ensure_origin(origin)?;
+			ensure!(
+				purchase_fee <= T::MaxPurchaseFee::get(),
+				Error::<T>::CannotSetMoreThanMaxPurchaseFee
+			);
 			PurchaseFees::<T>::set(purchase_fee);
 			Ok(())
 		}

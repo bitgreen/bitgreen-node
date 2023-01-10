@@ -147,6 +147,7 @@ parameter_types! {
 	pub const MinUnitsToCreateSellOrder : u32 = 2;
 	pub const MinPricePerUnit : u32 = 1;
 	pub const MaxPaymentFee : Percent = Percent::from_percent(50);
+	pub const MaxPurchaseFee : u128 = 100u128;
 }
 
 impl pallet_dex::Config for Test {
@@ -162,6 +163,7 @@ impl pallet_dex::Config for Test {
 	type MinUnitsToCreateSellOrder = MinUnitsToCreateSellOrder;
 	type ForceOrigin = EnsureRoot<AccountId>;
 	type MaxPaymentFee = MaxPaymentFee;
+	type MaxPurchaseFee = MaxPurchaseFee;
 	type WeightInfo = ();
 }
 
