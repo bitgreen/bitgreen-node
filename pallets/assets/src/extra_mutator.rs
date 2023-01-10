@@ -1,7 +1,6 @@
 // This file is part of BitGreen.
 // Copyright (C) 2022 BitGreen.
 // This code is licensed under MIT license (see LICENSE.txt for details)
-//
 
 //! Datatype for easy mutation of the extra "sidecar" data.
 
@@ -28,7 +27,6 @@ impl<T: Config<I>, I: 'static> Drop for ExtraMutator<T, I> {
 
 impl<T: Config<I>, I: 'static> sp_std::ops::Deref for ExtraMutator<T, I> {
 	type Target = T::Extra;
-
 	fn deref(&self) -> &T::Extra {
 		match self.pending {
 			Some(ref value) => value,
@@ -64,7 +62,6 @@ impl<T: Config<I>, I: 'static> ExtraMutator<T, I> {
 	}
 
 	/// Commit any changes to storage.
-	#[allow(clippy::result_unit_err)]
 	pub fn commit(&mut self) -> Result<(), ()> {
 		if let Some(extra) = self.pending.take() {
 			Account::<T, I>::try_mutate(self.id, self.who.borrow(), |maybe_account| {
@@ -76,7 +73,6 @@ impl<T: Config<I>, I: 'static> ExtraMutator<T, I> {
 	}
 
 	/// Revert any changes, even those already committed by `self` and drop self.
-	#[allow(clippy::result_unit_err)]
 	pub fn revert(mut self) -> Result<(), ()> {
 		self.pending = None;
 		Account::<T, I>::try_mutate(self.id, self.who.borrow(), |maybe_account| {

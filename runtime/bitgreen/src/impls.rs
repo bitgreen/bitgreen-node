@@ -1,7 +1,7 @@
 // This file is part of BitGreen.
 // Copyright (C) 2022 BitGreen.
 // This code is licensed under MIT license (see LICENSE.txt for details)
-use crate::{Call, Contains, NegativeImbalance, Runtime};
+use crate::{Contains, NegativeImbalance, Runtime, RuntimeCall};
 use frame_support::traits::{Currency, Imbalance, OnUnbalanced};
 
 pub struct DealWithFees<R>(sp_std::marker::PhantomData<R>);
@@ -38,17 +38,20 @@ where
 
 // Don't allow permission-less asset creation.
 pub struct BaseFilter;
-impl Contains<Call> for BaseFilter {
-	fn contains(call: &Call) -> bool {
-		if matches!(call, Call::Timestamp(_) | Call::ParachainSystem(_) | Call::System(_)) {
-			// always allow core call
+impl Contains<RuntimeCall> for BaseFilter {
+	fn contains(call: &RuntimeCall) -> bool {
+		if matches!(
+			call,
+			RuntimeCall::Timestamp(_) | RuntimeCall::ParachainSystem(_) | RuntimeCall::System(_)
+		) {
+			// always allow core RuntimeCall
 			// pallet-timestamp and parachainSystem could not be filtered because
 			// they are used in communication between relaychain and parachain.
 			return true
 		}
 
 		if pallet_transaction_pause::PausedTransactionFilter::<Runtime>::contains(call) {
-			// no paused call
+			// no paused RuntimeCall
 			return false
 		}
 
@@ -56,15 +59,15 @@ impl Contains<Call> for BaseFilter {
 		// keep CallFilter with explicit true/false for documentation
 		match call {
 			// Explicitly DISALLOWED calls
-            | Call::Assets(_) // Filter Assets. Assets should only be accessed by CarbonCreditsPallet.
-			| Call::Uniques(_) // Filter Uniques, which should only be accessed by CarbonCreditsPallet.
-			| Call::Tokens(_) // Filter Tokens, we dont use them now
-			| Call::VCU(_) // VCU, we dont use them now
-			| Call::VCUPools(_) // VCUPools, we dont use them now
-			| Call::Dex(_) // Dex, we dont use them now
-			| Call::Contracts(_) // Contracts, we dont use them now
+            | RuntimeCall::Assets(_) // Filter Assets. Assets should only be accessed by CarbonCreditsPallet.
+			| RuntimeCall::Uniques(_) // Filter Uniques, which should only be accessed by CarbonCreditsPallet.
+			| RuntimeCall::Tokens(_) // Filter Tokens, we dont use them now
+			| RuntimeCall::VCU(_) // VCU, we dont use them now
+			| RuntimeCall::VCUPools(_) // VCUPools, we dont use them now
+			| RuntimeCall::Dex(_) // Dex, we dont use them now
+			| RuntimeCall::Contracts(_) // Contracts, we dont use them now
             // Filter callables from XCM pallets, we dont use them now
-            | Call::XcmpQueue(_) | Call::PolkadotXcm(_) | Call::DmpQueue(_) => false,
+            | RuntimeCall::XcmpQueue(_) | RuntimeCall::PolkadotXcm(_) | RuntimeCall::DmpQueue(_) => false,
             // ALLOW anything else
             | _ => true
         }

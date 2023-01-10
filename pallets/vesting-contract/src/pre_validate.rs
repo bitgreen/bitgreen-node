@@ -23,11 +23,11 @@ use crate::{Call, Config};
 #[scale_info(skip_type_params(T))]
 pub struct PrevalidateVestingWithdraw<T: Config + Send + Sync>(sp_std::marker::PhantomData<T>)
 where
-	<T as frame_system::Config>::Call: IsSubType<Call<T>>;
+	<T as frame_system::Config>::RuntimeCall: IsSubType<Call<T>>;
 
 impl<T: Config + Send + Sync> Debug for PrevalidateVestingWithdraw<T>
 where
-	<T as frame_system::Config>::Call: IsSubType<Call<T>>,
+	<T as frame_system::Config>::RuntimeCall: IsSubType<Call<T>>,
 {
 	#[cfg(feature = "std")]
 	fn fmt(&self, f: &mut sp_std::fmt::Formatter) -> sp_std::fmt::Result {
@@ -42,7 +42,7 @@ where
 
 impl<T: Config + Send + Sync> PrevalidateVestingWithdraw<T>
 where
-	<T as frame_system::Config>::Call: IsSubType<Call<T>>,
+	<T as frame_system::Config>::RuntimeCall: IsSubType<Call<T>>,
 {
 	/// Create new `SignedExtension` to check runtime version.
 	pub fn new() -> Self {
@@ -52,11 +52,11 @@ where
 
 impl<T: Config + Send + Sync> SignedExtension for PrevalidateVestingWithdraw<T>
 where
-	<T as frame_system::Config>::Call: IsSubType<Call<T>>,
+	<T as frame_system::Config>::RuntimeCall: IsSubType<Call<T>>,
 {
 	type AccountId = T::AccountId;
 	type AdditionalSigned = ();
-	type Call = <T as frame_system::Config>::Call;
+	type Call = <T as frame_system::Config>::RuntimeCall;
 	type Pre = ();
 
 	const IDENTIFIER: &'static str = "PrevalidateVestingWithdraw";

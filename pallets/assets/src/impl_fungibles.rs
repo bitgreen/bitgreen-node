@@ -1,19 +1,6 @@
-// This file is part of Substrate.
-
-// Copyright (C) 2017-2022 Parity Technologies (UK) Ltd.
-// SPDX-License-Identifier: Apache-2.0
-
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-// 	http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
+// This file is part of BitGreen.
+// Copyright (C) 2022 BitGreen.
+// This code is licensed under MIT license (see LICENSE.txt for details)
 
 //! Implementations for fungibles trait.
 
@@ -40,7 +27,7 @@ impl<T: Config<I>, I: 'static> fungibles::Inspect<<T as SystemConfig>::AccountId
 		who: &<T as SystemConfig>::AccountId,
 		keep_alive: bool,
 	) -> Self::Balance {
-		Pallet::<T, I>::reducible_balance(asset, who, keep_alive).unwrap_or_else(|_| Zero::zero())
+		Pallet::<T, I>::reducible_balance(asset, who, keep_alive).unwrap_or(Zero::zero())
 	}
 
 	fn can_deposit(
@@ -125,7 +112,6 @@ impl<T: Config<I>, I: 'static> fungibles::Unbalanced<T::AccountId> for Pallet<T,
 	fn set_balance(_: Self::AssetId, _: &T::AccountId, _: Self::Balance) -> DispatchResult {
 		unreachable!("set_balance is not used if other functions are impl'd");
 	}
-
 	fn set_total_issuance(id: T::AssetId, amount: Self::Balance) {
 		Asset::<T, I>::mutate_exists(id, |maybe_asset| {
 			if let Some(ref mut asset) = maybe_asset {
@@ -133,7 +119,6 @@ impl<T: Config<I>, I: 'static> fungibles::Unbalanced<T::AccountId> for Pallet<T,
 			}
 		});
 	}
-
 	fn decrease_balance(
 		asset: T::AssetId,
 		who: &T::AccountId,
@@ -142,17 +127,14 @@ impl<T: Config<I>, I: 'static> fungibles::Unbalanced<T::AccountId> for Pallet<T,
 		let f = DebitFlags { keep_alive: false, best_effort: false };
 		Self::decrease_balance(asset, who, amount, f, |_, _| Ok(()))
 	}
-
 	fn decrease_balance_at_most(
 		asset: T::AssetId,
 		who: &T::AccountId,
 		amount: Self::Balance,
 	) -> Self::Balance {
 		let f = DebitFlags { keep_alive: false, best_effort: true };
-		Self::decrease_balance(asset, who, amount, f, |_, _| Ok(()))
-			.unwrap_or_else(|_| Zero::zero())
+		Self::decrease_balance(asset, who, amount, f, |_, _| Ok(())).unwrap_or(Zero::zero())
 	}
-
 	fn increase_balance(
 		asset: T::AssetId,
 		who: &T::AccountId,
@@ -161,7 +143,6 @@ impl<T: Config<I>, I: 'static> fungibles::Unbalanced<T::AccountId> for Pallet<T,
 		Self::increase_balance(asset, who, amount, |_| Ok(()))?;
 		Ok(amount)
 	}
-
 	fn increase_balance_at_most(
 		asset: T::AssetId,
 		who: &T::AccountId,
@@ -181,7 +162,7 @@ impl<T: Config<I>, I: 'static> fungibles::Create<T::AccountId> for Pallet<T, I> 
 		is_sufficient: bool,
 		min_balance: Self::Balance,
 	) -> DispatchResult {
-		Self::do_force_create(id, admin, is_sufficient, min_balance, false)
+		Self::do_force_create(id, admin, is_sufficient, min_balance)
 	}
 }
 
@@ -267,5 +248,25 @@ impl<T: Config<I>, I: 'static> fungibles::approvals::Mutate<<T as SystemConfig>:
 		amount: T::Balance,
 	) -> DispatchResult {
 		Self::do_transfer_approved(asset, owner, delegate, dest, amount)
+	}
+}
+
+impl<T: Config<I>, I: 'static> fungibles::roles::Inspect<<T as SystemConfig>::AccountId>
+	for Pallet<T, I>
+{
+	fn owner(asset: T::AssetId) -> Option<<T as SystemConfig>::AccountId> {
+		Asset::<T, I>::get(asset).map(|x| x.owner)
+	}
+
+	fn issuer(asset: T::AssetId) -> Option<<T as SystemConfig>::AccountId> {
+		Asset::<T, I>::get(asset).map(|x| x.issuer)
+	}
+
+	fn admin(asset: T::AssetId) -> Option<<T as SystemConfig>::AccountId> {
+		Asset::<T, I>::get(asset).map(|x| x.admin)
+	}
+
+	fn freezer(asset: T::AssetId) -> Option<<T as SystemConfig>::AccountId> {
+		Asset::<T, I>::get(asset).map(|x| x.freezer)
 	}
 }
