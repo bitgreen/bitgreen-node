@@ -356,9 +356,8 @@ pub mod pallet {
 				let purchase_fee: u128 =
 					PurchaseFees::<T>::get().try_into().map_err(|_| Error::<T>::ArithmeticError)?;
 
-				let required_fees = payment_fee
-					.checked_add(purchase_fee.into())
-					.ok_or(Error::<T>::OrderUnitsOverflow)?;
+				let required_fees =
+					payment_fee.checked_add(purchase_fee).ok_or(Error::<T>::OrderUnitsOverflow)?;
 
 				ensure!(max_fee >= required_fees.into(), Error::<T>::FeeExceedsUserLimit);
 
