@@ -619,6 +619,7 @@ dependencies = [
 name = "bitgreen-primitives"
 version = "0.0.1"
 dependencies = [
+ "cumulus-primitives-core",
  "frame-support",
  "parity-scale-codec",
  "scale-info",
