@@ -503,7 +503,7 @@ impl pallet_membership::Config for Runtime {
 
 parameter_types! {
   pub MarketplaceEscrowAccount : AccountId =  PalletId(*b"bitg/mkp").into_account_truncating();
-  pub const VCUPalletId: PalletId = PalletId(*b"bitg/vcu");
+  pub const CarbonCreditsPalletId: PalletId = PalletId(*b"bitg/vcu");
   pub const MaxAuthorizedAccountCount : u32 = 10;
   pub const MaxCoordinatesLength : u32 = 10;
   pub const MaxDocumentCount : u32 = 10;
@@ -537,12 +537,12 @@ impl pallet_carbon_credits::Config for Runtime {
 	type MaxShortStringLength = MaxShortStringLength;
 	type MinProjectId = MinProjectId;
 	type NFTHandler = Uniques;
-	type PalletId = VCUPalletId;
+	type PalletId = CarbonCreditsPalletId;
 	type WeightInfo = ();
 }
 
 parameter_types! {
-	pub const VCUPoolPalletId: PalletId = PalletId(*b"bit/vcup");
+	pub const CarbonCreditsPoolPalletId: PalletId = PalletId(*b"bit/vcup");
 	pub const MaxAssetSymbolLength : u32 = 10;
 	pub const MaxIssuanceYearCount : u32 = 20;
 	pub const MaxProjectIdList : u32 = 100;
@@ -559,7 +559,7 @@ impl pallet_carbon_credits_pool::Config for Runtime {
 	type MaxProjectIdList = MaxProjectIdList;
 	type MaxRegistryListCount = MaxRegistryListCount;
 	type MinPoolId = MinPoolId;
-	type PalletId = VCUPoolPalletId;
+	type PalletId = CarbonCreditsPoolPalletId;
 	type PoolId = u32;
 	type WeightInfo = ();
 }
@@ -920,8 +920,8 @@ construct_runtime!(
 		Sudo: pallet_sudo::{Pallet, Call, Storage, Config<T>, Event<T>} = 51,
 		Assets: pallet_assets::{Pallet, Call, Storage, Event<T>} = 52,
 		Uniques: pallet_uniques::{Pallet, Call, Storage, Event<T>} = 53,
-		VCU: pallet_carbon_credits::{Pallet, Call, Storage, Event<T>} = 54,
-		VCUPools: pallet_carbon_credits_pool::{Pallet, Call, Storage, Event<T>} = 55,
+		CarbonCredits: pallet_carbon_credits::{Pallet, Call, Storage, Event<T>} = 54,
+		CarbonCreditsPools: pallet_carbon_credits_pool::{Pallet, Call, Storage, Event<T>} = 55,
 		TransactionPause: pallet_transaction_pause::{Pallet, Call, Storage, Event<T>} = 56,
 		VestingContract: pallet_vesting_contract::{Pallet, Call, Storage, Event<T>} = 57,
 		Contracts: pallet_contracts::{Pallet, Call, Storage, Event<T>} = 58,
@@ -949,7 +949,7 @@ mod benches {
 		[pallet_timestamp, Timestamp]
 		[pallet_parachain_staking, ParachainStaking]
 		[cumulus_pallet_xcmp_queue, XcmpQueue]
-		[pallet_carbon_credits, VCU]
+		[pallet_carbon_credits, CarbonCredits]
 		[pallet_vesting_contract, VestingContract]
 		[pallet_dex, Dex]
 	);

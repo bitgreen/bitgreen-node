@@ -1390,7 +1390,7 @@ fn force_approve_and_mint_credits_works() {
 
 		assert_ok!(CarbonCredits::create(
 			RawOrigin::Signed(originator_account).into(),
-			creation_params.clone()
+			creation_params
 		));
 
 		// mint should work with all params correct
