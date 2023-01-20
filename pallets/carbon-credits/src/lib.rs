@@ -522,21 +522,20 @@ pub mod pallet {
 			Ok(())
 		}
 
-		/// Single function to create project, approve and mint credits
+		/// Single function to approve project and mint credits
 		/// Can only be called by ForceOrigin
 		#[transactional]
 		#[pallet::weight(T::WeightInfo::mint())]
 		pub fn force_approve_and_mint_credits(
 			origin: OriginFor<T>,
 			sender: T::AccountId,
-			params: ProjectCreateParams<T>,
+			project_id: T::ProjectId,
 			amount_to_mint: T::Balance,
 			list_to_marketplace: bool,
 			group_id: T::GroupId,
 		) -> DispatchResult {
 			T::ForceOrigin::ensure_origin(origin)?;
 			Self::check_kyc_approval(&sender)?;
-			let project_id = Self::create_project(sender.clone(), params)?;
 			Self::do_approve_project(project_id, true)?;
 			Self::mint_carbon_credits(
 				sender,

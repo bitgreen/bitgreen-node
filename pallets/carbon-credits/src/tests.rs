@@ -1388,11 +1388,16 @@ fn force_approve_and_mint_credits_works() {
 
 		let creation_params = get_default_creation_params::<Test>();
 
+		assert_ok!(CarbonCredits::create(
+			RawOrigin::Signed(originator_account).into(),
+			creation_params
+		));
+
 		// mint should work with all params correct
 		assert_ok!(CarbonCredits::force_approve_and_mint_credits(
 			RawOrigin::Root.into(),
 			originator_account,
-			creation_params,
+			project_id,
 			amount_to_mint,
 			list_to_marketplace,
 			group_id,
