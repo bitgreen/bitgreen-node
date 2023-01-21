@@ -59,6 +59,7 @@ mod tests;
 mod benchmarking;
 pub mod weights;
 
+pub mod migration;
 pub mod types;
 
 #[frame_support::pallet]

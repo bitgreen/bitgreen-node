@@ -110,6 +110,8 @@ pub type Executive = frame_executive::Executive<
 	frame_system::ChainContext<Runtime>,
 	Runtime,
 	AllPalletsWithSystem,
+	// Migrations
+	pallet_parachain_staking::migration::v1::MigrateToV1<Runtime>,
 >;
 
 pub type NegativeImbalance<T> = <pallet_balances::Pallet<T> as Currency<
@@ -364,7 +366,7 @@ impl cumulus_pallet_dmp_queue::Config for Runtime {
 }
 
 parameter_types! {
-	pub const Period: u32 = 2 * HOURS;
+	pub const Period: u32 = 6 * HOURS;
 	pub const Offset: u32 = 0;
 	pub const MaxAuthorities: u32 = 100_000;
 }
