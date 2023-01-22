@@ -14,7 +14,7 @@
 //!
 //! ### Permissionless Functions
 //!
-//! * `create_sell_order`: Creates a new project onchain with details of batches of credits
+//! * `create_sell_order`: Creates a new sell order onchain
 //! * `cancel_sell_order`: Cancel an existing sell order
 //! * `buy_order`: Purchase units from exising sell order
 //!
@@ -51,7 +51,7 @@ pub struct OrderInfo<AccountId, AssetId, AssetBalance, TokenBalance> {
 	asset_id: AssetId,
 }
 
-pub type OrderId = u64;
+pub type OrderId = u128;
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -67,7 +67,7 @@ pub mod pallet {
 	use frame_system::pallet_prelude::{OriginFor, *};
 	use orml_traits::MultiCurrency;
 	use sp_runtime::{
-		traits::{AccountIdConversion, CheckedSub, One, Zero},
+		traits::{AccountIdConversion, AtLeast32BitUnsigned, CheckedSub, One, Zero},
 		Percent,
 	};
 
@@ -92,16 +92,38 @@ pub mod pallet {
 	#[pallet::config]
 	pub trait Config: frame_system::Config {
 		/// Because this pallet emits events, it depends on the runtime's definition of an event.
-		type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
+		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
+
+		/// The units in which we record currency balance.
+		type CurrencyBalance: Member
+			+ Parameter
+			+ AtLeast32BitUnsigned
+			+ Default
+			+ Copy
+			+ MaybeSerializeDeserialize
+			+ MaxEncodedLen
+			+ TypeInfo
+			+ From<u128>;
+
+		/// The units in which we record assets
+		type AssetBalance: Member
+			+ Parameter
+			+ AtLeast32BitUnsigned
+			+ Default
+			+ Copy
+			+ MaybeSerializeDeserialize
+			+ MaxEncodedLen
+			+ TypeInfo
+			+ From<u128>;
 
 		// Asset manager config
-		type Asset: Transfer<Self::AccountId>;
+		type Asset: Transfer<Self::AccountId, Balance = Self::AssetBalance>;
 
 		// Token handler config - this is what the pallet accepts as payment
-		type Currency: MultiCurrency<Self::AccountId>;
+		type Currency: MultiCurrency<Self::AccountId, Balance = Self::CurrencyBalance>;
 
 		/// The origin which may forcibly set storage or add authorised accounts
-		type ForceOrigin: EnsureOrigin<Self::Origin>;
+		type ForceOrigin: EnsureOrigin<Self::RuntimeOrigin>;
 
 		/// Verify if the asset can be listed on the dex
 		type AssetValidator: Contains<AssetIdOf<Self>>;
@@ -117,6 +139,14 @@ pub mod pallet {
 		/// The minimum price per unit of asset to create a sell order
 		#[pallet::constant]
 		type MinPricePerUnit: Get<CurrencyBalanceOf<Self>>;
+
+		/// The maximum payment fee that can be set
+		#[pallet::constant]
+		type MaxPaymentFee: Get<Percent>;
+
+		/// The maximum purchase fee that can be set
+		#[pallet::constant]
+		type MaxPurchaseFee: Get<CurrencyBalanceOf<Self>>;
 
 		/// The DEX pallet id
 		#[pallet::constant]
@@ -144,7 +174,7 @@ pub mod pallet {
 	// purchase fees charged by dex
 	#[pallet::storage]
 	#[pallet::getter(fn purchase_fees)]
-	pub type PurchaseFees<T: Config> = StorageValue<_, Percent, ValueQuery>;
+	pub type PurchaseFees<T: Config> = StorageValue<_, CurrencyBalanceOf<T>, ValueQuery>;
 
 	#[pallet::storage]
 	#[pallet::getter(fn order_info)]
@@ -201,6 +231,14 @@ pub mod pallet {
 		ArithmeticError,
 		/// Asset not permitted to be listed
 		AssetNotPermitted,
+		/// Seller and buyer cannot be same
+		SellerAndBuyerCannotBeSame,
+		/// Cannot set more than the maximum payment fee
+		CannotSetMoreThanMaxPaymentFee,
+		/// The fee amount exceeds the limit set by user
+		FeeExceedsUserLimit,
+		/// The purchasea fee amount exceeds the limit
+		CannotSetMoreThanMaxPurchaseFee,
 	}
 
 	#[pallet::call]
@@ -280,6 +318,7 @@ pub mod pallet {
 			order_id: OrderId,
 			asset_id: AssetIdOf<T>,
 			units: AssetBalanceOf<T>,
+			max_fee: CurrencyBalanceOf<T>,
 		) -> DispatchResult {
 			let buyer = ensure_signed(origin.clone())?;
 
@@ -293,6 +332,9 @@ pub mod pallet {
 				// ensure the expected asset matches the order
 				ensure!(asset_id == order.asset_id, Error::<T>::InvalidAssetId);
 
+				// ensure the seller and buyer are not the same
+				ensure!(buyer != order.owner, Error::<T>::SellerAndBuyerCannotBeSame);
+
 				// ensure volume remaining can cover the buy order
 				ensure!(units <= order.units, Error::<T>::OrderUnitsOverflow);
 
@@ -301,19 +343,23 @@ pub mod pallet {
 					order.units.checked_sub(&units).ok_or(Error::<T>::OrderUnitsOverflow)?;
 
 				// calculate fees
-				let units_as_u32: u32 =
+				let units_as_u128: u128 =
 					units.try_into().map_err(|_| Error::<T>::ArithmeticError)?;
-				let price_per_unit_as_u32: u32 =
+				let price_per_unit_as_u128: u128 =
 					order.price_per_unit.try_into().map_err(|_| Error::<T>::ArithmeticError)?;
-				let required_currency = price_per_unit_as_u32
-					.checked_mul(units_as_u32)
+
+				let required_currency = price_per_unit_as_u128
+					.checked_mul(units_as_u128)
 					.ok_or(Error::<T>::ArithmeticError)?;
 
-				let payment_fee = PaymentFees::<T>::get().mul_floor(required_currency);
-				let purchase_fee = PurchaseFees::<T>::get().mul_floor(required_currency);
+				let payment_fee = PaymentFees::<T>::get().mul_ceil(required_currency);
+				let purchase_fee: u128 =
+					PurchaseFees::<T>::get().try_into().map_err(|_| Error::<T>::ArithmeticError)?;
 
 				let required_fees =
 					payment_fee.checked_add(purchase_fee).ok_or(Error::<T>::OrderUnitsOverflow)?;
+
+				ensure!(max_fee >= required_fees.into(), Error::<T>::FeeExceedsUserLimit);
 
 				// send purchase price to seller
 				T::Currency::transfer(
@@ -357,6 +403,10 @@ pub mod pallet {
 		#[pallet::weight(T::WeightInfo::force_set_payment_fee())]
 		pub fn force_set_payment_fee(origin: OriginFor<T>, payment_fee: Percent) -> DispatchResult {
 			T::ForceOrigin::ensure_origin(origin)?;
+			ensure!(
+				payment_fee <= T::MaxPaymentFee::get(),
+				Error::<T>::CannotSetMoreThanMaxPaymentFee
+			);
 			PaymentFees::<T>::set(payment_fee);
 			Ok(())
 		}
@@ -367,9 +417,13 @@ pub mod pallet {
 		#[pallet::weight(T::WeightInfo::force_set_purchase_fee())]
 		pub fn force_set_purchase_fee(
 			origin: OriginFor<T>,
-			purchase_fee: Percent,
+			purchase_fee: CurrencyBalanceOf<T>,
 		) -> DispatchResult {
 			T::ForceOrigin::ensure_origin(origin)?;
+			ensure!(
+				purchase_fee <= T::MaxPurchaseFee::get(),
+				Error::<T>::CannotSetMoreThanMaxPurchaseFee
+			);
 			PurchaseFees::<T>::set(purchase_fee);
 			Ok(())
 		}

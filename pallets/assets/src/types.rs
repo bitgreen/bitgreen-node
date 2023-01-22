@@ -1,29 +1,15 @@
-// This file is part of Substrate.
-
-// Copyright (C) 2017-2022 Parity Technologies (UK) Ltd.
-// SPDX-License-Identifier: Apache-2.0
-
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-// 	http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
+// This file is part of BitGreen.
+// Copyright (C) 2022 BitGreen.
+// This code is licensed under MIT license (see LICENSE.txt for details)
 
 //! Various basic types for use in the assets pallet.
 
+use super::*;
 use frame_support::{
 	pallet_prelude::*,
 	traits::{fungible, tokens::BalanceConversion},
 };
 use sp_runtime::{traits::Convert, FixedPointNumber, FixedPointOperand, FixedU128};
-
-use super::*;
 
 pub(super) type DepositBalanceOf<T, I = ()> =
 	<<T as Config<I>>::Currency as Currency<<T as SystemConfig>::AccountId>>::Balance;
@@ -57,8 +43,6 @@ pub struct AssetDetails<Balance, AccountId, DepositBalance> {
 	pub(super) approvals: u32,
 	/// Whether the asset is frozen for non-admin transfers.
 	pub(super) is_frozen: bool,
-	/// Whether kyc check is required for asset transfer
-	pub(super) kyc_required: bool,
 }
 
 impl<Balance, AccountId, DepositBalance> AssetDetails<Balance, AccountId, DepositBalance> {
@@ -168,7 +152,7 @@ pub trait FrozenBalance<AssetId, AccountId, Balance> {
 	///
 	/// Under normal behaviour, the account balance should not go below the sum of this (if `Some`)
 	/// and the asset's minimum balance. However, the account balance may reasonably begin below
-	/// this sum (e.g. if less than the sum had ever been transfered into the account).
+	/// this sum (e.g. if less than the sum had ever been transferred into the account).
 	///
 	/// In special cases (privileged intervention) the account balance may also go below the sum.
 	///
@@ -185,7 +169,6 @@ impl<AssetId, AccountId, Balance> FrozenBalance<AssetId, AccountId, Balance> for
 	fn frozen_balance(_: AssetId, _: &AccountId) -> Option<Balance> {
 		None
 	}
-
 	fn died(_: AssetId, _: &AccountId) {}
 }
 

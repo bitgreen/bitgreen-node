@@ -3,7 +3,7 @@
 // This code is licensed under MIT license (see LICENSE.txt for details)
 use frame_support::{
 	parameter_types,
-	traits::{ConstU32, Contains, Everything, GenesisBuild, Nothing},
+	traits::{AsEnsureOriginWithArg, ConstU32, Contains, Everything, GenesisBuild, Nothing},
 	PalletId,
 };
 use frame_system as system;
@@ -14,6 +14,7 @@ use sp_core::H256;
 use sp_runtime::{
 	testing::Header,
 	traits::{BlakeTwo256, IdentityLookup},
+	Percent,
 };
 use sp_std::convert::{TryFrom, TryInto};
 
@@ -52,9 +53,9 @@ impl system::Config for Test {
 	type BlockLength = ();
 	type BlockNumber = u64;
 	type BlockWeights = ();
-	type Call = Call;
+	type RuntimeCall = RuntimeCall;
 	type DbWeight = ();
-	type Event = Event;
+	type RuntimeEvent = RuntimeEvent;
 	type Hash = H256;
 	type Hashing = BlakeTwo256;
 	type Header = Header;
@@ -64,7 +65,7 @@ impl system::Config for Test {
 	type OnKilledAccount = ();
 	type OnNewAccount = ();
 	type OnSetCode = ();
-	type Origin = Origin;
+	type RuntimeOrigin = RuntimeOrigin;
 	type PalletInfo = PalletInfo;
 	type SS58Prefix = SS58Prefix;
 	type SystemWeightInfo = ();
@@ -79,7 +80,7 @@ impl pallet_balances::Config for Test {
 	type AccountStore = System;
 	type Balance = u128;
 	type DustRemoval = ();
-	type Event = Event;
+	type RuntimeEvent = RuntimeEvent;
 	type ExistentialDeposit = ExistentialDeposit;
 	type MaxLocks = ();
 	type MaxReserves = ();
@@ -96,13 +97,14 @@ parameter_types! {
 }
 
 impl pallet_assets::Config for Test {
+	type CreateOrigin = AsEnsureOriginWithArg<frame_system::EnsureSigned<u64>>;
 	type ApprovalDeposit = AssetDepositBase;
 	type AssetAccountDeposit = AssetDepositBase;
 	type AssetDeposit = AssetDepositBase;
 	type AssetId = u32;
 	type Balance = u128;
 	type Currency = Balances;
-	type Event = Event;
+	type RuntimeEvent = RuntimeEvent;
 	type Extra = ();
 	type ForceOrigin = frame_system::EnsureRoot<u64>;
 	type Freezer = ();
@@ -123,13 +125,11 @@ impl orml_tokens::Config for Test {
 	type Balance = Balance;
 	type CurrencyId = CurrencyId;
 	type DustRemovalWhitelist = Nothing;
-	type Event = Event;
+	type RuntimeEvent = RuntimeEvent;
 	type ExistentialDeposits = ExistentialDeposits;
 	type MaxLocks = ();
 	type MaxReserves = ();
-	type OnDust = ();
-	type OnKilledTokenAccount = ();
-	type OnNewTokenAccount = ();
+	type CurrencyHooks = ();
 	type ReserveIdentifier = [u8; 8];
 	type WeightInfo = ();
 }
@@ -146,18 +146,24 @@ parameter_types! {
 	pub StableCurrencyId: CurrencyId = CurrencyId::USDT;
 	pub const MinUnitsToCreateSellOrder : u32 = 2;
 	pub const MinPricePerUnit : u32 = 1;
+	pub const MaxPaymentFee : Percent = Percent::from_percent(50);
+	pub const MaxPurchaseFee : u128 = 100u128;
 }
 
 impl pallet_dex::Config for Test {
-	type Event = Event;
+	type RuntimeEvent = RuntimeEvent;
 	type Asset = Assets;
 	type Currency = Tokens;
+	type CurrencyBalance = u128;
+	type AssetBalance = u128;
 	type StableCurrencyId = StableCurrencyId;
 	type PalletId = DexPalletId;
 	type MinPricePerUnit = MinPricePerUnit;
 	type AssetValidator = DummyValidator;
 	type MinUnitsToCreateSellOrder = MinUnitsToCreateSellOrder;
 	type ForceOrigin = EnsureRoot<AccountId>;
+	type MaxPaymentFee = MaxPaymentFee;
+	type MaxPurchaseFee = MaxPurchaseFee;
 	type WeightInfo = ();
 }
 
@@ -165,7 +171,7 @@ impl pallet_dex::Config for Test {
 pub fn new_test_ext() -> sp_io::TestExternalities {
 	let mut t = system::GenesisConfig::default().build_storage::<Test>().unwrap();
 
-	orml_tokens::GenesisConfig::<Test> { balances: vec![(4, USDT, 100)] }
+	orml_tokens::GenesisConfig::<Test> { balances: vec![(4, USDT, 100), (10, USDT, 10000)] }
 		.assimilate_storage(&mut t)
 		.unwrap();
 
@@ -175,6 +181,6 @@ pub fn new_test_ext() -> sp_io::TestExternalities {
 	ext
 }
 
-pub fn last_event() -> Event {
+pub fn last_event() -> RuntimeEvent {
 	System::events().pop().expect("Event expected").event
 }

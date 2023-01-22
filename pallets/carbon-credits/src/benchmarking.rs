@@ -12,7 +12,7 @@ use sp_std::convert::TryInto;
 
 use super::*;
 use crate::{Event, Pallet as CarbonCredits};
-fn assert_last_event<T: Config>(generic_event: <T as Config>::Event) {
+fn assert_last_event<T: Config>(generic_event: <T as Config>::RuntimeEvent) {
 	frame_system::Pallet::<T>::assert_last_event(generic_event.into());
 }
 
@@ -121,7 +121,7 @@ benchmarks! {
 		CarbonCredits::<T>::create(RawOrigin::Signed(caller.clone()).into(), creation_params)?;
 	}: _(RawOrigin::Signed(caller.into()), project_id, true)
 	verify {
-		assert_last_event::<T>(Event::ProjectApproved { project_id }.into());
+		assert_last_event::<T>(Event::ProjectApproved { project_id, asset_ids: vec![0u32.into()] }.into());
 	}
 
 	mint {

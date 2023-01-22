@@ -2,7 +2,7 @@
 // Copyright (C) 2022 BitGreen.
 // This code is licensed under MIT license (see LICENSE.txt for details)
 //! Dex pallet benchmarking
-use frame_benchmarking::{benchmarks, whitelisted_caller};
+use frame_benchmarking::{account, benchmarks, whitelisted_caller};
 use frame_system::{RawOrigin, RawOrigin as SystemOrigin};
 use orml_traits::MultiCurrency;
 use primitives::CurrencyId;
@@ -64,25 +64,26 @@ benchmarks! {
 		let caller: T::AccountId = whitelisted_caller();
 	}: _(RawOrigin::Signed(caller.into()), 0u32.into(), 100u32.into(), 10u32.into())
 	verify {
-		assert!(Orders::<T>::get(0u64).is_some())
+		assert!(Orders::<T>::get(0u128).is_some())
 	}
 
 	cancel_sell_order {
 		create_default_minted_asset::<T>(true, 100u32.into());
 		let caller: T::AccountId = whitelisted_caller();
 		Dex::<T>::create_sell_order(RawOrigin::Signed(caller.clone()).into(), 0u32.into(), 100u32.into(), 10u32.into())?;
-	}: _(RawOrigin::Signed(caller.into()), 0u64)
+	}: _(RawOrigin::Signed(caller.into()), 0u128)
 	verify {
-		assert!(Orders::<T>::get(0u64).is_none())
+		assert!(Orders::<T>::get(0u128).is_none())
 	}
 
 	buy_order {
 		create_default_minted_asset::<T>(true, 100u32.into());
 		let caller: T::AccountId = whitelisted_caller();
 		Dex::<T>::create_sell_order(RawOrigin::Signed(caller.clone()).into(), 0u32.into(), 100u32.into(), 1u32.into())?;
-		// give the caller some tokens to pay
-		<orml_tokens::Pallet<T>>::deposit(get_currency_id(), &caller, 1000u32.into())?;
-	}: _(RawOrigin::Signed(caller.into()), 0u64, 0u32.into(), 1u32.into())
+		// give the buyer some tokens to pay
+		let buyer : T::AccountId = account("account_id", 0, 1);
+		<orml_tokens::Pallet<T>>::deposit(get_currency_id(), &buyer, 1000u32.into())?;
+	}: _(RawOrigin::Signed(buyer.into()), 0u128, 0u32.into(), 1u32.into(), 100u32.into())
 	verify {}
 
 
@@ -93,9 +94,9 @@ benchmarks! {
 	}
 
 	force_set_purchase_fee {
-	}: _(RawOrigin::Root, Percent::from_percent(10))
+	}: _(RawOrigin::Root, 10u32.into())
 	verify {
-		assert_eq!(PurchaseFees::<T>::get(), Percent::from_percent(10));
+		assert_eq!(PurchaseFees::<T>::get(), 10u32.into());
 	}
 
 

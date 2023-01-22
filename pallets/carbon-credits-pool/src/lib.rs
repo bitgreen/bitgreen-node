@@ -63,7 +63,7 @@ pub mod pallet {
 	#[pallet::config]
 	pub trait Config: frame_system::Config + pallet_carbon_credits::Config {
 		/// Because this pallet emits events, it depends on the runtime's definition of an event.
-		type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
+		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 
 		/// The PoolId type for the pallet
 		type PoolId: Member
@@ -85,7 +85,7 @@ pub mod pallet {
 			+ Transfer<Self::AccountId>;
 
 		/// The origin which may forcibly perform privileged calls
-		type ForceOrigin: EnsureOrigin<Self::Origin>;
+		type ForceOrigin: EnsureOrigin<Self::RuntimeOrigin>;
 		/// Maximum registrys allowed in the pool config
 		type MaxRegistryListCount: Get<u32>;
 		/// Maximum issuance years allowed in the pool config
