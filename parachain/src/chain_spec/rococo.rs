@@ -4,7 +4,7 @@ use hex_literal::hex;
 use super::*;
 
 pub type RococoChainSpec =
-	sc_service::GenericChainSpec<bitgreen_runtime::GenesisConfig, Extensions>;
+	sc_service::GenericChainSpec<bitgreen_rococo_runtime::GenesisConfig, Extensions>;
 
 // same as rococo config but for local testing
 pub fn rococo_config_local() -> RococoChainSpec {
@@ -32,8 +32,6 @@ pub fn rococo_config_local() -> RococoChainSpec {
 				// initial endowed accounts
 				vec![
 					hex!("dc31445d24993e946ebf9f444dd17a9698fe859eeb574b78910100baab083b75").into(),
-					hex!("d8c3c271f6b7ab4c6fa6377dadff2426e88e8053bd112fbe8d575f1a79810629").into(),
-					hex!("e636a18707426928ea68120d9bff857446b1a12adebdb2e96b0e17d7095ce151").into(),
 				],
 				ROCOCO_PARA_ID.into(),
 			)
@@ -78,8 +76,6 @@ pub fn rococo_config() -> RococoChainSpec {
 				// initial endowed accounts
 				vec![
 					hex!("dc31445d24993e946ebf9f444dd17a9698fe859eeb574b78910100baab083b75").into(),
-					hex!("d8c3c271f6b7ab4c6fa6377dadff2426e88e8053bd112fbe8d575f1a79810629").into(),
-					hex!("e636a18707426928ea68120d9bff857446b1a12adebdb2e96b0e17d7095ce151").into(),
 				],
 				ROCOCO_PARA_ID.into(),
 			)
@@ -104,23 +100,23 @@ fn rococo_genesis(
 	invulnerables: Vec<(AccountId, AuraId)>,
 	endowed_accounts: Vec<AccountId>,
 	id: ParaId,
-) -> bitgreen_runtime::GenesisConfig {
-	bitgreen_runtime::GenesisConfig {
-		system: bitgreen_runtime::SystemConfig {
-			code: bitgreen_runtime::WASM_BINARY
+) -> bitgreen_rococo_runtime::GenesisConfig {
+	bitgreen_rococo_runtime::GenesisConfig {
+		system: bitgreen_rococo_runtime::SystemConfig {
+			code: bitgreen_rococo_runtime::WASM_BINARY
 				.expect("WASM binary was not build, please build it!")
 				.to_vec(),
 		},
-		balances: bitgreen_runtime::BalancesConfig {
-			balances: endowed_accounts.iter().cloned().map(|k| (k, 1 << 80)).collect(),
+		balances: bitgreen_rococo_runtime::BalancesConfig {
+			balances: endowed_accounts.iter().cloned().map(|k| (k, 1_000_000_000 * 1000000000000000000)).collect(),
 		},
-		parachain_info: bitgreen_runtime::ParachainInfoConfig { parachain_id: id },
-		parachain_staking: bitgreen_runtime::ParachainStakingConfig {
+		parachain_info: bitgreen_rococo_runtime::ParachainInfoConfig { parachain_id: id },
+		parachain_staking: bitgreen_rococo_runtime::ParachainStakingConfig {
 			invulnerables: invulnerables.iter().cloned().map(|(acc, _)| acc).collect(),
 			candidacy_bond: EXISTENTIAL_DEPOSIT * 16,
 			..Default::default()
 		},
-		session: bitgreen_runtime::SessionConfig {
+		session: bitgreen_rococo_runtime::SessionConfig {
 			keys: invulnerables
 				.into_iter()
 				.map(|(acc, aura)| {
@@ -137,15 +133,15 @@ fn rococo_genesis(
 		aura: Default::default(),
 		aura_ext: Default::default(),
 		parachain_system: Default::default(),
-		polkadot_xcm: bitgreen_runtime::PolkadotXcmConfig {
+		polkadot_xcm: bitgreen_rococo_runtime::PolkadotXcmConfig {
 			safe_xcm_version: Some(SAFE_XCM_VERSION),
 		},
-		kyc_membership: bitgreen_runtime::KYCMembershipConfig {
+		kyc_membership: bitgreen_rococo_runtime::KYCMembershipConfig {
 			members: [].to_vec().try_into().unwrap(),
 			phantom: Default::default(),
 		},
-		tokens: bitgreen_runtime::TokensConfig { balances: [].to_vec() },
-		sudo: bitgreen_runtime::SudoConfig { key: Some(root_key) },
+		tokens: bitgreen_rococo_runtime::TokensConfig { balances: [].to_vec() },
+		sudo: bitgreen_rococo_runtime::SudoConfig { key: Some(root_key) },
 		treasury: Default::default(),
 	}
 }
