@@ -16,9 +16,9 @@ pub fn rococo_config_local() -> RococoChainSpec {
 
 	RococoChainSpec::from_genesis(
 		// Name
-		"BitgreenRococo",
+		"BitgreenTestnet",
 		// ID
-		"bitgreen_rococo",
+		"bitgreen_testnet",
 		ChainType::Development,
 		move || {
 			rococo_genesis(
@@ -27,13 +27,12 @@ pub fn rococo_config_local() -> RococoChainSpec {
 				// initial collators.
 				generate_collator_keys(&[
 					hex!("66a44eae61bbaa03111e4958c2ad47460de3945a8bc8e236ddc73706e34e8b31"),
-					hex!("b60ae0674d01cc80e9f60bdf2f4bfb07daa9bfc4f9958120ead06e6a79208a7b"),
 				]),
 				// initial endowed accounts
 				vec![
 					hex!("dc31445d24993e946ebf9f444dd17a9698fe859eeb574b78910100baab083b75").into(),
 				],
-				ROCOCO_PARA_ID.into(),
+				2048.into(),
 			)
 		},
 		// Bootnodes
@@ -47,7 +46,7 @@ pub fn rococo_config_local() -> RococoChainSpec {
 		// Properties
 		Some(properties),
 		// Extensions
-		Extensions { relay_chain: "rococo-local".into(), para_id: 2000 },
+		Extensions { relay_chain: "rococo-local".into(), para_id: 2048 },
 	)
 }
 
