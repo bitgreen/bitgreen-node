@@ -20,6 +20,10 @@ on:
   schedule:
     - cron: '44 18 * * 0'
 
+concurrency: 
+  group: ${{ github.head_ref }}
+  cancel-in-progress: true
+
 jobs:
   analyze:
     name: Analyze
