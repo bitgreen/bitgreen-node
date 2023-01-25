@@ -87,3 +87,22 @@ jobs:
     
       - name: Unit tests
         run: cargo test -p bitgreen-parachain --features runtime-benchmarks
+
+  build-docker-image:
+    # The type of runner that the job will run on
+    runs-on: ubuntu-latest
+
+    # Steps represent a sequence of tasks that will be executed as part of the job
+    steps:
+      -
+        name: Set up QEMU
+        uses: docker/setup-qemu-action@v2
+      -
+        name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+      -
+        name: Build Docker Image
+        uses: docker/build-push-action@v3
+        with:
+          push: false
+          tags: bitgreen/bitgreen-node:latest
