@@ -5,6 +5,8 @@ FROM docker.io/paritytech/ci-linux:production as builder
 
 WORKDIR /bitgreen-node
 COPY . .
+
+RUN rustup target add wasm32-unknown-unknown
 RUN cargo build -p bitgreen-parachain --locked --release
 
 # This is the 2nd stage: a very small image where we copy the binary."
