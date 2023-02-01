@@ -25,12 +25,12 @@ pub fn rococo_config_local() -> RococoChainSpec {
 				// Rootkey
 				hex!("dc31445d24993e946ebf9f444dd17a9698fe859eeb574b78910100baab083b75").into(),
 				// initial collators.
-				generate_collator_keys(&[
-					hex!("66a44eae61bbaa03111e4958c2ad47460de3945a8bc8e236ddc73706e34e8b31"),
-				]),
+				generate_collator_keys(&[hex!(
+					"66a44eae61bbaa03111e4958c2ad47460de3945a8bc8e236ddc73706e34e8b31"
+				)]),
 				// initial endowed accounts
 				vec![
-					hex!("dc31445d24993e946ebf9f444dd17a9698fe859eeb574b78910100baab083b75").into(),
+					hex!("dc31445d24993e946ebf9f444dd17a9698fe859eeb574b78910100baab083b75").into()
 				],
 				2048.into(),
 			)
@@ -74,7 +74,7 @@ pub fn rococo_config() -> RococoChainSpec {
 				]),
 				// initial endowed accounts
 				vec![
-					hex!("dc31445d24993e946ebf9f444dd17a9698fe859eeb574b78910100baab083b75").into(),
+					hex!("dc31445d24993e946ebf9f444dd17a9698fe859eeb574b78910100baab083b75").into()
 				],
 				ROCOCO_PARA_ID.into(),
 			)
@@ -107,7 +107,11 @@ fn rococo_genesis(
 				.to_vec(),
 		},
 		balances: bitgreen_rococo_runtime::BalancesConfig {
-			balances: endowed_accounts.iter().cloned().map(|k| (k, 1_000_000_000 * 1000000000000000000)).collect(),
+			balances: endowed_accounts
+				.iter()
+				.cloned()
+				.map(|k| (k, 1_000_000_000 * 1000000000000000000))
+				.collect(),
 		},
 		parachain_info: bitgreen_rococo_runtime::ParachainInfoConfig { parachain_id: id },
 		parachain_staking: bitgreen_rococo_runtime::ParachainStakingConfig {
