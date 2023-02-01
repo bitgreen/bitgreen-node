@@ -203,7 +203,11 @@ fn testnet_genesis(
 				.to_vec(),
 		},
 		balances: bitgreen_rococo_runtime::BalancesConfig {
-			balances: endowed_accounts.iter().cloned().map(|k| (k, 1_000_000_000 * 1000000000000000000)).collect(),
+			balances: endowed_accounts
+				.iter()
+				.cloned()
+				.map(|k| (k, 1_000_000_000 * 1000000000000000000))
+				.collect(),
 		},
 		parachain_info: bitgreen_rococo_runtime::ParachainInfoConfig { parachain_id: id },
 		parachain_staking: bitgreen_rococo_runtime::ParachainStakingConfig {
