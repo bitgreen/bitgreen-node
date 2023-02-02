@@ -158,11 +158,6 @@ pub mod pallet {
 		type WeightInfo: WeightInfo;
 	}
 
-	// owner of swap pool
-	#[pallet::storage]
-	#[pallet::getter(fn owner)]
-	pub type Owner<T: Config> = StorageValue<_, T::AccountId>;
-
 	// orders information
 	#[pallet::storage]
 	#[pallet::getter(fn order_count)]
@@ -209,6 +204,7 @@ pub mod pallet {
 			project_id: ProjectIdOf<T>,
 			group_id: GroupIdOf<T>,
 			price_per_unit: CurrencyBalanceOf<T>,
+			fees_paid: CurrencyBalanceOf<T>,
 			seller: T::AccountId,
 			buyer: T::AccountId,
 		},
@@ -399,6 +395,7 @@ pub mod pallet {
 					project_id,
 					group_id,
 					price_per_unit: order.price_per_unit,
+					fees_paid: required_fees.into(),
 					seller: order.owner.clone(),
 					buyer,
 				});
