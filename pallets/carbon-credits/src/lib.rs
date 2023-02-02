@@ -571,10 +571,14 @@ pub mod pallet {
 }
 
 /// Struct to verify if a given asset_id is representing a carbon credit project
-pub struct CarbonCreditsAssetValidator<T>(sp_std::marker::PhantomData<T>);
-impl<T: Config> Contains<T::AssetId> for CarbonCreditsAssetValidator<T> {
-	// Returns true if the AssetId represents a CarbonCredits project
-	fn contains(asset_id: &T::AssetId) -> bool {
-		AssetIdLookup::<T>::contains_key(asset_id)
+impl<T: Config> primitives::CarbonCreditsValidator for Pallet<T> {
+	type ProjectId = T::ProjectId;
+
+	type GroupId = T::GroupId;
+
+	type AssetId = T::AssetId;
+
+	fn get_project_details(asset_id: &Self::AssetId) -> Option<(Self::ProjectId, Self::GroupId)> {
+		AssetIdLookup::<T>::get(asset_id)
 	}
 }

@@ -761,7 +761,7 @@ impl pallet_dex::Config for Runtime {
 	type AssetBalance = u128;
 	type StableCurrencyId = StableCurrencyId;
 	type PalletId = DexPalletId;
-	type AssetValidator = pallet_carbon_credits::CarbonCreditsAssetValidator<Runtime>;
+	type AssetValidator = CarbonCredits;
 	type MinPricePerUnit = MinPricePerUnit;
 	type MinUnitsToCreateSellOrder = MinUnitsToCreateSellOrder;
 	type ForceOrigin = EnsureRoot<AccountId>;
