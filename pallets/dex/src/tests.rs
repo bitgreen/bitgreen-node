@@ -240,7 +240,7 @@ fn buy_order_should_work() {
 				price_per_unit: 10,
 				seller,
 				buyer,
-				fees_paid: 0u128,
+				fees_paid: 11u128,
 				project_id: 0,
 				group_id: 0,
 			}
