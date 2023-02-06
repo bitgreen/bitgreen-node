@@ -5528,6 +5528,7 @@ dependencies = [
  "orml-traits",
  "pallet-assets",
  "pallet-balances",
+ "pallet-carbon-credits",
  "parity-scale-codec",
  "scale-info",
  "sp-core",

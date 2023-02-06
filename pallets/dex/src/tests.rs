@@ -35,6 +35,8 @@ fn basic_create_sell_order_should_work() {
 			Event::SellOrderCreated {
 				order_id: 0,
 				asset_id,
+				project_id: 0,
+				group_id: 0,
 				units: 5,
 				price_per_unit: 1,
 				owner: seller
@@ -232,8 +234,17 @@ fn buy_order_should_work() {
 
 		assert_eq!(
 			last_event(),
-			Event::BuyOrderFilled { order_id: 0, units: 1, price_per_unit: 10, seller, buyer }
-				.into()
+			Event::BuyOrderFilled {
+				order_id: 0,
+				units: 1,
+				price_per_unit: 10,
+				seller,
+				buyer,
+				fees_paid: 11u128,
+				project_id: 0,
+				group_id: 0,
+			}
+			.into()
 		);
 	});
 }

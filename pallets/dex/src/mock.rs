@@ -3,13 +3,13 @@
 // This code is licensed under MIT license (see LICENSE.txt for details)
 use frame_support::{
 	parameter_types,
-	traits::{AsEnsureOriginWithArg, ConstU32, Contains, Everything, GenesisBuild, Nothing},
+	traits::{AsEnsureOriginWithArg, ConstU32, Everything, GenesisBuild, Nothing},
 	PalletId,
 };
 use frame_system as system;
 use frame_system::EnsureRoot;
 use orml_traits::parameter_type_with_key;
-use primitives::{Amount, Balance, CurrencyId};
+use primitives::{Amount, Balance, CarbonCreditsValidator, CurrencyId};
 use sp_core::H256;
 use sp_runtime::{
 	testing::Header,
@@ -135,9 +135,12 @@ impl orml_tokens::Config for Test {
 }
 
 pub struct DummyValidator;
-impl Contains<u32> for DummyValidator {
-	fn contains(_asset_id: &u32) -> bool {
-		true
+impl CarbonCreditsValidator for DummyValidator {
+	type ProjectId = u32;
+	type AssetId = u32;
+	type GroupId = u32;
+	fn get_project_details(_asset_id: &Self::AssetId) -> Option<(Self::ProjectId, Self::GroupId)> {
+		Some((0, 0))
 	}
 }
 

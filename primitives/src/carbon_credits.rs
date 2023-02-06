@@ -1,6 +1,7 @@
 use super::*;
 use frame_support::{pallet_prelude::Get, BoundedVec};
 pub type IssuanceYear = u16;
+use sp_std::fmt::Debug;
 
 /// The possible values for Registry Names
 #[derive(Clone, Encode, Decode, Eq, PartialEq, Debug, TypeInfo, MaxEncodedLen)]
@@ -159,4 +160,19 @@ pub struct BatchGroup<StringType, AssetId, Balance, Batch, MaxBatches: Get<u32>>
 	/// originator mints 100 tokens, we first mint the oldest (2019) credits and only once the
 	/// supply is exhausted we move on the next vintage, same for retirement.
 	pub batches: BoundedVec<Batch, MaxBatches>,
+}
+
+/// Trait to identify details of carbon credits
+pub trait CarbonCreditsValidator {
+	/// ProjectId type representing the project
+	type ProjectId: Clone + PartialEq + Debug;
+
+	/// GroupId type representing the group
+	type GroupId: Clone + PartialEq + Debug;
+
+	/// AssetId type representing the asset
+	type AssetId: Clone + PartialEq + Debug;
+
+	/// Returns ProjectId and GroupId if the given AssetId represents a CarbonCredit Project
+	fn get_project_details(asset_id: &Self::AssetId) -> Option<(Self::ProjectId, Self::GroupId)>;
 }
