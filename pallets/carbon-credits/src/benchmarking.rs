@@ -159,7 +159,7 @@ benchmarks! {
 	verify {
 		let item_id : T::ItemId = 0_u32.into();
 		let retire_data = RetiredCredits::<T>::get(asset_id, item_id).unwrap();
-		assert_last_event::<T>(Event::CarbonCreditRetired { project_id, account : caller, amount : 10_u32.into(), retire_data :retire_data.retire_data }.into());
+		assert_last_event::<T>(Event::CarbonCreditRetired { project_id, group_id, asset_id, account : caller, amount : 10_u32.into(), retire_data :retire_data.retire_data }.into());
 	}
 
 	force_add_authorized_account {
