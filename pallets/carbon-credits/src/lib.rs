@@ -289,6 +289,10 @@ pub mod pallet {
 		CarbonCreditRetired {
 			/// The ProjectId of the retired CarbonCredits
 			project_id: T::ProjectId,
+			/// The GroupId of the CarbonCredits retired
+			group_id: T::GroupId,
+			/// The AssetId of the CarbonCredits retired
+			asset_id: T::AssetId,
 			/// The AccountId that retired the CarbonCredits
 			account: T::AccountId,
 			/// The amount of CarbonCredits units retired

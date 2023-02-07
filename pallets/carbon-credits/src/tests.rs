@@ -1114,6 +1114,8 @@ fn test_retire_for_single_batch() {
 			last_event(),
 			CarbonCreditsEvent::CarbonCreditRetired {
 				project_id,
+				group_id,
+				asset_id: expected_asset_id,
 				account: originator_account,
 				amount: amount_to_retire,
 				retire_data: stored_retired_data.retire_data,
@@ -1287,6 +1289,8 @@ fn retire_for_multiple_batch() {
 			last_event(),
 			CarbonCreditsEvent::CarbonCreditRetired {
 				project_id,
+				group_id,
+				asset_id: expected_asset_id,
 				account: originator_account,
 				amount: amount_to_retire,
 				retire_data: stored_retired_data.retire_data.clone()
