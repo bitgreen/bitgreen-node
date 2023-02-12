@@ -493,6 +493,8 @@ impl<T: Config> Pallet<T> {
 			// emit event
 			Self::deposit_event(Event::CarbonCreditRetired {
 				project_id,
+				group_id,
+				asset_id: group.asset_id,
 				account: from,
 				amount,
 				retire_data: batch_retire_data_list,
