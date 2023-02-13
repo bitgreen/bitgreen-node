@@ -112,7 +112,7 @@ pub type Executive = frame_executive::Executive<
 	Runtime,
 	AllPalletsWithSystem,
 	// Migrations
-	pallet_parachain_staking::migration::v1::MigrateToV1<Runtime>,
+	pallet_parachain_staking::migration::v2::MigrateToV2<Runtime>,
 >;
 
 pub type NegativeImbalance<T> = <pallet_balances::Pallet<T> as Currency<
