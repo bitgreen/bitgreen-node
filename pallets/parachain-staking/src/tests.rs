@@ -14,7 +14,7 @@ use crate as collator_selection;
 use crate::{
 	mock::*,
 	types::{CandidateInfoOf, DelegationInfoOf},
-	Error,
+	Error, Invulnerables,
 };
 
 #[test]
@@ -484,6 +484,52 @@ fn delegate_works() {
 }
 
 #[test]
+fn delegate_works_for_invulnerable() {
+	new_test_ext().execute_with(|| {
+		// we know that 1 is an invulnerable
+		let invulnerable_collator = 1;
+		let delegation_amount = 10;
+
+		// delegate less than min delegation should fail
+		assert_noop!(
+			CollatorSelection::delegate(
+				RuntimeOrigin::signed(5),
+				invulnerable_collator,
+				delegation_amount - 1
+			),
+			Error::<Test>::LessThanMinimumDelegation
+		);
+
+		assert_eq!(CollatorSelection::candidates().len(), 0);
+
+		// should fail if the amount is not available to reserve
+		assert_noop!(
+			CollatorSelection::delegate(
+				RuntimeOrigin::signed(6),
+				invulnerable_collator,
+				delegation_amount
+			),
+			pallet_balances::Error::<Test>::InsufficientBalance
+		);
+
+		println!("{:?}", Invulnerables::<Test>::get());
+
+		assert_ok!(CollatorSelection::delegate(
+			RuntimeOrigin::signed(5),
+			invulnerable_collator,
+			delegation_amount
+		));
+		// storage should be updated correctly
+		let expected_delegator_info =
+			DelegationInfoOf::<Test> { who: 5, deposit: delegation_amount };
+		assert_eq!(CollatorSelection::invulnerables()[0].delegators, vec![expected_delegator_info]);
+		assert_eq!(CollatorSelection::invulnerables()[0].total_stake, delegation_amount);
+		// the balance should be reserved correctly
+		assert_eq!(Balances::reserved_balance(5), delegation_amount);
+	});
+}
+
+#[test]
 fn undelegate_works() {
 	new_test_ext().execute_with(|| {
 		// undelegate to non existing candidate should fail
@@ -540,6 +586,42 @@ fn candidate_leave_removes_delegates() {
 }
 
 #[test]
+fn undelegate_works_for_invulnerable() {
+	new_test_ext().execute_with(|| {
+		// we know that 1 is an invulnerable
+		let invulnerable_collator = 1;
+		let delegation_amount = 10;
+		let delegator_account = 5;
+
+		// undelegate without any delegation should fail
+		assert_noop!(
+			CollatorSelection::undelegate(
+				RuntimeOrigin::signed(delegator_account),
+				invulnerable_collator
+			),
+			Error::<Test>::NotDelegator
+		);
+
+		assert_ok!(CollatorSelection::delegate(
+			RuntimeOrigin::signed(delegator_account),
+			invulnerable_collator,
+			delegation_amount
+		));
+		assert_ok!(CollatorSelection::undelegate(
+			RuntimeOrigin::signed(delegator_account),
+			invulnerable_collator
+		));
+		assert_eq!(CollatorSelection::candidates().len(), 0);
+		// storage should be updated correctly
+		assert_eq!(CollatorSelection::invulnerables()[0].delegators, vec![]);
+		assert_eq!(CollatorSelection::invulnerables()[0].total_stake, 0);
+		// the balane should be reserved correctly
+		assert_eq!(Balances::reserved_balance(delegator_account), 0);
+		assert_eq!(Balances::free_balance(delegator_account), 100);
+	});
+}
+
+#[test]
 fn delegator_payout_works() {
 	new_test_ext().execute_with(|| {
 		// put 100 in the pot + 5 for ED
@@ -554,7 +636,7 @@ fn delegator_payout_works() {
 		assert_ok!(CollatorSelection::delegate(RuntimeOrigin::signed(3), 4, 10));
 		assert_ok!(CollatorSelection::delegate(RuntimeOrigin::signed(5), 4, 10));
 		// triggers `note_author`
-		Authorship::on_initialize(1);
+		Authorship::on_initialize(4);
 
 		let collator = CandidateInfoOf::<Test> {
 			who: 4,
@@ -573,6 +655,73 @@ fn delegator_payout_works() {
 
 		// block author balances is 90 (existing) + (15) 10% of reward
 		assert_eq!(Balances::free_balance(4), 90 + 15);
+		// delegator balances is 90 (existing) + (135) 90% of reward / 2
+		assert_eq!(Balances::free_balance(3), 90 + 67);
+		assert_eq!(Balances::free_balance(5), 90 + 67);
+		// half + ED stays.
+		assert_eq!(Balances::free_balance(CollatorSelection::account_id()), 5);
+	});
+}
+
+#[test]
+fn delegator_payout_works_for_invulnerables() {
+	new_test_ext().execute_with(|| {
+		let invulnerable_collator = 4;
+		// put 100 in the pot + 5 for ED
+		Balances::make_free_balance_be(&CollatorSelection::account_id(), 105);
+		// block inflation reward is 50
+		assert_ok!(CollatorSelection::set_block_inflation_reward(RuntimeOrigin::root(), 50));
+
+		// set the 4 account as invulnerable
+		let new_set = vec![4];
+		let new_set_formatted = new_set
+			.iter()
+			.cloned()
+			.map(|account| CandidateInfoOf::<Test> {
+				who: account,
+				deposit: Default::default(),
+				delegators: Default::default(),
+				total_stake: Default::default(),
+			})
+			.collect::<Vec<CandidateInfoOf<Test>>>();
+		assert_ok!(CollatorSelection::set_invulnerables(
+			RuntimeOrigin::root(),
+			new_set_formatted.clone().try_into().unwrap()
+		));
+
+		// 4 is invulnerable and the default author.
+		assert_eq!(Balances::free_balance(invulnerable_collator), 100);
+		// two delegators delegators to 1
+		assert_ok!(CollatorSelection::delegate(
+			RuntimeOrigin::signed(3),
+			invulnerable_collator,
+			10
+		));
+		assert_ok!(CollatorSelection::delegate(
+			RuntimeOrigin::signed(5),
+			invulnerable_collator,
+			10
+		));
+		// triggers `note_author`
+		Authorship::on_initialize(invulnerable_collator);
+
+		let collator = CandidateInfoOf::<Test> {
+			who: invulnerable_collator,
+			deposit: 0,
+			delegators: vec![
+				DelegationInfoOf::<Test> { who: 3u64, deposit: 10 },
+				DelegationInfoOf::<Test> { who: 5u64, deposit: 10 },
+			]
+			.try_into()
+			.unwrap(),
+			total_stake: 20,
+		};
+
+		assert_eq!(CollatorSelection::invulnerables()[0], collator);
+		assert_eq!(CollatorSelection::last_authored_block(invulnerable_collator), 0);
+
+		// block author balances is 90 (existing) + (15) 10% of reward
+		assert_eq!(Balances::free_balance(invulnerable_collator), 100 + 15);
 		// delegator balances is 90 (existing) + (135) 90% of reward / 2
 		assert_eq!(Balances::free_balance(3), 90 + 67);
 		assert_eq!(Balances::free_balance(5), 90 + 67);

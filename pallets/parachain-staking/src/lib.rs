@@ -364,7 +364,10 @@ pub mod pallet {
 			// ensure we are below limit.
 			let length = <Candidates<T>>::decode_len().unwrap_or_default();
 			ensure!((length as u32) < Self::desired_candidates(), Error::<T>::TooManyCandidates);
+
+			// ensure not already a candidate or invulnerable
 			ensure!(Self::find_candidate(who.clone()).is_none(), Error::<T>::AlreadyCandidate);
+			ensure!(Self::find_invulnerable(who.clone()).is_none(), Error::<T>::AlreadyCandidate);
 
 			let validator_key = T::ValidatorIdOf::convert(who.clone())
 				.ok_or(Error::<T>::NoAssociatedValidatorId)?;
@@ -436,8 +439,16 @@ pub mod pallet {
 			// ensure the amount is above minimum
 			ensure!(amount >= T::MinDelegationAmount::get(), Error::<T>::LessThanMinimumDelegation);
 
-			let mut candidate =
-				Self::find_candidate(candidate_id.clone()).ok_or(Error::<T>::NotCandidate)?;
+			let mut is_invulnerable = false;
+
+			let mut candidate = match Self::find_candidate(candidate_id.clone()) {
+				Some(candidate) => candidate,
+				None => {
+					// if not in candidates list, check in invulnerables list
+					is_invulnerable = true;
+					Self::find_invulnerable(candidate_id.clone()).ok_or(Error::<T>::NotCandidate)?
+				},
+			};
 
 			// try to reserve the delegation amount
 			<T as Config>::Currency::reserve(&who, amount)?;
@@ -455,19 +466,35 @@ pub mod pallet {
 				.checked_add(&amount)
 				.ok_or(Error::<T>::ArithmeticOverflow)?;
 
-			<Candidates<T>>::try_mutate(|candidates| -> Result<usize, DispatchError> {
-				let index = candidates
-					.iter()
-					.position(|candidate| candidate.who == candidate_id)
-					.ok_or(Error::<T>::NotCandidate)?;
+			if !is_invulnerable {
+				<Candidates<T>>::try_mutate(|candidates| -> Result<usize, DispatchError> {
+					let index = candidates
+						.iter()
+						.position(|candidate| candidate.who == candidate_id)
+						.ok_or(Error::<T>::NotCandidate)?;
 
-				let _ = candidates.remove(index);
+					let _ = candidates.remove(index);
 
-				candidates
-					.try_insert(index, candidate.clone())
-					.map_err(|_| Error::<T>::TooManyCandidates)?;
-				Ok(candidates.len())
-			})?;
+					candidates
+						.try_insert(index, candidate.clone())
+						.map_err(|_| Error::<T>::TooManyCandidates)?;
+					Ok(candidates.len())
+				})?;
+			} else {
+				<Invulnerables<T>>::try_mutate(|candidates| -> Result<usize, DispatchError> {
+					let index = candidates
+						.iter()
+						.position(|candidate| candidate.who == candidate_id)
+						.ok_or(Error::<T>::NotCandidate)?;
+
+					let _ = candidates.remove(index);
+
+					candidates
+						.try_insert(index, candidate.clone())
+						.map_err(|_| Error::<T>::TooManyCandidates)?;
+					Ok(candidates.len())
+				})?;
+			}
 
 			Self::deposit_event(Event::NewDelegation {
 				account_id: who,
@@ -483,8 +510,16 @@ pub mod pallet {
 		pub fn undelegate(origin: OriginFor<T>, candidate_id: T::AccountId) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 
-			let mut candidate =
-				Self::find_candidate(candidate_id.clone()).ok_or(Error::<T>::NotCandidate)?;
+			let mut is_invulnerable = false;
+
+			let mut candidate = match Self::find_candidate(candidate_id.clone()) {
+				Some(candidate) => candidate,
+				None => {
+					// if not in candidates list, check in invulnerables list
+					is_invulnerable = true;
+					Self::find_invulnerable(candidate_id.clone()).ok_or(Error::<T>::NotCandidate)?
+				},
+			};
 
 			// remove delegator from candidates
 			let delegator_index = candidate
@@ -502,19 +537,35 @@ pub mod pallet {
 				.checked_sub(&delegator.deposit)
 				.ok_or(Error::<T>::ArithmeticOverflow)?;
 
-			<Candidates<T>>::try_mutate(|candidates| -> Result<usize, DispatchError> {
-				let index = candidates
-					.iter()
-					.position(|candidate| candidate.who == candidate_id)
-					.ok_or(Error::<T>::NotCandidate)?;
+			if !is_invulnerable {
+				<Candidates<T>>::try_mutate(|candidates| -> Result<usize, DispatchError> {
+					let index = candidates
+						.iter()
+						.position(|candidate| candidate.who == candidate_id)
+						.ok_or(Error::<T>::NotCandidate)?;
 
-				let _ = candidates.remove(index);
+					let _ = candidates.remove(index);
 
-				candidates
-					.try_insert(index, candidate.clone())
-					.map_err(|_| Error::<T>::TooManyCandidates)?;
-				Ok(candidates.len())
-			})?;
+					candidates
+						.try_insert(index, candidate.clone())
+						.map_err(|_| Error::<T>::TooManyCandidates)?;
+					Ok(candidates.len())
+				})?;
+			} else {
+				<Invulnerables<T>>::try_mutate(|candidates| -> Result<usize, DispatchError> {
+					let index = candidates
+						.iter()
+						.position(|candidate| candidate.who == candidate_id)
+						.ok_or(Error::<T>::NotCandidate)?;
+
+					let _ = candidates.remove(index);
+
+					candidates
+						.try_insert(index, candidate.clone())
+						.map_err(|_| Error::<T>::TooManyCandidates)?;
+					Ok(candidates.len())
+				})?;
+			}
 
 			Self::deposit_event(Event::DelegationRemoved {
 				account_id: who,
@@ -570,22 +621,25 @@ pub mod pallet {
 
 		/// Finds a candidate with AccountId if it exists
 		fn find_candidate(who: T::AccountId) -> Option<CandidateInfoOf<T>> {
-			match Self::candidates().into_iter().find(|c| c.who == who) {
-				Some(candidate) => Some(candidate),
-				None => {
-					// search invulnerables for the candidate
-					Self::invulnerables().into_iter().find(|c| c.who == who)
-				},
-			}
+			Self::candidates().into_iter().find(|c| c.who == who)
 		}
 
-		/// Finds a candidate with AccountId if it exists
+		/// Finds an invulnerable with AccountId if it exists
+		fn find_invulnerable(who: T::AccountId) -> Option<CandidateInfoOf<T>> {
+			Self::invulnerables().into_iter().find(|c| c.who == who)
+		}
+
+		/// Finds a candidate/invulnerable with AccountId if it exists
 		fn get_delegators(who: T::AccountId) -> BoundedVec<DelegationInfoOf<T>, T::MaxDelegators> {
-			let candidate = Candidates::<T>::get().into_iter().find(|c| c.who == who);
-			if let Some(candidate) = candidate {
-				return candidate.delegators
+			// first search within candidate list
+			match Candidates::<T>::get().into_iter().find(|c| c.who == who) {
+				Some(candidates) => candidates.delegators,
+				// also search in invulnerable list if not found
+				None => match Invulnerables::<T>::get().into_iter().find(|c| c.who == who) {
+					Some(candidates) => candidates.delegators,
+					None => Default::default(),
+				},
 			}
-			Default::default()
 		}
 
 		/// Assemble the current set of candidates and invulnerables into the next collator set.
