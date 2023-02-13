@@ -15,6 +15,7 @@ codec = { default-features = false, features = [
   "derive",
 ], package = "parity-scale-codec", version = "3.0.0" }
 log = { version = "0.4.17", default-features = false }
+serde = { version = "1.0.136", optional = true, default-features = false }
 rand = { version = "0.8.5", features = ["std_rng"], default-features = false }
 scale-info = { version = "2.2.0", default-features = false, features = [
   "derive",
@@ -49,6 +50,7 @@ runtime-benchmarks = [
 ]
 std = [
   "codec/std",
+    "serde",
   "log/std",
   "scale-info/std",
   "rand/std",

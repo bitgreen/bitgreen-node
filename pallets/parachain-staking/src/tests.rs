@@ -24,7 +24,19 @@ fn basic_setup_works() {
 		assert_eq!(CollatorSelection::candidacy_bond(), 10);
 
 		assert!(CollatorSelection::candidates().is_empty());
-		assert_eq!(CollatorSelection::invulnerables(), vec![1, 2]);
+		assert_eq!(
+			CollatorSelection::invulnerables(),
+			vec![1, 2]
+				.iter()
+				.cloned()
+				.map(|account| CandidateInfoOf::<Test> {
+					who: account,
+					deposit: Default::default(),
+					delegators: Default::default(),
+					total_stake: Default::default(),
+				})
+				.collect::<Vec<CandidateInfoOf<Test>>>()
+		);
 	});
 }
 
@@ -32,19 +44,42 @@ fn basic_setup_works() {
 fn it_should_set_invulnerables() {
 	new_test_ext().execute_with(|| {
 		let new_set = vec![1, 2, 3, 4];
-		assert_ok!(CollatorSelection::set_invulnerables(RuntimeOrigin::root(), new_set.clone()));
-		assert_eq!(CollatorSelection::invulnerables(), new_set);
+		let new_set_formatted = new_set
+			.iter()
+			.cloned()
+			.map(|account| CandidateInfoOf::<Test> {
+				who: account,
+				deposit: Default::default(),
+				delegators: Default::default(),
+				total_stake: Default::default(),
+			})
+			.collect::<Vec<CandidateInfoOf<Test>>>();
+		assert_ok!(CollatorSelection::set_invulnerables(
+			RuntimeOrigin::root(),
+			new_set_formatted.clone().try_into().unwrap()
+		));
+		assert_eq!(CollatorSelection::invulnerables(), new_set_formatted);
 
 		// cannot set with non-root.
 		assert_noop!(
-			CollatorSelection::set_invulnerables(RuntimeOrigin::signed(1), new_set),
+			CollatorSelection::set_invulnerables(RuntimeOrigin::signed(1), new_set_formatted),
 			BadOrigin
 		);
 
 		// cannot set invulnerables without associated validator keys
 		let invulnerables = vec![7];
+		let invulnerables_formatted = invulnerables
+			.iter()
+			.cloned()
+			.map(|account| CandidateInfoOf::<Test> {
+				who: account,
+				deposit: Default::default(),
+				delegators: Default::default(),
+				total_stake: Default::default(),
+			})
+			.collect::<Vec<CandidateInfoOf<Test>>>();
 		assert_noop!(
-			CollatorSelection::set_invulnerables(RuntimeOrigin::root(), invulnerables),
+			CollatorSelection::set_invulnerables(RuntimeOrigin::root(), invulnerables_formatted),
 			Error::<Test>::ValidatorNotRegistered
 		);
 	});
@@ -125,12 +160,10 @@ fn cannot_unregister_candidate_if_too_few() {
 #[test]
 fn cannot_register_as_candidate_if_invulnerable() {
 	new_test_ext().execute_with(|| {
-		assert_eq!(CollatorSelection::invulnerables(), vec![1, 2]);
-
 		// can't 1 because it is invulnerable.
 		assert_noop!(
 			CollatorSelection::register_as_candidate(RuntimeOrigin::signed(1)),
-			Error::<Test>::AlreadyInvulnerable,
+			Error::<Test>::AlreadyCandidate,
 		);
 	})
 }
@@ -193,7 +226,6 @@ fn register_as_candidate_works() {
 		assert_eq!(CollatorSelection::desired_candidates(), 2);
 		assert_eq!(CollatorSelection::candidacy_bond(), 10);
 		assert_eq!(CollatorSelection::candidates(), Vec::new());
-		assert_eq!(CollatorSelection::invulnerables(), vec![1, 2]);
 
 		// take two endowed, non-invulnerables accounts.
 		assert_eq!(Balances::free_balance(&3), 100);
@@ -394,7 +426,16 @@ fn should_not_kick_mechanism_too_few() {
 fn cannot_set_genesis_value_twice() {
 	sp_tracing::try_init_simple();
 	let mut t = frame_system::GenesisConfig::default().build_storage::<Test>().unwrap();
-	let invulnerables = vec![1, 1];
+	let invulnerables = vec![1, 1]
+		.iter()
+		.cloned()
+		.map(|account| CandidateInfoOf::<Test> {
+			who: account,
+			deposit: Default::default(),
+			delegators: Default::default(),
+			total_stake: Default::default(),
+		})
+		.collect::<Vec<CandidateInfoOf<Test>>>();
 
 	let collator_selection = collator_selection::GenesisConfig::<Test> {
 		desired_candidates: 2,

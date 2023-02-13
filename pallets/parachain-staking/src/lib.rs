@@ -82,6 +82,7 @@ pub mod pallet {
 		Percent,
 	};
 	use sp_staking::SessionIndex;
+	use sp_std::fmt::Debug;
 
 	use crate::types::{CandidateInfoOf, DelegationInfoOf};
 	pub use crate::weights::WeightInfo;
@@ -127,7 +128,13 @@ pub mod pallet {
 		type MaxInvulnerables: Get<u32>;
 
 		/// Maximum number of delegators for a single candidate
-		type MaxDelegators: Get<u32> + TypeInfo + Clone;
+		type MaxDelegators: Get<u32>
+			+ TypeInfo
+			+ Clone
+			+ MaybeSerializeDeserialize
+			+ PartialOrd
+			+ Ord
+			+ Debug;
 
 		/// Minim amount that should be delegated
 		type MinDelegationAmount: Get<BalanceOf<Self>>;
@@ -158,7 +165,7 @@ pub mod pallet {
 	#[pallet::storage]
 	#[pallet::getter(fn invulnerables)]
 	pub type Invulnerables<T: Config> =
-		StorageValue<_, BoundedVec<T::AccountId, T::MaxInvulnerables>, ValueQuery>;
+		StorageValue<_, BoundedVec<CandidateInfoOf<T>, T::MaxInvulnerables>, ValueQuery>;
 
 	/// The (community, limited) collation candidates.
 	#[pallet::storage]
@@ -195,7 +202,7 @@ pub mod pallet {
 
 	#[pallet::genesis_config]
 	pub struct GenesisConfig<T: Config> {
-		pub invulnerables: Vec<T::AccountId>,
+		pub invulnerables: Vec<CandidateInfoOf<T>>,
 		pub candidacy_bond: BalanceOf<T>,
 		pub desired_candidates: u32,
 	}
@@ -222,8 +229,10 @@ pub mod pallet {
 			);
 
 			let bounded_invulnerables =
-				BoundedVec::<_, T::MaxInvulnerables>::try_from(self.invulnerables.clone())
-					.expect("genesis invulnerables are more than T::MaxInvulnerables");
+				BoundedVec::<CandidateInfoOf<T>, T::MaxInvulnerables>::try_from(
+					self.invulnerables.clone(),
+				)
+				.expect("genesis invulnerables are more than T::MaxInvulnerables");
 			assert!(
 				T::MaxCandidates::get() >= self.desired_candidates,
 				"genesis desired_candidates are more than T::MaxCandidates",
@@ -238,7 +247,7 @@ pub mod pallet {
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
 	pub enum Event<T: Config> {
-		NewInvulnerables { invulnerables: Vec<T::AccountId> },
+		NewInvulnerables { invulnerables: Vec<CandidateInfoOf<T>> },
 		NewDesiredCandidates { desired_candidates: u32 },
 		NewCandidacyBond { bond_amount: BalanceOf<T> },
 		CandidateAdded { account_id: T::AccountId, deposit: BalanceOf<T> },
@@ -267,8 +276,6 @@ pub mod pallet {
 		NotCandidate,
 		/// Too many invulnerables
 		TooManyInvulnerables,
-		/// User is already an Invulnerable
-		AlreadyInvulnerable,
 		/// Account has no associated validator ID
 		NoAssociatedValidatorId,
 		/// Validator ID is not yet registered
@@ -292,15 +299,15 @@ pub mod pallet {
 		#[pallet::weight(T::WeightInfo::set_invulnerables(new.len() as u32))]
 		pub fn set_invulnerables(
 			origin: OriginFor<T>,
-			new: Vec<T::AccountId>,
+			new: Vec<CandidateInfoOf<T>>,
 		) -> DispatchResultWithPostInfo {
 			T::UpdateOrigin::ensure_origin(origin)?;
 			let bounded_invulnerables = BoundedVec::<_, T::MaxInvulnerables>::try_from(new)
 				.map_err(|_| Error::<T>::TooManyInvulnerables)?;
 
 			// check if the invulnerables have associated validator keys before they are set
-			for account_id in bounded_invulnerables.iter() {
-				let validator_key = T::ValidatorIdOf::convert(account_id.clone())
+			for invulnerable in bounded_invulnerables.iter() {
+				let validator_key = T::ValidatorIdOf::convert(invulnerable.who.clone())
 					.ok_or(Error::<T>::NoAssociatedValidatorId)?;
 				ensure!(
 					T::ValidatorRegistration::is_registered(&validator_key),
@@ -357,7 +364,7 @@ pub mod pallet {
 			// ensure we are below limit.
 			let length = <Candidates<T>>::decode_len().unwrap_or_default();
 			ensure!((length as u32) < Self::desired_candidates(), Error::<T>::TooManyCandidates);
-			ensure!(!Self::invulnerables().contains(&who), Error::<T>::AlreadyInvulnerable);
+			ensure!(Self::find_candidate(who.clone()).is_none(), Error::<T>::AlreadyCandidate);
 
 			let validator_key = T::ValidatorIdOf::convert(who.clone())
 				.ok_or(Error::<T>::NoAssociatedValidatorId)?;
@@ -563,7 +570,13 @@ pub mod pallet {
 
 		/// Finds a candidate with AccountId if it exists
 		fn find_candidate(who: T::AccountId) -> Option<CandidateInfoOf<T>> {
-			Self::candidates().into_iter().find(|c| c.who == who)
+			match Self::candidates().into_iter().find(|c| c.who == who) {
+				Some(candidate) => Some(candidate),
+				None => {
+					// search invulnerables for the candidate
+					Self::invulnerables().into_iter().find(|c| c.who == who)
+				},
+			}
 		}
 
 		/// Finds a candidate with AccountId if it exists
@@ -581,7 +594,8 @@ pub mod pallet {
 		pub fn assemble_collators(
 			candidates: BoundedVec<T::AccountId, T::MaxCandidates>,
 		) -> Vec<T::AccountId> {
-			let mut collators = Self::invulnerables().to_vec();
+			let mut collators: Vec<T::AccountId> =
+				Self::invulnerables().into_iter().map(|c| c.who).collect();
 			collators.extend(candidates);
 			collators
 		}

@@ -27,6 +27,7 @@ hex-literal = "0.3.4"
 # Local
 bitgreen-rococo-runtime = { path = "../runtime/rococo" }
 bitgreen-runtime = { path = "../runtime/bitgreen" }
+pallet-parachain-staking = { path = "../pallets/parachain-staking" }
 
 # Substrate
 frame-benchmarking = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.33" }
