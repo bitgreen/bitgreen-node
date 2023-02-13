@@ -112,7 +112,7 @@ pub type Executive = frame_executive::Executive<
 	Runtime,
 	AllPalletsWithSystem,
 	// Migrations
-	pallet_parachain_staking::migration::v1::MigrateToV1<Runtime>,
+	pallet_parachain_staking::migration::v2::MigrateToV2<Runtime>,
 >;
 
 pub type NegativeImbalance<T> = <pallet_balances::Pallet<T> as Currency<
@@ -398,7 +398,8 @@ parameter_types! {
 	pub const MinCandidates: u32 = 5;
 	pub const SessionLength: BlockNumber = 6 * HOURS;
 	pub const MaxInvulnerables: u32 = 100;
-	#[derive(Clone, TypeInfo)]
+	#[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
+	#[derive(Clone, TypeInfo, Debug, PartialOrd, Ord, Eq, PartialEq)]
 	pub const MaxDelegators : u32 = 20;
 	pub const MinDelegationAmount : u32 = 100;
 	pub const ExecutiveBody: BodyId = BodyId::Executive;

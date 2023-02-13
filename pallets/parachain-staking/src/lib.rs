@@ -82,6 +82,7 @@ pub mod pallet {
 		Percent,
 	};
 	use sp_staking::SessionIndex;
+	use sp_std::fmt::Debug;
 
 	use crate::types::{CandidateInfoOf, DelegationInfoOf};
 	pub use crate::weights::WeightInfo;
@@ -127,7 +128,13 @@ pub mod pallet {
 		type MaxInvulnerables: Get<u32>;
 
 		/// Maximum number of delegators for a single candidate
-		type MaxDelegators: Get<u32> + TypeInfo + Clone;
+		type MaxDelegators: Get<u32>
+			+ TypeInfo
+			+ Clone
+			+ MaybeSerializeDeserialize
+			+ PartialOrd
+			+ Ord
+			+ Debug;
 
 		/// Minim amount that should be delegated
 		type MinDelegationAmount: Get<BalanceOf<Self>>;
@@ -158,7 +165,7 @@ pub mod pallet {
 	#[pallet::storage]
 	#[pallet::getter(fn invulnerables)]
 	pub type Invulnerables<T: Config> =
-		StorageValue<_, BoundedVec<T::AccountId, T::MaxInvulnerables>, ValueQuery>;
+		StorageValue<_, BoundedVec<CandidateInfoOf<T>, T::MaxInvulnerables>, ValueQuery>;
 
 	/// The (community, limited) collation candidates.
 	#[pallet::storage]
@@ -195,7 +202,7 @@ pub mod pallet {
 
 	#[pallet::genesis_config]
 	pub struct GenesisConfig<T: Config> {
-		pub invulnerables: Vec<T::AccountId>,
+		pub invulnerables: Vec<CandidateInfoOf<T>>,
 		pub candidacy_bond: BalanceOf<T>,
 		pub desired_candidates: u32,
 	}
@@ -222,8 +229,10 @@ pub mod pallet {
 			);
 
 			let bounded_invulnerables =
-				BoundedVec::<_, T::MaxInvulnerables>::try_from(self.invulnerables.clone())
-					.expect("genesis invulnerables are more than T::MaxInvulnerables");
+				BoundedVec::<CandidateInfoOf<T>, T::MaxInvulnerables>::try_from(
+					self.invulnerables.clone(),
+				)
+				.expect("genesis invulnerables are more than T::MaxInvulnerables");
 			assert!(
 				T::MaxCandidates::get() >= self.desired_candidates,
 				"genesis desired_candidates are more than T::MaxCandidates",
@@ -238,7 +247,7 @@ pub mod pallet {
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
 	pub enum Event<T: Config> {
-		NewInvulnerables { invulnerables: Vec<T::AccountId> },
+		NewInvulnerables { invulnerables: Vec<CandidateInfoOf<T>> },
 		NewDesiredCandidates { desired_candidates: u32 },
 		NewCandidacyBond { bond_amount: BalanceOf<T> },
 		CandidateAdded { account_id: T::AccountId, deposit: BalanceOf<T> },
@@ -267,8 +276,6 @@ pub mod pallet {
 		NotCandidate,
 		/// Too many invulnerables
 		TooManyInvulnerables,
-		/// User is already an Invulnerable
-		AlreadyInvulnerable,
 		/// Account has no associated validator ID
 		NoAssociatedValidatorId,
 		/// Validator ID is not yet registered
@@ -292,15 +299,15 @@ pub mod pallet {
 		#[pallet::weight(T::WeightInfo::set_invulnerables(new.len() as u32))]
 		pub fn set_invulnerables(
 			origin: OriginFor<T>,
-			new: Vec<T::AccountId>,
+			new: Vec<CandidateInfoOf<T>>,
 		) -> DispatchResultWithPostInfo {
 			T::UpdateOrigin::ensure_origin(origin)?;
 			let bounded_invulnerables = BoundedVec::<_, T::MaxInvulnerables>::try_from(new)
 				.map_err(|_| Error::<T>::TooManyInvulnerables)?;
 
 			// check if the invulnerables have associated validator keys before they are set
-			for account_id in bounded_invulnerables.iter() {
-				let validator_key = T::ValidatorIdOf::convert(account_id.clone())
+			for invulnerable in bounded_invulnerables.iter() {
+				let validator_key = T::ValidatorIdOf::convert(invulnerable.who.clone())
 					.ok_or(Error::<T>::NoAssociatedValidatorId)?;
 				ensure!(
 					T::ValidatorRegistration::is_registered(&validator_key),
@@ -357,7 +364,10 @@ pub mod pallet {
 			// ensure we are below limit.
 			let length = <Candidates<T>>::decode_len().unwrap_or_default();
 			ensure!((length as u32) < Self::desired_candidates(), Error::<T>::TooManyCandidates);
-			ensure!(!Self::invulnerables().contains(&who), Error::<T>::AlreadyInvulnerable);
+
+			// ensure not already a candidate or invulnerable
+			ensure!(Self::find_candidate(who.clone()).is_none(), Error::<T>::AlreadyCandidate);
+			ensure!(Self::find_invulnerable(who.clone()).is_none(), Error::<T>::AlreadyCandidate);
 
 			let validator_key = T::ValidatorIdOf::convert(who.clone())
 				.ok_or(Error::<T>::NoAssociatedValidatorId)?;
@@ -429,8 +439,16 @@ pub mod pallet {
 			// ensure the amount is above minimum
 			ensure!(amount >= T::MinDelegationAmount::get(), Error::<T>::LessThanMinimumDelegation);
 
-			let mut candidate =
-				Self::find_candidate(candidate_id.clone()).ok_or(Error::<T>::NotCandidate)?;
+			let mut is_invulnerable = false;
+
+			let mut candidate = match Self::find_candidate(candidate_id.clone()) {
+				Some(candidate) => candidate,
+				None => {
+					// if not in candidates list, check in invulnerables list
+					is_invulnerable = true;
+					Self::find_invulnerable(candidate_id.clone()).ok_or(Error::<T>::NotCandidate)?
+				},
+			};
 
 			// try to reserve the delegation amount
 			<T as Config>::Currency::reserve(&who, amount)?;
@@ -448,19 +466,35 @@ pub mod pallet {
 				.checked_add(&amount)
 				.ok_or(Error::<T>::ArithmeticOverflow)?;
 
-			<Candidates<T>>::try_mutate(|candidates| -> Result<usize, DispatchError> {
-				let index = candidates
-					.iter()
-					.position(|candidate| candidate.who == candidate_id)
-					.ok_or(Error::<T>::NotCandidate)?;
+			if !is_invulnerable {
+				<Candidates<T>>::try_mutate(|candidates| -> Result<usize, DispatchError> {
+					let index = candidates
+						.iter()
+						.position(|candidate| candidate.who == candidate_id)
+						.ok_or(Error::<T>::NotCandidate)?;
 
-				let _ = candidates.remove(index);
+					let _ = candidates.remove(index);
 
-				candidates
-					.try_insert(index, candidate.clone())
-					.map_err(|_| Error::<T>::TooManyCandidates)?;
-				Ok(candidates.len())
-			})?;
+					candidates
+						.try_insert(index, candidate.clone())
+						.map_err(|_| Error::<T>::TooManyCandidates)?;
+					Ok(candidates.len())
+				})?;
+			} else {
+				<Invulnerables<T>>::try_mutate(|candidates| -> Result<usize, DispatchError> {
+					let index = candidates
+						.iter()
+						.position(|candidate| candidate.who == candidate_id)
+						.ok_or(Error::<T>::NotCandidate)?;
+
+					let _ = candidates.remove(index);
+
+					candidates
+						.try_insert(index, candidate.clone())
+						.map_err(|_| Error::<T>::TooManyCandidates)?;
+					Ok(candidates.len())
+				})?;
+			}
 
 			Self::deposit_event(Event::NewDelegation {
 				account_id: who,
@@ -476,8 +510,16 @@ pub mod pallet {
 		pub fn undelegate(origin: OriginFor<T>, candidate_id: T::AccountId) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 
-			let mut candidate =
-				Self::find_candidate(candidate_id.clone()).ok_or(Error::<T>::NotCandidate)?;
+			let mut is_invulnerable = false;
+
+			let mut candidate = match Self::find_candidate(candidate_id.clone()) {
+				Some(candidate) => candidate,
+				None => {
+					// if not in candidates list, check in invulnerables list
+					is_invulnerable = true;
+					Self::find_invulnerable(candidate_id.clone()).ok_or(Error::<T>::NotCandidate)?
+				},
+			};
 
 			// remove delegator from candidates
 			let delegator_index = candidate
@@ -495,19 +537,35 @@ pub mod pallet {
 				.checked_sub(&delegator.deposit)
 				.ok_or(Error::<T>::ArithmeticOverflow)?;
 
-			<Candidates<T>>::try_mutate(|candidates| -> Result<usize, DispatchError> {
-				let index = candidates
-					.iter()
-					.position(|candidate| candidate.who == candidate_id)
-					.ok_or(Error::<T>::NotCandidate)?;
+			if !is_invulnerable {
+				<Candidates<T>>::try_mutate(|candidates| -> Result<usize, DispatchError> {
+					let index = candidates
+						.iter()
+						.position(|candidate| candidate.who == candidate_id)
+						.ok_or(Error::<T>::NotCandidate)?;
 
-				let _ = candidates.remove(index);
+					let _ = candidates.remove(index);
 
-				candidates
-					.try_insert(index, candidate.clone())
-					.map_err(|_| Error::<T>::TooManyCandidates)?;
-				Ok(candidates.len())
-			})?;
+					candidates
+						.try_insert(index, candidate.clone())
+						.map_err(|_| Error::<T>::TooManyCandidates)?;
+					Ok(candidates.len())
+				})?;
+			} else {
+				<Invulnerables<T>>::try_mutate(|candidates| -> Result<usize, DispatchError> {
+					let index = candidates
+						.iter()
+						.position(|candidate| candidate.who == candidate_id)
+						.ok_or(Error::<T>::NotCandidate)?;
+
+					let _ = candidates.remove(index);
+
+					candidates
+						.try_insert(index, candidate.clone())
+						.map_err(|_| Error::<T>::TooManyCandidates)?;
+					Ok(candidates.len())
+				})?;
+			}
 
 			Self::deposit_event(Event::DelegationRemoved {
 				account_id: who,
@@ -566,13 +624,22 @@ pub mod pallet {
 			Self::candidates().into_iter().find(|c| c.who == who)
 		}
 
-		/// Finds a candidate with AccountId if it exists
+		/// Finds an invulnerable with AccountId if it exists
+		fn find_invulnerable(who: T::AccountId) -> Option<CandidateInfoOf<T>> {
+			Self::invulnerables().into_iter().find(|c| c.who == who)
+		}
+
+		/// Finds a candidate/invulnerable with AccountId if it exists
 		fn get_delegators(who: T::AccountId) -> BoundedVec<DelegationInfoOf<T>, T::MaxDelegators> {
-			let candidate = Candidates::<T>::get().into_iter().find(|c| c.who == who);
-			if let Some(candidate) = candidate {
-				return candidate.delegators
+			// first search within candidate list
+			match Candidates::<T>::get().into_iter().find(|c| c.who == who) {
+				Some(candidates) => candidates.delegators,
+				// also search in invulnerable list if not found
+				None => match Invulnerables::<T>::get().into_iter().find(|c| c.who == who) {
+					Some(candidates) => candidates.delegators,
+					None => Default::default(),
+				},
 			}
-			Default::default()
 		}
 
 		/// Assemble the current set of candidates and invulnerables into the next collator set.
@@ -581,7 +648,8 @@ pub mod pallet {
 		pub fn assemble_collators(
 			candidates: BoundedVec<T::AccountId, T::MaxCandidates>,
 		) -> Vec<T::AccountId> {
-			let mut collators = Self::invulnerables().to_vec();
+			let mut collators: Vec<T::AccountId> =
+				Self::invulnerables().into_iter().map(|c| c.who).collect();
 			collators.extend(candidates);
 			collators
 		}

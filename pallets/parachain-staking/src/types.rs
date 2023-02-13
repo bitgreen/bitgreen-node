@@ -1,12 +1,23 @@
+use super::*;
 use codec::{Decode, Encode, MaxEncodedLen};
 use frame_support::{pallet_prelude::Get, BoundedVec, RuntimeDebug};
-
-use super::*;
+#[cfg(feature = "std")]
+use serde::{Deserialize, Serialize};
 
 /// Basic information about a collation candidate.
 #[derive(
-	PartialEq, Eq, Clone, Encode, Decode, RuntimeDebug, scale_info::TypeInfo, MaxEncodedLen,
+	PartialEq,
+	Eq,
+	Clone,
+	Encode,
+	Decode,
+	RuntimeDebug,
+	scale_info::TypeInfo,
+	MaxEncodedLen,
+	Ord,
+	PartialOrd,
 )]
+#[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 pub struct CandidateInfo<AccountId, Balance, DelegationInfo, MaxDelegators: Get<u32>> {
 	/// Account identifier.
 	pub who: AccountId,
@@ -31,6 +42,7 @@ pub struct CandidateInfo<AccountId, Balance, DelegationInfo, MaxDelegators: Get<
 	PartialOrd,
 	Ord,
 )]
+#[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 pub struct DelegationInfo<AccountId, Balance> {
 	/// Account identifier.
 	pub who: AccountId,

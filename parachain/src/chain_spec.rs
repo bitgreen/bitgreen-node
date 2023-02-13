@@ -211,7 +211,16 @@ fn testnet_genesis(
 		},
 		parachain_info: bitgreen_rococo_runtime::ParachainInfoConfig { parachain_id: id },
 		parachain_staking: bitgreen_rococo_runtime::ParachainStakingConfig {
-			invulnerables: invulnerables.iter().cloned().map(|(acc, _)| acc).collect(),
+			invulnerables: invulnerables
+				.iter()
+				.cloned()
+				.map(|(acc, _)| pallet_parachain_staking::types::CandidateInfo {
+					who: acc,
+					deposit: Default::default(),
+					delegators: Default::default(),
+					total_stake: Default::default(),
+				})
+				.collect(),
 			candidacy_bond: EXISTENTIAL_DEPOSIT * 16,
 			..Default::default()
 		},
