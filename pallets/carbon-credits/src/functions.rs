@@ -285,7 +285,7 @@ impl<T: Config> Pallet<T> {
 			*project = new_project.clone();
 
 			// emit event
-			Self::deposit_event(Event::ProjectResubmitted { project_id, details: new_project });
+			Self::deposit_event(Event::ProjectResubmitted { project_id });
 
 			Ok(())
 		})
