@@ -403,6 +403,7 @@ parameter_types! {
 	pub const MaxDelegators : u32 = 20;
 	pub const MinDelegationAmount : u32 = 100;
 	pub const ExecutiveBody: BodyId = BodyId::Executive;
+	pub const UnbondingDelay : BlockNumber = 7 * DAYS;
 }
 
 // We allow root only to execute privileged collator selection operations.
@@ -423,6 +424,7 @@ impl pallet_parachain_staking::Config for Runtime {
 	type ValidatorId = <Self as frame_system::Config>::AccountId;
 	type ValidatorIdOf = pallet_parachain_staking::IdentityCollator;
 	type ValidatorRegistration = Session;
+	type UnbondingDelay = UnbondingDelay;
 	type WeightInfo = ();
 }
 

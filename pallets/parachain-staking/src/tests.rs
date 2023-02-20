@@ -56,7 +56,7 @@ fn it_should_set_invulnerables() {
 			.collect::<Vec<CandidateInfoOf<Test>>>();
 		assert_ok!(CollatorSelection::set_invulnerables(
 			RuntimeOrigin::root(),
-			new_set_formatted.clone().try_into().unwrap()
+			new_set_formatted.clone()
 		));
 		assert_eq!(CollatorSelection::invulnerables(), new_set_formatted);
 
@@ -258,9 +258,41 @@ fn leave_intent() {
 			Error::<Test>::NotCandidate
 		);
 
-		// bond is returned
 		assert_ok!(CollatorSelection::leave_intent(RuntimeOrigin::signed(3)));
+
+		// bond is not returned immediately
+		assert_eq!(Balances::free_balance(3), 90);
+		assert_eq!(Balances::reserved_balance(3), 10);
+	});
+}
+
+#[test]
+fn candidate_withdraw_unbonded() {
+	new_test_ext().execute_with(|| {
+		// register a candidate.
+		assert_ok!(CollatorSelection::register_as_candidate(RuntimeOrigin::signed(3)));
+		assert_eq!(Balances::free_balance(3), 90);
+
+		// register too so can leave above min candidates
+		assert_ok!(CollatorSelection::register_as_candidate(RuntimeOrigin::signed(5)));
+
+		assert_ok!(CollatorSelection::leave_intent(RuntimeOrigin::signed(3)));
+
+		// bond is not returned immediately
+		assert_eq!(Balances::free_balance(3), 90);
+		assert_eq!(Balances::reserved_balance(3), 10);
+
+		// calling withdraw before expiry fails
+		assert_noop!(
+			CollatorSelection::candidate_withdraw_unbonded(RuntimeOrigin::signed(3)),
+			Error::<Test>::UnbondingDelayNotPassed
+		);
+		initialize_to_block(10);
+		assert_ok!(CollatorSelection::candidate_withdraw_unbonded(RuntimeOrigin::signed(3)));
+
+		// bond is correctly returned
 		assert_eq!(Balances::free_balance(3), 100);
+		assert_eq!(Balances::reserved_balance(3), 0);
 		assert_eq!(CollatorSelection::last_authored_block(3), 0);
 	});
 }
@@ -386,8 +418,6 @@ fn kick_mechanism() {
 		initialize_to_block(30);
 		// 3 gets kicked after 1 session delay
 		assert_eq!(SessionHandlerCollators::get(), vec![1, 2, 4]);
-		// kicked collator gets funds back
-		assert_eq!(Balances::free_balance(3), 100);
 	});
 }
 
@@ -416,8 +446,6 @@ fn should_not_kick_mechanism_too_few() {
 		initialize_to_block(30);
 		// 3 gets kicked after 1 session delay
 		assert_eq!(SessionHandlerCollators::get(), vec![1, 2, 5]);
-		// kicked collator gets funds back
-		assert_eq!(Balances::free_balance(3), 100);
 	});
 }
 
@@ -554,7 +582,61 @@ fn undelegate_works() {
 		// storage should be updated correctly
 		assert_eq!(CollatorSelection::candidates()[0].delegators, vec![]);
 		assert_eq!(CollatorSelection::candidates()[0].total_stake, 10);
-		// the balane should be reserved correctly
+		assert_eq!(CollatorSelection::unbonded_delegates(5).unwrap().deposit, 10);
+		assert_eq!(CollatorSelection::unbonded_delegates(5).unwrap().unbonded_at, 10);
+
+		// the balance is not immediately updated
+		assert_eq!(Balances::reserved_balance(5), 10);
+		assert_eq!(Balances::free_balance(5), 90);
+	});
+}
+
+#[test]
+fn withdraw_unbonded_works() {
+	new_test_ext().execute_with(|| {
+		// undelegate to non existing candidate should fail
+		assert_noop!(
+			CollatorSelection::undelegate(RuntimeOrigin::signed(5), 3),
+			Error::<Test>::NotCandidate
+		);
+
+		// add a new collator
+		assert_ok!(CollatorSelection::register_as_candidate(RuntimeOrigin::signed(3)));
+		initialize_to_block(10);
+
+		// undelegate without any delegation should fail
+		assert_noop!(
+			CollatorSelection::undelegate(RuntimeOrigin::signed(5), 3),
+			Error::<Test>::NotDelegator
+		);
+
+		assert_ok!(CollatorSelection::delegate(RuntimeOrigin::signed(5), 3, 10));
+
+		// should fail if no unbonded delegation exists
+		assert_noop!(
+			CollatorSelection::withdraw_unbonded(RuntimeOrigin::signed(5)),
+			Error::<Test>::NoUnbondingDelegation
+		);
+
+		assert_ok!(CollatorSelection::undelegate(RuntimeOrigin::signed(5), 3));
+
+		// the balance is not immediately updated
+		assert_eq!(Balances::reserved_balance(5), 10);
+		assert_eq!(Balances::free_balance(5), 90);
+
+		// skip to block before unbonding period
+		initialize_to_block(19);
+
+		// should fail since the unbonding period has not passed
+		assert_noop!(
+			CollatorSelection::withdraw_unbonded(RuntimeOrigin::signed(5)),
+			Error::<Test>::UnbondingDelayNotPassed
+		);
+
+		initialize_to_block(20);
+		assert_ok!(CollatorSelection::withdraw_unbonded(RuntimeOrigin::signed(5)));
+
+		// the balance should be updated correctly
 		assert_eq!(Balances::reserved_balance(5), 0);
 		assert_eq!(Balances::free_balance(5), 100);
 	});
@@ -577,6 +659,16 @@ fn candidate_leave_removes_delegates() {
 		// candidate leaves and bond is returned
 		assert_ok!(CollatorSelection::leave_intent(RuntimeOrigin::signed(3)));
 		assert_eq!(CollatorSelection::candidates().len(), 1);
+
+		// balance is not immediately returned
+		assert_eq!(Balances::reserved_balance(3), 10);
+		assert_eq!(Balances::free_balance(3), 90);
+
+		// skip to after unbonding period
+		initialize_to_block(20);
+
+		// withdraw the unbonded balance
+		assert_ok!(CollatorSelection::candidate_withdraw_unbonded(RuntimeOrigin::signed(3)));
 		assert_eq!(Balances::free_balance(3), 100);
 		assert_eq!(CollatorSelection::last_authored_block(3), 0);
 
@@ -615,9 +707,9 @@ fn undelegate_works_for_invulnerable() {
 		// storage should be updated correctly
 		assert_eq!(CollatorSelection::invulnerables()[0].delegators, vec![]);
 		assert_eq!(CollatorSelection::invulnerables()[0].total_stake, 0);
-		// the balane should be reserved correctly
-		assert_eq!(Balances::reserved_balance(delegator_account), 0);
-		assert_eq!(Balances::free_balance(delegator_account), 100);
+		// the balane should not be immediately updated
+		assert_eq!(Balances::reserved_balance(delegator_account), 10);
+		assert_eq!(Balances::free_balance(delegator_account), 90);
 	});
 }
 
@@ -684,10 +776,7 @@ fn delegator_payout_works_for_invulnerables() {
 				total_stake: Default::default(),
 			})
 			.collect::<Vec<CandidateInfoOf<Test>>>();
-		assert_ok!(CollatorSelection::set_invulnerables(
-			RuntimeOrigin::root(),
-			new_set_formatted.clone().try_into().unwrap()
-		));
+		assert_ok!(CollatorSelection::set_invulnerables(RuntimeOrigin::root(), new_set_formatted));
 
 		// 4 is invulnerable and the default author.
 		assert_eq!(Balances::free_balance(invulnerable_collator), 100);

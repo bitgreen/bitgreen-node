@@ -193,6 +193,7 @@ parameter_types! {
 	pub const MinCandidates: u32 = 1;
 	pub const MaxAuthorities: u32 = 100_000;
 	pub const MinDelegationAmount : u32 = 10;
+	pub const UnbondingDelay : u32 = 10;
 }
 
 pub struct IsRegistered;
@@ -216,6 +217,7 @@ impl Config for Test {
 	type ValidatorId = <Self as frame_system::Config>::AccountId;
 	type ValidatorIdOf = IdentityCollator;
 	type ValidatorRegistration = IsRegistered;
+	type UnbondingDelay = UnbondingDelay;
 	type WeightInfo = ();
 }
 
