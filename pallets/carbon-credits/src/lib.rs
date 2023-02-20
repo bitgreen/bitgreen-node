@@ -188,8 +188,6 @@ pub mod pallet {
 		type MaxDocumentCount: Get<u32>;
 		/// Maximum amount of carbon credits in a bundle
 		type MaxGroupSize: Get<u32> + TypeInfo + Clone + Parameter;
-		/// Maximum amount of location cordinates to store
-		type MaxCoordinatesLength: Get<u32>;
 		/// Minimum value of AssetId for CarbonCredits
 		type MinProjectId: Get<Self::AssetId>;
 		/// Weight information for extrinsics in this pallet.
