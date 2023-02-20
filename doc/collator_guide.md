@@ -189,7 +189,7 @@ ExecStart=/var/lib/bitgreen-parachain \
   --rpc-cors all --ws-external \
   --ws-port 9944 --rpc-port 9933 \
   --name "YOUR-NODE-NAME" \
-  --rpc-methods=unsafe -- --execution wasm --chain <location-of-relaychain-chainspec>
+  --rpc-methods=safe -- --execution wasm --chain <location-of-relaychain-chainspec>
 
 [Install]
 WantedBy=multi-user.target
