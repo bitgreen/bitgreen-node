@@ -56,7 +56,7 @@ fn it_should_set_invulnerables() {
 			.collect::<Vec<CandidateInfoOf<Test>>>();
 		assert_ok!(CollatorSelection::set_invulnerables(
 			RuntimeOrigin::root(),
-			new_set_formatted.clone().try_into().unwrap()
+			new_set_formatted.clone()
 		));
 		assert_eq!(CollatorSelection::invulnerables(), new_set_formatted);
 
@@ -776,10 +776,7 @@ fn delegator_payout_works_for_invulnerables() {
 				total_stake: Default::default(),
 			})
 			.collect::<Vec<CandidateInfoOf<Test>>>();
-		assert_ok!(CollatorSelection::set_invulnerables(
-			RuntimeOrigin::root(),
-			new_set_formatted.clone().try_into().unwrap()
-		));
+		assert_ok!(CollatorSelection::set_invulnerables(RuntimeOrigin::root(), new_set_formatted));
 
 		// 4 is invulnerable and the default author.
 		assert_eq!(Balances::free_balance(invulnerable_collator), 100);
