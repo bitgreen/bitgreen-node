@@ -490,7 +490,7 @@ fn resubmit_works() {
 
 		assert_eq!(
 			last_event(),
-			CarbonCreditsEvent::ProjectResubmitted { project_id, details: stored_data }.into()
+			CarbonCreditsEvent::ProjectResubmitted { project_id }.into()
 		);
 
 		// authorise the account

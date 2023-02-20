@@ -133,7 +133,7 @@ fn cancel_sell_order_should_work() {
 		assert_eq!(Assets::balance(asset_id, seller), 100);
 		assert_eq!(Assets::balance(asset_id, dex_account), 0);
 
-		assert_eq!(last_event(), Event::SellOrderCancelled { order_id: 0 }.into());
+		assert_eq!(last_event(), Event::SellOrderCancelled { order_id: 0, seller }.into());
 	});
 }
 
@@ -313,7 +313,7 @@ fn partial_fill_and_cancel_works() {
 		assert_eq!(Assets::balance(asset_id, seller), 95);
 		assert_eq!(Assets::balance(asset_id, dex_account), 0);
 
-		assert_eq!(last_event(), Event::SellOrderCancelled { order_id: 0 }.into());
+		assert_eq!(last_event(), Event::SellOrderCancelled { order_id: 0, seller }.into());
 
 		// Token balance should be set correctly
 		// seller gets the price_per_unit

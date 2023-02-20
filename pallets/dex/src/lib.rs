@@ -196,7 +196,7 @@ pub mod pallet {
 			owner: T::AccountId,
 		},
 		/// A sell order was cancelled
-		SellOrderCancelled { order_id: OrderId },
+		SellOrderCancelled { order_id: OrderId, seller: T::AccountId },
 		/// A buy order was processed successfully
 		BuyOrderFilled {
 			order_id: OrderId,
@@ -311,7 +311,7 @@ pub mod pallet {
 				false,
 			)?;
 
-			Self::deposit_event(Event::SellOrderCancelled { order_id });
+			Self::deposit_event(Event::SellOrderCancelled { order_id, seller });
 			Ok(())
 		}
 

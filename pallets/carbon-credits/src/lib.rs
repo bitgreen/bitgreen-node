@@ -261,8 +261,6 @@ pub mod pallet {
 		ProjectResubmitted {
 			/// The ProjectId of the created project
 			project_id: T::ProjectId,
-			/// The details of the created project
-			details: ProjectDetail<T>,
 		},
 		/// Project has been approved
 		ProjectApproved {
