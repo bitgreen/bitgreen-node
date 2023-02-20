@@ -554,7 +554,61 @@ fn undelegate_works() {
 		// storage should be updated correctly
 		assert_eq!(CollatorSelection::candidates()[0].delegators, vec![]);
 		assert_eq!(CollatorSelection::candidates()[0].total_stake, 10);
-		// the balane should be reserved correctly
+		assert_eq!(CollatorSelection::unbonded_delegates(5).unwrap().deposit, 10);
+		assert_eq!(CollatorSelection::unbonded_delegates(5).unwrap().unbonded_at, 10);
+
+		// the balance is not immediately updated
+		assert_eq!(Balances::reserved_balance(5), 10);
+		assert_eq!(Balances::free_balance(5), 90);
+	});
+}
+
+#[test]
+fn withdraw_unbonded_works() {
+	new_test_ext().execute_with(|| {
+		// undelegate to non existing candidate should fail
+		assert_noop!(
+			CollatorSelection::undelegate(RuntimeOrigin::signed(5), 3),
+			Error::<Test>::NotCandidate
+		);
+
+		// add a new collator
+		assert_ok!(CollatorSelection::register_as_candidate(RuntimeOrigin::signed(3)));
+		initialize_to_block(10);
+
+		// undelegate without any delegation should fail
+		assert_noop!(
+			CollatorSelection::undelegate(RuntimeOrigin::signed(5), 3),
+			Error::<Test>::NotDelegator
+		);
+
+		assert_ok!(CollatorSelection::delegate(RuntimeOrigin::signed(5), 3, 10));
+
+		// should fail if no unbonded delegation exists
+		assert_noop!(
+			CollatorSelection::withdraw_unbonded(RuntimeOrigin::signed(5)),
+			Error::<Test>::NoUnbondingDelegation
+		);
+
+		assert_ok!(CollatorSelection::undelegate(RuntimeOrigin::signed(5), 3));
+
+		// the balance is not immediately updated
+		assert_eq!(Balances::reserved_balance(5), 10);
+		assert_eq!(Balances::free_balance(5), 90);
+
+		// skip to block before unbonding period
+		initialize_to_block(19);
+
+		// should fail since the unbonding period has not passed
+		assert_noop!(
+			CollatorSelection::withdraw_unbonded(RuntimeOrigin::signed(5)),
+			Error::<Test>::UnbondingDelayNotPassed
+		);
+
+		initialize_to_block(20);
+		assert_ok!(CollatorSelection::withdraw_unbonded(RuntimeOrigin::signed(5)));
+
+		// the balance should be updated correctly
 		assert_eq!(Balances::reserved_balance(5), 0);
 		assert_eq!(Balances::free_balance(5), 100);
 	});
@@ -615,9 +669,9 @@ fn undelegate_works_for_invulnerable() {
 		// storage should be updated correctly
 		assert_eq!(CollatorSelection::invulnerables()[0].delegators, vec![]);
 		assert_eq!(CollatorSelection::invulnerables()[0].total_stake, 0);
-		// the balane should be reserved correctly
-		assert_eq!(Balances::reserved_balance(delegator_account), 0);
-		assert_eq!(Balances::free_balance(delegator_account), 100);
+		// the balane should not be immediately updated
+		assert_eq!(Balances::reserved_balance(delegator_account), 10);
+		assert_eq!(Balances::free_balance(delegator_account), 90);
 	});
 }
 
