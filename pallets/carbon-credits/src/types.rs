@@ -26,10 +26,6 @@ pub type IpfsLinkOf<T> = BoundedVec<u8, <T as pallet::Config>::MaxIpfsReferenceL
 /// Type for lists of ipfs links
 pub type IpfsLinkListsOf<T> = BoundedVec<IpfsLinkOf<T>, <T as pallet::Config>::MaxDocumentCount>;
 
-/// Type for storing location co-ordinates
-pub type LocationCoordinatesOf<T> =
-	BoundedVec<(u32, u32), <T as pallet::Config>::MaxCoordinatesLength>;
-
 /// A project can address more than one SDG, this type stores the
 /// list of SDGs the project addresses, upper bound is max number of existing SDGs
 pub type SDGTypesListOf<T> = BoundedVec<SDGDetails<ShortStringOf<T>>, ConstU32<17>>;
@@ -76,9 +72,8 @@ pub struct ProjectCreateParams<T: pallet::Config> {
 	pub name: ShortStringOf<T>,
 	/// Description of the project
 	pub description: LongStringOf<T>,
-	// TODO : Improve this data type
 	/// Location co-ordinates of thie project
-	pub location: LocationCoordinatesOf<T>,
+	pub location: LongStringOf<T>,
 	/// List of ipfs-hashes of images related to the project
 	pub images: IpfsLinkListsOf<T>,
 	/// List of ipfs-hashes of videos related to the project
@@ -108,9 +103,8 @@ pub struct ProjectDetail<T: pallet::Config> {
 	pub name: ShortStringOf<T>,
 	/// Description of the project
 	pub description: LongStringOf<T>,
-	// TODO : Improve this data type
 	/// Location co-ordinates of thie project
-	pub location: LocationCoordinatesOf<T>,
+	pub location: LongStringOf<T>,
 	/// List of ipfs-hashes of images related to the project
 	pub images: IpfsLinkListsOf<T>,
 	/// List of ipfs-hashes of videos related to the project

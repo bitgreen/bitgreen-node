@@ -509,7 +509,6 @@ parameter_types! {
   pub MarketplaceEscrowAccount : AccountId =  PalletId(*b"bitg/mkp").into_account_truncating();
   pub const CarbonCreditsPalletId: PalletId = PalletId(*b"bitg/vcu");
   pub const MaxAuthorizedAccountCount : u32 = 10;
-  pub const MaxCoordinatesLength : u32 = 10;
   pub const MaxDocumentCount : u32 = 10;
   pub const MaxIpfsReferenceLength : u32 = 1024;
   pub const MaxLongStringLength : u32 = 3072;
@@ -532,7 +531,6 @@ impl pallet_carbon_credits::Config for Runtime {
 	type KYCProvider = KYCMembership;
 	type MarketplaceEscrow = MarketplaceEscrowAccount;
 	type MaxAuthorizedAccountCount = MaxAuthorizedAccountCount;
-	type MaxCoordinatesLength = MaxCoordinatesLength;
 	type MaxDocumentCount = MaxDocumentCount;
 	type MaxGroupSize = MaxGroupSize;
 	type MaxIpfsReferenceLength = MaxIpfsReferenceLength;
