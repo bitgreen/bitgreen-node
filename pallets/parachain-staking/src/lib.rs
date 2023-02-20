@@ -84,7 +84,9 @@ pub mod pallet {
 	use sp_staking::SessionIndex;
 	use sp_std::fmt::Debug;
 
-	use crate::types::{CandidateInfoOf, DelegationInfoOf, UnbondedDelegationInfoOf};
+	use crate::types::{
+		CandidateInfoOf, DelegationInfoOf, UnbondedCandidateInfoOf, UnbondedDelegationInfoOf,
+	};
 	pub use crate::weights::WeightInfo;
 
 	pub type BalanceOf<T> =
@@ -181,6 +183,12 @@ pub mod pallet {
 	#[pallet::getter(fn unbonded_delegates)]
 	pub type UnbondedDelegates<T: Config> =
 		StorageMap<_, Twox64Concat, T::AccountId, UnbondedDelegationInfoOf<T>>;
+
+	/// The delegates that have been removed
+	#[pallet::storage]
+	#[pallet::getter(fn unbonded_candidates)]
+	pub type UnbondedCandidates<T: Config> =
+		StorageMap<_, Twox64Concat, T::AccountId, UnbondedCandidateInfoOf<T>>;
 
 	/// Last block authored by collator.
 	#[pallet::storage]
@@ -642,6 +650,44 @@ pub mod pallet {
 			});
 			Ok(())
 		}
+
+		/// Withdraw deposit and complete candidate exit
+		#[pallet::weight(T::WeightInfo::leave_intent(T::MaxCandidates::get()))]
+		pub fn candidate_withdraw_unbonded(origin: OriginFor<T>) -> DispatchResult {
+			let who = ensure_signed(origin)?;
+
+			// ensure the unbonding details exist
+			let delegation = UnbondedCandidates::<T>::try_get(who.clone())
+				.map_err(|_| Error::<T>::NoUnbondingDelegation)?;
+
+			// ensure the unbonding period has passed
+			let now = frame_system::Pallet::<T>::block_number();
+			let unbonding_delay = T::UnbondingDelay::get();
+			let time_passed =
+				now.checked_sub(&delegation.unbonded_at).ok_or(Error::<T>::ArithmeticOverflow)?;
+
+			ensure!(time_passed >= unbonding_delay, Error::<T>::UnbondingDelayNotPassed);
+
+			// unreserve all delegators to the candidate
+			for delegator in delegation.delegators.iter() {
+				T::Currency::unreserve(&delegator.who, delegator.deposit);
+			}
+
+			<LastAuthoredBlock<T>>::remove(who.clone());
+
+			// withdraw the candidate deposit
+			let _ = <T as Config>::Currency::unreserve(&who, delegation.deposit);
+
+			// delete the unbonded delegation
+			UnbondedCandidates::<T>::remove(who.clone());
+
+			// emit event
+			Self::deposit_event(Event::UnbondedWithdrawn {
+				account_id: who,
+				amount: delegation.deposit,
+			});
+			Ok(())
+		}
 	}
 
 	impl<T: Config> Pallet<T> {
@@ -659,14 +705,20 @@ pub mod pallet {
 						.position(|candidate| candidate.who == *who)
 						.ok_or(Error::<T>::NotCandidate)?;
 					let candidate = candidates.remove(index);
-					T::Currency::unreserve(who, candidate.deposit);
 
-					// unreserve all delegators
-					for delegator in candidate.delegators.iter() {
-						T::Currency::unreserve(&delegator.who, delegator.deposit);
-					}
+					let now = frame_system::Pallet::<T>::block_number();
 
-					<LastAuthoredBlock<T>>::remove(who.clone());
+					// add the candidate to the unbonding queue
+					UnbondedCandidates::<T>::insert(
+						who,
+						UnbondedCandidateInfoOf::<T> {
+							deposit: candidate.deposit,
+							delegators: candidate.delegators,
+							total_stake: candidate.total_stake,
+							unbonded_at: now,
+						},
+					);
+
 					Ok(candidates.len())
 				})?;
 			Self::deposit_event(Event::CandidateRemoved { account_id: who.clone() });

@@ -258,9 +258,41 @@ fn leave_intent() {
 			Error::<Test>::NotCandidate
 		);
 
-		// bond is returned
 		assert_ok!(CollatorSelection::leave_intent(RuntimeOrigin::signed(3)));
+
+		// bond is not returned immediately
+		assert_eq!(Balances::free_balance(3), 90);
+		assert_eq!(Balances::reserved_balance(3), 10);
+	});
+}
+
+#[test]
+fn candidate_withdraw_unbonded() {
+	new_test_ext().execute_with(|| {
+		// register a candidate.
+		assert_ok!(CollatorSelection::register_as_candidate(RuntimeOrigin::signed(3)));
+		assert_eq!(Balances::free_balance(3), 90);
+
+		// register too so can leave above min candidates
+		assert_ok!(CollatorSelection::register_as_candidate(RuntimeOrigin::signed(5)));
+
+		assert_ok!(CollatorSelection::leave_intent(RuntimeOrigin::signed(3)));
+
+		// bond is not returned immediately
+		assert_eq!(Balances::free_balance(3), 90);
+		assert_eq!(Balances::reserved_balance(3), 10);
+
+		// calling withdraw before expiry fails
+		assert_noop!(
+			CollatorSelection::candidate_withdraw_unbonded(RuntimeOrigin::signed(3)),
+			Error::<Test>::UnbondingDelayNotPassed
+		);
+		initialize_to_block(10);
+		assert_ok!(CollatorSelection::candidate_withdraw_unbonded(RuntimeOrigin::signed(3)));
+
+		// bond is correctly returned
 		assert_eq!(Balances::free_balance(3), 100);
+		assert_eq!(Balances::reserved_balance(3), 0);
 		assert_eq!(CollatorSelection::last_authored_block(3), 0);
 	});
 }
@@ -386,8 +418,6 @@ fn kick_mechanism() {
 		initialize_to_block(30);
 		// 3 gets kicked after 1 session delay
 		assert_eq!(SessionHandlerCollators::get(), vec![1, 2, 4]);
-		// kicked collator gets funds back
-		assert_eq!(Balances::free_balance(3), 100);
 	});
 }
 
@@ -416,8 +446,6 @@ fn should_not_kick_mechanism_too_few() {
 		initialize_to_block(30);
 		// 3 gets kicked after 1 session delay
 		assert_eq!(SessionHandlerCollators::get(), vec![1, 2, 5]);
-		// kicked collator gets funds back
-		assert_eq!(Balances::free_balance(3), 100);
 	});
 }
 
@@ -631,6 +659,16 @@ fn candidate_leave_removes_delegates() {
 		// candidate leaves and bond is returned
 		assert_ok!(CollatorSelection::leave_intent(RuntimeOrigin::signed(3)));
 		assert_eq!(CollatorSelection::candidates().len(), 1);
+
+		// balance is not immediately returned
+		assert_eq!(Balances::reserved_balance(3), 10);
+		assert_eq!(Balances::free_balance(3), 90);
+
+		// skip to after unbonding period
+		initialize_to_block(20);
+
+		// withdraw the unbonded balance
+		assert_ok!(CollatorSelection::candidate_withdraw_unbonded(RuntimeOrigin::signed(3)));
 		assert_eq!(Balances::free_balance(3), 100);
 		assert_eq!(CollatorSelection::last_authored_block(3), 0);
 
