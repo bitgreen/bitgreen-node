@@ -69,10 +69,7 @@ pub mod pallet {
 		inherent::Vec,
 		pallet_prelude::*,
 		sp_runtime::traits::{AccountIdConversion, CheckedSub, Saturating, Zero},
-		traits::{
-			Currency, EnsureOrigin, ExistenceRequirement::KeepAlive, ReservableCurrency,
-			ValidatorRegistration, WithdrawReasons,
-		},
+		traits::{Currency, EnsureOrigin, ReservableCurrency, ValidatorRegistration},
 		BoundedVec, PalletId,
 	};
 	use frame_system::{pallet_prelude::*, Config as SystemConfig};
@@ -490,35 +487,7 @@ pub mod pallet {
 				.checked_add(&amount)
 				.ok_or(Error::<T>::ArithmeticOverflow)?;
 
-			if !is_invulnerable {
-				<Candidates<T>>::try_mutate(|candidates| -> Result<usize, DispatchError> {
-					let index = candidates
-						.iter()
-						.position(|candidate| candidate.who == candidate_id)
-						.ok_or(Error::<T>::NotCandidate)?;
-
-					let _ = candidates.remove(index);
-
-					candidates
-						.try_insert(index, candidate.clone())
-						.map_err(|_| Error::<T>::TooManyCandidates)?;
-					Ok(candidates.len())
-				})?;
-			} else {
-				<Invulnerables<T>>::try_mutate(|candidates| -> Result<usize, DispatchError> {
-					let index = candidates
-						.iter()
-						.position(|candidate| candidate.who == candidate_id)
-						.ok_or(Error::<T>::NotCandidate)?;
-
-					let _ = candidates.remove(index);
-
-					candidates
-						.try_insert(index, candidate.clone())
-						.map_err(|_| Error::<T>::TooManyCandidates)?;
-					Ok(candidates.len())
-				})?;
-			}
+			Self::update_candidate(candidate.clone(), is_invulnerable)?;
 
 			Self::deposit_event(Event::NewDelegation {
 				account_id: who,
@@ -736,15 +705,52 @@ pub mod pallet {
 		}
 
 		/// Finds a candidate/invulnerable with AccountId if it exists
-		fn get_delegators(who: T::AccountId) -> BoundedVec<DelegationInfoOf<T>, T::MaxDelegators> {
+		/// Returns (CandidateInfoOf<T>, is_invulnerable)
+		fn get_candidate(who: T::AccountId) -> Option<(CandidateInfoOf<T>, bool)> {
 			// first search within candidate list
 			match Candidates::<T>::get().into_iter().find(|c| c.who == who) {
-				Some(candidates) => candidates.delegators,
+				Some(candidate) => Some((candidate, false)),
 				// also search in invulnerable list if not found
 				None => match Invulnerables::<T>::get().into_iter().find(|c| c.who == who) {
-					Some(candidates) => candidates.delegators,
-					None => Default::default(),
+					Some(candidate) => Some((candidate, true)),
+					None => None,
 				},
+			}
+		}
+
+		/// Updates the candidates storage with new value
+		fn update_candidate(
+			candidate: CandidateInfoOf<T>,
+			is_invulnerable: bool,
+		) -> DispatchResult {
+			if !is_invulnerable {
+				<Candidates<T>>::try_mutate(|candidates| -> DispatchResult {
+					let index = candidates
+						.iter()
+						.position(|c| c.who == candidate.who)
+						.ok_or(Error::<T>::NotCandidate)?;
+
+					let _ = candidates.remove(index);
+
+					candidates
+						.try_insert(index, candidate.clone())
+						.map_err(|_| Error::<T>::TooManyCandidates)?;
+					Ok(())
+				})
+			} else {
+				<Invulnerables<T>>::try_mutate(|candidates| -> DispatchResult {
+					let index = candidates
+						.iter()
+						.position(|c| c.who == candidate.who)
+						.ok_or(Error::<T>::NotCandidate)?;
+
+					let _ = candidates.remove(index);
+
+					candidates
+						.try_insert(index, candidate.clone())
+						.map_err(|_| Error::<T>::TooManyCandidates)?;
+					Ok(())
+				})
 			}
 		}
 
@@ -808,44 +814,54 @@ pub mod pallet {
 				.checked_add(&fee_reward)
 				.unwrap_or_else(Zero::zero);
 
-			let _fee_imbalance = T::Currency::withdraw(
-				&pot,
-				fee_reward,
-				WithdrawReasons::TRANSACTION_PAYMENT,
-				KeepAlive,
-			);
-			debug_assert!(_fee_imbalance.is_ok());
+			// fetch the candidate details for the author
+			if let Some((mut candidate, is_invulnerable)) = Self::get_candidate(author.clone()) {
+				if !candidate.delegators.is_empty() {
+					// total delegator reward is 90%
+					let delegator_reward = Percent::from_percent(90).mul_floor(reward);
+					let reward_for_one_delegator = delegator_reward
+						.checked_div(&(candidate.delegators.len() as u32).into())
+						.unwrap_or_default();
 
-			// find the list of all delegators for this author
-			let delegators = Self::get_delegators(author.clone());
-			if !delegators.is_empty() {
-				// total delegator reward is 90%
-				let delegator_reward = Percent::from_percent(90).mul_floor(reward);
-				let reward_for_one_delegator = delegator_reward
-					.checked_div(&(delegators.len() as u32).into())
-					.unwrap_or_default();
-				for delegator in delegators.iter() {
-					T::Currency::deposit_creating(&delegator.who, reward_for_one_delegator);
-					Self::deposit_event(Event::DelegatorRewardsTransferred {
-						account_id: delegator.who.clone(),
-						amount: reward_for_one_delegator,
-					});
+					let delegator_data = candidate.delegators.clone();
+					let mut new_delegator_data: Vec<DelegationInfoOf<T>> = Default::default();
+					for mut delegator in delegator_data.into_iter() {
+						// update the delegator stake with the reward amount
+						delegator.deposit =
+							delegator.deposit.saturating_add(reward_for_one_delegator);
+
+						new_delegator_data.push(delegator);
+
+						// Self::deposit_event(Event::DelegatorRewardsTransferred {
+						// 	account_id: delegator.who.clone(),
+						// 	amount: reward_for_one_delegator,
+						// });
+					}
+
+					// this should not fail because the bounds are the same
+					candidate.delegators = new_delegator_data.try_into().unwrap();
+
+					// send rest of reward to collator
+					let collator_reward = Percent::from_percent(10).mul_floor(reward);
+					candidate.deposit = candidate.deposit.saturating_add(collator_reward);
+					candidate.total_stake = candidate.total_stake.saturating_add(reward);
+
+				// Self::deposit_event(Event::CollatorRewardsTransferred {
+				// 	account_id: author.clone(),
+				// 	amount: collator_reward,
+				// });
+				} else {
+					// `reward` pot account minus ED, this should never fail.
+					candidate.deposit = candidate.deposit.saturating_add(reward);
+					candidate.total_stake = candidate.total_stake.saturating_add(reward);
+
+					// Self::deposit_event(Event::CollatorRewardsTransferred {
+					// 	account_id: author.clone(),
+					// 	amount: reward,
+					// });
 				}
 
-				// send rest of reward to collator
-				let collator_reward = Percent::from_percent(10).mul_floor(reward);
-				T::Currency::deposit_creating(&author, collator_reward);
-				Self::deposit_event(Event::CollatorRewardsTransferred {
-					account_id: author.clone(),
-					amount: collator_reward,
-				});
-			} else {
-				// `reward` pot account minus ED, this should never fail.
-				T::Currency::deposit_creating(&author, reward);
-				Self::deposit_event(Event::CollatorRewardsTransferred {
-					account_id: author.clone(),
-					amount: reward,
-				});
+				let _ = Self::update_candidate(candidate.clone(), is_invulnerable);
 			}
 
 			<LastAuthoredBlock<T>>::insert(author, frame_system::Pallet::<T>::block_number());
