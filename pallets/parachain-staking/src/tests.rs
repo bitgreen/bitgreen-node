@@ -312,18 +312,18 @@ fn authorship_event_handler() {
 
 		let collator = CandidateInfoOf::<Test> {
 			who: 4,
-			deposit: 10,
+			deposit: 120, // deposit of 10 + block_reward of 100 + inflation reward of 10
 			delegators: Default::default(),
-			total_stake: 10,
+			total_stake: 120, // deposit of 10 + block_reward of 100 + inflation reward of 10
 		};
 
 		assert_eq!(CollatorSelection::candidates().pop().unwrap(), collator);
 		assert_eq!(CollatorSelection::last_authored_block(4), 0);
 
-		// all the amount goes to collators + block reward
-		assert_eq!(Balances::free_balance(4), 200);
-		// half + ED stays.
-		assert_eq!(Balances::free_balance(CollatorSelection::account_id()), 5);
+		// balance should not be updated, it should be 100 - candidate bond
+		assert_eq!(Balances::free_balance(4), 90);
+		// no change in the pot balance
+		assert_eq!(Balances::free_balance(CollatorSelection::account_id()), 105);
 	});
 }
 
@@ -730,28 +730,32 @@ fn delegator_payout_works() {
 		// triggers `note_author`
 		Authorship::on_initialize(4);
 
+		// this is the expected result
 		let collator = CandidateInfoOf::<Test> {
 			who: 4,
-			deposit: 10,
+			deposit: 10 + 15, // initial bond of 10 + 10% of reward (150)
 			delegators: vec![
-				DelegationInfoOf::<Test> { who: 3u64, deposit: 10 },
-				DelegationInfoOf::<Test> { who: 5u64, deposit: 10 },
+				// initial bond of 10 + 90% of reward (150) divided equally to two delegators
+				DelegationInfoOf::<Test> { who: 3u64, deposit: 10 + 67 }, /* initial bond of 10
+				                                                           * + 45% of reward
+				                                                           * (67) */
+				DelegationInfoOf::<Test> { who: 5u64, deposit: 10 + 67 }, /* initial bond of 10
+				                                                           * + 45% of reward
+				                                                           * (67) */
 			]
 			.try_into()
 			.unwrap(),
-			total_stake: 30,
+			total_stake: 180, // initial bond of 30 + 100% of reward (150)
 		};
 
 		assert_eq!(CollatorSelection::candidates().pop().unwrap(), collator);
 		assert_eq!(CollatorSelection::last_authored_block(4), 0);
 
-		// block author balances is 90 (existing) + (15) 10% of reward
-		assert_eq!(Balances::free_balance(4), 90 + 15);
-		// delegator balances is 90 (existing) + (135) 90% of reward / 2
-		assert_eq!(Balances::free_balance(3), 90 + 67);
-		assert_eq!(Balances::free_balance(5), 90 + 67);
-		// half + ED stays.
-		assert_eq!(Balances::free_balance(CollatorSelection::account_id()), 5);
+		// balances should not change
+		assert_eq!(Balances::free_balance(4), 90);
+		assert_eq!(Balances::free_balance(3), 90);
+		assert_eq!(Balances::free_balance(5), 90);
+		assert_eq!(Balances::free_balance(CollatorSelection::account_id()), 105);
 	});
 }
 
@@ -799,25 +803,28 @@ fn delegator_payout_works_for_invulnerables() {
 
 		let collator = CandidateInfoOf::<Test> {
 			who: invulnerable_collator,
-			deposit: 0,
+			deposit: 0 + 15, // initial bond of 0 + 10% of reward (150)
 			delegators: vec![
-				DelegationInfoOf::<Test> { who: 3u64, deposit: 10 },
-				DelegationInfoOf::<Test> { who: 5u64, deposit: 10 },
+				// initial bond of 10 + 90% of reward (150) divided equally to two delegators
+				DelegationInfoOf::<Test> { who: 3u64, deposit: 10 + 67 }, /* initial bond of 10
+				                                                           * + 45% of reward
+				                                                           * (67) */
+				DelegationInfoOf::<Test> { who: 5u64, deposit: 10 + 67 }, /* initial bond of 10
+				                                                           * + 45% of reward
+				                                                           * (67) */
 			]
 			.try_into()
 			.unwrap(),
-			total_stake: 20,
+			total_stake: 170, // initial bond of 20 + 100% of reward (150)
 		};
 
 		assert_eq!(CollatorSelection::invulnerables()[0], collator);
 		assert_eq!(CollatorSelection::last_authored_block(invulnerable_collator), 0);
 
-		// block author balances is 90 (existing) + (15) 10% of reward
-		assert_eq!(Balances::free_balance(invulnerable_collator), 100 + 15);
-		// delegator balances is 90 (existing) + (135) 90% of reward / 2
-		assert_eq!(Balances::free_balance(3), 90 + 67);
-		assert_eq!(Balances::free_balance(5), 90 + 67);
-		// half + ED stays.
-		assert_eq!(Balances::free_balance(CollatorSelection::account_id()), 5);
+		// balances should not change
+		assert_eq!(Balances::free_balance(invulnerable_collator), 100);
+		assert_eq!(Balances::free_balance(3), 90);
+		assert_eq!(Balances::free_balance(5), 90);
+		assert_eq!(Balances::free_balance(CollatorSelection::account_id()), 105);
 	});
 }
