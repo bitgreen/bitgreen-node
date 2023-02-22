@@ -488,10 +488,7 @@ fn resubmit_works() {
 		assert_eq!(group_data.minted, 0_u32.into());
 		assert_eq!(group_data.retired, 0_u32.into());
 
-		assert_eq!(
-			last_event(),
-			CarbonCreditsEvent::ProjectResubmitted { project_id }.into()
-		);
+		assert_eq!(last_event(), CarbonCreditsEvent::ProjectResubmitted { project_id }.into());
 
 		// authorise the account
 		assert_ok!(CarbonCredits::force_add_authorized_account(

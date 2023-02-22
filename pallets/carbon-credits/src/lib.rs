@@ -52,6 +52,7 @@ mod types;
 pub use types::*;
 
 mod functions;
+pub mod migration;
 pub use functions::*;
 
 mod weights;
@@ -184,6 +185,8 @@ pub mod pallet {
 		type MaxLongStringLength: Get<u32>;
 		/// Maximum length of ipfs reference data
 		type MaxIpfsReferenceLength: Get<u32>;
+		/// Maximum amount of location cordinates to store
+		type MaxCoordinatesLength: Get<u32>;
 		/// Maximum count of documents for one type
 		type MaxDocumentCount: Get<u32>;
 		/// Maximum amount of carbon credits in a bundle
