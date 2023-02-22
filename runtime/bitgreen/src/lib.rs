@@ -112,7 +112,10 @@ pub type Executive = frame_executive::Executive<
 	Runtime,
 	AllPalletsWithSystem,
 	// Migrations
-	pallet_parachain_staking::migration::v2::MigrateToV2<Runtime>,
+	(
+		pallet_parachain_staking::migration::v2::MigrateToV2<Runtime>,
+		pallet_carbon_credits::migration::v1::MigrateToV1<Runtime>,
+	),
 >;
 
 pub type NegativeImbalance<T> = <pallet_balances::Pallet<T> as Currency<
@@ -518,6 +521,7 @@ parameter_types! {
   pub const MinProjectId : u32 = 1000;
   #[derive(Debug, Clone, Copy, PartialEq, Eq, Encode, Decode, MaxEncodedLen, TypeInfo)]
   pub const MaxGroupSize : u32 = 10;
+  pub const MaxCoordinatesLength : u32 = 10;
 }
 
 impl pallet_carbon_credits::Config for Runtime {
@@ -541,6 +545,7 @@ impl pallet_carbon_credits::Config for Runtime {
 	type MinProjectId = MinProjectId;
 	type NFTHandler = Uniques;
 	type PalletId = CarbonCreditsPalletId;
+	type MaxCoordinatesLength = MaxCoordinatesLength;
 	type WeightInfo = ();
 }
 
