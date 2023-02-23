@@ -279,6 +279,8 @@ pub mod pallet {
 		CarbonCreditMinted {
 			/// The ProjectId of the minted CarbonCredits
 			project_id: T::ProjectId,
+			/// The GroupId of the minted CarbonCredits
+			group_id: T::GroupId,
 			/// The AccountId that received the minted CarbonCredits
 			recipient: T::AccountId,
 			/// The amount of CarbonCredits units minted
