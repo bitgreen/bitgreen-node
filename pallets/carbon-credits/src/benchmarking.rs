@@ -138,7 +138,7 @@ benchmarks! {
 		CarbonCredits::<T>::approve_project(RawOrigin::Signed(caller.clone()).into(), project_id, true)?;
 	}: _(RawOrigin::Signed(caller.clone()), project_id, group_id, 100_u32.into(), false)
 	verify {
-		assert_last_event::<T>(Event::CarbonCreditMinted { project_id, recipient : caller, amount : 100_u32.into() }.into());
+		assert_last_event::<T>(Event::CarbonCreditMinted { project_id, group_id, recipient : caller, amount : 100_u32.into() }.into());
 	}
 
 	retire {

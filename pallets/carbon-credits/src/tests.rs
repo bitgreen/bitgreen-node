@@ -757,6 +757,7 @@ fn mint_without_list_to_marketplace_works_for_single_batch() {
 			last_event(),
 			CarbonCreditsEvent::CarbonCreditMinted {
 				project_id,
+				group_id,
 				recipient: originator_account,
 				amount: amount_to_mint
 			}
@@ -849,6 +850,7 @@ fn mint_without_list_to_marketplace_works_for_multiple_batches() {
 			last_event(),
 			CarbonCreditsEvent::CarbonCreditMinted {
 				project_id,
+				group_id,
 				recipient: originator_account,
 				amount: amount_to_mint
 			}
@@ -1408,6 +1410,7 @@ fn force_approve_and_mint_credits_works() {
 			last_event(),
 			CarbonCreditsEvent::CarbonCreditMinted {
 				project_id,
+				group_id,
 				recipient: originator_account,
 				amount: amount_to_mint
 			}

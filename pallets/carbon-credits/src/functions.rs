@@ -366,6 +366,7 @@ impl<T: Config> Pallet<T> {
 			// emit event
 			Self::deposit_event(Event::CarbonCreditMinted {
 				project_id,
+				group_id,
 				recipient,
 				amount: amount_to_mint,
 			});
