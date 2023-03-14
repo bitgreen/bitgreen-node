@@ -17,7 +17,7 @@
 	},
 	"parachains": [
 		{
-			"bin": "../target/release/bitgreen-parachain",
+			"bin": "../../target/release/bitgreen-parachain",
 			"chain": "rococo-local",
 			"nodes": [
 				{

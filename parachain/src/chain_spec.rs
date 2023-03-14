@@ -1,4 +1,4 @@
-use bitgreen_rococo_runtime::{AccountId, AuraId, Signature, EXISTENTIAL_DEPOSIT};
+use bitgreen_runtime::{AccountId, AuraId, Signature, EXISTENTIAL_DEPOSIT};
 use cumulus_primitives_core::ParaId;
 use sc_chain_spec::{ChainSpecExtension, ChainSpecGroup};
 use sc_service::ChainType;
@@ -72,8 +72,8 @@ fn generate_collator_keys<PK: Clone + Into<AccountId>>(
 /// Generate the session keys from individual elements.
 ///
 /// The input must be a tuple of individual keys (a single arg for now since we have just one key).
-pub fn template_session_keys(keys: AuraId) -> bitgreen_rococo_runtime::SessionKeys {
-	bitgreen_rococo_runtime::SessionKeys { aura: keys }
+pub fn template_session_keys(keys: AuraId) -> bitgreen_runtime::SessionKeys {
+	bitgreen_runtime::SessionKeys { aura: keys }
 }
 
 pub fn development_config() -> RococoChainSpec {
@@ -195,22 +195,22 @@ fn testnet_genesis(
 	invulnerables: Vec<(AccountId, AuraId)>,
 	endowed_accounts: Vec<AccountId>,
 	id: ParaId,
-) -> bitgreen_rococo_runtime::GenesisConfig {
-	bitgreen_rococo_runtime::GenesisConfig {
-		system: bitgreen_rococo_runtime::SystemConfig {
-			code: bitgreen_rococo_runtime::WASM_BINARY
+) -> bitgreen_runtime::GenesisConfig {
+	bitgreen_runtime::GenesisConfig {
+		system: bitgreen_runtime::SystemConfig {
+			code: bitgreen_runtime::WASM_BINARY
 				.expect("WASM binary was not build, please build it!")
 				.to_vec(),
 		},
-		balances: bitgreen_rococo_runtime::BalancesConfig {
+		balances: bitgreen_runtime::BalancesConfig {
 			balances: endowed_accounts
 				.iter()
 				.cloned()
 				.map(|k| (k, 1_000_000_000 * 1000000000000000000))
 				.collect(),
 		},
-		parachain_info: bitgreen_rococo_runtime::ParachainInfoConfig { parachain_id: id },
-		parachain_staking: bitgreen_rococo_runtime::ParachainStakingConfig {
+		parachain_info: bitgreen_runtime::ParachainInfoConfig { parachain_id: id },
+		parachain_staking: bitgreen_runtime::ParachainStakingConfig {
 			invulnerables: invulnerables
 				.iter()
 				.cloned()
@@ -224,7 +224,7 @@ fn testnet_genesis(
 			candidacy_bond: EXISTENTIAL_DEPOSIT * 16,
 			..Default::default()
 		},
-		session: bitgreen_rococo_runtime::SessionConfig {
+		session: bitgreen_runtime::SessionConfig {
 			keys: invulnerables
 				.into_iter()
 				.map(|(acc, aura)| {
@@ -241,15 +241,15 @@ fn testnet_genesis(
 		aura: Default::default(),
 		aura_ext: Default::default(),
 		parachain_system: Default::default(),
-		polkadot_xcm: bitgreen_rococo_runtime::PolkadotXcmConfig {
+		polkadot_xcm: bitgreen_runtime::PolkadotXcmConfig {
 			safe_xcm_version: Some(SAFE_XCM_VERSION),
 		},
-		kyc_membership: bitgreen_rococo_runtime::KYCMembershipConfig {
+		kyc_membership: bitgreen_runtime::KYCMembershipConfig {
 			members: [].to_vec().try_into().unwrap(),
 			phantom: Default::default(),
 		},
-		tokens: bitgreen_rococo_runtime::TokensConfig { balances: [].to_vec() },
-		sudo: bitgreen_rococo_runtime::SudoConfig {
+		tokens: bitgreen_runtime::TokensConfig { balances: [].to_vec() },
+		sudo: bitgreen_runtime::SudoConfig {
 			key: Some(get_account_id_from_seed::<sr25519::Public>("Alice")),
 		},
 		treasury: Default::default(),
