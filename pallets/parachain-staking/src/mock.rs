@@ -2,6 +2,7 @@
 // Copyright (C) 2022 BitGreen.
 // This code is licensed under MIT license (see LICENSE.txt for details)
 //
+use crate::types::CandidateInfo;
 use frame_support::{
 	ord_parameter_types, parameter_types,
 	traits::{FindAuthor, GenesisBuild, ValidatorRegistration},
@@ -185,12 +186,14 @@ ord_parameter_types! {
 parameter_types! {
 	pub const PotId: PalletId = PalletId(*b"PotStake");
 	pub const MaxCandidates: u32 = 20;
-	#[derive(Debug, TypeInfo, Clone, PartialEq, Eq)]
+	#[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
+	#[derive(Clone, TypeInfo, Debug, PartialOrd, Ord, Eq, PartialEq)]
 	pub const MaxDelegators: u32 = 10;
 	pub const MaxInvulnerables: u32 = 20;
 	pub const MinCandidates: u32 = 1;
 	pub const MaxAuthorities: u32 = 100_000;
 	pub const MinDelegationAmount : u32 = 10;
+	pub const UnbondingDelay : u32 = 10;
 }
 
 pub struct IsRegistered;
@@ -214,6 +217,7 @@ impl Config for Test {
 	type ValidatorId = <Self as frame_system::Config>::AccountId;
 	type ValidatorIdOf = IdentityCollator;
 	type ValidatorRegistration = IsRegistered;
+	type UnbondingDelay = UnbondingDelay;
 	type WeightInfo = ();
 }
 
@@ -230,7 +234,16 @@ pub fn new_test_ext() -> sp_io::TestExternalities {
 	let collator_selection = collator_selection::GenesisConfig::<Test> {
 		desired_candidates: 2,
 		candidacy_bond: 10,
-		invulnerables,
+		invulnerables: invulnerables
+			.iter()
+			.cloned()
+			.map(|account| CandidateInfo {
+				who: account,
+				deposit: Default::default(),
+				delegators: Default::default(),
+				total_stake: Default::default(),
+			})
+			.collect(),
 	};
 	let session = pallet_session::GenesisConfig::<Test> { keys };
 	pallet_balances::GenesisConfig::<Test> { balances }

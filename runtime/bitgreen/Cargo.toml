@@ -63,6 +63,7 @@ pallet-utility = { git = "https://github.com/paritytech/substrate", default-feat
 pallet-scheduler = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.33" }
 pallet-preimage = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.33" }
 pallet-proxy = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.33" }
+pallet-identity = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.33" }
 
 # Polkadot
 pallet-xcm = { git = "https://github.com/paritytech/polkadot", default-features = false, branch = "release-v0.9.33" }
@@ -173,7 +174,8 @@ std = [
   "pallet-vesting-contract/std",
   "pallet-parachain-staking/std",
   "pallet-dex/std",
-  "pallet-proxy/std"
+  "pallet-proxy/std",
+  "pallet-identity/std"
 ]
 
 runtime-benchmarks = [

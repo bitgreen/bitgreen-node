@@ -52,6 +52,7 @@ mod types;
 pub use types::*;
 
 mod functions;
+pub mod migration;
 pub use functions::*;
 
 mod weights;
@@ -184,12 +185,12 @@ pub mod pallet {
 		type MaxLongStringLength: Get<u32>;
 		/// Maximum length of ipfs reference data
 		type MaxIpfsReferenceLength: Get<u32>;
+		/// Maximum amount of location cordinates to store
+		type MaxCoordinatesLength: Get<u32>;
 		/// Maximum count of documents for one type
 		type MaxDocumentCount: Get<u32>;
 		/// Maximum amount of carbon credits in a bundle
 		type MaxGroupSize: Get<u32> + TypeInfo + Clone + Parameter;
-		/// Maximum amount of location cordinates to store
-		type MaxCoordinatesLength: Get<u32>;
 		/// Minimum value of AssetId for CarbonCredits
 		type MinProjectId: Get<Self::AssetId>;
 		/// Weight information for extrinsics in this pallet.
@@ -261,8 +262,6 @@ pub mod pallet {
 		ProjectResubmitted {
 			/// The ProjectId of the created project
 			project_id: T::ProjectId,
-			/// The details of the created project
-			details: ProjectDetail<T>,
 		},
 		/// Project has been approved
 		ProjectApproved {
@@ -280,6 +279,8 @@ pub mod pallet {
 		CarbonCreditMinted {
 			/// The ProjectId of the minted CarbonCredits
 			project_id: T::ProjectId,
+			/// The GroupId of the minted CarbonCredits
+			group_id: T::GroupId,
 			/// The AccountId that received the minted CarbonCredits
 			recipient: T::AccountId,
 			/// The amount of CarbonCredits units minted
@@ -289,6 +290,10 @@ pub mod pallet {
 		CarbonCreditRetired {
 			/// The ProjectId of the retired CarbonCredits
 			project_id: T::ProjectId,
+			/// The GroupId of the CarbonCredits retired
+			group_id: T::GroupId,
+			/// The AssetId of the CarbonCredits retired
+			asset_id: T::AssetId,
 			/// The AccountId that retired the CarbonCredits
 			account: T::AccountId,
 			/// The amount of CarbonCredits units retired
@@ -571,10 +576,14 @@ pub mod pallet {
 }
 
 /// Struct to verify if a given asset_id is representing a carbon credit project
-pub struct CarbonCreditsAssetValidator<T>(sp_std::marker::PhantomData<T>);
-impl<T: Config> Contains<T::AssetId> for CarbonCreditsAssetValidator<T> {
-	// Returns true if the AssetId represents a CarbonCredits project
-	fn contains(asset_id: &T::AssetId) -> bool {
-		AssetIdLookup::<T>::contains_key(asset_id)
+impl<T: Config> primitives::CarbonCreditsValidator for Pallet<T> {
+	type ProjectId = T::ProjectId;
+
+	type GroupId = T::GroupId;
+
+	type AssetId = T::AssetId;
+
+	fn get_project_details(asset_id: &Self::AssetId) -> Option<(Self::ProjectId, Self::GroupId)> {
+		AssetIdLookup::<T>::get(asset_id)
 	}
 }

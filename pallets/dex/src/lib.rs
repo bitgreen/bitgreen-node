@@ -58,14 +58,12 @@ pub mod pallet {
 	use crate::{OrderId, OrderInfo, WeightInfo};
 	use frame_support::{
 		pallet_prelude::*,
-		traits::{
-			fungibles::{Inspect, Transfer},
-			Contains,
-		},
+		traits::fungibles::{Inspect, Transfer},
 		transactional, PalletId,
 	};
 	use frame_system::pallet_prelude::{OriginFor, *};
 	use orml_traits::MultiCurrency;
+	use primitives::CarbonCreditsValidator;
 	use sp_runtime::{
 		traits::{AccountIdConversion, AtLeast32BitUnsigned, CheckedSub, One, Zero},
 		Percent,
@@ -87,6 +85,10 @@ pub mod pallet {
 
 	pub type AssetIdOf<T> =
 		<<T as Config>::Asset as Inspect<<T as frame_system::Config>::AccountId>>::AssetId;
+
+	pub type ProjectIdOf<T> = <<T as Config>::AssetValidator as CarbonCreditsValidator>::ProjectId;
+
+	pub type GroupIdOf<T> = <<T as Config>::AssetValidator as CarbonCreditsValidator>::GroupId;
 
 	/// Configure the pallet by specifying the parameters and types on which it depends.
 	#[pallet::config]
@@ -126,7 +128,7 @@ pub mod pallet {
 		type ForceOrigin: EnsureOrigin<Self::RuntimeOrigin>;
 
 		/// Verify if the asset can be listed on the dex
-		type AssetValidator: Contains<AssetIdOf<Self>>;
+		type AssetValidator: CarbonCreditsValidator<AssetId = AssetIdOf<Self>>;
 
 		/// The CurrencyId of the stable currency we accept as payment
 		#[pallet::constant]
@@ -155,11 +157,6 @@ pub mod pallet {
 		/// Weight information for extrinsics in this pallet.
 		type WeightInfo: WeightInfo;
 	}
-
-	// owner of swap pool
-	#[pallet::storage]
-	#[pallet::getter(fn owner)]
-	pub type Owner<T: Config> = StorageValue<_, T::AccountId>;
 
 	// orders information
 	#[pallet::storage]
@@ -192,17 +189,22 @@ pub mod pallet {
 		SellOrderCreated {
 			order_id: OrderId,
 			asset_id: AssetIdOf<T>,
+			project_id: ProjectIdOf<T>,
+			group_id: GroupIdOf<T>,
 			units: AssetBalanceOf<T>,
 			price_per_unit: CurrencyBalanceOf<T>,
 			owner: T::AccountId,
 		},
 		/// A sell order was cancelled
-		SellOrderCancelled { order_id: OrderId },
+		SellOrderCancelled { order_id: OrderId, seller: T::AccountId },
 		/// A buy order was processed successfully
 		BuyOrderFilled {
 			order_id: OrderId,
 			units: AssetBalanceOf<T>,
+			project_id: ProjectIdOf<T>,
+			group_id: GroupIdOf<T>,
 			price_per_unit: CurrencyBalanceOf<T>,
+			fees_paid: CurrencyBalanceOf<T>,
 			seller: T::AccountId,
 			buyer: T::AccountId,
 		},
@@ -255,7 +257,8 @@ pub mod pallet {
 			let seller = ensure_signed(origin.clone())?;
 
 			// ensure the asset_id can be listed
-			ensure!(T::AssetValidator::contains(&asset_id), Error::<T>::AssetNotPermitted);
+			let (project_id, group_id) = T::AssetValidator::get_project_details(&asset_id)
+				.ok_or(Error::<T>::AssetNotPermitted)?;
 
 			// ensure minimums are satisfied
 			ensure!(units >= T::MinUnitsToCreateSellOrder::get(), Error::<T>::BelowMinimumUnits);
@@ -278,6 +281,8 @@ pub mod pallet {
 			Self::deposit_event(Event::SellOrderCreated {
 				order_id,
 				asset_id,
+				project_id,
+				group_id,
 				units,
 				price_per_unit,
 				owner: seller,
@@ -306,7 +311,7 @@ pub mod pallet {
 				false,
 			)?;
 
-			Self::deposit_event(Event::SellOrderCancelled { order_id });
+			Self::deposit_event(Event::SellOrderCancelled { order_id, seller });
 			Ok(())
 		}
 
@@ -337,6 +342,10 @@ pub mod pallet {
 
 				// ensure volume remaining can cover the buy order
 				ensure!(units <= order.units, Error::<T>::OrderUnitsOverflow);
+
+				// get the projectId and groupId for events
+				let (project_id, group_id) = T::AssetValidator::get_project_details(&asset_id)
+					.ok_or(Error::<T>::AssetNotPermitted)?;
 
 				// reduce the buy_order units from total volume
 				order.units =
@@ -383,7 +392,10 @@ pub mod pallet {
 				Self::deposit_event(Event::BuyOrderFilled {
 					order_id,
 					units,
+					project_id,
+					group_id,
 					price_per_unit: order.price_per_unit,
+					fees_paid: required_fees.into(),
 					seller: order.owner.clone(),
 					buyer,
 				});

@@ -12,6 +12,7 @@ description = "Module to tokenize carbon credits"
 targets = ['x86_64-unknown-linux-gnu']
 
 [dependencies]
+log = { version = "0.4.17", default-features = false }
 bs58 = { default-features = false, version = '0.4.0', features = ['alloc'] }
 codec = { package = "parity-scale-codec", version = "3.0.0", default-features = false, features = ["derive"] }
 frame-support = { git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.33", default-features = false }

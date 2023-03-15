@@ -191,7 +191,7 @@ where
 	let creation_params = ProjectCreateParams {
 		name: "name".as_bytes().to_vec().try_into().unwrap(),
 		description: "description".as_bytes().to_vec().try_into().unwrap(),
-		location: vec![(1, 1), (2, 2), (3, 3), (4, 4)].try_into().unwrap(),
+		location: "(1, 1), (2, 2), (3, 3), (4, 4)".as_bytes().to_vec().try_into().unwrap(),
 		images: vec!["image_link".as_bytes().to_vec().try_into().unwrap()].try_into().unwrap(),
 		videos: vec!["video_link".as_bytes().to_vec().try_into().unwrap()].try_into().unwrap(),
 		documents: vec!["document_link".as_bytes().to_vec().try_into().unwrap()]
@@ -488,10 +488,7 @@ fn resubmit_works() {
 		assert_eq!(group_data.minted, 0_u32.into());
 		assert_eq!(group_data.retired, 0_u32.into());
 
-		assert_eq!(
-			last_event(),
-			CarbonCreditsEvent::ProjectResubmitted { project_id, details: stored_data }.into()
-		);
+		assert_eq!(last_event(), CarbonCreditsEvent::ProjectResubmitted { project_id }.into());
 
 		// authorise the account
 		assert_ok!(CarbonCredits::force_add_authorized_account(
@@ -760,6 +757,7 @@ fn mint_without_list_to_marketplace_works_for_single_batch() {
 			last_event(),
 			CarbonCreditsEvent::CarbonCreditMinted {
 				project_id,
+				group_id,
 				recipient: originator_account,
 				amount: amount_to_mint
 			}
@@ -852,6 +850,7 @@ fn mint_without_list_to_marketplace_works_for_multiple_batches() {
 			last_event(),
 			CarbonCreditsEvent::CarbonCreditMinted {
 				project_id,
+				group_id,
 				recipient: originator_account,
 				amount: amount_to_mint
 			}
@@ -1114,6 +1113,8 @@ fn test_retire_for_single_batch() {
 			last_event(),
 			CarbonCreditsEvent::CarbonCreditRetired {
 				project_id,
+				group_id,
+				asset_id: expected_asset_id,
 				account: originator_account,
 				amount: amount_to_retire,
 				retire_data: stored_retired_data.retire_data,
@@ -1287,6 +1288,8 @@ fn retire_for_multiple_batch() {
 			last_event(),
 			CarbonCreditsEvent::CarbonCreditRetired {
 				project_id,
+				group_id,
+				asset_id: expected_asset_id,
 				account: originator_account,
 				amount: amount_to_retire,
 				retire_data: stored_retired_data.retire_data.clone()
@@ -1407,6 +1410,7 @@ fn force_approve_and_mint_credits_works() {
 			last_event(),
 			CarbonCreditsEvent::CarbonCreditMinted {
 				project_id,
+				group_id,
 				recipient: originator_account,
 				amount: amount_to_mint
 			}

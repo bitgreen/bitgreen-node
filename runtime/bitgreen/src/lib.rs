@@ -112,7 +112,10 @@ pub type Executive = frame_executive::Executive<
 	Runtime,
 	AllPalletsWithSystem,
 	// Migrations
-	pallet_parachain_staking::migration::v1::MigrateToV1<Runtime>,
+	(
+		pallet_parachain_staking::migration::v2::MigrateToV2<Runtime>,
+		pallet_carbon_credits::migration::v1::MigrateToV1<Runtime>,
+	),
 >;
 
 pub type NegativeImbalance<T> = <pallet_balances::Pallet<T> as Currency<
@@ -175,7 +178,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: create_runtime_str!("bitgreen-parachain"),
 	impl_name: create_runtime_str!("bitgreen-parachain"),
 	authoring_version: 1,
-	spec_version: 1002, // v1.0.2
+	spec_version: 1101, // v1.1.1
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 1,
@@ -398,10 +401,12 @@ parameter_types! {
 	pub const MinCandidates: u32 = 5;
 	pub const SessionLength: BlockNumber = 6 * HOURS;
 	pub const MaxInvulnerables: u32 = 100;
-	#[derive(Clone, TypeInfo)]
+	#[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
+	#[derive(Clone, TypeInfo, Debug, PartialOrd, Ord, Eq, PartialEq)]
 	pub const MaxDelegators : u32 = 20;
 	pub const MinDelegationAmount : u32 = 100;
 	pub const ExecutiveBody: BodyId = BodyId::Executive;
+	pub const UnbondingDelay : BlockNumber = 7 * DAYS;
 }
 
 // We allow root only to execute privileged collator selection operations.
@@ -422,6 +427,7 @@ impl pallet_parachain_staking::Config for Runtime {
 	type ValidatorId = <Self as frame_system::Config>::AccountId;
 	type ValidatorIdOf = pallet_parachain_staking::IdentityCollator;
 	type ValidatorRegistration = Session;
+	type UnbondingDelay = UnbondingDelay;
 	type WeightInfo = ();
 }
 
@@ -507,7 +513,6 @@ parameter_types! {
   pub MarketplaceEscrowAccount : AccountId =  PalletId(*b"bitg/mkp").into_account_truncating();
   pub const CarbonCreditsPalletId: PalletId = PalletId(*b"bitg/vcu");
   pub const MaxAuthorizedAccountCount : u32 = 10;
-  pub const MaxCoordinatesLength : u32 = 10;
   pub const MaxDocumentCount : u32 = 10;
   pub const MaxIpfsReferenceLength : u32 = 1024;
   pub const MaxLongStringLength : u32 = 3072;
@@ -516,6 +521,7 @@ parameter_types! {
   pub const MinProjectId : u32 = 1000;
   #[derive(Debug, Clone, Copy, PartialEq, Eq, Encode, Decode, MaxEncodedLen, TypeInfo)]
   pub const MaxGroupSize : u32 = 10;
+  pub const MaxCoordinatesLength : u32 = 10;
 }
 
 impl pallet_carbon_credits::Config for Runtime {
@@ -530,7 +536,6 @@ impl pallet_carbon_credits::Config for Runtime {
 	type KYCProvider = KYCMembership;
 	type MarketplaceEscrow = MarketplaceEscrowAccount;
 	type MaxAuthorizedAccountCount = MaxAuthorizedAccountCount;
-	type MaxCoordinatesLength = MaxCoordinatesLength;
 	type MaxDocumentCount = MaxDocumentCount;
 	type MaxGroupSize = MaxGroupSize;
 	type MaxIpfsReferenceLength = MaxIpfsReferenceLength;
@@ -540,6 +545,7 @@ impl pallet_carbon_credits::Config for Runtime {
 	type MinProjectId = MinProjectId;
 	type NFTHandler = Uniques;
 	type PalletId = CarbonCreditsPalletId;
+	type MaxCoordinatesLength = MaxCoordinatesLength;
 	type WeightInfo = ();
 }
 
@@ -737,7 +743,7 @@ impl pallet_dex::Config for Runtime {
 	type AssetBalance = u128;
 	type StableCurrencyId = StableCurrencyId;
 	type PalletId = DexPalletId;
-	type AssetValidator = pallet_carbon_credits::CarbonCreditsAssetValidator<Runtime>;
+	type AssetValidator = CarbonCredits;
 	type MinPricePerUnit = MinPricePerUnit;
 	type MinUnitsToCreateSellOrder = MinUnitsToCreateSellOrder;
 	type ForceOrigin = EnsureRoot<AccountId>;
@@ -880,6 +886,31 @@ impl pallet_proxy::Config for Runtime {
 	type AnnouncementDepositFactor = ConstU128<{ deposit(0, 56) }>;
 }
 
+parameter_types! {
+	// Minimum 4 CENTS/byte
+	pub const BasicDeposit: Balance = deposit(1, 258);
+	pub const FieldDeposit: Balance = deposit(0, 66);
+	pub const SubAccountDeposit: Balance = deposit(1, 53);
+	pub const MaxSubAccounts: u32 = 100;
+	pub const MaxAdditionalFields: u32 = 100;
+	pub const MaxRegistrars: u32 = 20;
+}
+
+impl pallet_identity::Config for Runtime {
+	type RuntimeEvent = RuntimeEvent;
+	type Currency = Balances;
+	type BasicDeposit = BasicDeposit;
+	type FieldDeposit = FieldDeposit;
+	type SubAccountDeposit = SubAccountDeposit;
+	type MaxSubAccounts = MaxSubAccounts;
+	type MaxAdditionalFields = MaxAdditionalFields;
+	type MaxRegistrars = MaxRegistrars;
+	type Slashed = Treasury;
+	type ForceOrigin = EnsureRoot<AccountId>;
+	type RegistrarOrigin = EnsureRoot<AccountId>;
+	type WeightInfo = ();
+}
+
 // Create the runtime by composing the FRAME pallets that were previously configured.
 construct_runtime!(
 	pub enum Runtime where
@@ -935,6 +966,7 @@ construct_runtime!(
 		Scheduler: pallet_scheduler::{Pallet, Call, Storage, Event<T>} = 62,
 		Preimage: pallet_preimage::{Pallet, Call, Storage, Event<T>} = 63,
 		Proxy: pallet_proxy::{Pallet, Call, Storage, Event<T>} = 64,
+		Identity: pallet_identity::{Pallet, Call, Storage, Event<T>} = 65,
 	}
 );
 

@@ -2,10 +2,10 @@
 set -e
 
 echo "##GENERATING RAW CHAINSPEC FOR ROCOCO"
-./target/release/bitgreen-parachain build-spec --raw --chain rococo --disable-default-bootnode > artifacts/bitgreen-rococo-raw.json
+./target/release/bitgreen-parachain build-spec --chain rococo-local --disable-default-bootnode > ./artifacts/testnet/bitgreen-testnet-raw.json
 
 echo "##GENERATING GENESIS WASM FOR ROCOCO"
-./target/release/bitgreen-parachain export-genesis-wasm --chain artifacts/bitgreen-rococo-raw.json > artifacts/bitgreen-rococo-wasm
+./target/release/bitgreen-parachain export-genesis-wasm --chain ./artifacts/testnet/bitgreen-testnet-raw.json > ./artifacts/testnet/bitgreen-testnet-wasm
 
 echo "##GENERATING GENESIS STATE FOR ROCOCO"
-./target/release/bitgreen-parachain export-genesis-state --chain artifacts/bitgreen-rococo-raw.json > artifacts/bitgreen-rococo-genesis
+./target/release/bitgreen-parachain export-genesis-state --chain ./artifacts/testnet/bitgreen-testnet-raw.json > ./artifacts/testnet/bitgreen-testnet-genesis

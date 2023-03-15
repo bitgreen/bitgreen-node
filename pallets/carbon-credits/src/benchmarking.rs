@@ -77,7 +77,7 @@ where
 	let creation_params = ProjectCreateParams {
 		name: "name".as_bytes().to_vec().try_into().unwrap(),
 		description: "description".as_bytes().to_vec().try_into().unwrap(),
-		location: vec![(1, 1), (2, 2), (3, 3), (4, 4)].try_into().unwrap(),
+		location: "location".as_bytes().to_vec().try_into().unwrap(),
 		images: vec!["image_link".as_bytes().to_vec().try_into().unwrap()].try_into().unwrap(),
 		videos: vec!["video_link".as_bytes().to_vec().try_into().unwrap()].try_into().unwrap(),
 		documents: vec!["document_link".as_bytes().to_vec().try_into().unwrap()]
@@ -138,7 +138,7 @@ benchmarks! {
 		CarbonCredits::<T>::approve_project(RawOrigin::Signed(caller.clone()).into(), project_id, true)?;
 	}: _(RawOrigin::Signed(caller.clone()), project_id, group_id, 100_u32.into(), false)
 	verify {
-		assert_last_event::<T>(Event::CarbonCreditMinted { project_id, recipient : caller, amount : 100_u32.into() }.into());
+		assert_last_event::<T>(Event::CarbonCreditMinted { project_id, group_id, recipient : caller, amount : 100_u32.into() }.into());
 	}
 
 	retire {
@@ -159,7 +159,7 @@ benchmarks! {
 	verify {
 		let item_id : T::ItemId = 0_u32.into();
 		let retire_data = RetiredCredits::<T>::get(asset_id, item_id).unwrap();
-		assert_last_event::<T>(Event::CarbonCreditRetired { project_id, account : caller, amount : 10_u32.into(), retire_data :retire_data.retire_data }.into());
+		assert_last_event::<T>(Event::CarbonCreditRetired { project_id, group_id, asset_id, account : caller, amount : 10_u32.into(), retire_data :retire_data.retire_data }.into());
 	}
 
 	force_add_authorized_account {

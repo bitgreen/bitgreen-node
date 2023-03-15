@@ -4,6 +4,7 @@
 //
 //! Benchmarking setup for pallet-parachain-staking
 
+use crate::types::CandidateInfoOf;
 use frame_benchmarking::{account, benchmarks, impl_benchmark_test_suite, whitelisted_caller};
 use frame_support::{
 	assert_ok,
@@ -73,14 +74,22 @@ fn validator<T: Config + session::Config>(c: u32) -> (T::AccountId, <T as sessio
 	(create_funded_user::<T>("candidate", c, 1000), keys::<T>(c))
 }
 
-fn register_validators<T: Config + session::Config>(count: u32) -> Vec<T::AccountId> {
+fn register_validators<T: Config + session::Config>(count: u32) -> Vec<CandidateInfoOf<T>> {
 	let validators = (0..count).map(|c| validator::<T>(c)).collect::<Vec<_>>();
 
 	for (who, keys) in validators.clone() {
 		<session::Pallet<T>>::set_keys(RawOrigin::Signed(who).into(), keys, Vec::new()).unwrap();
 	}
 
-	validators.into_iter().map(|(who, _)| who).collect()
+	validators
+		.into_iter()
+		.map(|(account, _)| CandidateInfoOf::<T> {
+			who: account,
+			deposit: Default::default(),
+			delegators: Default::default(),
+			total_stake: Default::default(),
+		})
+		.collect::<Vec<CandidateInfoOf<T>>>()
 }
 
 fn register_candidates<T: Config>(count: u32) {

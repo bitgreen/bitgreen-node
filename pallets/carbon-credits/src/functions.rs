@@ -282,10 +282,10 @@ impl<T: Config> Pallet<T> {
 				approved: false,
 			};
 
-			*project = new_project.clone();
+			*project = new_project;
 
 			// emit event
-			Self::deposit_event(Event::ProjectResubmitted { project_id, details: new_project });
+			Self::deposit_event(Event::ProjectResubmitted { project_id });
 
 			Ok(())
 		})
@@ -366,6 +366,7 @@ impl<T: Config> Pallet<T> {
 			// emit event
 			Self::deposit_event(Event::CarbonCreditMinted {
 				project_id,
+				group_id,
 				recipient,
 				amount: amount_to_mint,
 			});
@@ -493,6 +494,8 @@ impl<T: Config> Pallet<T> {
 			// emit event
 			Self::deposit_event(Event::CarbonCreditRetired {
 				project_id,
+				group_id,
+				asset_id: group.asset_id,
 				account: from,
 				amount,
 				retire_data: batch_retire_data_list,

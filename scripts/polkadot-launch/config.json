@@ -13,37 +13,25 @@
 				"wsPort": 9955,
 				"port": 30555
 			}
-		],
-		"genesis": {
-			"runtime": {
-				"runtime_genesis_config": {
-					"configuration": {
-						"config": {
-							"validation_upgrade_frequency": 10,
-							"validation_upgrade_delay": 10
-						}
-					}
-				}
-			}
-		}
+		]
 	},
 	"parachains": [
 		{
 			"bin": "../target/release/bitgreen-parachain",
-			"chain" : "dev",
-			"id": "2000",
-			"balance": "1000000000000000000000",
+			"chain": "rococo-local",
 			"nodes": [
 				{
-					"wsPort": 9988,
-					"port": 31200,
+					"wsPort": 9946,
 					"name": "alice",
-					"flags": ["--", "--execution=wasm"]
+					"port": 31200,
+					"flags": [
+						"--",
+						"--execution=wasm"
+					]
 				}
 			]
 		}
 	],
-	"types": {},
-	"finalization": false,
-	"simpleParachains": []
+	"types": {
+	}
 }
