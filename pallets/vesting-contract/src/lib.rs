@@ -119,6 +119,12 @@ pub mod pallet {
 	pub type BulkContractRemove<T> =
 		BoundedVec<<T as frame_system::Config>::AccountId, <T as Config>::MaxContractInputLength>;
 
+	/// AuthorizedAccounts type of pallet
+	pub type AuthorizedAccountsListOf<T> = BoundedVec<
+		<T as frame_system::Config>::AccountId,
+		<T as pallet::Config>::MaxAuthorizedAccountCount,
+	>;
+
 	/// Pallet version of balance
 	pub type BalanceOf<T> =
 		<<T as Config>::Currency as Currency<<T as frame_system::Config>::AccountId>>::Balance;
@@ -142,6 +148,9 @@ pub mod pallet {
 		#[pallet::constant]
 		type PalletId: Get<PalletId>;
 
+		/// Maximum amount of authorised accounts permitted
+		type MaxAuthorizedAccountCount: Get<u32>;
+
 		/// Weight information for extrinsics in this pallet.
 		type WeightInfo: WeightInfo;
 	}
@@ -162,6 +171,12 @@ pub mod pallet {
 	// Ideally this should be equal to the pallet account balance.
 	pub type VestingBalance<T: Config> = StorageValue<_, BalanceOf<T>, ValueQuery>;
 
+	#[pallet::storage]
+	#[pallet::getter(fn authorized_accounts)]
+	// List of AuthorizedAccounts for the pallet
+	pub type AuthorizedAccounts<T: Config> =
+		StorageValue<_, AuthorizedAccountsListOf<T>, ValueQuery>;
+
 	// Pallets use events to inform users when important changes are made.
 	// https://docs.substrate.io/v3/runtime/events-and-errors
 	#[pallet::event]
@@ -173,6 +188,10 @@ pub mod pallet {
 		ContractRemoved { recipient: T::AccountId },
 		/// An existing contract has been completed/withdrawn
 		ContractWithdrawn { recipient: T::AccountId, expiry: T::BlockNumber, amount: BalanceOf<T> },
+		/// A new authorized account has been added to storage
+		AuthorizedAccountAdded { account_id: T::AccountId },
+		/// An authorized account has been removed from storage
+		AuthorizedAccountRemoved { account_id: T::AccountId },
 	}
 
 	// Errors inform users that something went wrong.
@@ -190,6 +209,12 @@ pub mod pallet {
 		ContractNotExpired,
 		/// Contract already exists, remove old contract before adding new
 		ContractAlreadyExists,
+		/// Not authorized to perform this operation
+		NotAuthorised,
+		/// Authorized account already exists
+		AuthorizedAccountAlreadyExists,
+		/// Too many authorized accounts
+		TooManyAuthorizedAccounts,
 	}
 
 	#[pallet::call]
@@ -208,7 +233,8 @@ pub mod pallet {
 			amount: BalanceOf<T>,
 		) -> DispatchResultWithPostInfo {
 			// ensure caller is allowed to add new recipient
-			T::ForceOrigin::ensure_origin(origin)?;
+			let sender = ensure_signed(origin)?;
+			Self::check_authorized_account(&sender)?;
 			Self::do_add_new_contract(recipient, expiry, amount)?;
 			Ok(().into())
 		}
@@ -221,7 +247,8 @@ pub mod pallet {
 			recipient: T::AccountId,
 		) -> DispatchResultWithPostInfo {
 			// ensure caller is allowed to remove recipient
-			T::ForceOrigin::ensure_origin(origin)?;
+			let sender = ensure_signed(origin)?;
+			Self::check_authorized_account(&sender)?;
 			Self::do_remove_contract(recipient)?;
 			Ok(().into())
 		}
@@ -235,7 +262,8 @@ pub mod pallet {
 			recipients: BulkContractInputs<T>,
 		) -> DispatchResultWithPostInfo {
 			// ensure caller is allowed to add new recipient
-			T::ForceOrigin::ensure_origin(origin)?;
+			let sender = ensure_signed(origin)?;
+			Self::check_authorized_account(&sender)?;
 			for input in recipients {
 				Self::do_add_new_contract(input.recipient, input.expiry, input.amount)?;
 			}
@@ -251,7 +279,8 @@ pub mod pallet {
 			recipients: BulkContractRemove<T>,
 		) -> DispatchResultWithPostInfo {
 			// ensure caller is allowed to remove recipients
-			T::ForceOrigin::ensure_origin(origin)?;
+			let sender = ensure_signed(origin)?;
+			Self::check_authorized_account(&sender)?;
 			for recipient in recipients {
 				Self::do_remove_contract(recipient)?;
 			}
@@ -286,9 +315,67 @@ pub mod pallet {
 			recipient: T::AccountId,
 		) -> DispatchResultWithPostInfo {
 			// ensure caller is allowed to force withdraw
-			T::ForceOrigin::ensure_origin(origin)?;
+			let sender = ensure_signed(origin)?;
+			Self::check_authorized_account(&sender)?;
 			Self::do_withdraw_vested(recipient)?;
 			Ok(().into())
+		}
+
+		/// Add a new account to the list of authorised Accounts
+		/// The caller must be from a permitted origin
+		#[transactional]
+		#[pallet::weight(T::WeightInfo::force_withdraw_vested())]
+		pub fn force_add_authorized_account(
+			origin: OriginFor<T>,
+			account_id: T::AccountId,
+		) -> DispatchResult {
+			T::ForceOrigin::ensure_origin(origin)?;
+			// add the account_id to the list of authorized accounts
+			AuthorizedAccounts::<T>::try_mutate(|account_list| -> DispatchResult {
+				ensure!(
+					!account_list.contains(&account_id),
+					Error::<T>::AuthorizedAccountAlreadyExists
+				);
+
+				account_list
+					.try_push(account_id.clone())
+					.map_err(|_| Error::<T>::TooManyAuthorizedAccounts)?;
+				Ok(())
+			})?;
+
+			Self::deposit_event(Event::AuthorizedAccountAdded { account_id });
+			Ok(())
+		}
+
+		/// Remove an account from the list of authorised accounts
+		#[transactional]
+		#[pallet::weight(T::WeightInfo::force_withdraw_vested())]
+		pub fn force_remove_authorized_account(
+			origin: OriginFor<T>,
+			account_id: T::AccountId,
+		) -> DispatchResult {
+			T::ForceOrigin::ensure_origin(origin)?;
+			// remove the account_id from the list of authorized accounts if already exists
+			AuthorizedAccounts::<T>::try_mutate(|account_list| -> DispatchResult {
+				if let Ok(index) = account_list.binary_search(&account_id) {
+					account_list.swap_remove(index);
+					Self::deposit_event(Event::AuthorizedAccountRemoved { account_id });
+				}
+
+				Ok(())
+			})
+		}
+	}
+}
+
+impl<T: Config> Pallet<T> {
+	/// Checks if the given account_id is part of authorized account list
+	pub fn check_authorized_account(account_id: &T::AccountId) -> DispatchResult {
+		let authorized_accounts = AuthorizedAccounts::<T>::get();
+		if !authorized_accounts.contains(account_id) {
+			Err(Error::<T>::NotAuthorised.into())
+		} else {
+			Ok(())
 		}
 	}
 }

@@ -657,6 +657,7 @@ impl pallet_vesting_contract::Config for Runtime {
 	type ForceOrigin = EnsureRoot<AccountId>;
 	type MaxContractInputLength = MaxContractInputLength;
 	type PalletId = VestingContractPalletId;
+	type MaxAuthorizedAccountCount = MaxAuthorizedAccountCount;
 	type WeightInfo = ();
 }
 
