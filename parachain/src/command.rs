@@ -1,7 +1,7 @@
 #![allow(clippy::all)]
 use std::net::SocketAddr;
 
-use bitgreen_runtime::{Block, RuntimeApi};
+use bitgreen_rococo_runtime::{Block, RuntimeApi};
 use codec::Encode;
 use cumulus_client_cli::generate_genesis_block;
 use cumulus_primitives_core::ParaId;
@@ -71,7 +71,7 @@ impl SubstrateCli for Cli {
 	}
 
 	fn native_runtime_version(_: &Box<dyn ChainSpec>) -> &'static RuntimeVersion {
-		&bitgreen_runtime::VERSION
+		&bitgreen_rococo_runtime::VERSION
 	}
 }
 
