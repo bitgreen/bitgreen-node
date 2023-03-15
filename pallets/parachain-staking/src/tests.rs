@@ -800,7 +800,7 @@ fn delegator_payout_works_for_invulnerables() {
 
 		let collator = CandidateInfoOf::<Test> {
 			who: invulnerable_collator,
-			deposit: 0 + 15, // initial bond of 0 + 10% of reward (150)
+			deposit: 15, // initial bond of 0 + 10% of reward (150)
 			delegators: vec![
 				// initial bond of 10 + 90% of reward (150) divided equally to two delegators
 				DelegationInfoOf::<Test> { who: 3u64, deposit: 10 + 67 }, /* initial bond of 10

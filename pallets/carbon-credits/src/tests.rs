@@ -1480,7 +1480,7 @@ fn update_works() {
 		creation_params.batch_groups = vec![BatchGroupOf::<Test> {
 			name: "batch_group_name".as_bytes().to_vec().try_into().unwrap(),
 			uuid: "batch_group_uuid".as_bytes().to_vec().try_into().unwrap(),
-			asset_id: 0_u32.into(),
+			asset_id: 0_u32,
 			total_supply: 100_u32.into(),
 			minted: 10_000_u32.into(),
 			retired: 0_u32.into(),

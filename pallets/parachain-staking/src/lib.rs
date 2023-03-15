@@ -711,10 +711,10 @@ pub mod pallet {
 			match Candidates::<T>::get().into_iter().find(|c| c.who == who) {
 				Some(candidate) => Some((candidate, false)),
 				// also search in invulnerable list if not found
-				None => match Invulnerables::<T>::get().into_iter().find(|c| c.who == who) {
-					Some(candidate) => Some((candidate, true)),
-					None => None,
-				},
+				None => Invulnerables::<T>::get()
+					.into_iter()
+					.find(|c| c.who == who)
+					.map(|candidate| (candidate, true)),
 			}
 		}
 
@@ -861,7 +861,7 @@ pub mod pallet {
 					// });
 				}
 
-				let _ = Self::update_candidate(candidate.clone(), is_invulnerable);
+				let _ = Self::update_candidate(candidate, is_invulnerable);
 			}
 
 			<LastAuthoredBlock<T>>::insert(author, frame_system::Pallet::<T>::block_number());

@@ -583,7 +583,7 @@ pub mod pallet {
 		/// Modify the details of an approved project
 		/// Can only be called by the ProjectOwner
 		#[transactional]
-		#[pallet::weight(T::WeightInfo::resubmit_project())]
+		#[pallet::weight(T::WeightInfo::create())]
 		pub fn update_project_details(
 			origin: OriginFor<T>,
 			project_id: T::ProjectId,
