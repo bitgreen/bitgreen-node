@@ -291,6 +291,52 @@ impl<T: Config> Pallet<T> {
 		})
 	}
 
+	/// Update a project that has already been approved, this function only allows the owner to
+	/// update certain fields of the project description, once approved the project cannot modify
+	/// the batch groups data.
+	pub fn update_project(
+		admin: T::AccountId,
+		project_id: T::ProjectId,
+		params: ProjectCreateParams<T>,
+	) -> DispatchResult {
+		let now = frame_system::Pallet::<T>::block_number();
+
+		Projects::<T>::try_mutate(project_id, |project| -> DispatchResult {
+			let project = project.as_mut().ok_or(Error::<T>::ProjectNotFound)?;
+
+			// non approved project needs to be resubmitted
+			ensure!(project.approved, Error::<T>::CannotUpdateUnapprovedProject);
+
+			// only originator can resubmit
+			ensure!(project.originator == admin, Error::<T>::NotAuthorised);
+
+			let new_project = ProjectDetail {
+				originator: admin,
+				name: params.name,
+				description: params.description,
+				location: params.location,
+				images: params.images,
+				videos: params.videos,
+				documents: params.documents,
+				registry_details: params.registry_details,
+				sdg_details: params.sdg_details,
+				royalties: params.royalties,
+				// we don't allow editing of the project batch data
+				batch_groups: project.batch_groups.clone(),
+				created: project.created,
+				updated: Some(now),
+				approved: project.approved,
+			};
+
+			*project = new_project;
+
+			// emit event
+			Self::deposit_event(Event::ProjectUpdated { project_id });
+
+			Ok(())
+		})
+	}
+
 	pub fn mint_carbon_credits(
 		_sender: T::AccountId,
 		project_id: T::ProjectId,

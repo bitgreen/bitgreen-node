@@ -301,6 +301,11 @@ pub mod pallet {
 			/// Details of the retired token
 			retire_data: BatchRetireDataList<T>,
 		},
+		/// A project details has been updated
+		ProjectUpdated {
+			/// The ProjectId of the updated project
+			project_id: T::ProjectId,
+		},
 	}
 
 	// Errors inform users that something went wrong.
@@ -340,6 +345,8 @@ pub mod pallet {
 		TooManyGroups,
 		/// the group does not exist
 		GroupNotFound,
+		/// Can only update an approved project, use resubmit for rejected projects
+		CannotUpdateUnapprovedProject,
 	}
 
 	#[pallet::call]
@@ -571,6 +578,20 @@ pub mod pallet {
 			// remove project from storage
 			Projects::<T>::take(project_id);
 			Ok(())
+		}
+
+		/// Modify the details of an approved project
+		/// Can only be called by the ProjectOwner
+		#[transactional]
+		#[pallet::weight(T::WeightInfo::create())]
+		pub fn update_project_details(
+			origin: OriginFor<T>,
+			project_id: T::ProjectId,
+			params: ProjectCreateParams<T>,
+		) -> DispatchResult {
+			let sender = ensure_signed(origin)?;
+			Self::check_kyc_approval(&sender)?;
+			Self::update_project(sender, project_id, params)
 		}
 	}
 }
