@@ -99,6 +99,7 @@ pallet-carbon-credits-pool = { default-features = false, version = '0.0.1', path
 pallet-parachain-staking = { default-features = false, version = '0.0.1', path = "../../pallets/parachain-staking" }
 pallet-transaction-pause = { default-features = false, version = '0.0.1', path = "../../pallets/transaction-pause" }
 pallet-vesting-contract = { default-features = false, version = '0.0.1', path = "../../pallets/vesting-contract" }
+pallet-kyc = { default-features = false, version = '0.0.1', path = "../../pallets/kyc" }
 pallet-dex = { default-features = false, path = "../../pallets/dex" }
 primitives = { package = "bitgreen-primitives", path = "../../primitives", default-features = false }
 
@@ -154,6 +155,7 @@ std = [
   "xcm/std",
   "pallet-uniques/std",
   "pallet-membership/std",
+  "pallet-kyc/std",
   "pallet-treasury/std",
   "pallet-contracts/std",
   "pallet-contracts-primitives/std",
