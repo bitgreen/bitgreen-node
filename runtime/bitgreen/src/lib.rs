@@ -502,10 +502,6 @@ impl pallet_kyc::Config for Runtime {
 	type MaxMembers = ConstU32<100_000>;
 	type MembershipChanged = ();
 	type MembershipInitialized = ();
-	type PrimeOrigin = EnsureRoot<AccountId>;
-	type RemoveOrigin = EnsureRoot<AccountId>;
-	type ResetOrigin = EnsureRoot<AccountId>;
-	type SwapOrigin = EnsureRoot<AccountId>;
 	type MaxAuthorizedAccountCount = ConstU32<100>;
 	type WeightInfo = ();
 }

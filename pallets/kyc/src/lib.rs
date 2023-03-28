@@ -21,8 +21,6 @@ pub mod weights;
 pub use pallet::*;
 pub use weights::WeightInfo;
 
-const LOG_TARGET: &str = "runtime::membership";
-
 type AccountIdLookupOf<T> = <<T as frame_system::Config>::Lookup as StaticLookup>::Source;
 
 #[frame_support::pallet]
@@ -46,18 +44,6 @@ pub mod pallet {
 
 		/// Required origin for adding a member (though can always be Root).
 		type AddOrigin: EnsureOrigin<Self::RuntimeOrigin>;
-
-		/// Required origin for removing a member (though can always be Root).
-		type RemoveOrigin: EnsureOrigin<Self::RuntimeOrigin>;
-
-		/// Required origin for adding and removing a member in a single action.
-		type SwapOrigin: EnsureOrigin<Self::RuntimeOrigin>;
-
-		/// Required origin for resetting membership.
-		type ResetOrigin: EnsureOrigin<Self::RuntimeOrigin>;
-
-		/// Required origin for setting or resetting the prime member.
-		type PrimeOrigin: EnsureOrigin<Self::RuntimeOrigin>;
 
 		/// The receiver of the signal for when the membership has been initialized. This happens
 		/// pre-genesis and will usually be the same as `MembershipChanged`. If you need to do
@@ -92,11 +78,6 @@ pub mod pallet {
 	// List of AuthorizedAccounts for the pallet
 	pub type AuthorizedAccounts<T: Config<I>, I: 'static = ()> =
 		StorageValue<_, BoundedVec<T::AccountId, T::MaxAuthorizedAccountCount>, ValueQuery>;
-
-	/// The current prime member, if one exists.
-	#[pallet::storage]
-	#[pallet::getter(fn prime)]
-	pub type Prime<T: Config<I>, I: 'static = ()> = StorageValue<_, T::AccountId, OptionQuery>;
 
 	#[pallet::genesis_config]
 	pub struct GenesisConfig<T: Config<I>, I: 'static = ()> {
@@ -162,6 +143,8 @@ pub mod pallet {
 		TooManyAuthorizedAccounts,
 		/// Cannot add a duplicate authorised account
 		AuthorizedAccountAlreadyExists,
+		/// No authorization account
+		NotAuthorised,
 	}
 
 	#[pallet::call]
@@ -172,7 +155,8 @@ pub mod pallet {
 		#[pallet::call_index(0)]
 		#[pallet::weight(50_000_000)]
 		pub fn add_member(origin: OriginFor<T>, who: AccountIdLookupOf<T>) -> DispatchResult {
-			T::AddOrigin::ensure_origin(origin)?;
+			let sender = ensure_signed(origin)?;
+			Self::check_authorized_account(&sender)?;
 			let who = T::Lookup::lookup(who)?;
 
 			let mut members = <Members<T, I>>::get();
@@ -195,7 +179,9 @@ pub mod pallet {
 		#[pallet::call_index(1)]
 		#[pallet::weight(50_000_000)]
 		pub fn remove_member(origin: OriginFor<T>, who: AccountIdLookupOf<T>) -> DispatchResult {
-			T::RemoveOrigin::ensure_origin(origin)?;
+			let sender = ensure_signed(origin)?;
+			Self::check_authorized_account(&sender)?;
+
 			let who = T::Lookup::lookup(who)?;
 
 			let mut members = <Members<T, I>>::get();
@@ -205,7 +191,6 @@ pub mod pallet {
 			<Members<T, I>>::put(&members);
 
 			T::MembershipChanged::change_members_sorted(&[], &[who], &members[..]);
-			Self::rejig_prime(&members);
 
 			Self::deposit_event(Event::MemberRemoved);
 			Ok(())
@@ -223,7 +208,9 @@ pub mod pallet {
 			remove: AccountIdLookupOf<T>,
 			add: AccountIdLookupOf<T>,
 		) -> DispatchResult {
-			T::SwapOrigin::ensure_origin(origin)?;
+			let sender = ensure_signed(origin)?;
+			Self::check_authorized_account(&sender)?;
+
 			let remove = T::Lookup::lookup(remove)?;
 			let add = T::Lookup::lookup(add)?;
 
@@ -240,7 +227,6 @@ pub mod pallet {
 			<Members<T, I>>::put(&members);
 
 			T::MembershipChanged::change_members_sorted(&[add], &[remove], &members[..]);
-			Self::rejig_prime(&members);
 
 			Self::deposit_event(Event::MembersSwapped);
 			Ok(())
@@ -253,14 +239,14 @@ pub mod pallet {
 		#[pallet::call_index(3)]
 		#[pallet::weight(50_000_000)]
 		pub fn reset_members(origin: OriginFor<T>, members: Vec<T::AccountId>) -> DispatchResult {
-			T::ResetOrigin::ensure_origin(origin)?;
+			let sender = ensure_signed(origin)?;
+			Self::check_authorized_account(&sender)?;
 
 			let mut members: BoundedVec<T::AccountId, T::MaxMembers> =
 				BoundedVec::try_from(members).map_err(|_| Error::<T, I>::TooManyMembers)?;
 			members.sort();
 			<Members<T, I>>::mutate(|m| {
 				T::MembershipChanged::set_members_sorted(&members[..], m);
-				Self::rejig_prime(&members);
 				*m = members;
 			});
 
@@ -294,46 +280,15 @@ pub mod pallet {
 					&[remove.clone()],
 					&members[..],
 				);
-
-				if Prime::<T, I>::get() == Some(remove) {
-					Prime::<T, I>::put(&new);
-					T::MembershipChanged::set_prime(Some(new));
-				}
 			}
 
 			Self::deposit_event(Event::KeyChanged);
 			Ok(())
 		}
 
-		/// Set the prime member. Must be a current member.
-		///
-		/// May only be called from `T::PrimeOrigin`.
-		#[pallet::call_index(5)]
-		#[pallet::weight(50_000_000)]
-		pub fn set_prime(origin: OriginFor<T>, who: AccountIdLookupOf<T>) -> DispatchResult {
-			T::PrimeOrigin::ensure_origin(origin)?;
-			let who = T::Lookup::lookup(who)?;
-			Self::members().binary_search(&who).ok().ok_or(Error::<T, I>::NotMember)?;
-			Prime::<T, I>::put(&who);
-			T::MembershipChanged::set_prime(Some(who));
-			Ok(())
-		}
-
-		/// Remove the prime member if it exists.
-		///
-		/// May only be called from `T::PrimeOrigin`.
-		#[pallet::call_index(6)]
-		#[pallet::weight(50_000_000)]
-		pub fn clear_prime(origin: OriginFor<T>) -> DispatchResult {
-			T::PrimeOrigin::ensure_origin(origin)?;
-			Prime::<T, I>::kill();
-			T::MembershipChanged::set_prime(None);
-			Ok(())
-		}
-
 		/// Add a new account to the list of authorised Accounts
 		/// The caller must be from a permitted origin
-		#[pallet::call_index(7)]
+		#[pallet::call_index(5)]
 		#[pallet::weight(50_000_000)]
 		pub fn force_add_authorized_account(
 			origin: OriginFor<T>,
@@ -358,7 +313,7 @@ pub mod pallet {
 		}
 
 		/// Remove an account from the list of authorised accounts
-		#[pallet::call_index(8)]
+		#[pallet::call_index(6)]
 		#[pallet::weight(50_000_000)]
 		pub fn force_remove_authorized_account(
 			origin: OriginFor<T>,
@@ -379,12 +334,15 @@ pub mod pallet {
 }
 
 impl<T: Config<I>, I: 'static> Pallet<T, I> {
-	fn rejig_prime(members: &[T::AccountId]) {
-		if let Some(prime) = Prime::<T, I>::get() {
-			match members.binary_search(&prime) {
-				Ok(_) => T::MembershipChanged::set_prime(Some(prime)),
-				Err(_) => Prime::<T, I>::kill(),
-			}
+	/// Checks if the given account_id is part of authorized account list
+	pub fn check_authorized_account(
+		account_id: &T::AccountId,
+	) -> frame_support::pallet_prelude::DispatchResult {
+		let authorized_accounts = AuthorizedAccounts::<T, I>::get();
+		if !authorized_accounts.contains(account_id) {
+			Err(Error::<T, I>::NotAuthorised.into())
+		} else {
+			Ok(())
 		}
 	}
 }
@@ -574,18 +532,18 @@ mod benchmark {
 mod tests {
 	use super::*;
 	use crate as pallet_membership;
+	use frame_system::RawOrigin;
 
 	use sp_core::H256;
 	use sp_runtime::{
 		testing::Header,
-		traits::{BadOrigin, BlakeTwo256, IdentityLookup},
+		traits::{BlakeTwo256, IdentityLookup},
 	};
 
 	use frame_support::{
 		assert_noop, assert_ok, bounded_vec, ord_parameter_types, parameter_types,
-		traits::{ConstU32, ConstU64, GenesisBuild, StorageVersion},
+		traits::{ConstU32, ConstU64, GenesisBuild},
 	};
-	use frame_system::EnsureSignedBy;
 
 	type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
 	type Block = frame_system::mocking::MockBlock<Test>;
@@ -670,11 +628,7 @@ mod tests {
 
 	impl Config for Test {
 		type RuntimeEvent = RuntimeEvent;
-		type AddOrigin = EnsureSignedBy<One, u64>;
-		type RemoveOrigin = EnsureSignedBy<Two, u64>;
-		type SwapOrigin = EnsureSignedBy<Three, u64>;
-		type ResetOrigin = EnsureSignedBy<Four, u64>;
-		type PrimeOrigin = EnsureSignedBy<Five, u64>;
+		type AddOrigin = frame_system::EnsureRoot<u64>;
 		type MembershipInitialized = TestChangeMembers;
 		type MembershipChanged = TestChangeMembers;
 		type MaxMembers = ConstU32<10>;
@@ -714,32 +668,22 @@ mod tests {
 	}
 
 	#[test]
-	fn prime_member_works() {
-		new_test_ext().execute_with(|| {
-			assert_noop!(Membership::set_prime(RuntimeOrigin::signed(4), 20), BadOrigin);
-			assert_noop!(
-				Membership::set_prime(RuntimeOrigin::signed(5), 15),
-				Error::<Test, _>::NotMember
-			);
-			assert_ok!(Membership::set_prime(RuntimeOrigin::signed(5), 20));
-			assert_eq!(Membership::prime(), Some(20));
-			assert_eq!(PRIME.with(|m| *m.borrow()), Membership::prime());
-
-			assert_ok!(Membership::clear_prime(RuntimeOrigin::signed(5)));
-			assert_eq!(Membership::prime(), None);
-			assert_eq!(PRIME.with(|m| *m.borrow()), Membership::prime());
-		});
-	}
-
-	#[test]
 	fn add_member_works() {
 		new_test_ext().execute_with(|| {
-			assert_noop!(Membership::add_member(RuntimeOrigin::signed(5), 15), BadOrigin);
+			let authorised_account = 1;
+			assert_ok!(Membership::force_add_authorized_account(
+				RawOrigin::Root.into(),
+				authorised_account,
+			));
 			assert_noop!(
-				Membership::add_member(RuntimeOrigin::signed(1), 10),
+				Membership::add_member(RuntimeOrigin::signed(5), 15),
+				crate::Error::<Test, _>::NotAuthorised
+			);
+			assert_noop!(
+				Membership::add_member(RuntimeOrigin::signed(authorised_account), 10),
 				Error::<Test, _>::AlreadyMember
 			);
-			assert_ok!(Membership::add_member(RuntimeOrigin::signed(1), 15));
+			assert_ok!(Membership::add_member(RuntimeOrigin::signed(authorised_account), 15));
 			assert_eq!(Membership::members(), vec![10, 15, 20, 30]);
 			assert_eq!(MEMBERS.with(|m| m.borrow().clone()), Membership::members().to_vec());
 		});
@@ -748,52 +692,64 @@ mod tests {
 	#[test]
 	fn remove_member_works() {
 		new_test_ext().execute_with(|| {
-			assert_noop!(Membership::remove_member(RuntimeOrigin::signed(5), 20), BadOrigin);
+			let authorised_account = 1;
+			assert_ok!(Membership::force_add_authorized_account(
+				RawOrigin::Root.into(),
+				authorised_account,
+			));
 			assert_noop!(
-				Membership::remove_member(RuntimeOrigin::signed(2), 15),
+				Membership::remove_member(RuntimeOrigin::signed(5), 20),
+				Error::<Test, _>::NotAuthorised
+			);
+			assert_noop!(
+				Membership::remove_member(RuntimeOrigin::signed(authorised_account), 15),
 				Error::<Test, _>::NotMember
 			);
-			assert_ok!(Membership::set_prime(RuntimeOrigin::signed(5), 20));
-			assert_ok!(Membership::remove_member(RuntimeOrigin::signed(2), 20));
+			assert_ok!(Membership::remove_member(RuntimeOrigin::signed(authorised_account), 20));
 			assert_eq!(Membership::members(), vec![10, 30]);
 			assert_eq!(MEMBERS.with(|m| m.borrow().clone()), Membership::members().to_vec());
-			assert_eq!(Membership::prime(), None);
-			assert_eq!(PRIME.with(|m| *m.borrow()), Membership::prime());
 		});
 	}
 
 	#[test]
 	fn swap_member_works() {
 		new_test_ext().execute_with(|| {
-			assert_noop!(Membership::swap_member(RuntimeOrigin::signed(5), 10, 25), BadOrigin);
+			let authorised_account = 1;
+			assert_ok!(Membership::force_add_authorized_account(
+				RawOrigin::Root.into(),
+				authorised_account,
+			));
 			assert_noop!(
-				Membership::swap_member(RuntimeOrigin::signed(3), 15, 25),
+				Membership::swap_member(RuntimeOrigin::signed(5), 10, 25),
+				Error::<Test, _>::NotAuthorised
+			);
+			assert_noop!(
+				Membership::swap_member(RuntimeOrigin::signed(authorised_account), 15, 25),
 				Error::<Test, _>::NotMember
 			);
 			assert_noop!(
-				Membership::swap_member(RuntimeOrigin::signed(3), 10, 30),
+				Membership::swap_member(RuntimeOrigin::signed(authorised_account), 10, 30),
 				Error::<Test, _>::AlreadyMember
 			);
 
-			assert_ok!(Membership::set_prime(RuntimeOrigin::signed(5), 20));
-			assert_ok!(Membership::swap_member(RuntimeOrigin::signed(3), 20, 20));
+			assert_ok!(Membership::swap_member(RuntimeOrigin::signed(authorised_account), 20, 20));
 			assert_eq!(Membership::members(), vec![10, 20, 30]);
-			assert_eq!(Membership::prime(), Some(20));
-			assert_eq!(PRIME.with(|m| *m.borrow()), Membership::prime());
 
-			assert_ok!(Membership::set_prime(RuntimeOrigin::signed(5), 10));
-			assert_ok!(Membership::swap_member(RuntimeOrigin::signed(3), 10, 25));
+			assert_ok!(Membership::swap_member(RuntimeOrigin::signed(authorised_account), 10, 25));
 			assert_eq!(Membership::members(), vec![20, 25, 30]);
 			assert_eq!(MEMBERS.with(|m| m.borrow().clone()), Membership::members().to_vec());
-			assert_eq!(Membership::prime(), None);
-			assert_eq!(PRIME.with(|m| *m.borrow()), Membership::prime());
 		});
 	}
 
 	#[test]
 	fn swap_member_works_that_does_not_change_order() {
 		new_test_ext().execute_with(|| {
-			assert_ok!(Membership::swap_member(RuntimeOrigin::signed(3), 10, 5));
+			let authorised_account = 1;
+			assert_ok!(Membership::force_add_authorized_account(
+				RawOrigin::Root.into(),
+				authorised_account,
+			));
+			assert_ok!(Membership::swap_member(RuntimeOrigin::signed(authorised_account), 10, 5));
 			assert_eq!(Membership::members(), vec![5, 20, 30]);
 			assert_eq!(MEMBERS.with(|m| m.borrow().clone()), Membership::members().to_vec());
 		});
@@ -802,7 +758,11 @@ mod tests {
 	#[test]
 	fn change_key_works() {
 		new_test_ext().execute_with(|| {
-			assert_ok!(Membership::set_prime(RuntimeOrigin::signed(5), 10));
+			let authorised_account = 1;
+			assert_ok!(Membership::force_add_authorized_account(
+				RawOrigin::Root.into(),
+				authorised_account,
+			));
 			assert_noop!(
 				Membership::change_key(RuntimeOrigin::signed(3), 25),
 				Error::<Test, _>::NotMember
@@ -814,8 +774,6 @@ mod tests {
 			assert_ok!(Membership::change_key(RuntimeOrigin::signed(10), 40));
 			assert_eq!(Membership::members(), vec![20, 30, 40]);
 			assert_eq!(MEMBERS.with(|m| m.borrow().clone()), Membership::members().to_vec());
-			assert_eq!(Membership::prime(), Some(40));
-			assert_eq!(PRIME.with(|m| *m.borrow()), Membership::prime());
 		});
 	}
 
@@ -825,29 +783,6 @@ mod tests {
 			assert_ok!(Membership::change_key(RuntimeOrigin::signed(10), 5));
 			assert_eq!(Membership::members(), vec![5, 20, 30]);
 			assert_eq!(MEMBERS.with(|m| m.borrow().clone()), Membership::members().to_vec());
-		});
-	}
-
-	#[test]
-	fn reset_members_works() {
-		new_test_ext().execute_with(|| {
-			assert_ok!(Membership::set_prime(RuntimeOrigin::signed(5), 20));
-			assert_noop!(
-				Membership::reset_members(RuntimeOrigin::signed(1), bounded_vec![20, 40, 30]),
-				BadOrigin
-			);
-
-			assert_ok!(Membership::reset_members(RuntimeOrigin::signed(4), vec![20, 40, 30]));
-			assert_eq!(Membership::members(), vec![20, 30, 40]);
-			assert_eq!(MEMBERS.with(|m| m.borrow().clone()), Membership::members().to_vec());
-			assert_eq!(Membership::prime(), Some(20));
-			assert_eq!(PRIME.with(|m| *m.borrow()), Membership::prime());
-
-			assert_ok!(Membership::reset_members(RuntimeOrigin::signed(4), vec![10, 40, 30]));
-			assert_eq!(Membership::members(), vec![10, 30, 40]);
-			assert_eq!(MEMBERS.with(|m| m.borrow().clone()), Membership::members().to_vec());
-			assert_eq!(Membership::prime(), None);
-			assert_eq!(PRIME.with(|m| *m.borrow()), Membership::prime());
 		});
 	}
 
