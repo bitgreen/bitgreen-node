@@ -1513,3 +1513,86 @@ fn update_works() {
 		assert_eq!(last_event(), CarbonCreditsEvent::ProjectUpdated { project_id }.into());
 	});
 }
+
+#[test]
+fn add_batch_group_works() {
+	new_test_ext().execute_with(|| {
+		let originator_account = 1;
+		let authorised_account = 10;
+		let project_id = 0;
+
+		let mut creation_params = get_default_creation_params::<Test>();
+		// replace the default with mutiple batches
+		creation_params.batch_groups = get_multiple_batch_group::<Test>();
+
+		assert_ok!(CarbonCredits::create(
+			RawOrigin::Signed(originator_account).into(),
+			creation_params.clone()
+		));
+
+		// ensure the storage is populated correctly
+		let stored_data = Projects::<Test>::get(project_id).unwrap();
+		assert_eq!(stored_data.originator, originator_account);
+		assert_eq!(stored_data.name, creation_params.name);
+		assert_eq!(stored_data.registry_details, get_default_registry_details::<Test>());
+		assert!(!stored_data.approved);
+
+		let group_data = stored_data.batch_groups.get(&0u32).unwrap();
+		assert_eq!(stored_data.sdg_details, get_default_sdg_details::<Test>());
+		assert_eq!(group_data.batches, get_multiple_batch_list::<Test>());
+		assert_eq!(group_data.total_supply, 200_u32.into());
+		assert_eq!(group_data.minted, 0_u32.into());
+		assert_eq!(group_data.retired, 0_u32.into());
+
+		assert_eq!(last_event(), CarbonCreditsEvent::ProjectCreated { project_id }.into());
+
+		// authorise the account
+		assert_ok!(CarbonCredits::force_add_authorized_account(
+			RawOrigin::Root.into(),
+			authorised_account
+		));
+		assert_ok!(CarbonCredits::approve_project(
+			RawOrigin::Signed(authorised_account).into(),
+			project_id,
+			true
+		),);
+
+		// add a new batch group to the project
+		let new_batch = BatchGroupOf::<Test> {
+			name: "new_batch_group_name".as_bytes().to_vec().try_into().unwrap(),
+			uuid: "new_batch_group_uuid".as_bytes().to_vec().try_into().unwrap(),
+			asset_id: 0_u32,
+			total_supply: 200_u32.into(),
+			minted: 0_u32.into(),
+			retired: 0_u32.into(),
+			batches: get_multiple_batch_list::<Test>(),
+		};
+
+		assert_ok!(CarbonCredits::add_batch_group(
+			RawOrigin::Signed(originator_account).into(),
+			project_id,
+			new_batch.clone()
+		));
+
+		// ensure the storage is populated correctly
+		let stored_data = Projects::<Test>::get(project_id).unwrap();
+		assert_eq!(stored_data.originator, originator_account);
+		assert_eq!(stored_data.name, creation_params.name);
+		assert_eq!(stored_data.registry_details, get_default_registry_details::<Test>());
+		assert_eq!(stored_data.batch_groups.len(), 2);
+
+		let group_data = stored_data.batch_groups.get(&0u32).unwrap();
+		assert_eq!(group_data.batches, get_multiple_batch_list::<Test>());
+		assert_eq!(group_data.total_supply, 200_u32.into());
+		assert_eq!(group_data.minted, 0_u32.into());
+		assert_eq!(group_data.retired, 0_u32.into());
+
+		let group_data = stored_data.batch_groups.get(&1u32).unwrap();
+		assert_eq!(group_data.batches, get_multiple_batch_list::<Test>());
+		assert_eq!(group_data.name, new_batch.name);
+		assert_eq!(group_data.uuid, new_batch.uuid);
+		assert_eq!(group_data.total_supply, 200_u32.into());
+		assert_eq!(group_data.minted, 0_u32.into());
+		assert_eq!(group_data.retired, 0_u32.into());
+	});
+}
