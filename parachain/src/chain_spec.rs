@@ -244,7 +244,7 @@ fn testnet_genesis(
 		polkadot_xcm: bitgreen_rococo_runtime::PolkadotXcmConfig {
 			safe_xcm_version: Some(SAFE_XCM_VERSION),
 		},
-		kyc_membership: bitgreen_rococo_runtime::KYCMembershipConfig {
+		kyc: bitgreen_rococo_runtime::KYCConfig {
 			members: [].to_vec().try_into().unwrap(),
 			phantom: Default::default(),
 		},

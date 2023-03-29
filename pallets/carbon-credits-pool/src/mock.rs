@@ -151,7 +151,6 @@ impl pallet_carbon_credits::Config for Test {
 	type MaxIpfsReferenceLength = ConstU32<20>;
 	type MaxLongStringLength = ConstU32<100>;
 	type MaxRoyaltyRecipients = ConstU32<5>;
-	type MaxCoordinatesLength = ConstU32<100>;
 	type MaxShortStringLength = ConstU32<20>;
 	type MinProjectId = ConstU32<1000>;
 	type NFTHandler = Uniques;

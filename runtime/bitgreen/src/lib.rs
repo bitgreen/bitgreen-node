@@ -178,7 +178,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: create_runtime_str!("bitgreen-parachain"),
 	impl_name: create_runtime_str!("bitgreen-parachain"),
 	authoring_version: 1,
-	spec_version: 1101, // v1.1.1
+	spec_version: 1103, // v1.1.3
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 1,
@@ -496,16 +496,13 @@ impl pallet_assets::Config for Runtime {
 	type WeightInfo = ();
 }
 
-impl pallet_membership::Config for Runtime {
+impl pallet_kyc::Config for Runtime {
 	type AddOrigin = EnsureRoot<AccountId>;
 	type RuntimeEvent = RuntimeEvent;
 	type MaxMembers = ConstU32<100_000>;
 	type MembershipChanged = ();
 	type MembershipInitialized = ();
-	type PrimeOrigin = EnsureRoot<AccountId>;
-	type RemoveOrigin = EnsureRoot<AccountId>;
-	type ResetOrigin = EnsureRoot<AccountId>;
-	type SwapOrigin = EnsureRoot<AccountId>;
+	type MaxAuthorizedAccountCount = ConstU32<100>;
 	type WeightInfo = ();
 }
 
@@ -533,7 +530,7 @@ impl pallet_carbon_credits::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type ForceOrigin = EnsureRoot<AccountId>;
 	type ItemId = u32;
-	type KYCProvider = KYCMembership;
+	type KYCProvider = KYC;
 	type MarketplaceEscrow = MarketplaceEscrowAccount;
 	type MaxAuthorizedAccountCount = MaxAuthorizedAccountCount;
 	type MaxDocumentCount = MaxDocumentCount;
@@ -950,7 +947,6 @@ construct_runtime!(
 		Tokens: orml_tokens::{Pallet, Call, Storage, Event<T>, Config<T>} = 41,
 
 		// Bitgreen pallets
-		KYCMembership: pallet_membership::{Pallet, Call, Storage, Config<T>, Event<T>} = 50,
 		Sudo: pallet_sudo::{Pallet, Call, Storage, Config<T>, Event<T>} = 51,
 		Assets: pallet_assets::{Pallet, Call, Storage, Event<T>} = 52,
 		Uniques: pallet_uniques::{Pallet, Call, Storage, Event<T>} = 53,
@@ -961,6 +957,7 @@ construct_runtime!(
 		Contracts: pallet_contracts::{Pallet, Call, Storage, Event<T>} = 58,
 		Multisig: pallet_multisig::{Pallet, Call, Storage, Event<T>} = 59,
 		Dex: pallet_dex::{Pallet, Call, Storage, Event<T>} = 60,
+		KYC: pallet_kyc::{Pallet, Call, Storage, Config<T>, Event<T>} = 66,
 
 		// Utility pallets
 		Utility: pallet_utility::{Pallet, Call, Event} = 61,
