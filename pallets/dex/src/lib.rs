@@ -42,53 +42,27 @@ mod benchmarking;
 
 mod weights;
 pub use weights::WeightInfo;
-
-#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, Default, MaxEncodedLen, TypeInfo)]
-pub struct OrderInfo<AccountId, AssetId, AssetBalance, TokenBalance> {
-	owner: AccountId,
-	units: AssetBalance,
-	price_per_unit: TokenBalance,
-	asset_id: AssetId,
-}
-
-pub type OrderId = u128;
+mod types;
 
 #[frame_support::pallet]
 pub mod pallet {
-	use crate::{OrderId, OrderInfo, WeightInfo};
+	use crate::{types::*, WeightInfo};
 	use frame_support::{
 		pallet_prelude::*,
-		traits::fungibles::{Inspect, Transfer},
+		traits::{fungibles::Transfer, Contains},
 		transactional, PalletId,
 	};
 	use frame_system::pallet_prelude::{OriginFor, *};
 	use orml_traits::MultiCurrency;
 	use primitives::CarbonCreditsValidator;
 	use sp_runtime::{
-		traits::{AccountIdConversion, AtLeast32BitUnsigned, CheckedSub, One, Zero},
+		traits::{AccountIdConversion, AtLeast32BitUnsigned, CheckedAdd, CheckedSub, One, Zero},
 		Percent,
 	};
 
 	#[pallet::pallet]
 	#[pallet::generate_store(pub(super) trait Store)]
 	pub struct Pallet<T>(_);
-
-	pub type CurrencyBalanceOf<T> =
-		<<T as Config>::Currency as MultiCurrency<<T as frame_system::Config>::AccountId>>::Balance;
-
-	pub type CurrencyIdOf<T> = <<T as Config>::Currency as MultiCurrency<
-		<T as frame_system::Config>::AccountId,
-	>>::CurrencyId;
-
-	pub type AssetBalanceOf<T> =
-		<<T as Config>::Asset as Inspect<<T as frame_system::Config>::AccountId>>::Balance;
-
-	pub type AssetIdOf<T> =
-		<<T as Config>::Asset as Inspect<<T as frame_system::Config>::AccountId>>::AssetId;
-
-	pub type ProjectIdOf<T> = <<T as Config>::AssetValidator as CarbonCreditsValidator>::ProjectId;
-
-	pub type GroupIdOf<T> = <<T as Config>::AssetValidator as CarbonCreditsValidator>::GroupId;
 
 	/// Configure the pallet by specifying the parameters and types on which it depends.
 	#[pallet::config]
@@ -130,10 +104,6 @@ pub mod pallet {
 		/// Verify if the asset can be listed on the dex
 		type AssetValidator: CarbonCreditsValidator<AssetId = AssetIdOf<Self>>;
 
-		/// The CurrencyId of the stable currency we accept as payment
-		#[pallet::constant]
-		type StableCurrencyId: Get<CurrencyIdOf<Self>>;
-
 		/// The minimum units of asset to create a sell order
 		#[pallet::constant]
 		type MinUnitsToCreateSellOrder: Get<AssetBalanceOf<Self>>;
@@ -156,12 +126,29 @@ pub mod pallet {
 
 		/// Weight information for extrinsics in this pallet.
 		type WeightInfo: WeightInfo;
+
+		/// The maximum validators for a payment
+		type MaxValidators: Get<u32> + TypeInfo + Clone;
+
+		/// The maximum length of tx hash that can be stored on chain
+		type MaxTxHashLen: Get<u32> + TypeInfo + Clone;
+
+		/// KYC provider config
+		type KYCProvider: Contains<Self::AccountId>;
+
+		/// The expiry time for buy order
+		type BuyOrderExpiryTime: Get<Self::BlockNumber>;
 	}
 
 	// orders information
 	#[pallet::storage]
 	#[pallet::getter(fn order_count)]
 	pub type OrderCount<T: Config> = StorageValue<_, OrderId, ValueQuery>;
+
+	// orders information
+	#[pallet::storage]
+	#[pallet::getter(fn buy_order_count)]
+	pub type BuyOrderCount<T: Config> = StorageValue<_, BuyOrderId, ValueQuery>;
 
 	// Payment fees charged by dex
 	#[pallet::storage]
@@ -175,12 +162,26 @@ pub mod pallet {
 
 	#[pallet::storage]
 	#[pallet::getter(fn order_info)]
-	pub type Orders<T: Config> = StorageMap<
-		_,
-		Blake2_128Concat,
-		OrderId,
-		OrderInfo<T::AccountId, AssetIdOf<T>, AssetBalanceOf<T>, CurrencyBalanceOf<T>>,
-	>;
+	pub type Orders<T: Config> = StorageMap<_, Blake2_128Concat, OrderId, OrderInfoOf<T>>;
+
+	#[pallet::storage]
+	#[pallet::getter(fn buy_order_info)]
+	pub type BuyOrders<T: Config> = StorageMap<_, Blake2_128Concat, BuyOrderId, BuyOrderInfoOf<T>>;
+
+	#[pallet::storage]
+	#[pallet::getter(fn validator_accounts)]
+	// List of ValidatorAccounts for the pallet
+	pub type ValidatorAccounts<T: Config> = StorageValue<_, ValidatorAccountsListOf<T>, ValueQuery>;
+
+	#[pallet::type_value]
+	pub fn DefaultMinPaymentValidators<T: Config>() -> u32 {
+		2u32
+	}
+	// Min validations required before a payment is accepted
+	#[pallet::storage]
+	#[pallet::getter(fn min_payment_validators)]
+	pub type MinPaymentValidations<T: Config> =
+		StorageValue<_, u32, ValueQuery, DefaultMinPaymentValidators<T>>;
 
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
@@ -198,16 +199,25 @@ pub mod pallet {
 		/// A sell order was cancelled
 		SellOrderCancelled { order_id: OrderId, seller: T::AccountId },
 		/// A buy order was processed successfully
-		BuyOrderFilled {
+		BuyOrderCreated {
 			order_id: OrderId,
 			units: AssetBalanceOf<T>,
 			project_id: ProjectIdOf<T>,
 			group_id: GroupIdOf<T>,
 			price_per_unit: CurrencyBalanceOf<T>,
 			fees_paid: CurrencyBalanceOf<T>,
+			total_amount: CurrencyBalanceOf<T>,
 			seller: T::AccountId,
 			buyer: T::AccountId,
 		},
+		/// A new ValidatorAccount has been added
+		ValidatorAccountAdded { account_id: T::AccountId },
+		/// An ValidatorAccount has been removed
+		ValidatorAccountRemoved { account_id: T::AccountId },
+		/// A buy order payment was validated
+		BuyOrderPaymentValidated { order_id: BuyOrderId, chain_id: u32, validator: T::AccountId },
+		/// A buy order was completed successfully
+		BuyOrderCompleted { order_id: BuyOrderId },
 	}
 
 	// Errors inform users that something went wrong.
@@ -241,6 +251,13 @@ pub mod pallet {
 		FeeExceedsUserLimit,
 		/// The purchasea fee amount exceeds the limit
 		CannotSetMoreThanMaxPurchaseFee,
+		/// not authorized to perform action
+		NotAuthorised,
+		ValidatorAccountAlreadyExists,
+		TooManyValidatorAccounts,
+		ChainIdMismatch,
+		TxProofMismatch,
+		KYCAuthorisationFailed,
 	}
 
 	#[pallet::call]
@@ -255,7 +272,7 @@ pub mod pallet {
 			price_per_unit: CurrencyBalanceOf<T>,
 		) -> DispatchResult {
 			let seller = ensure_signed(origin.clone())?;
-
+			Self::check_kyc_approval(&seller)?;
 			// ensure the asset_id can be listed
 			let (project_id, group_id) = T::AssetValidator::get_project_details(&asset_id)
 				.ok_or(Error::<T>::AssetNotPermitted)?;
@@ -316,17 +333,20 @@ pub mod pallet {
 		}
 
 		/// Buy `units` of `asset_id` from the given `order_id`
+		/// This will be called by one of the approved validators when an order is created
 		#[transactional]
 		#[pallet::weight(T::WeightInfo::buy_order())]
-		pub fn buy_order(
+		pub fn create_buy_order(
 			origin: OriginFor<T>,
+			buyer: T::AccountId,
 			order_id: OrderId,
 			asset_id: AssetIdOf<T>,
 			units: AssetBalanceOf<T>,
 			max_fee: CurrencyBalanceOf<T>,
 		) -> DispatchResult {
-			let buyer = ensure_signed(origin.clone())?;
-
+			let sender = ensure_signed(origin)?;
+			Self::check_validator_account(&sender)?;
+			Self::check_kyc_approval(&buyer)?;
 			if units.is_zero() {
 				return Ok(())
 			}
@@ -365,45 +385,54 @@ pub mod pallet {
 				let purchase_fee: u128 =
 					PurchaseFees::<T>::get().try_into().map_err(|_| Error::<T>::ArithmeticError)?;
 
-				let required_fees =
+				let total_fee =
 					payment_fee.checked_add(purchase_fee).ok_or(Error::<T>::OrderUnitsOverflow)?;
 
-				ensure!(max_fee >= required_fees.into(), Error::<T>::FeeExceedsUserLimit);
+				let total_amount = total_fee
+					.checked_add(required_currency)
+					.ok_or(Error::<T>::OrderUnitsOverflow)?;
 
-				// send purchase price to seller
-				T::Currency::transfer(
-					T::StableCurrencyId::get(),
-					&buyer,
-					&order.owner,
-					required_currency.into(),
-				)?;
+				ensure!(max_fee >= total_fee.into(), Error::<T>::FeeExceedsUserLimit);
 
-				// transfer fee to pallet
-				T::Currency::transfer(
-					T::StableCurrencyId::get(),
-					&buyer,
-					&Self::account_id(),
-					required_fees.into(),
-				)?;
+				// Create buy order
+				let buy_order_id = Self::buy_order_count();
+				let next_buy_order_id =
+					buy_order_id.checked_add(One::one()).ok_or(Error::<T>::OrderIdOverflow)?;
+				BuyOrderCount::<T>::put(next_buy_order_id);
 
-				// transfer asset to buyer
-				T::Asset::transfer(order.asset_id, &Self::account_id(), &buyer, units, false)?;
+				let current_block_number = <frame_system::Pallet<T>>::block_number();
+				let expiry_time = current_block_number
+					.checked_add(&T::BuyOrderExpiryTime::get())
+					.ok_or(Error::<T>::OrderIdOverflow)?;
 
-				Self::deposit_event(Event::BuyOrderFilled {
+				BuyOrders::<T>::insert(
+					buy_order_id,
+					BuyOrderInfo {
+						order_id,
+						buyer: buyer.clone(),
+						units,
+						price_per_unit: order.price_per_unit,
+						asset_id,
+						total_fee: total_fee.into(),
+						total_amount: total_amount.into(),
+						expiry_time,
+						payment_info: None,
+					},
+				);
+
+				Self::deposit_event(Event::BuyOrderCreated {
 					order_id,
 					units,
 					project_id,
 					group_id,
 					price_per_unit: order.price_per_unit,
-					fees_paid: required_fees.into(),
+					fees_paid: total_fee.into(),
+					total_amount: total_amount.into(),
 					seller: order.owner.clone(),
 					buyer,
 				});
 
-				// remove the sell order if all units are filled
-				if !order.units.is_zero() {
-					*maybe_order = Some(order)
-				}
+				*maybe_order = Some(order);
 
 				Ok(())
 			})
@@ -439,12 +468,158 @@ pub mod pallet {
 			PurchaseFees::<T>::set(purchase_fee);
 			Ok(())
 		}
+
+		/// Buy `units` of `asset_id` from the given `order_id`
+		/// This will be called by one of the approved validators when an order is created
+		#[transactional]
+		#[pallet::weight(T::WeightInfo::buy_order())]
+		pub fn validate_buy_order(
+			origin: OriginFor<T>,
+			order_id: BuyOrderId,
+			chain_id: u32,
+			tx_proof: BoundedVec<u8, T::MaxTxHashLen>,
+		) -> DispatchResult {
+			let sender = ensure_signed(origin)?;
+			Self::check_validator_account(&sender)?;
+
+			// fetch the buy order
+			BuyOrders::<T>::try_mutate(order_id, |maybe_order| -> DispatchResult {
+				let mut order = maybe_order.take().ok_or(Error::<T>::InvalidOrderId)?;
+
+				let mut payment_info = order.payment_info.clone();
+
+				// if paymentInfo exists, validate against existing payment
+				if let Some(mut payment_info) = payment_info {
+					ensure!(payment_info.chain_id == chain_id, Error::<T>::ChainIdMismatch);
+					ensure!(payment_info.tx_proof == tx_proof, Error::<T>::TxProofMismatch);
+					payment_info
+						.validators
+						.try_push(sender.clone())
+						.map_err(|_| Error::<T>::TooManyValidatorAccounts)?;
+
+					order.payment_info = Some(payment_info.clone());
+
+					Self::deposit_event(Event::BuyOrderPaymentValidated {
+						order_id,
+						chain_id,
+						validator: sender.clone(),
+					});
+
+					// process payment if we have reached threshold
+					if payment_info.validators.len() as u32 >= Self::min_payment_validators() {
+						// transfer the asset to the buyer
+						T::Asset::transfer(
+							order.asset_id,
+							&Self::account_id(),
+							&order.buyer,
+							order.units,
+							false,
+						)?;
+
+						// TODO : transfer native currency to user
+
+						Self::deposit_event(Event::BuyOrderCompleted { order_id });
+
+						// remove from storage if we reached the threshold and payment executed
+						return Ok(())
+					}
+
+					*maybe_order = Some(order);
+
+					Ok(())
+				}
+				// else if paymentInfo is empty create it
+				else {
+					let mut validators: BoundedVec<T::AccountId, T::MaxValidators> = Default::default();
+					validators
+						.try_push(sender.clone())
+						.map_err(|_| Error::<T>::TooManyValidatorAccounts)?;
+					payment_info = Some(PaymentInfo { chain_id, tx_proof, validators });
+
+					order.payment_info = payment_info;
+
+					Self::deposit_event(Event::BuyOrderPaymentValidated {
+						order_id,
+						chain_id,
+						validator: sender.clone(),
+					});
+
+					*maybe_order = Some(order);
+
+					Ok(())
+				}
+			})
+		}
+
+		/// Add a new account to the list of authorised Accounts
+		/// The caller must be from a permitted origin
+		#[transactional]
+		#[pallet::weight(T::WeightInfo::force_set_purchase_fee())]
+		pub fn force_add_validator_account(
+			origin: OriginFor<T>,
+			account_id: T::AccountId,
+		) -> DispatchResult {
+			T::ForceOrigin::ensure_origin(origin)?;
+			// add the account_id to the list of authorized accounts
+			ValidatorAccounts::<T>::try_mutate(|account_list| -> DispatchResult {
+				ensure!(
+					!account_list.contains(&account_id),
+					Error::<T>::ValidatorAccountAlreadyExists
+				);
+
+				account_list
+					.try_push(account_id.clone())
+					.map_err(|_| Error::<T>::TooManyValidatorAccounts)?;
+				Ok(())
+			})?;
+
+			Self::deposit_event(Event::ValidatorAccountAdded { account_id });
+			Ok(())
+		}
+
+		/// Remove an account from the list of authorised accounts
+		#[transactional]
+		#[pallet::weight(T::WeightInfo::force_set_purchase_fee())]
+		pub fn force_remove_validator_account(
+			origin: OriginFor<T>,
+			account_id: T::AccountId,
+		) -> DispatchResult {
+			T::ForceOrigin::ensure_origin(origin)?;
+			// remove the account_id from the list of authorized accounts if already exists
+			ValidatorAccounts::<T>::try_mutate(|account_list| -> DispatchResult {
+				if let Ok(index) = account_list.binary_search(&account_id) {
+					account_list.swap_remove(index);
+					Self::deposit_event(Event::ValidatorAccountRemoved { account_id });
+				}
+
+				Ok(())
+			})
+		}
 	}
 
 	impl<T: Config> Pallet<T> {
 		/// The account ID of the CarbonCredits pallet
 		pub fn account_id() -> T::AccountId {
 			T::PalletId::get().into_account_truncating()
+		}
+
+		/// Checks if the given account_id is part of authorized account list
+		pub fn check_validator_account(account_id: &T::AccountId) -> DispatchResult {
+			let validator_accounts = ValidatorAccounts::<T>::get();
+			if !validator_accounts.contains(account_id) {
+				Err(Error::<T>::NotAuthorised.into())
+			} else {
+				Ok(())
+			}
+		}
+
+		/// Checks if given account is kyc approved
+		pub fn check_kyc_approval(account_id: &T::AccountId) -> DispatchResult {
+			if !T::KYCProvider::contains(account_id) {
+				Err(Error::<T>::KYCAuthorisationFailed.into())
+			} else {
+				Ok(())
+			}
 		}
 	}
 }
