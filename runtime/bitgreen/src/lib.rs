@@ -726,11 +726,16 @@ impl pallet_multisig::Config for Runtime {
 // TODO: test limits are safe
 parameter_types! {
 	pub const DexPalletId: PalletId = PalletId(*b"bitg/dex");
-	pub const StableCurrencyId: primitives::CurrencyId = primitives::CurrencyId::USDT;
 	pub const MinUnitsToCreateSellOrder : u32 = 100;
 	pub const MinPricePerUnit : u32 = 1;
 	pub const MaxPaymentFee : Percent = Percent::from_percent(10);
 	pub const MaxPurchaseFee : Balance = 10 * UNIT;
+	#[derive(Clone, scale_info::TypeInfo)]
+	pub const MaxValidators : u32 = 10;
+	#[derive(Clone, scale_info::TypeInfo)]
+	pub const MaxTxHashLen : u32 = 100;
+	#[derive(Clone, scale_info::TypeInfo)]
+	pub const BuyOrderExpiryTime : u32 = 10;
 }
 
 impl pallet_dex::Config for Runtime {
@@ -739,10 +744,13 @@ impl pallet_dex::Config for Runtime {
 	type Currency = Tokens;
 	type CurrencyBalance = u128;
 	type AssetBalance = u128;
-	type StableCurrencyId = StableCurrencyId;
 	type PalletId = DexPalletId;
 	type AssetValidator = CarbonCredits;
 	type MinPricePerUnit = MinPricePerUnit;
+	type MaxValidators = MaxValidators;
+	type MaxTxHashLen = MaxTxHashLen;
+	type KYCProvider = KYC;
+	type BuyOrderExpiryTime = BuyOrderExpiryTime;
 	type MinUnitsToCreateSellOrder = MinUnitsToCreateSellOrder;
 	type ForceOrigin = EnsureRoot<AccountId>;
 	type MaxPaymentFee = MaxPaymentFee;
