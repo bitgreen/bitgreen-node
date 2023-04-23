@@ -298,8 +298,8 @@ pub mod pallet {
 				<Members<T, I>>::put(&members);
 
 				T::MembershipChanged::change_members_sorted(
-					&[new.clone()],
-					&[remove.clone()],
+					&[new],
+					&[remove],
 					&members[..],
 				);
 			}

@@ -76,7 +76,7 @@ benchmarks! {
 		assert!(Orders::<T>::get(0u128).is_none())
 	}
 
-	buy_order {
+	create_buy_order {
 		create_default_minted_asset::<T>(true, 100u32.into());
 		let caller: T::AccountId = whitelisted_caller();
 		Dex::<T>::create_sell_order(RawOrigin::Signed(caller.clone()).into(), 0u32.into(), 100u32.into(), 1u32.into())?;

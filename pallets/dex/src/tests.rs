@@ -431,7 +431,7 @@ fn payment_is_processed_after_validator_threshold_reached() {
 			RuntimeOrigin::signed(validator_two),
 			buy_order_id,
 			0u32,
-			tx_proof.clone()
+			tx_proof
 		));
 
 		// buy order storage should be cleared since payment is done
