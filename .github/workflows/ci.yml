@@ -87,7 +87,7 @@ jobs:
           target: wasm32-unknown-unknown
     
       - name: Unit tests
-        run: cargo test -p bitgreen-parachain --features
+        run: cargo test -p bitgreen-parachain
 
   build-docker-image:
     # The type of runner that the job will run on
