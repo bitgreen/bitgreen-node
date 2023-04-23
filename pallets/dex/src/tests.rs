@@ -426,6 +426,17 @@ fn payment_is_processed_after_validator_threshold_reached() {
 			Event::BuyOrderPaymentValidated { order_id: 0, chain_id: 0u32, validator }.into()
 		);
 
+		//	same validator cannot validate again
+		assert_noop!(
+			Dex::validate_buy_order(
+				RuntimeOrigin::signed(validator),
+				buy_order_id,
+				0u32,
+				tx_proof.clone()
+			),
+			Error::<Test>::DuplicateValidation
+		);
+
 		//	next validator validates
 		assert_ok!(Dex::validate_buy_order(
 			RuntimeOrigin::signed(validator_two),

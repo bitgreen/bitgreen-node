@@ -258,6 +258,7 @@ pub mod pallet {
 		ChainIdMismatch,
 		TxProofMismatch,
 		KYCAuthorisationFailed,
+		DuplicateValidation,
 	}
 
 	#[pallet::call]
@@ -492,6 +493,11 @@ pub mod pallet {
 				if let Some(mut payment_info) = payment_info {
 					ensure!(payment_info.chain_id == chain_id, Error::<T>::ChainIdMismatch);
 					ensure!(payment_info.tx_proof == tx_proof, Error::<T>::TxProofMismatch);
+					ensure!(
+						!payment_info.validators.contains(&sender),
+						Error::<T>::DuplicateValidation
+					);
+
 					payment_info
 						.validators
 						.try_push(sender.clone())
@@ -530,7 +536,8 @@ pub mod pallet {
 				}
 				// else if paymentInfo is empty create it
 				else {
-					let mut validators: BoundedVec<T::AccountId, T::MaxValidators> = Default::default();
+					let mut validators: BoundedVec<T::AccountId, T::MaxValidators> =
+						Default::default();
 					validators
 						.try_push(sender.clone())
 						.map_err(|_| Error::<T>::TooManyValidatorAccounts)?;
