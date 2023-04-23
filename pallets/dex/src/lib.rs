@@ -530,7 +530,8 @@ pub mod pallet {
 				}
 				// else if paymentInfo is empty create it
 				else {
-					let mut validators: BoundedVec<T::AccountId, T::MaxValidators> = Default::default();
+					let mut validators: BoundedVec<T::AccountId, T::MaxValidators> =
+						Default::default();
 					validators
 						.try_push(sender.clone())
 						.map_err(|_| Error::<T>::TooManyValidatorAccounts)?;

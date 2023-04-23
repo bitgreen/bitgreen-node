@@ -11,10 +11,13 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
 use frame_support::{
-	traits::{ChangeMembers, Contains, Get, InitializeMembers, SortedMembers},
-	BoundedVec,
+	traits::{
+		ChangeMembers, Contains, Currency, ExistenceRequirement, Get, InitializeMembers,
+		SortedMembers,
+	},
+	BoundedVec, PalletId,
 };
-use sp_runtime::traits::StaticLookup;
+use sp_runtime::traits::{AccountIdConversion, StaticLookup};
 use sp_std::prelude::*;
 pub mod weights;
 
@@ -35,6 +38,9 @@ pub mod pallet {
 	#[pallet::pallet]
 	#[pallet::storage_version(STORAGE_VERSION)]
 	pub struct Pallet<T, I = ()>(PhantomData<(T, I)>);
+
+	pub type BalanceOf<T, I> =
+		<<T as Config<I>>::Currency as Currency<<T as frame_system::Config>::AccountId>>::Balance;
 
 	#[pallet::config]
 	pub trait Config<I: 'static = ()>: frame_system::Config {
@@ -63,6 +69,13 @@ pub mod pallet {
 		/// Maximum amount of authorised accounts permitted
 		type MaxAuthorizedAccountCount: Get<u32>;
 
+		/// The currency used for the pallet
+		type Currency: Currency<Self::AccountId>;
+
+		/// The KYC pallet id
+		#[pallet::constant]
+		type PalletId: Get<PalletId>;
+
 		/// Weight information for extrinsics in this pallet.
 		type WeightInfo: WeightInfo;
 	}
@@ -78,6 +91,11 @@ pub mod pallet {
 	// List of AuthorizedAccounts for the pallet
 	pub type AuthorizedAccounts<T: Config<I>, I: 'static = ()> =
 		StorageValue<_, BoundedVec<T::AccountId, T::MaxAuthorizedAccountCount>, ValueQuery>;
+
+	#[pallet::storage]
+	#[pallet::getter(fn airdrop_amount)]
+	// Amount to airdrop on every kyc success
+	pub type AirdropAmount<T: Config<I>, I: 'static = ()> = StorageValue<_, BalanceOf<T, I>>;
 
 	#[pallet::genesis_config]
 	pub struct GenesisConfig<T: Config<I>, I: 'static = ()> {
@@ -113,10 +131,10 @@ pub mod pallet {
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
 	pub enum Event<T: Config<I>, I: 'static = ()> {
-		/// The given member was added; see the transaction for who.
-		MemberAdded,
-		/// The given member was removed; see the transaction for who.
-		MemberRemoved,
+		/// The given member was added
+		MemberAdded { who: T::AccountId },
+		/// The given member was removed
+		MemberRemoved { who: T::AccountId },
 		/// Two members were swapped; see the transaction for who.
 		MembersSwapped,
 		/// The membership was reset; see the transaction for who the new set is.
@@ -129,6 +147,8 @@ pub mod pallet {
 		AuthorizedAccountAdded { account_id: T::AccountId },
 		/// An AuthorizedAccount has been removed
 		AuthorizedAccountRemoved { account_id: T::AccountId },
+		/// User has received airdrop for kyc approval
+		KYCAirdrop { who: T::AccountId, amount: BalanceOf<T, I> },
 	}
 
 	#[pallet::error]
@@ -167,9 +187,11 @@ pub mod pallet {
 
 			<Members<T, I>>::put(&members);
 
-			T::MembershipChanged::change_members_sorted(&[who], &[], &members[..]);
+			T::MembershipChanged::change_members_sorted(&[who.clone()], &[], &members[..]);
 
-			Self::deposit_event(Event::MemberAdded);
+			let _ = Self::transfer_kyc_airdrop(who.clone());
+
+			Self::deposit_event(Event::MemberAdded { who });
 			Ok(())
 		}
 
@@ -190,9 +212,9 @@ pub mod pallet {
 
 			<Members<T, I>>::put(&members);
 
-			T::MembershipChanged::change_members_sorted(&[], &[who], &members[..]);
+			T::MembershipChanged::change_members_sorted(&[], &[who.clone()], &members[..]);
 
-			Self::deposit_event(Event::MemberRemoved);
+			Self::deposit_event(Event::MemberRemoved { who });
 			Ok(())
 		}
 
@@ -330,6 +352,19 @@ pub mod pallet {
 				Ok(())
 			})
 		}
+
+		/// Set the airdrop amount for each successful kyc
+		#[pallet::call_index(7)]
+		#[pallet::weight(50_000_000)]
+		pub fn force_set_kyc_airdrop(
+			origin: OriginFor<T>,
+			amount: Option<BalanceOf<T, I>>,
+		) -> DispatchResult {
+			T::AddOrigin::ensure_origin(origin)?;
+			// remove the account_id from the list of authorized accounts if already exists
+			AirdropAmount::<T, I>::set(amount);
+			Ok(())
+		}
 	}
 }
 
@@ -344,6 +379,31 @@ impl<T: Config<I>, I: 'static> Pallet<T, I> {
 		} else {
 			Ok(())
 		}
+	}
+
+	/// The account ID of the KYC pallet
+	pub fn account_id() -> T::AccountId {
+		T::PalletId::get().into_account_truncating()
+	}
+
+	/// Airdrop native tokens to user
+	pub fn transfer_kyc_airdrop(
+		who: T::AccountId,
+	) -> frame_support::pallet_prelude::DispatchResult {
+		// transfer airdrop if the amount is set
+		if let Some(amount) = Self::airdrop_amount() {
+			let airdrop_executed = T::Currency::transfer(
+				&Self::account_id(),
+				&who,
+				amount,
+				ExistenceRequirement::AllowDeath,
+			);
+
+			if airdrop_executed.is_ok() {
+				Self::deposit_event(Event::KYCAirdrop { who, amount });
+			}
+		}
+		Ok(())
 	}
 }
 
@@ -555,13 +615,31 @@ mod tests {
 			UncheckedExtrinsic = UncheckedExtrinsic,
 		{
 			System: frame_system::{Pallet, Call, Config, Storage, Event<T>},
+			Balances: pallet_balances::{Pallet, Call, Storage, Config<T>, Event<T>},
 			Membership: pallet_membership::{Pallet, Call, Storage, Config<T>, Event<T>},
 		}
 	);
 
 	parameter_types! {
+		pub const ExistentialDeposit: u64 = 1;
+	}
+
+	impl pallet_balances::Config for Test {
+		type AccountStore = System;
+		type Balance = u128;
+		type DustRemoval = ();
+		type RuntimeEvent = RuntimeEvent;
+		type ExistentialDeposit = ExistentialDeposit;
+		type MaxLocks = ();
+		type MaxReserves = ();
+		type ReserveIdentifier = [u8; 8];
+		type WeightInfo = ();
+	}
+
+	parameter_types! {
 		pub static Members: Vec<u64> = vec![];
 		pub static Prime: Option<u64> = None;
+		pub const KycPalletId: PalletId = PalletId(*b"bitg/kyc");
 	}
 
 	impl frame_system::Config for Test {
@@ -582,7 +660,7 @@ mod tests {
 		type BlockHashCount = ConstU64<250>;
 		type Version = ();
 		type PalletInfo = PalletInfo;
-		type AccountData = ();
+		type AccountData = pallet_balances::AccountData<u128>;
 		type OnNewAccount = ();
 		type OnKilledAccount = ();
 		type SystemWeightInfo = ();
@@ -633,6 +711,8 @@ mod tests {
 		type MembershipChanged = TestChangeMembers;
 		type MaxMembers = ConstU32<10>;
 		type MaxAuthorizedAccountCount = ConstU32<10>;
+		type PalletId = KycPalletId;
+		type Currency = Balances;
 		type WeightInfo = ();
 	}
 
@@ -686,6 +766,34 @@ mod tests {
 			assert_ok!(Membership::add_member(RuntimeOrigin::signed(authorised_account), 15));
 			assert_eq!(Membership::members(), vec![10, 15, 20, 30]);
 			assert_eq!(MEMBERS.with(|m| m.borrow().clone()), Membership::members().to_vec());
+		});
+	}
+
+	#[test]
+	fn add_member_airdrop_works() {
+		new_test_ext().execute_with(|| {
+			let authorised_account = 1;
+			assert_ok!(Membership::force_add_authorized_account(
+				RawOrigin::Root.into(),
+				authorised_account,
+			));
+
+			// set the airdrop amount
+			let airdrop_amount = 10;
+			assert_ok!(Membership::force_set_kyc_airdrop(
+				RawOrigin::Root.into(),
+				Some(airdrop_amount),
+			));
+
+			// set some balance to the pallet account
+			let kyc_pallet_account: u64 = PalletId(*b"bitg/kyc").into_account_truncating();
+			Balances::make_free_balance_be(&kyc_pallet_account, 100);
+
+			let balance_before_kyc = Balances::free_balance(&15);
+			assert_ok!(Membership::add_member(RuntimeOrigin::signed(authorised_account), 15));
+			assert_eq!(Membership::members(), vec![10, 15, 20, 30]);
+			assert_eq!(MEMBERS.with(|m| m.borrow().clone()), Membership::members().to_vec());
+			assert_eq!(Balances::free_balance(&15), balance_before_kyc + airdrop_amount);
 		});
 	}
 
