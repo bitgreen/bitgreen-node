@@ -145,6 +145,7 @@ impl pallet_carbon_credits::Config for Test {
 	type GroupId = u32;
 	type KYCProvider = KYCMembership;
 	type MarketplaceEscrow = MarketplaceEscrowAccount;
+	type MaxCoordinatesLength = ConstU32<8>;
 	type MaxAuthorizedAccountCount = ConstU32<2>;
 	type MaxDocumentCount = ConstU32<2>;
 	type MaxGroupSize = MaxGroupSize;
