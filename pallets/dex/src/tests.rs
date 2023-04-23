@@ -444,7 +444,7 @@ fn payment_is_processed_after_validator_threshold_reached() {
 			RuntimeOrigin::signed(validator_two),
 			buy_order_id,
 			0u32,
-			tx_proof.clone()
+			tx_proof
 		));
 
 		// buy order storage should be cleared since payment is done
@@ -557,7 +557,6 @@ fn buy_order_handle_expiry_should_work() {
 		let seller = 1;
 		let buyer = 4;
 		let validator = 10;
-		let dex_account: u64 = PalletId(*b"bitg/dex").into_account_truncating();
 
 		assert_ok!(Assets::force_create(RuntimeOrigin::root(), asset_id, 1, true, 1));
 		assert_ok!(Assets::mint(RuntimeOrigin::signed(seller), asset_id, 1, 100));
