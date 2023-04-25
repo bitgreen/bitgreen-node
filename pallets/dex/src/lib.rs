@@ -338,15 +338,14 @@ pub mod pallet {
 		#[pallet::weight(T::WeightInfo::buy_order())]
 		pub fn create_buy_order(
 			origin: OriginFor<T>,
-			buyer: T::AccountId,
 			order_id: OrderId,
 			asset_id: AssetIdOf<T>,
 			units: AssetBalanceOf<T>,
 			max_fee: CurrencyBalanceOf<T>,
 		) -> DispatchResult {
-			let sender = ensure_signed(origin)?;
-			Self::check_validator_account(&sender)?;
+			let buyer = ensure_signed(origin)?;
 			Self::check_kyc_approval(&buyer)?;
+
 			if units.is_zero() {
 				return Ok(())
 			}
@@ -530,7 +529,8 @@ pub mod pallet {
 				}
 				// else if paymentInfo is empty create it
 				else {
-					let mut validators: BoundedVec<T::AccountId, T::MaxValidators> = Default::default();
+					let mut validators: BoundedVec<T::AccountId, T::MaxValidators> =
+						Default::default();
 					validators
 						.try_push(sender.clone())
 						.map_err(|_| Error::<T>::TooManyValidatorAccounts)?;
