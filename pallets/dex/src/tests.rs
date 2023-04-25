@@ -2,7 +2,9 @@
 // Copyright (C) 2022 BitGreen.
 // This code is licensed under MIT license (see LICENSE.txt for details)
 use crate::{mock::*, BuyOrders, Error, Event, Orders};
-use frame_support::{assert_noop, assert_ok, BoundedVec, PalletId};
+use frame_support::{
+	assert_noop, assert_ok, traits::OnIdle, weights::Weight, BoundedVec, PalletId,
+};
 use frame_system::RawOrigin;
 use sp_runtime::{traits::AccountIdConversion, Percent};
 
@@ -426,12 +428,23 @@ fn payment_is_processed_after_validator_threshold_reached() {
 			Event::BuyOrderPaymentValidated { order_id: 0, chain_id: 0u32, validator }.into()
 		);
 
+		//	same validator cannot validate again
+		assert_noop!(
+			Dex::validate_buy_order(
+				RuntimeOrigin::signed(validator),
+				buy_order_id,
+				0u32,
+				tx_proof.clone()
+			),
+			Error::<Test>::DuplicateValidation
+		);
+
 		//	next validator validates
 		assert_ok!(Dex::validate_buy_order(
 			RuntimeOrigin::signed(validator_two),
 			buy_order_id,
 			0u32,
-			tx_proof.clone()
+			tx_proof
 		));
 
 		// buy order storage should be cleared since payment is done
@@ -536,3 +549,57 @@ fn cannot_set_more_than_max_fee() {
 // 		assert_eq!(Tokens::free_balance(USDT, &dex_account), 775);
 // 	});
 // }
+
+#[test]
+fn buy_order_handle_expiry_should_work() {
+	new_test_ext().execute_with(|| {
+		let asset_id = 0;
+		let seller = 1;
+		let buyer = 4;
+		let validator = 10;
+
+		assert_ok!(Assets::force_create(RuntimeOrigin::root(), asset_id, 1, true, 1));
+		assert_ok!(Assets::mint(RuntimeOrigin::signed(seller), asset_id, 1, 100));
+		assert_eq!(Assets::balance(asset_id, seller), 100);
+
+		// should be able to create a sell order
+		assert_ok!(Dex::create_sell_order(RuntimeOrigin::signed(seller), asset_id, 5, 10));
+
+		add_validator_account(validator);
+
+		// use should be able to purchase
+		assert_ok!(Dex::create_buy_order(
+			RuntimeOrigin::signed(validator),
+			buyer,
+			0,
+			asset_id,
+			1,
+			11
+		));
+
+		// sell order storage should be updated correctly
+		let sell_order_storage = Orders::<Test>::get(0).unwrap();
+		assert_eq!(sell_order_storage.owner, seller);
+		assert_eq!(sell_order_storage.units, 4);
+		assert_eq!(sell_order_storage.price_per_unit, 10);
+		assert_eq!(sell_order_storage.asset_id, asset_id);
+
+		// buy order storage should be updated correctly
+		let buy_order_storage = BuyOrders::<Test>::get(0).unwrap();
+		assert_eq!(buy_order_storage.buyer, buyer);
+		assert_eq!(buy_order_storage.units, 1);
+		assert_eq!(buy_order_storage.expiry_time, 3);
+
+		Dex::on_idle(5, Weight::MAX);
+
+		// the order should be cleared
+		assert!(BuyOrders::<Test>::get(0).is_none());
+
+		// sell order storage should be restored correctly
+		let sell_order_storage = Orders::<Test>::get(0).unwrap();
+		assert_eq!(sell_order_storage.owner, seller);
+		assert_eq!(sell_order_storage.units, 5);
+		assert_eq!(sell_order_storage.price_per_unit, 10);
+		assert_eq!(sell_order_storage.asset_id, asset_id);
+	});
+}

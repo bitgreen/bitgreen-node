@@ -167,7 +167,7 @@ parameter_types! {
 	#[derive(Clone, scale_info::TypeInfo)]
 	pub const MaxTxHashLen : u32 = 100;
 	#[derive(Clone, scale_info::TypeInfo)]
-	pub const BuyOrderExpiryTime : u32 = 10;
+	pub const BuyOrderExpiryTime : u32 = 2;
 }
 
 impl pallet_dex::Config for Test {

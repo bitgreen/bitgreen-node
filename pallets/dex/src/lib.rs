@@ -258,6 +258,63 @@ pub mod pallet {
 		ChainIdMismatch,
 		TxProofMismatch,
 		KYCAuthorisationFailed,
+		DuplicateValidation,
+	}
+
+	#[pallet::hooks]
+	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
+		// Look for expired buy orders and remove from storage
+		fn on_idle(block: T::BlockNumber, remaining_weight: Weight) -> Weight {
+			let mut remaining_weight = remaining_weight;
+			for (key, buy_order) in BuyOrders::<T>::iter() {
+				remaining_weight = remaining_weight.saturating_sub(T::DbWeight::get().reads(1));
+				if buy_order.expiry_time < block {
+					// log the start of removal
+					log::info!(
+						target: "runtime::dex",
+						"INFO: Found expired buy order, going to remove buy_order_id: {}",
+						key
+					);
+					BuyOrders::<T>::take(key);
+					remaining_weight =
+						remaining_weight.saturating_sub(T::DbWeight::get().writes(1));
+					// add the credits to the sell order
+					let sell_order_updated = Orders::<T>::try_mutate(
+						buy_order.order_id,
+						|maybe_order| -> DispatchResult {
+							let order = maybe_order.as_mut().ok_or(Error::<T>::InvalidOrderId)?;
+							order.units = order
+								.units
+								.checked_add(&buy_order.units)
+								.ok_or(Error::<T>::OrderUnitsOverflow)?;
+							Ok(())
+						},
+					);
+
+					if sell_order_updated.is_err() {
+						log::warn!(
+							target: "runtime::dex",
+							"WARNING: Sell order units not credited back for buy_order_id: {}",
+							key
+						);
+					}
+
+					log::info!(
+						target: "runtime::dex",
+						"INFO: Removed Expired buy order with buy_order_id: {}",
+						key
+					);
+
+					// exit since we altered the map
+					break
+				}
+
+				if remaining_weight.all_lte(T::DbWeight::get().reads(1)) {
+					break
+				}
+			}
+			remaining_weight
+		}
 	}
 
 	#[pallet::call]
@@ -492,6 +549,11 @@ pub mod pallet {
 				if let Some(mut payment_info) = payment_info {
 					ensure!(payment_info.chain_id == chain_id, Error::<T>::ChainIdMismatch);
 					ensure!(payment_info.tx_proof == tx_proof, Error::<T>::TxProofMismatch);
+					ensure!(
+						!payment_info.validators.contains(&sender),
+						Error::<T>::DuplicateValidation
+					);
+
 					payment_info
 						.validators
 						.try_push(sender.clone())
@@ -516,8 +578,6 @@ pub mod pallet {
 							false,
 						)?;
 
-						// TODO : transfer native currency to user
-
 						Self::deposit_event(Event::BuyOrderCompleted { order_id });
 
 						// remove from storage if we reached the threshold and payment executed
@@ -530,7 +590,8 @@ pub mod pallet {
 				}
 				// else if paymentInfo is empty create it
 				else {
-					let mut validators: BoundedVec<T::AccountId, T::MaxValidators> = Default::default();
+					let mut validators: BoundedVec<T::AccountId, T::MaxValidators> =
+						Default::default();
 					validators
 						.try_push(sender.clone())
 						.map_err(|_| Error::<T>::TooManyValidatorAccounts)?;
