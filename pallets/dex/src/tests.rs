@@ -151,7 +151,6 @@ fn buy_order_should_work() {
 		let asset_id = 0;
 		let seller = 1;
 		let buyer = 4;
-		let validator = 10;
 		let dex_account: u64 = PalletId(*b"bitg/dex").into_account_truncating();
 
 		assert_ok!(Assets::force_create(RuntimeOrigin::root(), asset_id, 1, true, 1));
@@ -176,65 +175,50 @@ fn buy_order_should_work() {
 		assert_eq!(Assets::balance(asset_id, seller), 95);
 		assert_eq!(Assets::balance(asset_id, dex_account), 5);
 
-		// non validator account should fail
+		// non existing order should fail
 		assert_noop!(
-			Dex::create_buy_order(RuntimeOrigin::signed(buyer), buyer, 10, 0, 1, 100),
-			Error::<Test>::NotAuthorised
+			Dex::create_buy_order(RuntimeOrigin::signed(buyer), 10, 0, 1, 100),
+			Error::<Test>::InvalidOrderId
 		);
-
-		add_validator_account(validator);
 
 		// non kyc buyer should fail
 		assert_noop!(
-			Dex::create_buy_order(RuntimeOrigin::signed(validator), 20, 10, 0, 1, 100),
+			Dex::create_buy_order(RuntimeOrigin::signed(20), 0, 10, 1, 100),
 			Error::<Test>::KYCAuthorisationFailed
-		);
-
-		// non existing order should fail
-		assert_noop!(
-			Dex::create_buy_order(RuntimeOrigin::signed(validator), buyer, 10, 0, 1, 100),
-			Error::<Test>::InvalidOrderId
 		);
 
 		// non matching asset_id should fail
 		assert_noop!(
-			Dex::create_buy_order(RuntimeOrigin::signed(validator), buyer, 0, 10, 1, 100),
+			Dex::create_buy_order(RuntimeOrigin::signed(buyer), 0, 10, 1, 100),
 			Error::<Test>::InvalidAssetId
 		);
 
 		// more than listed volume should fail
 		assert_noop!(
-			Dex::create_buy_order(RuntimeOrigin::signed(validator), buyer, 0, asset_id, 1000, 100),
+			Dex::create_buy_order(RuntimeOrigin::signed(buyer), 0, asset_id, 1000, 100),
 			Error::<Test>::OrderUnitsOverflow
 		);
 
 		// should fail if the buyer and seller are same
 		assert_noop!(
-			Dex::create_buy_order(RuntimeOrigin::signed(validator), 1, 0, asset_id, 1, 100),
+			Dex::create_buy_order(RuntimeOrigin::signed(seller), 0, asset_id, 1, 100),
 			Error::<Test>::SellerAndBuyerCannotBeSame
 		);
 
 		// should fail if the fee is zero
 		assert_noop!(
-			Dex::create_buy_order(RuntimeOrigin::signed(validator), buyer, 0, asset_id, 1, 0),
+			Dex::create_buy_order(RuntimeOrigin::signed(buyer), 0, asset_id, 1, 0),
 			Error::<Test>::FeeExceedsUserLimit
 		);
 
 		// should fail if the fee is less than expected
 		assert_noop!(
-			Dex::create_buy_order(RuntimeOrigin::signed(validator), buyer, 0, asset_id, 1, 0),
+			Dex::create_buy_order(RuntimeOrigin::signed(buyer), 0, asset_id, 1, 0),
 			Error::<Test>::FeeExceedsUserLimit
 		);
 
 		// use should be able to purchase
-		assert_ok!(Dex::create_buy_order(
-			RuntimeOrigin::signed(validator),
-			buyer,
-			0,
-			asset_id,
-			1,
-			11
-		));
+		assert_ok!(Dex::create_buy_order(RuntimeOrigin::signed(buyer), 0, asset_id, 1, 11));
 
 		// sell order storage should be updated correctly
 		let sell_order_storage = Orders::<Test>::get(0).unwrap();
@@ -297,17 +281,8 @@ fn validate_buy_order_should_work() {
 		// should be able to create a sell order
 		assert_ok!(Dex::create_sell_order(RuntimeOrigin::signed(seller), asset_id, 5, 10));
 
-		add_validator_account(validator);
-
 		// create a new buy order
-		assert_ok!(Dex::create_buy_order(
-			RuntimeOrigin::signed(validator),
-			buyer,
-			0,
-			asset_id,
-			1,
-			11
-		));
+		assert_ok!(Dex::create_buy_order(RuntimeOrigin::signed(buyer), 0, asset_id, 1, 11));
 
 		let tx_proof: BoundedVec<_, _> = vec![].try_into().unwrap();
 
@@ -323,6 +298,7 @@ fn validate_buy_order_should_work() {
 		);
 
 		// validator can validate a payment order
+		add_validator_account(validator);
 		assert_ok!(Dex::validate_buy_order(
 			RuntimeOrigin::signed(validator),
 			buy_order_id,
@@ -378,14 +354,7 @@ fn payment_is_processed_after_validator_threshold_reached() {
 		add_validator_account(validator_two);
 
 		// create a new buy order
-		assert_ok!(Dex::create_buy_order(
-			RuntimeOrigin::signed(validator),
-			buyer,
-			0,
-			asset_id,
-			1,
-			11
-		));
+		assert_ok!(Dex::create_buy_order(RuntimeOrigin::signed(buyer), 0, asset_id, 1, 11));
 
 		let tx_proof: BoundedVec<_, _> = vec![].try_into().unwrap();
 
