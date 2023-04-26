@@ -495,16 +495,21 @@ impl pallet_assets::Config for Runtime {
 	type WeightInfo = ();
 }
 
+parameter_types! {
+	pub const KYCPalletId: PalletId = PalletId(*b"bitg/kyc");
+}
+
 impl pallet_kyc::Config for Runtime {
 	type AddOrigin = EnsureRoot<AccountId>;
 	type RuntimeEvent = RuntimeEvent;
+	type Currency = Balances;
+	type PalletId = KYCPalletId;
 	type MaxMembers = ConstU32<100_000>;
 	type MembershipChanged = ();
 	type MembershipInitialized = ();
 	type MaxAuthorizedAccountCount = ConstU32<100>;
 	type WeightInfo = ();
 }
-
 parameter_types! {
   pub MarketplaceEscrowAccount : AccountId =  PalletId(*b"bitg/mkp").into_account_truncating();
   pub const CarbonCreditsPalletId: PalletId = PalletId(*b"bitg/vcu");
