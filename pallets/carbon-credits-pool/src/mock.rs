@@ -142,9 +142,11 @@ impl pallet_carbon_credits::Config for Test {
 	type ForceOrigin = frame_system::EnsureRoot<u64>;
 	type ItemId = u32;
 	type ProjectId = u32;
+	type MaxCoordinatesLength = ConstU32<8>;
 	type GroupId = u32;
 	type KYCProvider = KYCMembership;
 	type MarketplaceEscrow = MarketplaceEscrowAccount;
+	type MaxCoordinatesLength = ConstU32<8>;
 	type MaxAuthorizedAccountCount = ConstU32<2>;
 	type MaxDocumentCount = ConstU32<2>;
 	type MaxGroupSize = MaxGroupSize;

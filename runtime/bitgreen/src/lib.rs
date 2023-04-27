@@ -112,10 +112,7 @@ pub type Executive = frame_executive::Executive<
 	Runtime,
 	AllPalletsWithSystem,
 	// Migrations
-	(
-		pallet_parachain_staking::migration::v2::MigrateToV2<Runtime>,
-		pallet_carbon_credits::migration::v1::MigrateToV1<Runtime>,
-	),
+	(pallet_parachain_staking::migration::v3::MigrateToV3<Runtime>,),
 >;
 
 pub type NegativeImbalance<T> = <pallet_balances::Pallet<T> as Currency<
@@ -178,7 +175,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: create_runtime_str!("bitgreen-parachain"),
 	impl_name: create_runtime_str!("bitgreen-parachain"),
 	authoring_version: 1,
-	spec_version: 1101, // v1.1.1
+	spec_version: 1105, // v1.1.5
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 1,
@@ -496,16 +493,19 @@ impl pallet_assets::Config for Runtime {
 	type WeightInfo = ();
 }
 
-impl pallet_membership::Config for Runtime {
+parameter_types! {
+	pub const KYCPalletId: PalletId = PalletId(*b"bitg/kyc");
+}
+
+impl pallet_kyc::Config for Runtime {
 	type AddOrigin = EnsureRoot<AccountId>;
 	type RuntimeEvent = RuntimeEvent;
+	type Currency = Balances;
+	type PalletId = KYCPalletId;
 	type MaxMembers = ConstU32<100_000>;
 	type MembershipChanged = ();
 	type MembershipInitialized = ();
-	type PrimeOrigin = EnsureRoot<AccountId>;
-	type RemoveOrigin = EnsureRoot<AccountId>;
-	type ResetOrigin = EnsureRoot<AccountId>;
-	type SwapOrigin = EnsureRoot<AccountId>;
+	type MaxAuthorizedAccountCount = ConstU32<100>;
 	type WeightInfo = ();
 }
 
@@ -533,7 +533,7 @@ impl pallet_carbon_credits::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type ForceOrigin = EnsureRoot<AccountId>;
 	type ItemId = u32;
-	type KYCProvider = KYCMembership;
+	type KYCProvider = KYC;
 	type MarketplaceEscrow = MarketplaceEscrowAccount;
 	type MaxAuthorizedAccountCount = MaxAuthorizedAccountCount;
 	type MaxDocumentCount = MaxDocumentCount;
@@ -657,6 +657,7 @@ impl pallet_vesting_contract::Config for Runtime {
 	type ForceOrigin = EnsureRoot<AccountId>;
 	type MaxContractInputLength = MaxContractInputLength;
 	type PalletId = VestingContractPalletId;
+	type MaxAuthorizedAccountCount = MaxAuthorizedAccountCount;
 	type WeightInfo = ();
 }
 
@@ -728,11 +729,16 @@ impl pallet_multisig::Config for Runtime {
 // TODO: test limits are safe
 parameter_types! {
 	pub const DexPalletId: PalletId = PalletId(*b"bitg/dex");
-	pub const StableCurrencyId: primitives::CurrencyId = primitives::CurrencyId::USDT;
 	pub const MinUnitsToCreateSellOrder : u32 = 100;
 	pub const MinPricePerUnit : u32 = 1;
 	pub const MaxPaymentFee : Percent = Percent::from_percent(10);
 	pub const MaxPurchaseFee : Balance = 10 * UNIT;
+	#[derive(Clone, scale_info::TypeInfo)]
+	pub const MaxValidators : u32 = 10;
+	#[derive(Clone, scale_info::TypeInfo)]
+	pub const MaxTxHashLen : u32 = 100;
+	#[derive(Clone, scale_info::TypeInfo)]
+	pub const BuyOrderExpiryTime : u32 = 10;
 }
 
 impl pallet_dex::Config for Runtime {
@@ -741,10 +747,13 @@ impl pallet_dex::Config for Runtime {
 	type Currency = Tokens;
 	type CurrencyBalance = u128;
 	type AssetBalance = u128;
-	type StableCurrencyId = StableCurrencyId;
 	type PalletId = DexPalletId;
 	type AssetValidator = CarbonCredits;
 	type MinPricePerUnit = MinPricePerUnit;
+	type MaxValidators = MaxValidators;
+	type MaxTxHashLen = MaxTxHashLen;
+	type KYCProvider = KYC;
+	type BuyOrderExpiryTime = BuyOrderExpiryTime;
 	type MinUnitsToCreateSellOrder = MinUnitsToCreateSellOrder;
 	type ForceOrigin = EnsureRoot<AccountId>;
 	type MaxPaymentFee = MaxPaymentFee;
@@ -949,7 +958,6 @@ construct_runtime!(
 		Tokens: orml_tokens::{Pallet, Call, Storage, Event<T>, Config<T>} = 41,
 
 		// Bitgreen pallets
-		KYCMembership: pallet_membership::{Pallet, Call, Storage, Config<T>, Event<T>} = 50,
 		Sudo: pallet_sudo::{Pallet, Call, Storage, Config<T>, Event<T>} = 51,
 		Assets: pallet_assets::{Pallet, Call, Storage, Event<T>} = 52,
 		Uniques: pallet_uniques::{Pallet, Call, Storage, Event<T>} = 53,
@@ -960,6 +968,7 @@ construct_runtime!(
 		Contracts: pallet_contracts::{Pallet, Call, Storage, Event<T>} = 58,
 		Multisig: pallet_multisig::{Pallet, Call, Storage, Event<T>} = 59,
 		Dex: pallet_dex::{Pallet, Call, Storage, Event<T>} = 60,
+		KYC: pallet_kyc::{Pallet, Call, Storage, Config<T>, Event<T>} = 66,
 
 		// Utility pallets
 		Utility: pallet_utility::{Pallet, Call, Event} = 61,

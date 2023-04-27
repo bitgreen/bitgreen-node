@@ -144,13 +144,30 @@ impl CarbonCreditsValidator for DummyValidator {
 	}
 }
 
+pub struct MockKycProvider;
+impl Contains<u64> for MockKycProvider {
+	fn contains(value: &u64) -> bool {
+		// special account to test negative kyc
+		if value == &20 {
+			return false
+		}
+
+		true
+	}
+}
+
 parameter_types! {
 	pub const DexPalletId: PalletId = PalletId(*b"bitg/dex");
-	pub StableCurrencyId: CurrencyId = CurrencyId::USDT;
 	pub const MinUnitsToCreateSellOrder : u32 = 2;
 	pub const MinPricePerUnit : u32 = 1;
 	pub const MaxPaymentFee : Percent = Percent::from_percent(50);
 	pub const MaxPurchaseFee : u128 = 100u128;
+	#[derive(Clone, scale_info::TypeInfo)]
+	pub const MaxValidators : u32 = 10;
+	#[derive(Clone, scale_info::TypeInfo)]
+	pub const MaxTxHashLen : u32 = 100;
+	#[derive(Clone, scale_info::TypeInfo)]
+	pub const BuyOrderExpiryTime : u32 = 2;
 }
 
 impl pallet_dex::Config for Test {
@@ -159,10 +176,13 @@ impl pallet_dex::Config for Test {
 	type Currency = Tokens;
 	type CurrencyBalance = u128;
 	type AssetBalance = u128;
-	type StableCurrencyId = StableCurrencyId;
 	type PalletId = DexPalletId;
+	type KYCProvider = MockKycProvider;
 	type MinPricePerUnit = MinPricePerUnit;
 	type AssetValidator = DummyValidator;
+	type MaxValidators = MaxValidators;
+	type MaxTxHashLen = MaxTxHashLen;
+	type BuyOrderExpiryTime = BuyOrderExpiryTime;
 	type MinUnitsToCreateSellOrder = MinUnitsToCreateSellOrder;
 	type ForceOrigin = EnsureRoot<AccountId>;
 	type MaxPaymentFee = MaxPaymentFee;

@@ -1,6 +1,6 @@
 {
 	"relaychain": {
-		"bin": "../../../polkadot/target/release/polkadot",
+		"bin": "../../../../polkadot/target/release/polkadot",
 		"chain": "rococo-local",
 		"nodes": [
 			{
@@ -17,8 +17,8 @@
 	},
 	"parachains": [
 		{
-			"bin": "../target/release/bitgreen-parachain",
-			"chain": "rococo-local",
+			"bin": "../../target/release/bitgreen-parachain",
+			"chain": "dev",
 			"nodes": [
 				{
 					"wsPort": 9946,

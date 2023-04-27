@@ -20,9 +20,9 @@ use sp_runtime::traits::{AccountIdConversion, CheckedAdd, CheckedSub, One, Zero}
 use sp_std::{cmp, convert::TryInto, vec::Vec};
 
 use crate::{
-	AssetIdLookup, AuthorizedAccounts, BatchRetireDataList, BatchRetireDataOf, Config, Error,
-	Event, NextAssetId, NextItemId, NextProjectId, Pallet, ProjectCreateParams, ProjectDetail,
-	Projects, RetiredCarbonCreditsData, RetiredCredits,
+	AssetIdLookup, AuthorizedAccounts, BatchGroupOf, BatchRetireDataList, BatchRetireDataOf,
+	Config, Error, Event, NextAssetId, NextItemId, NextProjectId, Pallet, ProjectCreateParams,
+	ProjectDetail, Projects, RetiredCarbonCreditsData, RetiredCredits,
 };
 
 impl<T: Config> Pallet<T> {
@@ -286,6 +286,117 @@ impl<T: Config> Pallet<T> {
 
 			// emit event
 			Self::deposit_event(Event::ProjectResubmitted { project_id });
+
+			Ok(())
+		})
+	}
+
+	/// Update a project that has already been approved, this function only allows the owner to
+	/// update certain fields of the project description, once approved the project cannot modify
+	/// the batch groups data.
+	pub fn update_project(
+		admin: T::AccountId,
+		project_id: T::ProjectId,
+		params: ProjectCreateParams<T>,
+	) -> DispatchResult {
+		let now = frame_system::Pallet::<T>::block_number();
+
+		Projects::<T>::try_mutate(project_id, |project| -> DispatchResult {
+			let project = project.as_mut().ok_or(Error::<T>::ProjectNotFound)?;
+
+			// non approved project needs to be resubmitted
+			ensure!(project.approved, Error::<T>::CannotUpdateUnapprovedProject);
+
+			// only originator can resubmit
+			ensure!(project.originator == admin, Error::<T>::NotAuthorised);
+
+			let new_project = ProjectDetail {
+				originator: admin,
+				name: params.name,
+				description: params.description,
+				location: params.location,
+				images: params.images,
+				videos: params.videos,
+				documents: params.documents,
+				registry_details: params.registry_details,
+				sdg_details: params.sdg_details,
+				royalties: params.royalties,
+				// we don't allow editing of the project batch data
+				batch_groups: project.batch_groups.clone(),
+				created: project.created,
+				updated: Some(now),
+				approved: project.approved,
+			};
+
+			*project = new_project;
+
+			// emit event
+			Self::deposit_event(Event::ProjectUpdated { project_id });
+
+			Ok(())
+		})
+	}
+
+	/// Add a new batch group to the project, this can only be done by the originator
+	pub fn do_add_batch_group(
+		admin: T::AccountId,
+		project_id: T::ProjectId,
+		mut batch_group: BatchGroupOf<T>,
+	) -> DispatchResult {
+		Projects::<T>::try_mutate(project_id, |project| -> DispatchResult {
+			let project = project.as_mut().ok_or(Error::<T>::ProjectNotFound)?;
+
+			// non approved project needs to be resubmitted
+			ensure!(project.approved, Error::<T>::CannotUpdateUnapprovedProject);
+
+			// only originator can resubmit
+			ensure!(project.originator == admin, Error::<T>::NotAuthorised);
+
+			let mut batch_group_map = project.batch_groups.clone();
+
+			let group_id: u32 = batch_group_map.len() as u32;
+
+			let mut group_total_supply: T::Balance = Zero::zero();
+
+			for batch in batch_group.batches.iter() {
+				ensure!(
+					batch.total_supply > Zero::zero(),
+					Error::<T>::CannotCreateProjectWithoutCredits
+				);
+
+				ensure!(
+					batch.minted == Zero::zero(),
+					Error::<T>::CannotCreateProjectWithoutCredits
+				);
+
+				ensure!(
+					batch.retired == Zero::zero(),
+					Error::<T>::CannotCreateProjectWithoutCredits
+				);
+
+				group_total_supply = group_total_supply
+					.checked_add(&batch.total_supply)
+					.ok_or(Error::<T>::Overflow)?;
+			}
+
+			ensure!(
+				group_total_supply > Zero::zero(),
+				Error::<T>::CannotCreateProjectWithoutCredits
+			);
+
+			// sort batch data in ascending order of issuance year
+			batch_group.batches.sort_by(|x, y| x.issuance_year.cmp(&y.issuance_year));
+			batch_group.total_supply = group_total_supply;
+
+			// insert the group to BTreeMap
+			batch_group_map
+				.try_insert(group_id.into(), batch_group.clone())
+				.map_err(|_| Error::<T>::TooManyGroups)?;
+
+			project.batch_groups = batch_group_map;
+
+			// emit event
+			Self::deposit_event(Event::BatchGroupAdded { project_id, group_id: group_id.into() });
 
 			Ok(())
 		})
