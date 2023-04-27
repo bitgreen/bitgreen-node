@@ -3,7 +3,7 @@
 // This code is licensed under MIT license (see LICENSE.txt for details)
 use frame_support::{
 	parameter_types,
-	traits::{AsEnsureOriginWithArg, ConstU32, Contains, Everything, GenesisBuild, Nothing},
+	traits::{AsEnsureOriginWithArg, ConstU32, Everything, GenesisBuild, Nothing},
 	PalletId,
 };
 use frame_system as system;
