@@ -112,10 +112,7 @@ pub type Executive = frame_executive::Executive<
 	Runtime,
 	AllPalletsWithSystem,
 	// Migrations
-	(
-		pallet_parachain_staking::migration::v2::MigrateToV2<Runtime>,
-		pallet_carbon_credits::migration::v1::MigrateToV1<Runtime>,
-	),
+	(pallet_parachain_staking::migration::v3::MigrateToV3<Runtime>,),
 >;
 
 pub type NegativeImbalance<T> = <pallet_balances::Pallet<T> as Currency<
@@ -178,7 +175,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: create_runtime_str!("bitgreen-parachain"),
 	impl_name: create_runtime_str!("bitgreen-parachain"),
 	authoring_version: 1,
-	spec_version: 1103, // v1.1.3
+	spec_version: 1105, // v1.1.5
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 1,

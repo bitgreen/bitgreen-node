@@ -537,14 +537,7 @@ fn buy_order_handle_expiry_should_work() {
 		add_validator_account(validator);
 
 		// use should be able to purchase
-		assert_ok!(Dex::create_buy_order(
-			RuntimeOrigin::signed(validator),
-			buyer,
-			0,
-			asset_id,
-			1,
-			11
-		));
+		assert_ok!(Dex::create_buy_order(RuntimeOrigin::signed(buyer), 0, asset_id, 1, 11));
 
 		// sell order storage should be updated correctly
 		let sell_order_storage = Orders::<Test>::get(0).unwrap();
