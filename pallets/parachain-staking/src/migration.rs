@@ -9,7 +9,7 @@ pub mod v3 {
 		BoundedVec,
 	};
 	use sp_runtime::Saturating;
-	use sp_std::vec::Vec;
+	use sp_std::{collections::btree_map::BTreeMap, vec::Vec};
 
 	pub struct MigrateToV3<T>(sp_std::marker::PhantomData<T>);
 	impl<T: Config> OnRuntimeUpgrade for MigrateToV3<T> {
@@ -54,26 +54,33 @@ pub mod v3 {
 		) -> Vec<CandidateInfoOf<T>> {
 			let mut updated_validators: Vec<CandidateInfoOf<T>> = Default::default();
 			for mut validator in validators {
+				log::info!("MIGRATION : Processing validator: {:?}", validator);
 				let mut updated_delegators: BoundedVec<DelegationInfoOf<T>, T::MaxDelegators> =
 					Default::default();
+				let mut updated_delegators_map: BTreeMap<T::AccountId, BalanceOf<T>> =
+					BTreeMap::new();
 				for delegator in validator.delegators {
+					log::info!("MIGRATION : Processing delegator: {:?}", delegator);
+					log::info!(
+						"MIGRATION : Current updated delegators list: {:?}",
+						updated_delegators
+					);
 					// search if the delegator exists in the updated_delegators list
-					let seek = updated_delegators.binary_search_by(|v| v.who.cmp(&delegator.who));
-
-					match seek {
-						// if it does exist, we add the duplicate stake amount to the existing
-						// validator
-						Ok(i) => {
-							let current_deposit = updated_delegators[i].deposit;
-							updated_delegators[i].deposit =
-								current_deposit.saturating_add(delegator.deposit);
-						},
-						// if it does not exist, we add a new entry to the delegators list
-						Err(_) => {
-							updated_delegators.try_push(delegator).unwrap();
-						},
-					}
+					if updated_delegators_map.contains_key(&delegator.who) {
+						if let Some(deposit) = updated_delegators_map.get_mut(&delegator.who) {
+							*deposit = deposit.saturating_add(delegator.deposit);
+						}
+					} else {
+						updated_delegators_map.insert(delegator.who, delegator.deposit);
+					};
 				}
+
+				for (delegator, deposit) in updated_delegators_map {
+					updated_delegators
+						.try_push(DelegationInfoOf::<T> { who: delegator, deposit })
+						.unwrap();
+				}
+
 				validator.delegators = updated_delegators;
 				updated_validators.push(validator);
 			}

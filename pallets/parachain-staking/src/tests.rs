@@ -503,9 +503,14 @@ fn delegate_works() {
 
 		assert_ok!(CollatorSelection::delegate(RuntimeOrigin::signed(5), 3, 10));
 
-		// duplicate delegation should fail
+		// duplicate delegation should fail with different amount
 		assert_noop!(
 			CollatorSelection::delegate(RuntimeOrigin::signed(5), 3, 20),
+			Error::<Test>::AlreadyDelegated
+		);
+		// duplicate delegation should fail with same amount
+		assert_noop!(
+			CollatorSelection::delegate(RuntimeOrigin::signed(5), 3, 10),
 			Error::<Test>::AlreadyDelegated
 		);
 
@@ -958,10 +963,11 @@ fn test_remove_duplicate_delegators() {
 		who: 1,
 		deposit: 1,
 		delegators: vec![
-			delegate_1.clone(),
-			delegate_1.clone(),
 			delegate_2.clone(),
 			delegate_3.clone(),
+			delegate_1.clone(),
+			delegate_1.clone(),
+			DelegationInfo { who: 1, deposit: 10 },
 			delegate_3.clone(),
 			delegate_3.clone(),
 		]
@@ -974,7 +980,7 @@ fn test_remove_duplicate_delegators() {
 		who: 1,
 		deposit: 1,
 		delegators: vec![
-			DelegationInfo { who: 1, deposit: 2 },
+			DelegationInfo { who: 1, deposit: 12 },
 			delegate_2,
 			DelegationInfo { who: 3, deposit: 3 },
 		]
