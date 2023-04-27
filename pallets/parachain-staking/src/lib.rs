@@ -75,8 +75,8 @@ pub mod pallet {
 	use frame_system::{pallet_prelude::*, Config as SystemConfig};
 	use pallet_session::SessionManager;
 	use sp_runtime::{
-		traits::{CheckedAdd, CheckedDiv, Convert},
-		Percent,
+		traits::{CheckedAdd, Convert},
+		FixedPointNumber, Percent,
 	};
 	use sp_staking::SessionIndex;
 	use sp_std::fmt::Debug;
@@ -309,6 +309,8 @@ pub mod pallet {
 		NoUnbondingDelegation,
 		/// The unbonding delay has not been reached
 		UnbondingDelayNotPassed,
+		/// Already delegated
+		AlreadyDelegated,
 	}
 
 	#[pallet::hooks]
@@ -476,6 +478,17 @@ pub mod pallet {
 
 			// add the delegator to the list of delegators
 			let delegation_info = DelegationInfoOf::<T> { who: who.clone(), deposit: amount };
+
+			// ensure not already delegated
+			ensure!(
+				candidate
+					.delegators
+					.clone()
+					.into_inner()
+					.binary_search_by(|v| { v.who.cmp(&who) })
+					.is_err(),
+				Error::<T>::AlreadyDelegated
+			);
 
 			candidate
 				.delegators
@@ -766,6 +779,19 @@ pub mod pallet {
 			collators
 		}
 
+		/// Calculate the total stake of the given delegator set
+		pub fn sum_delegator_set_stake(
+			set: &BoundedVec<DelegationInfoOf<T>, T::MaxDelegators>,
+		) -> BalanceOf<T> {
+			let mut delegators_total_stake: BalanceOf<T> = Default::default();
+
+			for delegator in set.iter() {
+				delegators_total_stake =
+					delegators_total_stake.checked_add(&delegator.deposit).unwrap_or_default();
+			}
+			delegators_total_stake
+		}
+
 		/// Kicks out candidates that did not produce a block in the kick threshold
 		/// and refund their deposits.
 		pub fn kick_stale_candidates(
@@ -808,34 +834,54 @@ pub mod pallet {
 			let fee_reward = T::Currency::free_balance(&pot)
 				.checked_sub(&T::Currency::minimum_balance())
 				.unwrap_or_else(Zero::zero);
+			log::info!("fee_reward {:?}", fee_reward);
 
 			// add inflation rewards to the parachain_staking_pot
 			let reward = Self::inflation_reward_per_block()
 				.checked_add(&fee_reward)
 				.unwrap_or_else(Zero::zero);
+			log::info!("total_reward {:?}", reward);
 
 			// fetch the candidate details for the author
 			if let Some((mut candidate, is_invulnerable)) = Self::get_candidate(author.clone()) {
 				if !candidate.delegators.is_empty() {
 					// total delegator reward is 90%
 					let delegator_reward = Percent::from_percent(90).mul_floor(reward);
-					let reward_for_one_delegator = delegator_reward
-						.checked_div(&(candidate.delegators.len() as u32).into())
-						.unwrap_or_default();
 
 					let delegator_data = candidate.delegators.clone();
+					let delegators_total_stake: BalanceOf<T> =
+						Self::sum_delegator_set_stake(&delegator_data);
+					log::info!("delegators_total_stake {:?}", delegators_total_stake);
+
 					let mut new_delegator_data: Vec<DelegationInfoOf<T>> = Default::default();
 					for mut delegator in delegator_data.into_iter() {
+						// reward users based on the share of stake they hold compared to the pool
+						let delegator_deposit_as_u128: u128 =
+							delegator.deposit.try_into().unwrap_or_default();
+						let delegators_total_stake_as_u128: u128 =
+							delegators_total_stake.try_into().unwrap_or_default();
+						let delegator_share_of_total_stake = sp_runtime::FixedU128::from_rational(
+							delegator_deposit_as_u128,
+							delegators_total_stake_as_u128,
+						);
+						log::info!(
+							"delegator_share_of_total_stake {:?}",
+							delegator_share_of_total_stake
+						);
+
+						let reward_for_delegator = delegator_share_of_total_stake
+							.checked_mul_int(delegator_reward)
+							.unwrap_or_default();
+						log::info!(
+							"reward_for_delegator {:?} is {:?}",
+							delegator.who,
+							reward_for_delegator
+						);
+
 						// update the delegator stake with the reward amount
-						delegator.deposit =
-							delegator.deposit.saturating_add(reward_for_one_delegator);
+						delegator.deposit = delegator.deposit.saturating_add(reward_for_delegator);
 
 						new_delegator_data.push(delegator);
-
-						// Self::deposit_event(Event::DelegatorRewardsTransferred {
-						// 	account_id: delegator.who.clone(),
-						// 	amount: reward_for_one_delegator,
-						// });
 					}
 
 					// this should not fail because the bounds are the same
@@ -844,21 +890,12 @@ pub mod pallet {
 					// send rest of reward to collator
 					let collator_reward = Percent::from_percent(10).mul_floor(reward);
 					candidate.deposit = candidate.deposit.saturating_add(collator_reward);
-					candidate.total_stake = candidate.total_stake.saturating_add(reward);
 
-				// Self::deposit_event(Event::CollatorRewardsTransferred {
-				// 	account_id: author.clone(),
-				// 	amount: collator_reward,
-				// });
+					candidate.total_stake = candidate.total_stake.saturating_add(reward);
 				} else {
 					// `reward` pot account minus ED, this should never fail.
 					candidate.deposit = candidate.deposit.saturating_add(reward);
 					candidate.total_stake = candidate.total_stake.saturating_add(reward);
-
-					// Self::deposit_event(Event::CollatorRewardsTransferred {
-					// 	account_id: author.clone(),
-					// 	amount: reward,
-					// });
 				}
 
 				let _ = Self::update_candidate(candidate, is_invulnerable);

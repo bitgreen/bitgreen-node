@@ -275,11 +275,7 @@ pub mod pallet {
 
 				<Members<T, I>>::put(&members);
 
-				T::MembershipChanged::change_members_sorted(
-					&[new],
-					&[remove],
-					&members[..],
-				);
+				T::MembershipChanged::change_members_sorted(&[new], &[remove], &members[..]);
 			}
 
 			Self::deposit_event(Event::KeyChanged);

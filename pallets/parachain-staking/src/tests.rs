@@ -502,6 +502,13 @@ fn delegate_works() {
 		);
 
 		assert_ok!(CollatorSelection::delegate(RuntimeOrigin::signed(5), 3, 10));
+
+		// duplicate delegation should fail
+		assert_noop!(
+			CollatorSelection::delegate(RuntimeOrigin::signed(5), 3, 20),
+			Error::<Test>::AlreadyDelegated
+		);
+
 		// storage should be updated correctly
 		let expected_delegator_info = DelegationInfoOf::<Test> { who: 5, deposit: 10 };
 		assert_eq!(CollatorSelection::candidates()[0].delegators, vec![expected_delegator_info]);
@@ -824,4 +831,160 @@ fn delegator_payout_works_for_invulnerables() {
 		assert_eq!(Balances::free_balance(5), 90);
 		assert_eq!(Balances::free_balance(CollatorSelection::account_id()), 105);
 	});
+}
+
+#[test]
+fn delegator_payout_is_divided_in_correct_propotion() {
+	new_test_ext().execute_with(|| {
+		// put 100 in the pot + 5 for ED
+		Balances::make_free_balance_be(&CollatorSelection::account_id(), 105);
+		Balances::make_free_balance_be(&6, 100);
+		// block inflation reward is 50
+		assert_ok!(CollatorSelection::set_block_inflation_reward(RuntimeOrigin::root(), 50));
+
+		// 4 is the default author.
+		assert_eq!(Balances::free_balance(4), 100);
+		assert_ok!(CollatorSelection::register_as_candidate(RuntimeOrigin::signed(4)));
+		// three delegators delegators to 4
+		assert_ok!(CollatorSelection::delegate(RuntimeOrigin::signed(3), 4, 30));
+		assert_ok!(CollatorSelection::delegate(RuntimeOrigin::signed(5), 4, 20));
+		assert_ok!(CollatorSelection::delegate(RuntimeOrigin::signed(6), 4, 10));
+		// triggers `note_author`
+		Authorship::on_initialize(4);
+
+		// this is the expected result
+		let collator = CandidateInfoOf::<Test> {
+			who: 4,
+			deposit: 10 + 15, // initial bond of 10 + 10% of reward (150)
+			delegators: vec![
+				// initial bond of 10 + 90% of reward (135) divided in propotion of stake to 3
+				// delegators
+				DelegationInfoOf::<Test> { who: 3u64, deposit: 30 + 67 }, /* initial bond of 30
+				                                                           * + 50% of reward
+				                                                           * (75) */
+				DelegationInfoOf::<Test> { who: 5u64, deposit: 20 + 44 }, /* initial bond of 10
+				                                                           * + 33% of reward
+				                                                           * (44) */
+				DelegationInfoOf::<Test> { who: 6u64, deposit: 10 + 22 }, /* initial bond of 10
+				                                                           * + 16% of reward
+				                                                           * (22) */
+			]
+			.try_into()
+			.unwrap(),
+			total_stake: 220, // initial bond of 70 + 100% of reward
+		};
+
+		assert_eq!(CollatorSelection::candidates().pop().unwrap(), collator);
+		assert_eq!(CollatorSelection::last_authored_block(4), 0);
+
+		// balances should not change
+		assert_eq!(Balances::free_balance(4), 90);
+		assert_eq!(Balances::free_balance(3), 70);
+		assert_eq!(Balances::free_balance(5), 80);
+		assert_eq!(Balances::free_balance(CollatorSelection::account_id()), 105);
+	});
+}
+
+#[test]
+fn test_remove_duplicate_delegators() {
+	use crate::{migration::v3::MigrateToV3, types::DelegationInfo};
+
+	let delegate_1 = DelegationInfo { who: 1, deposit: 1 };
+
+	let delegate_2 = DelegationInfo { who: 2, deposit: 1 };
+
+	let delegate_3 = DelegationInfo { who: 3, deposit: 1 };
+
+	let no_delegators = vec![CandidateInfoOf::<Test> {
+		who: 1,
+		deposit: 1,
+		delegators: vec![].try_into().unwrap(),
+		total_stake: 1,
+	}];
+
+	// no change should happen
+	assert_eq!(
+		MigrateToV3::<Test>::remove_duplicate_delegators(no_delegators.clone()),
+		no_delegators
+	);
+
+	let no_duplicates = vec![CandidateInfoOf::<Test> {
+		who: 1,
+		deposit: 1,
+		delegators: vec![delegate_1.clone(), delegate_2.clone(), delegate_3.clone()]
+			.try_into()
+			.unwrap(),
+		total_stake: 1,
+	}];
+
+	assert_eq!(
+		MigrateToV3::<Test>::remove_duplicate_delegators(no_duplicates.clone()),
+		no_duplicates
+	);
+
+	let some_duplicates = vec![CandidateInfoOf::<Test> {
+		who: 1,
+		deposit: 1,
+		delegators: vec![
+			delegate_1.clone(),
+			delegate_1.clone(),
+			delegate_2.clone(),
+			delegate_3.clone(),
+		]
+		.try_into()
+		.unwrap(),
+		total_stake: 1,
+	}];
+
+	let expected_some_duplicates = vec![CandidateInfoOf::<Test> {
+		who: 1,
+		deposit: 1,
+		delegators: vec![
+			DelegationInfo { who: 1, deposit: 2 },
+			delegate_2.clone(),
+			delegate_3.clone(),
+		]
+		.try_into()
+		.unwrap(),
+		total_stake: 1,
+	}];
+
+	assert_eq!(
+		MigrateToV3::<Test>::remove_duplicate_delegators(some_duplicates),
+		expected_some_duplicates
+	);
+
+	let many_duplicates = vec![CandidateInfoOf::<Test> {
+		who: 1,
+		deposit: 1,
+		delegators: vec![
+			delegate_1.clone(),
+			delegate_1.clone(),
+			delegate_2.clone(),
+			delegate_3.clone(),
+			delegate_3.clone(),
+			delegate_3.clone(),
+		]
+		.try_into()
+		.unwrap(),
+		total_stake: 1,
+	}];
+
+	let expected_many_duplicates = vec![CandidateInfoOf::<Test> {
+		who: 1,
+		deposit: 1,
+		delegators: vec![
+			DelegationInfo { who: 1, deposit: 2 },
+			delegate_2,
+			DelegationInfo { who: 3, deposit: 3 },
+		]
+		.try_into()
+		.unwrap(),
+		total_stake: 1,
+	}];
+
+	assert_eq!(
+		MigrateToV3::<Test>::remove_duplicate_delegators(many_duplicates),
+		expected_many_duplicates
+	);
 }
