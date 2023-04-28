@@ -217,7 +217,16 @@ pub mod pallet {
 		/// A buy order payment was validated
 		BuyOrderPaymentValidated { order_id: BuyOrderId, chain_id: u32, validator: T::AccountId },
 		/// A buy order was completed successfully
-		BuyOrderCompleted { order_id: BuyOrderId },
+		BuyOrderFilled {
+			order_id: OrderId,
+			units: AssetBalanceOf<T>,
+			project_id: ProjectIdOf<T>,
+			group_id: GroupIdOf<T>,
+			price_per_unit: CurrencyBalanceOf<T>,
+			fees_paid: CurrencyBalanceOf<T>,
+			seller: T::AccountId,
+			buyer: T::AccountId,
+		},
 	}
 
 	// Errors inform users that something went wrong.
@@ -568,6 +577,10 @@ pub mod pallet {
 
 					// process payment if we have reached threshold
 					if payment_info.validators.len() as u32 >= Self::min_payment_validators() {
+						// fetch the sell order details
+						let sell_order =
+							Orders::<T>::get(order.order_id).ok_or(Error::<T>::InvalidOrderId)?;
+
 						// transfer the asset to the buyer
 						T::Asset::transfer(
 							order.asset_id,
@@ -577,7 +590,23 @@ pub mod pallet {
 							false,
 						)?;
 
-						Self::deposit_event(Event::BuyOrderCompleted { order_id });
+						// add amount record to the seller
+
+						// get the projectId and groupId for events
+						let (project_id, group_id) =
+							T::AssetValidator::get_project_details(&order.asset_id)
+								.ok_or(Error::<T>::AssetNotPermitted)?;
+
+						Self::deposit_event(Event::BuyOrderFilled {
+							order_id,
+							units: order.units,
+							project_id,
+							group_id,
+							price_per_unit: order.price_per_unit,
+							fees_paid: order.total_fee,
+							seller: sell_order.owner,
+							buyer: order.buyer,
+						});
 
 						// remove from storage if we reached the threshold and payment executed
 						return Ok(())
