@@ -1,7 +1,7 @@
 // This file is part of BitGreen.
 // Copyright (C) 2022 BitGreen.
 // This code is licensed under MIT license (see LICENSE.txt for details)
-use crate::{mock::*, BuyOrders, Error, Event, Orders};
+use crate::{mock::*, BuyOrders, Error, Event, Orders, SellerReceivables};
 use frame_support::{
 	assert_noop, assert_ok, traits::OnIdle, weights::Weight, BoundedVec, PalletId,
 };
@@ -430,6 +430,10 @@ fn payment_is_processed_after_validator_threshold_reached() {
 			}
 			.into()
 		);
+
+		// seller receivable should be updated with the correct amount
+		let seller_receivables = SellerReceivables::<Test>::get(seller).unwrap();
+		assert_eq!(seller_receivables, 10);
 
 		// buy order storage should be cleared since payment is done
 		let buy_order_storage = BuyOrders::<Test>::get(0);

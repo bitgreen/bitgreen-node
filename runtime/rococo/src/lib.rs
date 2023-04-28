@@ -174,7 +174,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: create_runtime_str!("bitgreen-rococo"),
 	impl_name: create_runtime_str!("bitgreen-rococo"),
 	authoring_version: 1,
-	spec_version: 1105, // v1.1.5
+	spec_version: 1106, // v1.1.6
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 1,

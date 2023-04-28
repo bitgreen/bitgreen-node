@@ -177,11 +177,18 @@ pub mod pallet {
 	pub fn DefaultMinPaymentValidators<T: Config>() -> u32 {
 		2u32
 	}
+
 	// Min validations required before a payment is accepted
 	#[pallet::storage]
 	#[pallet::getter(fn min_payment_validators)]
 	pub type MinPaymentValidations<T: Config> =
 		StorageValue<_, u32, ValueQuery, DefaultMinPaymentValidators<T>>;
+
+	// Seller receivables from sales
+	#[pallet::storage]
+	#[pallet::getter(fn seller_receivables)]
+	pub type SellerReceivables<T: Config> =
+		StorageMap<_, Blake2_128Concat, T::AccountId, CurrencyBalanceOf<T>>;
 
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
@@ -591,6 +598,22 @@ pub mod pallet {
 						)?;
 
 						// add amount record to the seller
+						SellerReceivables::<T>::try_mutate(
+							sell_order.owner.clone(),
+							|receivable| -> DispatchResult {
+								let current_receivables =
+									receivable.get_or_insert_with(Default::default);
+								let amount_to_seller = order
+									.total_amount
+									.checked_sub(&order.total_fee)
+									.ok_or(Error::<T>::OrderUnitsOverflow)?;
+								let new_receivables = current_receivables
+									.checked_add(&amount_to_seller)
+									.ok_or(Error::<T>::OrderUnitsOverflow)?;
+								*receivable = Some(new_receivables);
+								Ok(())
+							},
+						)?;
 
 						// get the projectId and groupId for events
 						let (project_id, group_id) =
