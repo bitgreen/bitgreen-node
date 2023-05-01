@@ -177,11 +177,18 @@ pub mod pallet {
 	pub fn DefaultMinPaymentValidators<T: Config>() -> u32 {
 		2u32
 	}
+
 	// Min validations required before a payment is accepted
 	#[pallet::storage]
 	#[pallet::getter(fn min_payment_validators)]
 	pub type MinPaymentValidations<T: Config> =
 		StorageValue<_, u32, ValueQuery, DefaultMinPaymentValidators<T>>;
+
+	// Seller receivables from sales
+	#[pallet::storage]
+	#[pallet::getter(fn seller_receivables)]
+	pub type SellerReceivables<T: Config> =
+		StorageMap<_, Blake2_128Concat, T::AccountId, CurrencyBalanceOf<T>>;
 
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
@@ -217,7 +224,16 @@ pub mod pallet {
 		/// A buy order payment was validated
 		BuyOrderPaymentValidated { order_id: BuyOrderId, chain_id: u32, validator: T::AccountId },
 		/// A buy order was completed successfully
-		BuyOrderCompleted { order_id: BuyOrderId },
+		BuyOrderFilled {
+			order_id: OrderId,
+			units: AssetBalanceOf<T>,
+			project_id: ProjectIdOf<T>,
+			group_id: GroupIdOf<T>,
+			price_per_unit: CurrencyBalanceOf<T>,
+			fees_paid: CurrencyBalanceOf<T>,
+			seller: T::AccountId,
+			buyer: T::AccountId,
+		},
 	}
 
 	// Errors inform users that something went wrong.
@@ -568,6 +584,10 @@ pub mod pallet {
 
 					// process payment if we have reached threshold
 					if payment_info.validators.len() as u32 >= Self::min_payment_validators() {
+						// fetch the sell order details
+						let sell_order =
+							Orders::<T>::get(order.order_id).ok_or(Error::<T>::InvalidOrderId)?;
+
 						// transfer the asset to the buyer
 						T::Asset::transfer(
 							order.asset_id,
@@ -577,7 +597,39 @@ pub mod pallet {
 							false,
 						)?;
 
-						Self::deposit_event(Event::BuyOrderCompleted { order_id });
+						// add amount record to the seller
+						SellerReceivables::<T>::try_mutate(
+							sell_order.owner.clone(),
+							|receivable| -> DispatchResult {
+								let current_receivables =
+									receivable.get_or_insert_with(Default::default);
+								let amount_to_seller = order
+									.total_amount
+									.checked_sub(&order.total_fee)
+									.ok_or(Error::<T>::OrderUnitsOverflow)?;
+								let new_receivables = current_receivables
+									.checked_add(&amount_to_seller)
+									.ok_or(Error::<T>::OrderUnitsOverflow)?;
+								*receivable = Some(new_receivables);
+								Ok(())
+							},
+						)?;
+
+						// get the projectId and groupId for events
+						let (project_id, group_id) =
+							T::AssetValidator::get_project_details(&order.asset_id)
+								.ok_or(Error::<T>::AssetNotPermitted)?;
+
+						Self::deposit_event(Event::BuyOrderFilled {
+							order_id,
+							units: order.units,
+							project_id,
+							group_id,
+							price_per_unit: order.price_per_unit,
+							fees_paid: order.total_fee,
+							seller: sell_order.owner,
+							buyer: order.buyer,
+						});
 
 						// remove from storage if we reached the threshold and payment executed
 						return Ok(())

@@ -1,7 +1,7 @@
 // This file is part of BitGreen.
 // Copyright (C) 2022 BitGreen.
 // This code is licensed under MIT license (see LICENSE.txt for details)
-use crate::{mock::*, BuyOrders, Error, Event, Orders};
+use crate::{mock::*, BuyOrders, Error, Event, Orders, SellerReceivables};
 use frame_support::{
 	assert_noop, assert_ok, traits::OnIdle, weights::Weight, BoundedVec, PalletId,
 };
@@ -416,6 +416,25 @@ fn payment_is_processed_after_validator_threshold_reached() {
 			tx_proof
 		));
 
+		assert_eq!(
+			last_event(),
+			Event::BuyOrderFilled {
+				order_id: 0,
+				buyer,
+				seller,
+				fees_paid: buy_order_storage.total_fee,
+				units: buy_order_storage.units,
+				group_id: 0,
+				price_per_unit: buy_order_storage.price_per_unit,
+				project_id: 0,
+			}
+			.into()
+		);
+
+		// seller receivable should be updated with the correct amount
+		let seller_receivables = SellerReceivables::<Test>::get(seller).unwrap();
+		assert_eq!(seller_receivables, 10);
+
 		// buy order storage should be cleared since payment is done
 		let buy_order_storage = BuyOrders::<Test>::get(0);
 		assert!(buy_order_storage.is_none());
@@ -424,8 +443,6 @@ fn payment_is_processed_after_validator_threshold_reached() {
 		assert_eq!(Assets::balance(asset_id, seller), 95);
 		assert_eq!(Assets::balance(asset_id, buyer), 1);
 		assert_eq!(Assets::balance(asset_id, dex_account), 4);
-
-		assert_eq!(last_event(), Event::BuyOrderCompleted { order_id: 0 }.into());
 	});
 }
 
