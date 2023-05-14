@@ -208,6 +208,7 @@ pub mod pallet {
 		/// A buy order was processed successfully
 		BuyOrderCreated {
 			order_id: OrderId,
+			sell_order_id: OrderId,
 			units: AssetBalanceOf<T>,
 			project_id: ProjectIdOf<T>,
 			group_id: GroupIdOf<T>,
@@ -493,7 +494,8 @@ pub mod pallet {
 				);
 
 				Self::deposit_event(Event::BuyOrderCreated {
-					order_id,
+					order_id: buy_order_id,
+					sell_order_id: order_id,
 					units,
 					project_id,
 					group_id,
@@ -706,6 +708,18 @@ pub mod pallet {
 
 				Ok(())
 			})
+		}
+
+		/// Set the minimum validators required to validator a payment
+		#[transactional]
+		#[pallet::weight(T::WeightInfo::force_set_purchase_fee())]
+		pub fn force_set_min_validations(
+			origin: OriginFor<T>,
+			min_validators: u32,
+		) -> DispatchResult {
+			T::ForceOrigin::ensure_origin(origin)?;
+			MinPaymentValidations::<T>::set(min_validators);
+			Ok(())
 		}
 	}
 
