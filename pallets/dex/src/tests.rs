@@ -421,6 +421,7 @@ fn payment_is_processed_after_validator_threshold_reached() {
 			last_event(),
 			Event::BuyOrderFilled {
 				order_id: 0,
+				sell_order_id: 0,
 				buyer,
 				seller,
 				fees_paid: buy_order_storage.total_fee,

@@ -226,7 +226,8 @@ pub mod pallet {
 		BuyOrderPaymentValidated { order_id: BuyOrderId, chain_id: u32, validator: T::AccountId },
 		/// A buy order was completed successfully
 		BuyOrderFilled {
-			order_id: OrderId,
+			order_id: BuyOrderId,
+			sell_order_id: OrderId,
 			units: AssetBalanceOf<T>,
 			project_id: ProjectIdOf<T>,
 			group_id: GroupIdOf<T>,
@@ -624,6 +625,7 @@ pub mod pallet {
 
 						Self::deposit_event(Event::BuyOrderFilled {
 							order_id,
+							sell_order_id: order.order_id,
 							units: order.units,
 							project_id,
 							group_id,
