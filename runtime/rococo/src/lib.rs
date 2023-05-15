@@ -174,7 +174,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: create_runtime_str!("bitgreen-rococo"),
 	impl_name: create_runtime_str!("bitgreen-rococo"),
 	authoring_version: 1,
-	spec_version: 1106, // v1.1.6
+	spec_version: 1108, // v1.1.8
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 1,
@@ -761,7 +761,7 @@ parameter_types! {
 	#[derive(Clone, scale_info::TypeInfo)]
 	pub const MaxTxHashLen : u32 = 100;
 	#[derive(Clone, scale_info::TypeInfo)]
-	pub const BuyOrderExpiryTime : u32 = 10;
+	pub const BuyOrderExpiryTime : u32 = 10000;
 }
 
 impl pallet_dex::Config for Runtime {

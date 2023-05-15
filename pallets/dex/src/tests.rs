@@ -247,6 +247,7 @@ fn buy_order_should_work() {
 			last_event(),
 			Event::BuyOrderCreated {
 				order_id: 0,
+				sell_order_id: 0,
 				units: 1,
 				price_per_unit: 10,
 				seller,
@@ -569,7 +570,12 @@ fn buy_order_handle_expiry_should_work() {
 		assert_eq!(buy_order_storage.units, 1);
 		assert_eq!(buy_order_storage.expiry_time, 3);
 
-		Dex::on_idle(5, Weight::MAX);
+		Dex::on_idle(3, Weight::MAX);
+
+		// the order should not be cleared before expiry
+		assert!(BuyOrders::<Test>::get(0).is_some());
+
+		Dex::on_idle(6, Weight::MAX);
 
 		// the order should be cleared
 		assert!(BuyOrders::<Test>::get(0).is_none());
@@ -580,5 +586,13 @@ fn buy_order_handle_expiry_should_work() {
 		assert_eq!(sell_order_storage.units, 5);
 		assert_eq!(sell_order_storage.price_per_unit, 10);
 		assert_eq!(sell_order_storage.asset_id, asset_id);
+	});
+}
+
+#[test]
+fn force_set_min_validator_should_work() {
+	new_test_ext().execute_with(|| {
+		assert_ok!(Dex::force_set_min_validations(RuntimeOrigin::root(), 5));
+		assert_eq!(crate::MinPaymentValidations::<Test>::get(), 5);
 	});
 }
