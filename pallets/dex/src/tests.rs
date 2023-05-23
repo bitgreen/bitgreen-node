@@ -597,3 +597,113 @@ fn force_set_min_validator_should_work() {
 		assert_eq!(crate::MinPaymentValidations::<Test>::get(), 5);
 	});
 }
+
+#[test]
+fn force_set_seller_payout_authority_should_work() {
+	new_test_ext().execute_with(|| {
+		assert_ok!(Dex::force_set_seller_payout_authority(RuntimeOrigin::root(), 5));
+		assert_eq!(crate::SellerPayoutAuthority::<Test>::get(), Some(5));
+	});
+}
+
+#[test]
+fn set_seller_payout_preference_should_work() {
+	// Set up the test environment using the new_test_ext function
+	new_test_ext().execute_with(|| {
+		// Define test data
+		let seller = 1;
+		let preference = crate::types::SellerPayoutPreference {
+			chain_id: 0,
+			recipient_address: vec![].try_into().unwrap(),
+		};
+
+		// Call the set_seller_payout_preference extrinsic and assert that it succeeds
+		assert_ok!(Dex::set_seller_payout_preference(
+			RuntimeOrigin::signed(seller),
+			Some(preference.clone())
+		));
+
+		// Assert that the payout preference is set correctly in the SellerPayoutPreferences storage
+		// map
+		assert_eq!(crate::SellerPayoutPreferences::<Test>::get(seller).unwrap(), preference);
+
+		// Call the set_seller_payout_preference extrinsic to clear and assert that it succeeds
+		assert_ok!(Dex::set_seller_payout_preference(RuntimeOrigin::signed(seller), None));
+
+		// Assert that the payout preference is set correctly in the SellerPayoutPreferences storage
+		// map
+		assert_eq!(crate::SellerPayoutPreferences::<Test>::get(seller), None);
+	});
+}
+
+#[test]
+fn record_payment_to_seller_should_work() {
+	// Set up the test environment using the new_test_ext function
+	new_test_ext().execute_with(|| {
+		// Define test data
+		let seller = 1;
+		let authority = 5;
+
+		let payment = crate::types::PayoutExecutedToSeller {
+			order_id: vec![1, 2].try_into().unwrap(),
+			chain_id: 0,
+			recipient_address: vec![].try_into().unwrap(),
+			tx_hash: vec![].try_into().unwrap(),
+			amount: 100,
+		};
+
+		// Ensure the extrinsic fails with SellerPayoutAuthorityNotSet error
+		assert_noop!(
+			Dex::record_payment_to_seller(RuntimeOrigin::signed(seller), seller, payment.clone()),
+			Error::<Test>::SellerPayoutAuthorityNotSet
+		);
+
+		// Set the seller payout authority using the force_set_seller_payout_authority extrinsic
+		assert_ok!(Dex::force_set_seller_payout_authority(RuntimeOrigin::root(), authority));
+
+		// Ensure the extrinsic fails with NotSellerPayoutAuthority error
+		assert_noop!(
+			Dex::record_payment_to_seller(RuntimeOrigin::signed(seller), seller, payment.clone()),
+			Error::<Test>::NotSellerPayoutAuthority
+		);
+
+		// Ensure the extrinsic fails with NoReceivables error
+		assert_noop!(
+			Dex::record_payment_to_seller(
+				RuntimeOrigin::signed(authority),
+				seller,
+				payment.clone()
+			),
+			Error::<Test>::NoReceivables
+		);
+
+		// Set the seller's receivables to 90
+		crate::SellerReceivables::<Test>::set(seller, Some(90));
+
+		// Ensure the extrinsic fails with ReceivableLessThanPayment error
+		assert_noop!(
+			Dex::record_payment_to_seller(
+				RuntimeOrigin::signed(authority),
+				seller,
+				payment.clone()
+			),
+			Error::<Test>::ReceivableLessThanPayment
+		);
+
+		// Set the seller's receivables to 100
+		crate::SellerReceivables::<Test>::set(seller, Some(100));
+
+		// Call the record_payment_to_seller extrinsic and assert that it succeeds
+		assert_ok!(Dex::record_payment_to_seller(
+			RuntimeOrigin::signed(authority),
+			seller,
+			payment.clone()
+		));
+
+		// Assert that the payment is recorded correctly in the SellerPayouts storage map
+		assert_eq!(crate::SellerPayouts::<Test>::get(seller).unwrap(), vec![payment]);
+
+		// Assert that the seller's receivables is updated to 0
+		assert_eq!(crate::SellerReceivables::<Test>::get(seller).unwrap(), 0);
+	});
+}

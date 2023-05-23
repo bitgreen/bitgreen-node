@@ -164,10 +164,16 @@ parameter_types! {
 	pub const MaxPurchaseFee : u128 = 100u128;
 	#[derive(Clone, scale_info::TypeInfo)]
 	pub const MaxValidators : u32 = 10;
-	#[derive(Clone, scale_info::TypeInfo)]
+	#[derive(Clone, scale_info::TypeInfo, Debug, PartialEq)]
 	pub const MaxTxHashLen : u32 = 100;
 	#[derive(Clone, scale_info::TypeInfo)]
 	pub const BuyOrderExpiryTime : u32 = 2;
+	#[derive(Clone, scale_info::TypeInfo, Debug, PartialEq)]
+	pub const MaxAddressLen : u32 = 100;
+	#[derive(Clone, scale_info::TypeInfo, Debug, PartialEq)]
+	pub const MaxOrderIds : u32 = 100;
+	#[derive(Clone, scale_info::TypeInfo, Debug, PartialEq)]
+	pub const MaxPayoutsToStore : u32 = 1000;
 }
 
 impl pallet_dex::Config for Test {
@@ -183,10 +189,13 @@ impl pallet_dex::Config for Test {
 	type MaxValidators = MaxValidators;
 	type MaxTxHashLen = MaxTxHashLen;
 	type BuyOrderExpiryTime = BuyOrderExpiryTime;
+	type MaxAddressLen = MaxAddressLen;
+	type MaxOrderIds = MaxOrderIds;
 	type MinUnitsToCreateSellOrder = MinUnitsToCreateSellOrder;
 	type ForceOrigin = EnsureRoot<AccountId>;
 	type MaxPaymentFee = MaxPaymentFee;
 	type MaxPurchaseFee = MaxPurchaseFee;
+	type MaxPayoutsToStore = MaxPayoutsToStore;
 	type WeightInfo = ();
 }
 
