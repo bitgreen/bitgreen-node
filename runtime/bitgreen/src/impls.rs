@@ -55,19 +55,6 @@ impl Contains<RuntimeCall> for BaseFilter {
 			return false
 		}
 
-		#[allow(clippy::match_like_matches_macro)]
-		// keep CallFilter with explicit true/false for documentation
-		match call {
-			// Explicitly DISALLOWED calls
-            | RuntimeCall::Assets(_) // Filter Assets. Assets should only be accessed by CarbonCreditsPallet.
-			| RuntimeCall::Uniques(_) // Filter Uniques, which should only be accessed by CarbonCreditsPallet.
-			| RuntimeCall::Tokens(_) // Filter Tokens, we dont use them now
-			| RuntimeCall::CarbonCredits(_) // VCU, we dont use them now
-			| RuntimeCall::CarbonCreditsPools(_) // VCUPools, we dont use them now
-			| RuntimeCall::Dex(_) // Dex, we dont use them now
-			| RuntimeCall::Contracts(_) => false, // Contracts, we dont use them now
-            // ALLOW anything else
-            | _ => true
-        }
+		true
 	}
 }

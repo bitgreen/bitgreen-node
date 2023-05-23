@@ -174,7 +174,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: create_runtime_str!("bitgreen-rococo"),
 	impl_name: create_runtime_str!("bitgreen-rococo"),
 	authoring_version: 1,
-	spec_version: 1108, // v1.1.8
+	spec_version: 1109, // v1.1.9
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 1,
@@ -758,10 +758,16 @@ parameter_types! {
 	pub const MaxPurchaseFee : Balance = 10 * UNIT;
 	#[derive(Clone, scale_info::TypeInfo)]
 	pub const MaxValidators : u32 = 10;
-	#[derive(Clone, scale_info::TypeInfo)]
+	#[derive(Clone, scale_info::TypeInfo, Debug, PartialEq)]
 	pub const MaxTxHashLen : u32 = 100;
 	#[derive(Clone, scale_info::TypeInfo)]
-	pub const BuyOrderExpiryTime : u32 = 10000;
+	pub const BuyOrderExpiryTime : u32 = 2;
+	#[derive(Clone, scale_info::TypeInfo, Debug, PartialEq)]
+	pub const MaxAddressLen : u32 = 100;
+	#[derive(Clone, scale_info::TypeInfo, Debug, PartialEq)]
+	pub const MaxOrderIds : u32 = 100;
+	#[derive(Clone, scale_info::TypeInfo, Debug, PartialEq)]
+	pub const MaxPayoutsToStore : u32 = 1000;
 }
 
 impl pallet_dex::Config for Runtime {
@@ -781,6 +787,9 @@ impl pallet_dex::Config for Runtime {
 	type BuyOrderExpiryTime = BuyOrderExpiryTime;
 	type MaxPaymentFee = MaxPaymentFee;
 	type MaxPurchaseFee = MaxPurchaseFee;
+	type MaxAddressLen = MaxAddressLen;
+	type MaxOrderIds = MaxOrderIds;
+	type MaxPayoutsToStore = MaxPayoutsToStore;
 	type WeightInfo = ();
 }
 

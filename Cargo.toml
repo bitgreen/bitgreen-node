@@ -7,7 +7,7 @@ split-debuginfo = "unpacked"
 [workspace]
 members = [
   'parachain',
-  'runtime/*',
+  'runtime/bitgreen',
   'pallets/*',
   'primitives',
 ]
