@@ -48,6 +48,7 @@ mod types;
 pub mod pallet {
 	use crate::{types::*, WeightInfo};
 	use frame_support::{
+		dispatch::fmt::Debug,
 		pallet_prelude::*,
 		traits::{fungibles::Transfer, Contains},
 		transactional, PalletId,
@@ -131,7 +132,16 @@ pub mod pallet {
 		type MaxValidators: Get<u32> + TypeInfo + Clone;
 
 		/// The maximum length of tx hash that can be stored on chain
-		type MaxTxHashLen: Get<u32> + TypeInfo + Clone;
+		type MaxTxHashLen: Get<u32> + TypeInfo + Clone + Debug + PartialEq;
+
+		/// The maximum length of address that can be stored on chain
+		type MaxAddressLen: Get<u32> + TypeInfo + Clone + Debug + PartialEq;
+
+		/// The maximum length of orderIds that can be stored on chain
+		type MaxOrderIds: Get<u32> + TypeInfo + Clone + Debug + PartialEq;
+
+		/// The maximum payouts to store onchain
+		type MaxPayoutsToStore: Get<u32> + TypeInfo + Clone + Debug + PartialEq;
 
 		/// KYC provider config
 		type KYCProvider: Contains<Self::AccountId>;
@@ -190,6 +200,27 @@ pub mod pallet {
 	pub type SellerReceivables<T: Config> =
 		StorageMap<_, Blake2_128Concat, T::AccountId, CurrencyBalanceOf<T>>;
 
+	#[pallet::storage]
+	#[pallet::getter(fn seller_payout_authority)]
+	// The account that can confirm payouts to seller
+	pub type SellerPayoutAuthority<T: Config> = StorageValue<_, T::AccountId, OptionQuery>;
+
+	// Seller payment preference
+	#[pallet::storage]
+	#[pallet::getter(fn seller_payout_preferences)]
+	pub type SellerPayoutPreferences<T: Config> =
+		StorageMap<_, Blake2_128Concat, T::AccountId, SellerPayoutPreferenceOf<T>>;
+
+	// Seller payouts
+	#[pallet::storage]
+	#[pallet::getter(fn seller_payouts)]
+	pub type SellerPayouts<T: Config> = StorageMap<
+		_,
+		Blake2_128Concat,
+		T::AccountId,
+		BoundedVec<PayoutExecutedToSellerOf<T>, T::MaxPayoutsToStore>,
+	>;
+
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
 	pub enum Event<T: Config> {
@@ -236,6 +267,15 @@ pub mod pallet {
 			seller: T::AccountId,
 			buyer: T::AccountId,
 		},
+		/// A seller has set payout preference
+		SellerPayoutPreferenceSet {
+			seller: T::AccountId,
+			preference: Option<SellerPayoutPreferenceOf<T>>,
+		},
+		/// Authority to validate seller payout has been set
+		SellerPayoutAuthoritySet { authority: T::AccountId },
+		/// A seller was paid
+		SellerPayoutExecuted { seller: T::AccountId, payout: PayoutExecutedToSellerOf<T> },
 	}
 
 	// Errors inform users that something went wrong.
@@ -277,6 +317,16 @@ pub mod pallet {
 		TxProofMismatch,
 		KYCAuthorisationFailed,
 		DuplicateValidation,
+		/// Not seller payment authority
+		NotSellerPayoutAuthority,
+		/// Seller payout authority has not been set
+		SellerPayoutAuthorityNotSet,
+		/// No receivable found for seller
+		NoReceivables,
+		/// receivable amount is less than payment
+		ReceivableLessThanPayment,
+		/// Payments list is full
+		PaymentsListFull,
 	}
 
 	#[pallet::hooks]
@@ -721,6 +771,144 @@ pub mod pallet {
 		) -> DispatchResult {
 			T::ForceOrigin::ensure_origin(origin)?;
 			MinPaymentValidations::<T>::set(min_validators);
+			Ok(())
+		}
+
+		/// Set the seller payout authority by force.
+		///
+		/// This function allows the seller payout authority to be set forcefully by a privileged
+		/// origin.
+		///
+		/// - `origin`: The origin of the transaction.
+		/// - `authority`: The account ID of the authority to be set as the seller payout authority.
+		///
+		///
+		/// # Errors
+		///
+		/// This function may return an error if:
+		///
+		/// - The transaction origin is not authorized to force the operation.
+		///
+		/// # Note
+		///
+		/// This function is intended to be called by ForceOrigin, typically through a governance
+		/// process. It sets the `authority` as the seller payout authority by storing it in the
+		/// `SellerPayoutAuthority` storage item.
+		///
+		/// Emits an `Event::SellerPayoutAuthoritySet` event on success.
+		#[transactional]
+		#[pallet::weight(T::WeightInfo::force_set_purchase_fee())]
+		pub fn force_set_seller_payout_authority(
+			origin: OriginFor<T>,
+			authority: T::AccountId,
+		) -> DispatchResult {
+			T::ForceOrigin::ensure_origin(origin)?;
+			SellerPayoutAuthority::<T>::set(Some(authority.clone()));
+			Self::deposit_event(Event::SellerPayoutAuthoritySet { authority });
+			Ok(())
+		}
+
+		/// Set the payout preference for a seller.
+		///
+		/// This function allows a seller to set their preferred payout preference.
+		///
+		/// - `origin`: The origin of the transaction.
+		/// - `preference`: An optional `SellerPayoutPreference` value representing the desired
+		///   payout preference.
+		///
+		///
+		/// # Errors
+		///
+		/// This function may return an error if:
+		///
+		/// - The transaction origin is not signed.
+		///
+		/// # Note
+		///
+		/// If a `preference` value is provided, it will be associated with the `seller` and stored
+		/// in the `SellerPayoutPreferences` storage map. If `preference` is `None`, the payout
+		/// preference for the `seller` will be removed from the storage.
+		///
+		/// Emits an `Event::SellerPayoutPreferenceSet` event on success.
+		#[transactional]
+		#[pallet::weight(T::WeightInfo::force_set_purchase_fee())]
+		pub fn set_seller_payout_preference(
+			origin: OriginFor<T>,
+			preference: Option<SellerPayoutPreferenceOf<T>>,
+		) -> DispatchResult {
+			let seller = ensure_signed(origin)?;
+			if let Some(preference) = preference.clone() {
+				SellerPayoutPreferences::<T>::insert(seller.clone(), preference);
+			} else {
+				SellerPayoutPreferences::<T>::take(seller.clone());
+			}
+			Self::deposit_event(Event::SellerPayoutPreferenceSet { seller, preference });
+			Ok(())
+		}
+
+		/// Record a payment executed to a seller.
+		///
+		/// This function records a payment executed to a seller and performs necessary validations
+		/// and updates.
+		///
+		/// - `origin`: The origin of the transaction.
+		/// - `seller`: The account ID of the seller who received the payment.
+		/// - `payout`: A `PayoutExecutedToSeller` value representing the details of the payment.
+		///
+		///
+		/// # Errors
+		///
+		/// This function may return an error if:
+		///
+		/// - The transaction origin is not signed by the expected authority.
+		/// - The seller payout authority has not been set.
+		/// - The `seller` has no receivables.
+		/// - The receivable amount is less than the payment amount.
+		/// - The list of seller payouts is full and cannot accommodate the new payment.
+		///
+		/// # Note
+		///
+		/// This function performs the following steps:
+		///
+		/// - Verifies that the `origin` is signed by the expected authority, which is retrieved
+		///   from the `SellerPayoutAuthority` storage item.
+		/// - Subtracts the payment amount from the seller's receivables stored in the
+		///   `SellerReceivables` storage map.
+		/// - Adds the new payment to the list of seller payouts stored in the `SellerPayouts`
+		///   storage map.
+		///
+		/// Emits an `Event::SellerPayoutExecuted` event on success.
+		#[transactional]
+		#[pallet::weight(T::WeightInfo::force_set_purchase_fee())]
+		pub fn record_payment_to_seller(
+			origin: OriginFor<T>,
+			seller: T::AccountId,
+			payout: PayoutExecutedToSellerOf<T>,
+		) -> DispatchResult {
+			let authority = ensure_signed(origin)?;
+
+			// ensure the caller is the approved authority
+			let expected_authority =
+				SellerPayoutAuthority::<T>::get().ok_or(Error::<T>::SellerPayoutAuthorityNotSet)?;
+			ensure!(authority == expected_authority, Error::<T>::NotSellerPayoutAuthority);
+
+			// subtract the paid amount from the receivables
+			SellerReceivables::<T>::try_mutate(seller.clone(), |receivable| -> DispatchResult {
+				let receivable = receivable.as_mut().ok_or(Error::<T>::NoReceivables)?;
+				*receivable = receivable
+					.checked_sub(&payout.amount)
+					.ok_or(Error::<T>::ReceivableLessThanPayment)?;
+				Ok(())
+			})?;
+
+			// add new payment to storage
+			SellerPayouts::<T>::try_mutate(seller.clone(), |payouts| -> DispatchResult {
+				let payouts = payouts.get_or_insert_with(Default::default);
+				payouts.try_push(payout.clone()).map_err(|_| Error::<T>::PaymentsListFull)?;
+				Ok(())
+			})?;
+
+			Self::deposit_event(Event::SellerPayoutExecuted { seller, payout });
 			Ok(())
 		}
 	}
