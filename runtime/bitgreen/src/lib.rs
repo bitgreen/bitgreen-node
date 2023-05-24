@@ -112,7 +112,7 @@ pub type Executive = frame_executive::Executive<
 	Runtime,
 	AllPalletsWithSystem,
 	// Migrations
-	(pallet_parachain_staking::migration::v3::MigrateToV3<Runtime>,),
+	()
 >;
 
 pub type NegativeImbalance<T> = <pallet_balances::Pallet<T> as Currency<
@@ -175,7 +175,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: create_runtime_str!("bitgreen-parachain"),
 	impl_name: create_runtime_str!("bitgreen-parachain"),
 	authoring_version: 1,
-	spec_version: 1109, // v1.1.9
+	spec_version: 1111, // v1.1.11
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 1,
@@ -736,11 +736,11 @@ parameter_types! {
 	#[derive(Clone, scale_info::TypeInfo)]
 	pub const MaxValidators : u32 = 10;
 	#[derive(Clone, scale_info::TypeInfo, Debug, PartialEq)]
-	pub const MaxTxHashLen : u32 = 100;
+	pub const MaxTxHashLen : u32 = 1000;
 	#[derive(Clone, scale_info::TypeInfo)]
-	pub const BuyOrderExpiryTime : u32 = 2;
+	pub const BuyOrderExpiryTime : u32 = 2 * HOURS;
 	#[derive(Clone, scale_info::TypeInfo, Debug, PartialEq)]
-	pub const MaxAddressLen : u32 = 100;
+	pub const MaxAddressLen : u32 = 1000;
 	#[derive(Clone, scale_info::TypeInfo, Debug, PartialEq)]
 	pub const MaxOrderIds : u32 = 100;
 	#[derive(Clone, scale_info::TypeInfo, Debug, PartialEq)]

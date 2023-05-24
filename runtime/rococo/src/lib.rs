@@ -174,7 +174,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: create_runtime_str!("bitgreen-rococo"),
 	impl_name: create_runtime_str!("bitgreen-rococo"),
 	authoring_version: 1,
-	spec_version: 1109, // v1.1.9
+	spec_version: 1111, // v1.1.11
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 1,
@@ -761,7 +761,7 @@ parameter_types! {
 	#[derive(Clone, scale_info::TypeInfo, Debug, PartialEq)]
 	pub const MaxTxHashLen : u32 = 100;
 	#[derive(Clone, scale_info::TypeInfo)]
-	pub const BuyOrderExpiryTime : u32 = 2;
+	pub const BuyOrderExpiryTime : u32 = 2 * HOURS;
 	#[derive(Clone, scale_info::TypeInfo, Debug, PartialEq)]
 	pub const MaxAddressLen : u32 = 100;
 	#[derive(Clone, scale_info::TypeInfo, Debug, PartialEq)]
