@@ -891,6 +891,85 @@ fn delegator_payout_is_divided_in_correct_propotion() {
 }
 
 #[test]
+fn delegator_payout_complete_flow_test() {
+	new_test_ext().execute_with(|| {
+		// put 100 in the pot + 5 for ED
+		Balances::make_free_balance_be(&CollatorSelection::account_id(), 105);
+		Balances::make_free_balance_be(&6, 100);
+		// block inflation reward is 50
+		assert_ok!(CollatorSelection::set_block_inflation_reward(RuntimeOrigin::root(), 50));
+
+		// 4 is the default author.
+		assert_eq!(Balances::free_balance(4), 100);
+		assert_ok!(CollatorSelection::register_as_candidate(RuntimeOrigin::signed(4)));
+		// three delegators delegators to 4
+		assert_ok!(CollatorSelection::delegate(RuntimeOrigin::signed(3), 4, 30));
+		assert_ok!(CollatorSelection::delegate(RuntimeOrigin::signed(5), 4, 20));
+		assert_ok!(CollatorSelection::delegate(RuntimeOrigin::signed(6), 4, 10));
+		// triggers `note_author`
+		Authorship::on_initialize(4);
+
+		// this is the expected result
+		let collator = CandidateInfoOf::<Test> {
+			who: 4,
+			deposit: 10 + 15, // initial bond of 10 + 10% of reward (150)
+			delegators: vec![
+				// initial bond of 10 + 90% of reward (135) divided in propotion of stake to 3
+				// delegators
+				DelegationInfoOf::<Test> { who: 3u64, deposit: 30 + 67 }, /* initial bond of 30
+				                                                           * + 50% of reward
+				                                                           * (75) */
+				DelegationInfoOf::<Test> { who: 5u64, deposit: 20 + 44 }, /* initial bond of 10
+				                                                           * + 33% of reward
+				                                                           * (44) */
+				DelegationInfoOf::<Test> { who: 6u64, deposit: 10 + 22 }, /* initial bond of 10
+				                                                           * + 16% of reward
+				                                                           * (22) */
+			]
+			.try_into()
+			.unwrap(),
+			total_stake: 220, // initial bond of 70 + 100% of reward
+		};
+
+		assert_eq!(CollatorSelection::candidates().pop().unwrap(), collator);
+		assert_eq!(CollatorSelection::last_authored_block(4), 0);
+
+		// balances should not change
+		assert_eq!(Balances::free_balance(4), 90);
+		assert_eq!(Balances::free_balance(3), 70);
+		assert_eq!(Balances::free_balance(5), 80);
+		assert_eq!(Balances::free_balance(CollatorSelection::account_id()), 105);
+
+		// bond another candidate so existing can unbond
+		assert_ok!(CollatorSelection::register_as_candidate(RuntimeOrigin::signed(100)));
+
+		// let the candidate unbond
+		assert_ok!(CollatorSelection::leave_intent(RuntimeOrigin::signed(4)));
+		assert_eq!(CollatorSelection::candidates().len(), 1);
+
+		// balance is not immediately returned
+		assert_eq!(Balances::free_balance(4), 90);
+		assert_eq!(Balances::free_balance(3), 70);
+		assert_eq!(Balances::free_balance(5), 80);
+		assert_eq!(Balances::free_balance(CollatorSelection::account_id()), 105);
+
+		// skip to after unbonding period
+		initialize_to_block(20);
+
+		// let the collator call withdraw unbond
+		assert_ok!(CollatorSelection::candidate_withdraw_unbonded(RuntimeOrigin::signed(4)));
+		assert_eq!(CollatorSelection::last_authored_block(3), 0);
+
+		// collator bond is returned + rewards
+		assert_eq!(Balances::free_balance(4), 90 + 10 + 15);
+
+		// delegator bond is also returned + rewards
+		assert_eq!(Balances::free_balance(3), 70 + 30 + 67);
+		assert_eq!(Balances::free_balance(5), 80 + 20 + 44);
+	});
+}
+
+#[test]
 fn test_remove_duplicate_delegators() {
 	use crate::{migration::v3::MigrateToV3, types::DelegationInfo};
 

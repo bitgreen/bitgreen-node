@@ -620,7 +620,13 @@ pub mod pallet {
 			ensure!(time_passed >= unbonding_delay, Error::<T>::UnbondingDelayNotPassed);
 
 			// withdraw the user deposit
-			let _ = <T as Config>::Currency::unreserve(&who, delegation.deposit);
+			let remaining_reward = <T as Config>::Currency::unreserve(&who, delegation.deposit);
+
+			// if any rewards was paid out to the user, we deposit the amount to the account
+			if remaining_reward != 0_u32.into() {
+				// transfer the user reward to user account
+				<T as Config>::Currency::deposit_creating(&who, remaining_reward);
+			}
 
 			// delete the unbonded delegation
 			UnbondedDelegates::<T>::remove(who.clone());
@@ -652,13 +658,27 @@ pub mod pallet {
 
 			// unreserve all delegators to the candidate
 			for delegator in delegation.delegators.iter() {
-				T::Currency::unreserve(&delegator.who, delegator.deposit);
+				// withdraw the user deposit
+				let remaining_reward =
+					<T as Config>::Currency::unreserve(&delegator.who, delegator.deposit);
+
+				// if any rewards was paid out to the user, we deposit the amount to the account
+				if remaining_reward != 0_u32.into() {
+					// transfer the user reward to user account
+					<T as Config>::Currency::deposit_creating(&delegator.who, remaining_reward);
+				}
 			}
 
 			<LastAuthoredBlock<T>>::remove(who.clone());
 
 			// withdraw the candidate deposit
-			let _ = <T as Config>::Currency::unreserve(&who, delegation.deposit);
+			let remaining_reward = <T as Config>::Currency::unreserve(&who, delegation.deposit);
+
+			// if any rewards was paid out to the candidate, we deposit the amount to the account
+			if remaining_reward != 0_u32.into() {
+				// transfer the user reward to user account
+				<T as Config>::Currency::deposit_creating(&who, remaining_reward);
+			}
 
 			// delete the unbonded delegation
 			UnbondedCandidates::<T>::remove(who.clone());
