@@ -1079,3 +1079,64 @@ fn test_remove_duplicate_delegators() {
 		expected_many_duplicates
 	);
 }
+
+#[test]
+fn delegate_more_works() {
+	new_test_ext().execute_with(|| {
+		// delegate more to non existing candidate should fail
+		assert_noop!(
+			CollatorSelection::delegate_more(RuntimeOrigin::signed(5), 3, 19),
+			Error::<Test>::NotCandidate
+		);
+
+		// add a new collator
+		assert_ok!(CollatorSelection::register_as_candidate(RuntimeOrigin::signed(3)));
+		initialize_to_block(10);
+
+		// should fail if candidate and delegators is same
+		assert_noop!(
+			CollatorSelection::delegate_more(RuntimeOrigin::signed(3), 3, 10),
+			Error::<Test>::DelegatorAccountSameAsCandidateAccount
+		);
+
+		// should fail if delegation does not exist
+		assert_noop!(
+			CollatorSelection::delegate_more(RuntimeOrigin::signed(5), 3, 10),
+			Error::<Test>::NotDelegator
+		);
+
+		assert_eq!(CollatorSelection::candidates().len(), 1);
+
+		// delegate once
+		assert_ok!(CollatorSelection::delegate(RuntimeOrigin::signed(5), 3, 10));
+
+		// storage should be updated correctly
+		let expected_delegator_info = DelegationInfoOf::<Test> { who: 5, deposit: 10 };
+		assert_eq!(
+			CollatorSelection::candidates()[0].delegators.clone().into_inner(),
+			vec![expected_delegator_info]
+		);
+		assert_eq!(CollatorSelection::candidates()[0].total_stake, 10 + 10);
+		// the balane should be reserved correctly
+		assert_eq!(Balances::reserved_balance(5), 10);
+
+		// should fail if the amount is not available to reserve
+		assert_noop!(
+			CollatorSelection::delegate_more(RuntimeOrigin::signed(5), 3, 100_000),
+			pallet_balances::Error::<Test>::InsufficientBalance
+		);
+
+		// should work if inputs correct
+		assert_ok!(CollatorSelection::delegate_more(RuntimeOrigin::signed(5), 3, 10));
+
+		// storage should be updated correctly
+		let expected_delegator_info = DelegationInfoOf::<Test> { who: 5, deposit: 10 + 10 };
+		assert_eq!(
+			CollatorSelection::candidates()[0].delegators.clone().into_inner(),
+			vec![expected_delegator_info]
+		);
+		assert_eq!(CollatorSelection::candidates()[0].total_stake, 10 + 10 + 10);
+		// the balane should be reserved correctly
+		assert_eq!(Balances::reserved_balance(5), 10 + 10);
+	});
+}
