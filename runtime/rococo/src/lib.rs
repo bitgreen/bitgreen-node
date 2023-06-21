@@ -761,7 +761,7 @@ parameter_types! {
 	#[derive(Clone, scale_info::TypeInfo, Debug, PartialEq)]
 	pub const MaxTxHashLen : u32 = 100;
 	#[derive(Clone, scale_info::TypeInfo)]
-	pub const BuyOrderExpiryTime : u32 = 2 * HOURS;
+	pub const BuyOrderExpiryTime : u32 = 1 * HOURS;
 	#[derive(Clone, scale_info::TypeInfo, Debug, PartialEq)]
 	pub const MaxAddressLen : u32 = 100;
 	#[derive(Clone, scale_info::TypeInfo, Debug, PartialEq)]

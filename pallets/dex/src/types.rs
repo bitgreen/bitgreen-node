@@ -131,3 +131,11 @@ pub struct PayoutExecutedToSeller<
 pub type OrderId = u128;
 
 pub type BuyOrderId = u128;
+
+#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, Default, MaxEncodedLen, TypeInfo)]
+pub enum UserLevel {
+	#[default]
+	KYCLevel1,
+	KYCLevel2,
+	Whitelist,
+}

@@ -58,7 +58,7 @@ pub mod pallet {
 	use primitives::CarbonCreditsValidator;
 	use sp_runtime::{
 		traits::{AccountIdConversion, AtLeast32BitUnsigned, CheckedAdd, CheckedSub, One, Zero},
-		Percent,
+		Percent, Saturating,
 	};
 
 	#[pallet::pallet]
@@ -143,6 +143,9 @@ pub mod pallet {
 		/// The maximum payouts to store onchain
 		type MaxPayoutsToStore: Get<u32> + TypeInfo + Clone + Debug + PartialEq;
 
+		/// The maximum open orders allowed for a user
+		type MaxOpenOrdersPerUser: Get<u32> + TypeInfo + Clone + Debug + PartialEq;
+
 		/// KYC provider config
 		type KYCProvider: Contains<Self::AccountId>;
 
@@ -221,6 +224,22 @@ pub mod pallet {
 		BoundedVec<PayoutExecutedToSellerOf<T>, T::MaxPayoutsToStore>,
 	>;
 
+	/// storage to track the buy orders by user
+	#[pallet::storage]
+	#[pallet::getter(fn buy_order_by_user)]
+	pub type BuyOrdersByUser<T: Config> = StorageMap<
+		_,
+		Blake2_128Concat,
+		T::AccountId,
+		BoundedVec<(BuyOrderId, AssetBalanceOf<T>), T::MaxOpenOrdersPerUser>,
+	>;
+
+	/// storage to track the limit of units allowed in open orders
+	#[pallet::storage]
+	#[pallet::getter(fn user_open_order_units_allowed)]
+	pub type UserOpenOrderUnitsAllowed<T: Config> =
+		StorageMap<_, Blake2_128Concat, UserLevel, AssetBalanceOf<T>>;
+
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
 	pub enum Event<T: Config> {
@@ -276,6 +295,15 @@ pub mod pallet {
 		SellerPayoutAuthoritySet { authority: T::AccountId },
 		/// A seller was paid
 		SellerPayoutExecuted { seller: T::AccountId, payout: PayoutExecutedToSellerOf<T> },
+		/// A buy order was expired and removed
+		BuyOrderExpired {
+			order_id: BuyOrderId,
+			sell_order_id: OrderId,
+			units: AssetBalanceOf<T>,
+			buyer: T::AccountId,
+		},
+		/// User open order units limit set
+		UserOpenOrderUnitsLimitUpdated { level: UserLevel, limit: AssetBalanceOf<T> },
 	}
 
 	// Errors inform users that something went wrong.
@@ -311,11 +339,17 @@ pub mod pallet {
 		CannotSetMoreThanMaxPurchaseFee,
 		/// not authorized to perform action
 		NotAuthorised,
+		/// Duplicate validator account
 		ValidatorAccountAlreadyExists,
+		/// Exceeded the maximum allowed validator count
 		TooManyValidatorAccounts,
+		/// Different chainId provided when validating transaction
 		ChainIdMismatch,
+		/// TXProof provided by the validator is different from previous validation
 		TxProofMismatch,
+		/// User not kyc authorized to perform action
 		KYCAuthorisationFailed,
+		/// Already validated
 		DuplicateValidation,
 		/// Not seller payment authority
 		NotSellerPayoutAuthority,
@@ -327,6 +361,12 @@ pub mod pallet {
 		ReceivableLessThanPayment,
 		/// Payments list is full
 		PaymentsListFull,
+		/// User has too many open orders
+		OpenOrderLimitExceeded,
+		/// User has too many units as unpaid open orders
+		UserOpenOrderUnitsAllowedExceeded,
+		/// Limits for open orders not configured correctly
+		UserOpenOrderUnitsLimtNotFound,
 	}
 
 	#[pallet::hooks]
@@ -346,6 +386,7 @@ pub mod pallet {
 					BuyOrders::<T>::take(key);
 					remaining_weight =
 						remaining_weight.saturating_sub(T::DbWeight::get().writes(1));
+
 					// add the credits to the sell order
 					let sell_order_updated = Orders::<T>::try_mutate(
 						buy_order.order_id,
@@ -372,6 +413,23 @@ pub mod pallet {
 						"INFO: Removed Expired buy order with buy_order_id: {}",
 						key
 					);
+
+					BuyOrdersByUser::<T>::try_mutate(
+						buy_order.buyer.clone(),
+						|open_orders| -> DispatchResult {
+							let mut open_orders = open_orders.get_or_insert_with(Default::default);
+							open_orders.retain(|&x| x != (key, buy_order.units));
+							Ok(())
+						},
+					);
+
+					// emit an event that expired order was removed
+					Self::deposit_event(Event::BuyOrderExpired {
+						order_id: key,
+						sell_order_id: buy_order.order_id,
+						units: buy_order.units,
+						buyer: buy_order.buyer,
+					});
 
 					// exit since we altered the map
 					break
@@ -528,6 +586,34 @@ pub mod pallet {
 				let expiry_time = current_block_number
 					.checked_add(&T::BuyOrderExpiryTime::get())
 					.ok_or(Error::<T>::OrderIdOverflow)?;
+
+				// ensure the user does not have open buy orders more than limit
+				BuyOrdersByUser::<T>::try_mutate(
+					buyer.clone(),
+					|open_buy_orders| -> DispatchResult {
+						let open_buy_orders = open_buy_orders.get_or_insert_with(Default::default);
+						let current_open_orders_units: AssetBalanceOf<T> =
+							open_buy_orders.iter().fold(0u32.into(), |sum, val| sum + val.1);
+
+						// everyone is considered KYC level 1
+						// throw error if limit is not found, more safer that silently ignoring
+						let allowed_open_order_units =
+							UserOpenOrderUnitsAllowed::<T>::get(UserLevel::KYCLevel1)
+								.ok_or(Error::<T>::UserOpenOrderUnitsLimtNotFound)?;
+
+						// ensure the user does not exceed the maximum allowed amount
+						ensure!(
+							current_open_orders_units.saturating_add(units) <=
+								allowed_open_order_units,
+							Error::<T>::UserOpenOrderUnitsAllowedExceeded
+						);
+
+						open_buy_orders
+							.try_push((buy_order_id, units))
+							.map_err(|_| Error::<T>::OpenOrderLimitExceeded)?;
+						Ok(())
+					},
+				)?;
 
 				BuyOrders::<T>::insert(
 					buy_order_id,
@@ -909,6 +995,19 @@ pub mod pallet {
 			})?;
 
 			Self::deposit_event(Event::SellerPayoutExecuted { seller, payout });
+			Ok(())
+		}
+
+		#[transactional]
+		#[pallet::weight(T::WeightInfo::force_set_purchase_fee())]
+		pub fn force_set_open_order_allowed_limits(
+			origin: OriginFor<T>,
+			level: UserLevel,
+			limit: AssetBalanceOf<T>,
+		) -> DispatchResult {
+			T::ForceOrigin::ensure_origin(origin)?;
+			UserOpenOrderUnitsAllowed::<T>::set(level.clone(), Some(limit));
+			Self::deposit_event(Event::UserOpenOrderUnitsLimitUpdated { level, limit });
 			Ok(())
 		}
 	}

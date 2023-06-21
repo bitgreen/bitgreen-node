@@ -1,7 +1,9 @@
 // This file is part of BitGreen.
 // Copyright (C) 2022 BitGreen.
 // This code is licensed under MIT license (see LICENSE.txt for details)
-use crate::{mock::*, BuyOrders, Error, Event, Orders, SellerReceivables};
+use crate::{
+	mock::*, types::UserLevel, BuyOrders, BuyOrdersByUser, Error, Event, Orders, SellerReceivables,
+};
 use frame_support::{
 	assert_noop, assert_ok, traits::OnIdle, weights::Weight, BoundedVec, PalletId,
 };
@@ -161,6 +163,13 @@ fn buy_order_should_work() {
 		assert_ok!(Dex::force_set_payment_fee(RuntimeOrigin::root(), Percent::from_percent(10)));
 		assert_ok!(Dex::force_set_purchase_fee(RuntimeOrigin::root(), 10u32.into()));
 
+		// configure limit to avoid failure
+		assert_ok!(Dex::force_set_open_order_allowed_limits(
+			RuntimeOrigin::root(),
+			UserLevel::KYCLevel1,
+			1000
+		));
+
 		// should be able to create a sell order
 		assert_ok!(Dex::create_sell_order(RuntimeOrigin::signed(seller), asset_id, 5, 10));
 
@@ -279,6 +288,13 @@ fn validate_buy_order_should_work() {
 		assert_ok!(Dex::force_set_payment_fee(RuntimeOrigin::root(), Percent::from_percent(10)));
 		assert_ok!(Dex::force_set_purchase_fee(RuntimeOrigin::root(), 10u32.into()));
 
+		// configure limit to avoid failure
+		assert_ok!(Dex::force_set_open_order_allowed_limits(
+			RuntimeOrigin::root(),
+			UserLevel::KYCLevel1,
+			1000
+		));
+
 		// should be able to create a sell order
 		assert_ok!(Dex::create_sell_order(RuntimeOrigin::signed(seller), asset_id, 5, 10));
 
@@ -347,6 +363,13 @@ fn payment_is_processed_after_validator_threshold_reached() {
 		// set fee values
 		assert_ok!(Dex::force_set_payment_fee(RuntimeOrigin::root(), Percent::from_percent(10)));
 		assert_ok!(Dex::force_set_purchase_fee(RuntimeOrigin::root(), 10u32.into()));
+
+		// configure limit to avoid failure
+		assert_ok!(Dex::force_set_open_order_allowed_limits(
+			RuntimeOrigin::root(),
+			UserLevel::KYCLevel1,
+			1000
+		));
 
 		// should be able to create a sell order
 		assert_ok!(Dex::create_sell_order(RuntimeOrigin::signed(seller), asset_id, 5, 10));
@@ -550,6 +573,13 @@ fn buy_order_handle_expiry_should_work() {
 		assert_ok!(Assets::mint(RuntimeOrigin::signed(seller), asset_id, 1, 100));
 		assert_eq!(Assets::balance(asset_id, seller), 100);
 
+		// configure limit to avoid failure
+		assert_ok!(Dex::force_set_open_order_allowed_limits(
+			RuntimeOrigin::root(),
+			UserLevel::KYCLevel1,
+			1000
+		));
+
 		// should be able to create a sell order
 		assert_ok!(Dex::create_sell_order(RuntimeOrigin::signed(seller), asset_id, 5, 10));
 
@@ -705,5 +735,130 @@ fn record_payment_to_seller_should_work() {
 
 		// Assert that the seller's receivables is updated to 0
 		assert_eq!(crate::SellerReceivables::<Test>::get(seller).unwrap(), 0);
+	});
+}
+
+#[test]
+fn buy_order_limits_should_work() {
+	new_test_ext().execute_with(|| {
+		let asset_id = 0;
+		let seller = 1;
+		let buyer = 4;
+		let dex_account: u64 = PalletId(*b"bitg/dex").into_account_truncating();
+
+		assert_ok!(Assets::force_create(RuntimeOrigin::root(), asset_id, 1, true, 1));
+		assert_ok!(Assets::mint(RuntimeOrigin::signed(seller), asset_id, 1, 100));
+		assert_eq!(Assets::balance(asset_id, seller), 100);
+
+		// set fee values
+		assert_ok!(Dex::force_set_payment_fee(RuntimeOrigin::root(), Percent::from_percent(10)));
+		assert_ok!(Dex::force_set_purchase_fee(RuntimeOrigin::root(), 10u32.into()));
+
+		// should be able to create a sell order
+		assert_ok!(Dex::create_sell_order(RuntimeOrigin::signed(seller), asset_id, 100, 10));
+
+		// should fail if the limits are not set
+		assert_noop!(
+			Dex::create_buy_order(RuntimeOrigin::signed(buyer), 0, asset_id, 1, 11),
+			Error::<Test>::UserOpenOrderUnitsLimtNotFound
+		);
+
+		// configure limit to avoid failure
+		assert_ok!(Dex::force_set_open_order_allowed_limits(
+			RuntimeOrigin::root(),
+			UserLevel::KYCLevel1,
+			10
+		));
+
+		// use should not be able to purchase above limit
+		assert_noop!(
+			Dex::create_buy_order(RuntimeOrigin::signed(buyer), 0, asset_id, 11, 110),
+			Error::<Test>::UserOpenOrderUnitsAllowedExceeded
+		);
+
+		// use should be able to purchase below limit
+		assert_ok!(Dex::create_buy_order(RuntimeOrigin::signed(buyer), 0, asset_id, 1, 11));
+
+		// use should not be able exceed purchase limit with another order
+		assert_noop!(
+			Dex::create_buy_order(RuntimeOrigin::signed(buyer), 0, asset_id, 10, 110),
+			Error::<Test>::UserOpenOrderUnitsAllowedExceeded
+		);
+
+		// use should be able to create another order if its below limit
+		assert_ok!(Dex::create_buy_order(RuntimeOrigin::signed(buyer), 0, asset_id, 5, 110),);
+
+		// use should not be able to create another order if its above number of total open orders
+		// allowed
+		assert_noop!(
+			Dex::create_buy_order(RuntimeOrigin::signed(buyer), 0, asset_id, 1, 110),
+			Error::<Test>::OpenOrderLimitExceeded
+		);
+
+		// ensure the storage is updated correctly
+		let order_storage_by_user = BuyOrdersByUser::<Test>::get(buyer);
+		let expected_storage = vec![(0, 1), (1, 5)];
+		assert!(order_storage_by_user.unwrap().into_inner() == expected_storage);
+	});
+}
+
+#[test]
+fn buy_order_limits_are_reset_correctly() {
+	new_test_ext().execute_with(|| {
+		let asset_id = 0;
+		let seller = 1;
+		let buyer = 4;
+		let dex_account: u64 = PalletId(*b"bitg/dex").into_account_truncating();
+
+		assert_ok!(Assets::force_create(RuntimeOrigin::root(), asset_id, 1, true, 1));
+		assert_ok!(Assets::mint(RuntimeOrigin::signed(seller), asset_id, 1, 100));
+		assert_eq!(Assets::balance(asset_id, seller), 100);
+
+		// set fee values
+		assert_ok!(Dex::force_set_payment_fee(RuntimeOrigin::root(), Percent::from_percent(10)));
+		assert_ok!(Dex::force_set_purchase_fee(RuntimeOrigin::root(), 10u32.into()));
+
+		// should be able to create a sell order
+		assert_ok!(Dex::create_sell_order(RuntimeOrigin::signed(seller), asset_id, 100, 10));
+
+		// should fail if the limits are not set
+		assert_noop!(
+			Dex::create_buy_order(RuntimeOrigin::signed(buyer), 0, asset_id, 1, 11),
+			Error::<Test>::UserOpenOrderUnitsLimtNotFound
+		);
+
+		// configure limit to avoid failure
+		assert_ok!(Dex::force_set_open_order_allowed_limits(
+			RuntimeOrigin::root(),
+			UserLevel::KYCLevel1,
+			10
+		));
+
+		// use should be able to purchase below limit
+		assert_ok!(Dex::create_buy_order(RuntimeOrigin::signed(buyer), 0, asset_id, 1, 11));
+
+		// use should be able to create another order if its below limit
+		assert_ok!(Dex::create_buy_order(RuntimeOrigin::signed(buyer), 0, asset_id, 5, 110),);
+
+		// ensure the storage is updated correctly
+		let order_storage_by_user = BuyOrdersByUser::<Test>::get(buyer);
+		let expected_storage = vec![(0, 1), (1, 5)];
+		assert!(order_storage_by_user.unwrap().into_inner() == expected_storage);
+
+		let buy_order_storage = BuyOrders::<Test>::get(0).unwrap();
+		assert_eq!(buy_order_storage.buyer, buyer);
+		assert_eq!(buy_order_storage.units, 1);
+		assert_eq!(buy_order_storage.expiry_time, 3);
+
+		// lets expire the first buy order
+		Dex::on_idle(4, Weight::MAX);
+
+		// the order should be cleared
+		assert!(BuyOrders::<Test>::get(1).is_none());
+
+		// ensure the storage is updated correctly
+		let order_storage_by_user = BuyOrdersByUser::<Test>::get(buyer);
+		let expected_storage = vec![(0, 1)];
+		assert_eq!(order_storage_by_user.unwrap().into_inner(), expected_storage);
 	});
 }
