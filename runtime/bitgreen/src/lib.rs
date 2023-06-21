@@ -745,6 +745,8 @@ parameter_types! {
 	pub const MaxOrderIds : u32 = 100;
 	#[derive(Clone, scale_info::TypeInfo, Debug, PartialEq)]
 	pub const MaxPayoutsToStore : u32 = 1000;
+	#[derive(Clone, scale_info::TypeInfo, Debug, PartialEq)]
+	pub const MaxOpenOrdersPerUser : u32 = 10;
 }
 
 impl pallet_dex::Config for Runtime {
@@ -767,6 +769,7 @@ impl pallet_dex::Config for Runtime {
 	type MaxAddressLen = MaxAddressLen;
 	type MaxOrderIds = MaxOrderIds;
 	type MaxPayoutsToStore = MaxPayoutsToStore;
+	type MaxOpenOrdersPerUser = MaxOpenOrdersPerUser;
 	type WeightInfo = ();
 }
 
