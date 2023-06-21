@@ -311,6 +311,8 @@ pub mod pallet {
 		UnbondingDelayNotPassed,
 		/// Already delegated
 		AlreadyDelegated,
+		/// The account is already a candidate
+		DelegatorAccountSameAsCandidateAccount,
 	}
 
 	#[pallet::hooks]
@@ -464,6 +466,7 @@ pub mod pallet {
 
 			let mut is_invulnerable = false;
 
+			// ensure the candidate exists
 			let mut candidate = match Self::find_candidate(candidate_id.clone()) {
 				Some(candidate) => candidate,
 				None => {
@@ -471,6 +474,12 @@ pub mod pallet {
 					is_invulnerable = true;
 					Self::find_invulnerable(candidate_id.clone()).ok_or(Error::<T>::NotCandidate)?
 				},
+			};
+
+			// ensure the delegator is not a candidate
+			// we do not want duplicate candidates and delegators
+			if let Some(_candidate) = Self::find_candidate(who.clone()) {
+				return Err(Error::<T>::DelegatorAccountSameAsCandidateAccount.into())
 			};
 
 			// try to reserve the delegation amount
@@ -641,11 +650,14 @@ pub mod pallet {
 
 		/// Withdraw deposit and complete candidate exit
 		#[pallet::weight(T::WeightInfo::leave_intent(T::MaxCandidates::get()))]
-		pub fn candidate_withdraw_unbonded(origin: OriginFor<T>) -> DispatchResult {
-			let who = ensure_signed(origin)?;
+		pub fn candidate_withdraw_unbonded(
+			origin: OriginFor<T>,
+			candidate: T::AccountId,
+		) -> DispatchResult {
+			let _who = ensure_signed(origin)?;
 
 			// ensure the unbonding details exist
-			let delegation = UnbondedCandidates::<T>::try_get(who.clone())
+			let delegation = UnbondedCandidates::<T>::try_get(candidate.clone())
 				.map_err(|_| Error::<T>::NoUnbondingDelegation)?;
 
 			// ensure the unbonding period has passed
@@ -669,23 +681,24 @@ pub mod pallet {
 				}
 			}
 
-			<LastAuthoredBlock<T>>::remove(who.clone());
+			<LastAuthoredBlock<T>>::remove(candidate.clone());
 
 			// withdraw the candidate deposit
-			let remaining_reward = <T as Config>::Currency::unreserve(&who, delegation.deposit);
+			let remaining_reward =
+				<T as Config>::Currency::unreserve(&candidate, delegation.deposit);
 
 			// if any rewards was paid out to the candidate, we deposit the amount to the account
 			if remaining_reward != 0_u32.into() {
 				// transfer the user reward to user account
-				<T as Config>::Currency::deposit_creating(&who, remaining_reward);
+				<T as Config>::Currency::deposit_creating(&candidate, remaining_reward);
 			}
 
 			// delete the unbonded delegation
-			UnbondedCandidates::<T>::remove(who.clone());
+			UnbondedCandidates::<T>::remove(candidate.clone());
 
 			// emit event
 			Self::deposit_event(Event::UnbondedWithdrawn {
-				account_id: who,
+				account_id: candidate,
 				amount: delegation.deposit,
 			});
 			Ok(())
