@@ -86,6 +86,12 @@ pub mod pallet {
 	pub type Members<T: Config<I>, I: 'static = ()> =
 		StorageValue<_, BoundedVec<T::AccountId, T::MaxMembers>, ValueQuery>;
 
+	/// The current Level2 membership, stored as an ordered Vec.
+	#[pallet::storage]
+	#[pallet::getter(fn members_level_two)]
+	pub type MembersLevel2<T: Config<I>, I: 'static = ()> =
+		StorageValue<_, BoundedVec<T::AccountId, T::MaxMembers>, ValueQuery>;
+
 	#[pallet::storage]
 	#[pallet::getter(fn authorized_accounts)]
 	// List of AuthorizedAccounts for the pallet
@@ -359,6 +365,61 @@ pub mod pallet {
 			T::AddOrigin::ensure_origin(origin)?;
 			// remove the account_id from the list of authorized accounts if already exists
 			AirdropAmount::<T, I>::set(amount);
+			Ok(())
+		}
+
+		/// Add a member `who` to the set.
+		///
+		/// May only be called from `T::AddOrigin`.
+		#[pallet::call_index(8)]
+		#[pallet::weight(50_000_000)]
+		pub fn add_member_level_two(
+			origin: OriginFor<T>,
+			who: AccountIdLookupOf<T>,
+		) -> DispatchResult {
+			let sender = ensure_signed(origin)?;
+			Self::check_authorized_account(&sender)?;
+			let who = T::Lookup::lookup(who)?;
+
+			let mut members = <MembersLevel2<T, I>>::get();
+			let location = members.binary_search(&who).err().ok_or(Error::<T, I>::AlreadyMember)?;
+			members
+				.try_insert(location, who.clone())
+				.map_err(|_| Error::<T, I>::TooManyMembers)?;
+
+			<MembersLevel2<T, I>>::put(&members);
+
+			T::MembershipChanged::change_members_sorted(&[who.clone()], &[], &members[..]);
+
+			let _ = Self::transfer_kyc_airdrop(who.clone());
+
+			Self::deposit_event(Event::MemberAdded { who });
+			Ok(())
+		}
+
+		/// Remove a member `who` from the set.
+		///
+		/// May only be called from `T::RemoveOrigin`.
+		#[pallet::call_index(9)]
+		#[pallet::weight(50_000_000)]
+		pub fn remove_member_level_two(
+			origin: OriginFor<T>,
+			who: AccountIdLookupOf<T>,
+		) -> DispatchResult {
+			let sender = ensure_signed(origin)?;
+			Self::check_authorized_account(&sender)?;
+
+			let who = T::Lookup::lookup(who)?;
+
+			let mut members = <MembersLevel2<T, I>>::get();
+			let location = members.binary_search(&who).ok().ok_or(Error::<T, I>::NotMember)?;
+			members.remove(location);
+
+			<MembersLevel2<T, I>>::put(&members);
+
+			T::MembershipChanged::change_members_sorted(&[], &[who.clone()], &members[..]);
+
+			Self::deposit_event(Event::MemberRemoved { who });
 			Ok(())
 		}
 	}
