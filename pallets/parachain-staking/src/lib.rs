@@ -272,6 +272,7 @@ pub mod pallet {
 		CollatorRewardsTransferred { account_id: T::AccountId, amount: BalanceOf<T> },
 		DelegatorRewardsTransferred { account_id: T::AccountId, amount: BalanceOf<T> },
 		UnbondedWithdrawn { account_id: T::AccountId, amount: BalanceOf<T> },
+		DelegatedMore { account_id: T::AccountId, candidate: T::AccountId, amount: BalanceOf<T> },
 	}
 
 	// Errors inform users that something went wrong.
@@ -701,6 +702,71 @@ pub mod pallet {
 				account_id: candidate,
 				amount: delegation.deposit,
 			});
+			Ok(())
+		}
+
+		/// Increase the amount of stake delegated
+		#[pallet::weight(T::WeightInfo::leave_intent(T::MaxCandidates::get()))]
+		pub fn delegate_more(
+			origin: OriginFor<T>,
+			candidate_id: T::AccountId,
+			amount_to_add: BalanceOf<T>,
+		) -> DispatchResult {
+			let who = ensure_signed(origin)?;
+			let mut is_invulnerable = false;
+
+			// ensure the candidate exists
+			let mut candidate = match Self::find_candidate(candidate_id.clone()) {
+				Some(candidate) => candidate,
+				None => {
+					// if not in candidates list, check in invulnerables list
+					is_invulnerable = true;
+					Self::find_invulnerable(candidate_id.clone()).ok_or(Error::<T>::NotCandidate)?
+				},
+			};
+
+			// ensure the delegator is not a candidate
+			// we do not want duplicate candidates and delegators
+			if let Some(_candidate) = Self::find_candidate(who.clone()) {
+				return Err(Error::<T>::DelegatorAccountSameAsCandidateAccount.into())
+			};
+
+			// find the existing delegation
+			let existing_delegation_index = candidate
+				.delegators
+				.iter()
+				.position(|c| c.who == who)
+				.ok_or(Error::<T>::NotDelegator)?;
+
+			// try to reserve the updated amount
+			<T as Config>::Currency::reserve(&who, amount_to_add)?;
+
+			let mut delegation_details =
+				candidate.delegators.swap_remove(existing_delegation_index);
+
+			delegation_details.deposit = delegation_details
+				.deposit
+				.checked_add(&amount_to_add)
+				.ok_or(Error::<T>::ArithmeticOverflow)?;
+
+			candidate
+				.delegators
+				.try_push(delegation_details)
+				.map_err(|_| Error::<T>::TooManyDelegations)?;
+
+			candidate.total_stake = candidate
+				.total_stake
+				.checked_add(&amount_to_add)
+				.ok_or(Error::<T>::ArithmeticOverflow)?;
+
+			Self::update_candidate(candidate.clone(), is_invulnerable)?;
+
+			Self::deposit_event(Event::DelegatedMore {
+				account_id: who,
+				candidate: candidate.who,
+				amount: amount_to_add,
+			});
+
 			Ok(())
 		}
 	}
