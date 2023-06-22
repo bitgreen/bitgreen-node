@@ -284,11 +284,11 @@ fn candidate_withdraw_unbonded() {
 
 		// calling withdraw before expiry fails
 		assert_noop!(
-			CollatorSelection::candidate_withdraw_unbonded(RuntimeOrigin::signed(3)),
+			CollatorSelection::candidate_withdraw_unbonded(RuntimeOrigin::signed(3), 3),
 			Error::<Test>::UnbondingDelayNotPassed
 		);
 		initialize_to_block(10);
-		assert_ok!(CollatorSelection::candidate_withdraw_unbonded(RuntimeOrigin::signed(3)));
+		assert_ok!(CollatorSelection::candidate_withdraw_unbonded(RuntimeOrigin::signed(3), 3));
 
 		// bond is correctly returned
 		assert_eq!(Balances::free_balance(3), 100);
@@ -487,6 +487,12 @@ fn delegate_works() {
 		assert_ok!(CollatorSelection::register_as_candidate(RuntimeOrigin::signed(3)));
 		initialize_to_block(10);
 
+		// should fail if candidate and delegators is same
+		assert_noop!(
+			CollatorSelection::delegate(RuntimeOrigin::signed(3), 3, 10),
+			Error::<Test>::DelegatorAccountSameAsCandidateAccount
+		);
+
 		// delegate less than min delegation should fail
 		assert_noop!(
 			CollatorSelection::delegate(RuntimeOrigin::signed(5), 3, 9),
@@ -679,8 +685,8 @@ fn candidate_leave_removes_delegates() {
 		// skip to after unbonding period
 		initialize_to_block(20);
 
-		// withdraw the unbonded balance
-		assert_ok!(CollatorSelection::candidate_withdraw_unbonded(RuntimeOrigin::signed(3)));
+		// withdraw the unbonded balance, any account can make this call
+		assert_ok!(CollatorSelection::candidate_withdraw_unbonded(RuntimeOrigin::signed(30), 3));
 		assert_eq!(Balances::free_balance(3), 100);
 		assert_eq!(CollatorSelection::last_authored_block(3), 0);
 
@@ -957,7 +963,7 @@ fn delegator_payout_complete_flow_test() {
 		initialize_to_block(20);
 
 		// let the collator call withdraw unbond
-		assert_ok!(CollatorSelection::candidate_withdraw_unbonded(RuntimeOrigin::signed(4)));
+		assert_ok!(CollatorSelection::candidate_withdraw_unbonded(RuntimeOrigin::signed(4), 4));
 		assert_eq!(CollatorSelection::last_authored_block(3), 0);
 
 		// collator bond is returned + rewards
