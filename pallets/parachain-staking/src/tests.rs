@@ -14,7 +14,7 @@ use crate as collator_selection;
 use crate::{
 	mock::*,
 	types::{CandidateInfoOf, DelegationInfoOf},
-	Error, Invulnerables,
+	Error, Invulnerables, UnbondedCandidates
 };
 
 #[test]
@@ -322,8 +322,8 @@ fn authorship_event_handler() {
 
 		// balance should not be updated, it should be 100 - candidate bond
 		assert_eq!(Balances::free_balance(4), 90);
-		// no change in the pot balance
-		assert_eq!(Balances::free_balance(CollatorSelection::account_id()), 105);
+		// pot balance should be cleared
+		assert_eq!(Balances::free_balance(CollatorSelection::account_id()), 5);
 	});
 }
 
@@ -690,6 +690,9 @@ fn candidate_leave_removes_delegates() {
 		assert_eq!(Balances::free_balance(3), 100);
 		assert_eq!(CollatorSelection::last_authored_block(3), 0);
 
+		// storage is cleared
+		assert!(UnbondedCandidates::<Test>::get(3).is_none());
+
 		// delegator bond is also returned
 		assert_eq!(Balances::free_balance(5), 100);
 	});
@@ -773,7 +776,9 @@ fn delegator_payout_works() {
 		assert_eq!(Balances::free_balance(4), 90);
 		assert_eq!(Balances::free_balance(3), 90);
 		assert_eq!(Balances::free_balance(5), 90);
-		assert_eq!(Balances::free_balance(CollatorSelection::account_id()), 105);
+
+		// pot account should be cleared
+		assert_eq!(Balances::free_balance(CollatorSelection::account_id()), 5);
 	});
 }
 
@@ -840,7 +845,8 @@ fn delegator_payout_works_for_invulnerables() {
 		assert_eq!(Balances::free_balance(invulnerable_collator), 100);
 		assert_eq!(Balances::free_balance(3), 90);
 		assert_eq!(Balances::free_balance(5), 90);
-		assert_eq!(Balances::free_balance(CollatorSelection::account_id()), 105);
+		// pot account is cleared
+		assert_eq!(Balances::free_balance(CollatorSelection::account_id()), 5);
 	});
 }
 
@@ -888,11 +894,18 @@ fn delegator_payout_is_divided_in_correct_propotion() {
 		assert_eq!(CollatorSelection::candidates().pop().unwrap(), collator);
 		assert_eq!(CollatorSelection::last_authored_block(4), 0);
 
-		// balances should not change
+		// free balances should not change
 		assert_eq!(Balances::free_balance(4), 90);
 		assert_eq!(Balances::free_balance(3), 70);
 		assert_eq!(Balances::free_balance(5), 80);
-		assert_eq!(Balances::free_balance(CollatorSelection::account_id()), 105);
+
+		// pot balance is cleared
+		assert_eq!(Balances::free_balance(CollatorSelection::account_id()), 5);
+
+		// reserved balances should have reward
+		assert_eq!(Balances::reserved_balance(4), 25);
+		assert_eq!(Balances::reserved_balance(3), 30 + 67);
+		assert_eq!(Balances::reserved_balance(5), 20 + 44);
 	});
 }
 
@@ -944,7 +957,14 @@ fn delegator_payout_complete_flow_test() {
 		assert_eq!(Balances::free_balance(4), 90);
 		assert_eq!(Balances::free_balance(3), 70);
 		assert_eq!(Balances::free_balance(5), 80);
-		assert_eq!(Balances::free_balance(CollatorSelection::account_id()), 105);
+
+		// pot balance is cleared
+		assert_eq!(Balances::free_balance(CollatorSelection::account_id()), 5);
+
+		// reserved balances should have reward
+		assert_eq!(Balances::reserved_balance(4), 25);
+		assert_eq!(Balances::reserved_balance(3), 30 + 67);
+		assert_eq!(Balances::reserved_balance(5), 20 + 44);
 
 		// bond another candidate so existing can unbond
 		assert_ok!(CollatorSelection::register_as_candidate(RuntimeOrigin::signed(100)));
@@ -957,7 +977,9 @@ fn delegator_payout_complete_flow_test() {
 		assert_eq!(Balances::free_balance(4), 90);
 		assert_eq!(Balances::free_balance(3), 70);
 		assert_eq!(Balances::free_balance(5), 80);
-		assert_eq!(Balances::free_balance(CollatorSelection::account_id()), 105);
+
+		// pot acccount is cleared
+		assert_eq!(Balances::free_balance(CollatorSelection::account_id()), 5);
 
 		// skip to after unbonding period
 		initialize_to_block(20);
@@ -972,6 +994,11 @@ fn delegator_payout_complete_flow_test() {
 		// delegator bond is also returned + rewards
 		assert_eq!(Balances::free_balance(3), 70 + 30 + 67);
 		assert_eq!(Balances::free_balance(5), 80 + 20 + 44);
+
+		// reserved balances should have cleared
+		assert_eq!(Balances::reserved_balance(4), 0);
+		assert_eq!(Balances::reserved_balance(3), 0);
+		assert_eq!(Balances::reserved_balance(5), 0);
 	});
 }
 

@@ -111,7 +111,7 @@ pub type Executive = frame_executive::Executive<
 	Runtime,
 	AllPalletsWithSystem,
 	// Migrations
-	(pallet_parachain_staking::migration::v3::MigrateToV3<Runtime>,),
+	(),
 >;
 
 pub type NegativeImbalance<T> = <pallet_balances::Pallet<T> as Currency<
@@ -174,7 +174,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: create_runtime_str!("bitgreen-rococo"),
 	impl_name: create_runtime_str!("bitgreen-rococo"),
 	authoring_version: 1,
-	spec_version: 1111, // v1.1.11
+	spec_version: 1201, // v1.2.1
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 1,

@@ -175,7 +175,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: create_runtime_str!("bitgreen-parachain"),
 	impl_name: create_runtime_str!("bitgreen-parachain"),
 	authoring_version: 1,
-	spec_version: 1111, // v1.1.11
+	spec_version: 1201, // v1.2.1
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 1,
@@ -404,6 +404,9 @@ parameter_types! {
 	pub const MinDelegationAmount : u32 = 100;
 	pub const ExecutiveBody: BodyId = BodyId::Executive;
 	pub const UnbondingDelay : BlockNumber = 7 * DAYS;
+	// 3 Periods
+	// should be a multiple of session or things will get inconsistent
+	pub const KickThreshold: u32 = 6 * HOURS * 3;
 }
 
 // We allow root only to execute privileged collator selection operations.
@@ -412,8 +415,7 @@ pub type ParachainStakingUpdateOrigin = EnsureRoot<AccountId>;
 impl pallet_parachain_staking::Config for Runtime {
 	type Currency = Balances;
 	type RuntimeEvent = RuntimeEvent;
-	// should be a multiple of session or things will get inconsistent
-	type KickThreshold = Period;
+	type KickThreshold = KickThreshold;
 	type MaxCandidates = MaxCandidates;
 	type MaxDelegators = MaxDelegators;
 	type MaxInvulnerables = MaxInvulnerables;

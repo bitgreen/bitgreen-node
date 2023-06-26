@@ -744,7 +744,6 @@ fn buy_order_limits_should_work() {
 		let asset_id = 0;
 		let seller = 1;
 		let buyer = 4;
-		let dex_account: u64 = PalletId(*b"bitg/dex").into_account_truncating();
 
 		assert_ok!(Assets::force_create(RuntimeOrigin::root(), asset_id, 1, true, 1));
 		assert_ok!(Assets::mint(RuntimeOrigin::signed(seller), asset_id, 1, 100));
@@ -808,7 +807,6 @@ fn buy_order_limits_are_reset_correctly() {
 		let asset_id = 0;
 		let seller = 1;
 		let buyer = 4;
-		let dex_account: u64 = PalletId(*b"bitg/dex").into_account_truncating();
 
 		assert_ok!(Assets::force_create(RuntimeOrigin::root(), asset_id, 1, true, 1));
 		assert_ok!(Assets::mint(RuntimeOrigin::signed(seller), asset_id, 1, 100));

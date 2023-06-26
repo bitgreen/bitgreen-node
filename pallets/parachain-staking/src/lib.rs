@@ -85,6 +85,7 @@ pub mod pallet {
 		CandidateInfoOf, DelegationInfoOf, UnbondedCandidateInfoOf, UnbondedDelegationInfoOf,
 	};
 	pub use crate::weights::WeightInfo;
+	use frame_support::traits::{ExistenceRequirement::KeepAlive, WithdrawReasons};
 
 	pub type BalanceOf<T> =
 		<<T as Config>::Currency as Currency<<T as SystemConfig>::AccountId>>::Balance;
@@ -980,6 +981,10 @@ pub mod pallet {
 						// update the delegator stake with the reward amount
 						delegator.deposit = delegator.deposit.saturating_add(reward_for_delegator);
 
+						// transfer the reward as reserved amount to the delegator
+						let _ = T::Currency::deposit_creating(&delegator.who, reward_for_delegator);
+						let _ = T::Currency::reserve(&delegator.who, reward_for_delegator);
+
 						new_delegator_data.push(delegator);
 					}
 
@@ -990,15 +995,27 @@ pub mod pallet {
 					let collator_reward = Percent::from_percent(10).mul_floor(reward);
 					candidate.deposit = candidate.deposit.saturating_add(collator_reward);
 
+					// transfer the reward as reserved amount to the candidate
+					let _ = T::Currency::deposit_creating(&candidate.who, collator_reward);
+					let _ = T::Currency::reserve(&candidate.who, collator_reward);
+
 					candidate.total_stake = candidate.total_stake.saturating_add(reward);
 				} else {
 					// `reward` pot account minus ED, this should never fail.
 					candidate.deposit = candidate.deposit.saturating_add(reward);
+
+					// transfer the reward as reserved amount to the candidate
+					let _ = T::Currency::deposit_creating(&candidate.who, reward);
+					let _ = T::Currency::reserve(&candidate.who, reward);
+
 					candidate.total_stake = candidate.total_stake.saturating_add(reward);
 				}
 
 				let _ = Self::update_candidate(candidate, is_invulnerable);
 			}
+
+			// clear the pot account
+			let _ = T::Currency::withdraw(&pot, fee_reward, WithdrawReasons::TRANSFER, KeepAlive);
 
 			<LastAuthoredBlock<T>>::insert(author, frame_system::Pallet::<T>::block_number());
 
