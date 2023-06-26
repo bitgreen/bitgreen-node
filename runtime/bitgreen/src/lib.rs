@@ -413,7 +413,7 @@ impl pallet_parachain_staking::Config for Runtime {
 	type Currency = Balances;
 	type RuntimeEvent = RuntimeEvent;
 	// should be a multiple of session or things will get inconsistent
-	type KickThreshold = Period;
+	type KickThreshold = 3 * Period;
 	type MaxCandidates = MaxCandidates;
 	type MaxDelegators = MaxDelegators;
 	type MaxInvulnerables = MaxInvulnerables;
