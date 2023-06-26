@@ -14,7 +14,7 @@ use crate as collator_selection;
 use crate::{
 	mock::*,
 	types::{CandidateInfoOf, DelegationInfoOf},
-	Error, Invulnerables,
+	Error, Invulnerables, UnbondedCandidates
 };
 
 #[test]
@@ -689,6 +689,9 @@ fn candidate_leave_removes_delegates() {
 		assert_ok!(CollatorSelection::candidate_withdraw_unbonded(RuntimeOrigin::signed(30), 3));
 		assert_eq!(Balances::free_balance(3), 100);
 		assert_eq!(CollatorSelection::last_authored_block(3), 0);
+
+		// storage is cleared
+		assert!(UnbondedCandidates::<Test>::get(3).is_none());
 
 		// delegator bond is also returned
 		assert_eq!(Balances::free_balance(5), 100);

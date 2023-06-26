@@ -404,6 +404,9 @@ parameter_types! {
 	pub const MinDelegationAmount : u32 = 100;
 	pub const ExecutiveBody: BodyId = BodyId::Executive;
 	pub const UnbondingDelay : BlockNumber = 7 * DAYS;
+	// 3 Periods
+	// should be a multiple of session or things will get inconsistent
+	pub const KickThreshold: u32 = 6 * HOURS * 3;
 }
 
 // We allow root only to execute privileged collator selection operations.
@@ -412,8 +415,7 @@ pub type ParachainStakingUpdateOrigin = EnsureRoot<AccountId>;
 impl pallet_parachain_staking::Config for Runtime {
 	type Currency = Balances;
 	type RuntimeEvent = RuntimeEvent;
-	// should be a multiple of session or things will get inconsistent
-	type KickThreshold = 3 * Period;
+	type KickThreshold = KickThreshold;
 	type MaxCandidates = MaxCandidates;
 	type MaxDelegators = MaxDelegators;
 	type MaxInvulnerables = MaxInvulnerables;
