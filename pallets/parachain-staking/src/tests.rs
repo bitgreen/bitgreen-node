@@ -14,7 +14,7 @@ use crate as collator_selection;
 use crate::{
 	mock::*,
 	types::{CandidateInfoOf, DelegationInfoOf},
-	Error, Invulnerables, UnbondedCandidates
+	Error, Invulnerables, UnbondedCandidates,
 };
 
 #[test]

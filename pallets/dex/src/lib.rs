@@ -304,6 +304,8 @@ pub mod pallet {
 		},
 		/// User open order units limit set
 		UserOpenOrderUnitsLimitUpdated { level: UserLevel, limit: AssetBalanceOf<T> },
+		/// BuyOrdersByUser storage was cleard
+		BuyOrdersByUserCleared { user: T::AccountId },
 	}
 
 	// Errors inform users that something went wrong.
@@ -754,6 +756,16 @@ pub mod pallet {
 							},
 						)?;
 
+						BuyOrdersByUser::<T>::try_mutate(
+							order.buyer.clone(),
+							|open_orders| -> DispatchResult {
+								let mut open_orders =
+									open_orders.get_or_insert_with(Default::default);
+								open_orders.retain(|&x| x != (order_id, order.units));
+								Ok(())
+							},
+						)?;
+
 						// get the projectId and groupId for events
 						let (project_id, group_id) =
 							T::AssetValidator::get_project_details(&order.asset_id)
@@ -1008,6 +1020,19 @@ pub mod pallet {
 			T::ForceOrigin::ensure_origin(origin)?;
 			UserOpenOrderUnitsAllowed::<T>::set(level.clone(), Some(limit));
 			Self::deposit_event(Event::UserOpenOrderUnitsLimitUpdated { level, limit });
+			Ok(())
+		}
+
+		/// Set the minimum validators required to validator a payment
+		#[transactional]
+		#[pallet::weight(T::WeightInfo::force_set_purchase_fee())]
+		pub fn force_clear_buy_orders_per_user(
+			origin: OriginFor<T>,
+			user: T::AccountId,
+		) -> DispatchResult {
+			T::ForceOrigin::ensure_origin(origin)?;
+			BuyOrdersByUser::<T>::remove(user.clone());
+			Self::deposit_event(Event::BuyOrdersByUserCleared { user });
 			Ok(())
 		}
 	}
