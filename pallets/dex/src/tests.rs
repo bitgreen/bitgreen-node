@@ -432,6 +432,11 @@ fn payment_is_processed_after_validator_threshold_reached() {
 			Error::<Test>::DuplicateValidation
 		);
 
+		// ensure the storage is updated correctly
+		let order_storage_by_user = BuyOrdersByUser::<Test>::get(buyer);
+		let expected_storage = vec![(0, 1)];
+		assert_eq!(order_storage_by_user.unwrap().into_inner(), expected_storage);
+
 		//	next validator validates
 		assert_ok!(Dex::validate_buy_order(
 			RuntimeOrigin::signed(validator_two),
@@ -468,6 +473,11 @@ fn payment_is_processed_after_validator_threshold_reached() {
 		assert_eq!(Assets::balance(asset_id, seller), 95);
 		assert_eq!(Assets::balance(asset_id, buyer), 1);
 		assert_eq!(Assets::balance(asset_id, dex_account), 4);
+
+		// ensure the storage is updated correctly
+		let order_storage_by_user = BuyOrdersByUser::<Test>::get(buyer);
+		let expected_storage = vec![];
+		assert_eq!(order_storage_by_user.unwrap().into_inner(), expected_storage);
 	});
 }
 
