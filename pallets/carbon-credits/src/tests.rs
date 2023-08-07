@@ -977,7 +977,7 @@ fn retire_non_existent_project_should_fail() {
 	new_test_ext().execute_with(|| {
 		// retire a non existent project should fail
 		assert_noop!(
-			CarbonCredits::retire(RawOrigin::Signed(10).into(), 1001, 100, 100,),
+			CarbonCredits::retire(RawOrigin::Signed(10).into(), 1001, 100, 100, Default::default()),
 			Error::<Test>::ProjectNotFound
 		);
 	});
@@ -995,7 +995,7 @@ fn test_retire_non_minted_project_should_fail() {
 
 		// calling retire from a non minted project should fail
 		assert_noop!(
-			CarbonCredits::retire(RawOrigin::Signed(3).into(), project_id, group_id, 100u128),
+			CarbonCredits::retire(RawOrigin::Signed(3).into(), project_id, group_id, 100u128, Default::default()),
 			pallet_assets::Error::<Test>::NoAccount
 		);
 	});
@@ -1032,6 +1032,7 @@ fn test_retire_for_single_batch() {
 				project_id,
 				group_id,
 				amount_to_mint,
+				Default::default()
 			),
 			pallet_assets::Error::<Test>::NoAccount
 		);
@@ -1043,6 +1044,7 @@ fn test_retire_for_single_batch() {
 				project_id,
 				group_id,
 				amount_to_mint + 1,
+				Default::default()
 			),
 			pallet_assets::Error::<Test>::BalanceLow
 		);
@@ -1052,7 +1054,8 @@ fn test_retire_for_single_batch() {
 			RawOrigin::Signed(originator_account).into(),
 			project_id,
 			group_id,
-			amount_to_retire
+			amount_to_retire,
+			b"reason".to_vec().try_into().unwrap()
 		));
 
 		// Ensure the retirement happend correctly
@@ -1095,6 +1098,7 @@ fn test_retire_for_single_batch() {
 		let creation_params = get_default_creation_params::<Test>();
 		let stored_retired_data = RetiredCredits::<Test>::get(expected_asset_id, 0).unwrap();
 		assert_eq!(stored_retired_data.account, originator_account);
+		assert_eq!(stored_retired_data.reason.into_inner(), b"reason".to_vec());
 		assert_eq!(stored_retired_data.retire_data.len(), 1);
 		let retired_batch = stored_retired_data.retire_data.first().unwrap();
 		assert_eq!(
@@ -1118,6 +1122,7 @@ fn test_retire_for_single_batch() {
 				account: originator_account,
 				amount: amount_to_retire,
 				retire_data: stored_retired_data.retire_data,
+				reason: b"reason".to_vec().try_into().unwrap()
 			}
 			.into()
 		);
@@ -1127,7 +1132,8 @@ fn test_retire_for_single_batch() {
 			RawOrigin::Signed(originator_account).into(),
 			project_id,
 			group_id,
-			amount_to_mint - amount_to_retire
+			amount_to_mint - amount_to_retire,
+			Default::default()
 		));
 
 		// Ensure the retirement happend correctly
@@ -1221,6 +1227,7 @@ fn retire_for_multiple_batch() {
 				project_id,
 				group_id,
 				amount_to_mint + 1,
+				Default::default()
 			),
 			pallet_assets::Error::<Test>::BalanceLow
 		);
@@ -1230,7 +1237,8 @@ fn retire_for_multiple_batch() {
 			RawOrigin::Signed(originator_account).into(),
 			project_id,
 			group_id,
-			amount_to_retire
+			amount_to_retire,
+			Default::default()
 		));
 
 		// Ensure the retirement happend correctly
@@ -1292,7 +1300,8 @@ fn retire_for_multiple_batch() {
 				asset_id: expected_asset_id,
 				account: originator_account,
 				amount: amount_to_retire,
-				retire_data: stored_retired_data.retire_data.clone()
+				retire_data: stored_retired_data.retire_data.clone(),
+				reason: Default::default()
 			}
 			.into()
 		);
@@ -1308,7 +1317,8 @@ fn retire_for_multiple_batch() {
 			RawOrigin::Signed(originator_account).into(),
 			project_id,
 			group_id,
-			amount_to_mint - amount_to_retire
+			amount_to_mint - amount_to_retire,
+			Default::default()
 		));
 
 		// Ensure the retirement happend correctly
