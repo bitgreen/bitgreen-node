@@ -300,6 +300,8 @@ pub mod pallet {
 			amount: T::Balance,
 			/// Details of the retired token
 			retire_data: BatchRetireDataList<T>,
+			/// reason for retirement
+			reason: ShortStringOf<T>
 		},
 		/// A project details has been updated
 		ProjectUpdated {
@@ -434,10 +436,11 @@ pub mod pallet {
 			project_id: T::ProjectId,
 			group_id: T::GroupId,
 			amount: T::Balance,
+			reason: ShortStringOf<T>
 		) -> DispatchResult {
 			let sender = ensure_signed(origin)?;
 			Self::check_kyc_approval(&sender)?;
-			Self::retire_carbon_credits(sender, project_id, group_id, amount)
+			Self::retire_carbon_credits(sender, project_id, group_id, amount, reason)
 		}
 
 		/// Add a new account to the list of authorised Accounts

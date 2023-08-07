@@ -152,4 +152,6 @@ pub struct RetiredCarbonCreditsData<T: pallet::Config> {
 	pub timestamp: T::BlockNumber,
 	/// The total count of credits retired
 	pub count: T::Balance,
+	/// Retirement reason
+	pub reason: ShortStringOf<T>
 }
