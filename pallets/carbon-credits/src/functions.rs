@@ -22,7 +22,7 @@ use sp_std::{cmp, convert::TryInto, vec::Vec};
 use crate::{
 	AssetIdLookup, AuthorizedAccounts, BatchGroupOf, BatchRetireDataList, BatchRetireDataOf,
 	Config, Error, Event, NextAssetId, NextItemId, NextProjectId, Pallet, ProjectCreateParams,
-	ProjectDetail, Projects, RetiredCarbonCreditsData, RetiredCredits, ShortStringOf
+	ProjectDetail, Projects, RetiredCarbonCreditsData, RetiredCredits, ShortStringOf,
 };
 
 impl<T: Config> Pallet<T> {
@@ -492,7 +492,7 @@ impl<T: Config> Pallet<T> {
 		project_id: T::ProjectId,
 		group_id: T::GroupId,
 		amount: T::Balance,
-		reason: ShortStringOf<T>
+		reason: ShortStringOf<T>,
 	) -> DispatchResult {
 		let now = frame_system::Pallet::<T>::block_number();
 
@@ -598,7 +598,7 @@ impl<T: Config> Pallet<T> {
 				retire_data: batch_retire_data_list.clone(),
 				timestamp: now,
 				count: amount,
-				reason : reason.clone()
+				reason: reason.clone(),
 			};
 
 			//Store the details of retired batches in storage
@@ -612,7 +612,7 @@ impl<T: Config> Pallet<T> {
 				account: from,
 				amount,
 				retire_data: batch_retire_data_list,
-				reason
+				reason,
 			});
 
 			Ok(())

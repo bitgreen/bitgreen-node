@@ -175,7 +175,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: create_runtime_str!("bitgreen-parachain"),
 	impl_name: create_runtime_str!("bitgreen-parachain"),
 	authoring_version: 1,
-	spec_version: 1203, // v1.2.3
+	spec_version: 1204, // v1.2.4
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 1,
@@ -934,6 +934,20 @@ impl pallet_identity::Config for Runtime {
 	type WeightInfo = ();
 }
 
+parameter_types! {
+	pub const MaxKeyLength : u32 = 10;
+	pub const MaxValueLength : u32 = 100;
+	pub const DepositPerByte : Balance = DOLLARS / 100;
+}
+
+impl pallet_general_storage::Config for Test {
+	type RuntimeEvent = RuntimeEvent;
+	type Currency = Balances;
+	type MaxKeyLength = MaxKeyLength;
+	type MaxValueLength = MaxValueLength;
+	type DepositPerByte = DepositPerByte;
+}
+
 // Create the runtime by composing the FRAME pallets that were previously configured.
 construct_runtime!(
 	pub enum Runtime where
@@ -983,6 +997,7 @@ construct_runtime!(
 		Multisig: pallet_multisig::{Pallet, Call, Storage, Event<T>} = 59,
 		Dex: pallet_dex::{Pallet, Call, Storage, Event<T>} = 60,
 		KYC: pallet_kyc::{Pallet, Call, Storage, Config<T>, Event<T>} = 66,
+		GeneralStorage: pallet_general_storage::{Pallet, Call, Storage, Config<T>, Event<T>} = 67,
 
 		// Utility pallets
 		Utility: pallet_utility::{Pallet, Call, Event} = 61,

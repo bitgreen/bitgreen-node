@@ -101,6 +101,7 @@ pallet-transaction-pause = { default-features = false, version = '0.0.1', path =
 pallet-vesting-contract = { default-features = false, version = '0.0.1', path = "../../pallets/vesting-contract" }
 pallet-kyc = { default-features = false, version = '0.0.1', path = "../../pallets/kyc" }
 pallet-dex = { default-features = false, path = "../../pallets/dex" }
+pallet-general-storage = { default-features = false, path = "../../pallets/general-storage" }
 primitives = { package = "bitgreen-primitives", path = "../../primitives", default-features = false }
 
 [features]
@@ -177,7 +178,8 @@ std = [
   "pallet-parachain-staking/std",
   "pallet-dex/std",
   "pallet-proxy/std",
-  "pallet-identity/std"
+  "pallet-identity/std",
+  "pallet-general-storage/std"
 ]
 
 runtime-benchmarks = [

@@ -21,11 +21,11 @@ pub mod v2 {
 			RetiredCredits::<T>::translate::<OldRetiredCarbonCreditsData<T>, _>(
 				|_asset_id, _item_id, old| -> Option<RetiredCarbonCreditsData<T>> {
 					let converted_data = RetiredCarbonCreditsData {
-						account : old.account,
+						account: old.account,
 						retire_data: old.retire_data,
 						timestamp: old.timestamp,
 						count: old.count,
-						reason: Default::default() // new value
+						reason: Default::default(), // new value
 					};
 					Some(converted_data)
 				},

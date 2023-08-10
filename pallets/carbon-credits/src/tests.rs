@@ -995,7 +995,13 @@ fn test_retire_non_minted_project_should_fail() {
 
 		// calling retire from a non minted project should fail
 		assert_noop!(
-			CarbonCredits::retire(RawOrigin::Signed(3).into(), project_id, group_id, 100u128, Default::default()),
+			CarbonCredits::retire(
+				RawOrigin::Signed(3).into(),
+				project_id,
+				group_id,
+				100u128,
+				Default::default()
+			),
 			pallet_assets::Error::<Test>::NoAccount
 		);
 	});
