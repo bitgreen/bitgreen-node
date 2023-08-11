@@ -301,7 +301,7 @@ pub mod pallet {
 			/// Details of the retired token
 			retire_data: BatchRetireDataList<T>,
 			/// reason for retirement
-			reason: ShortStringOf<T>
+			reason: ShortStringOf<T>,
 		},
 		/// A project details has been updated
 		ProjectUpdated {
@@ -436,7 +436,7 @@ pub mod pallet {
 			project_id: T::ProjectId,
 			group_id: T::GroupId,
 			amount: T::Balance,
-			reason: ShortStringOf<T>
+			reason: ShortStringOf<T>,
 		) -> DispatchResult {
 			let sender = ensure_signed(origin)?;
 			Self::check_kyc_approval(&sender)?;

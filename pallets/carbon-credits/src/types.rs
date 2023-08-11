@@ -153,5 +153,5 @@ pub struct RetiredCarbonCreditsData<T: pallet::Config> {
 	/// The total count of credits retired
 	pub count: T::Balance,
 	/// Retirement reason
-	pub reason: ShortStringOf<T>
+	pub reason: ShortStringOf<T>,
 }
