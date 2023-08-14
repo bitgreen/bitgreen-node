@@ -112,7 +112,8 @@ pub type Executive = frame_executive::Executive<
 	Runtime,
 	AllPalletsWithSystem,
 	// Migrations
-	pallet_carbon_credits::migration::v2::MigrateToV2<Runtime>,
+	()
+	//pallet_carbon_credits::migration::v2::MigrateToV2<Runtime>,
 >;
 
 pub type NegativeImbalance<T> = <pallet_balances::Pallet<T> as Currency<
@@ -581,7 +582,7 @@ impl pallet_uniques::Config for Runtime {
 	type CollectionId = u32;
 	type CreateOrigin = AsEnsureOriginWithArg<frame_system::EnsureSigned<AccountId>>;
 	type Currency = Balances;
-	type DepositPerByte = ConstU128<1>;
+	type DepositPerByte = DepositPerByte;
 	type RuntimeEvent = RuntimeEvent;
 	type ForceOrigin = frame_system::EnsureRoot<AccountId>;
 	type ItemDeposit = ConstU128<0>;
@@ -669,7 +670,6 @@ pub const CONTRACTS_DEBUG_OUTPUT: bool = true;
 
 parameter_types! {
 	pub const DepositPerItem: Balance = deposit(1, 0);
-	pub const DepositPerByte: Balance = deposit(0, 1);
 	// The lazy deletion runs inside on_initialize.
 	pub DeletionWeightLimit: Weight = AVERAGE_ON_INITIALIZE_RATIO *
 		RuntimeBlockWeights::get().max_block;
@@ -937,10 +937,10 @@ impl pallet_identity::Config for Runtime {
 parameter_types! {
 	pub const MaxKeyLength : u32 = 10;
 	pub const MaxValueLength : u32 = 100;
-	pub const DepositPerByte : Balance = DOLLARS / 100;
+	pub const DepositPerByte : Balance = DOLLARS / 10;
 }
 
-impl pallet_general_storage::Config for Test {
+impl pallet_general_storage::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type Currency = Balances;
 	type MaxKeyLength = MaxKeyLength;
@@ -997,7 +997,7 @@ construct_runtime!(
 		Multisig: pallet_multisig::{Pallet, Call, Storage, Event<T>} = 59,
 		Dex: pallet_dex::{Pallet, Call, Storage, Event<T>} = 60,
 		KYC: pallet_kyc::{Pallet, Call, Storage, Config<T>, Event<T>} = 66,
-		GeneralStorage: pallet_general_storage::{Pallet, Call, Storage, Config<T>, Event<T>} = 67,
+		GeneralStorage: pallet_general_storage::{Pallet, Call, Storage, Event<T>} = 67,
 
 		// Utility pallets
 		Utility: pallet_utility::{Pallet, Call, Event} = 61,
