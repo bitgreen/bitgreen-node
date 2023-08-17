@@ -930,8 +930,8 @@ impl pallet_proxy::Config for Runtime {
 }
 
 parameter_types! {
-	pub const MaxKeyLength : u32 = 10;
-	pub const MaxValueLength : u32 = 100;
+	pub const MaxKeyLength : u32 = 1024;
+	pub const MaxValueLength : u32 = 64000;
 	pub const DepositPerByte : Balance = DOLLARS / 10;
 }
 

@@ -176,7 +176,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: create_runtime_str!("bitgreen-parachain"),
 	impl_name: create_runtime_str!("bitgreen-parachain"),
 	authoring_version: 1,
-	spec_version: 1204, // v1.2.4
+	spec_version: 1206, // v1.2.6
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 1,
@@ -935,8 +935,8 @@ impl pallet_identity::Config for Runtime {
 }
 
 parameter_types! {
-	pub const MaxKeyLength : u32 = 10;
-	pub const MaxValueLength : u32 = 100;
+	pub const MaxKeyLength : u32 = 1024;
+	pub const MaxValueLength : u32 = 64000;
 	pub const DepositPerByte : Balance = DOLLARS / 10;
 }
 
