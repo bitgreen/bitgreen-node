@@ -56,7 +56,7 @@ pub mod migration;
 pub use functions::*;
 
 mod weights;
-use frame_support::traits::Contains;
+use frame_support::{pallet_prelude::DispatchResult, traits::Contains};
 pub use weights::WeightInfo;
 
 #[frame_support::pallet]
@@ -625,12 +625,21 @@ pub mod pallet {
 /// Struct to verify if a given asset_id is representing a carbon credit project
 impl<T: Config> primitives::CarbonCreditsValidator for Pallet<T> {
 	type ProjectId = T::ProjectId;
-
+	type Address = T::AccountId;
 	type GroupId = T::GroupId;
-
 	type AssetId = T::AssetId;
+	type Amount = T::Balance;
 
 	fn get_project_details(asset_id: &Self::AssetId) -> Option<(Self::ProjectId, Self::GroupId)> {
 		AssetIdLookup::<T>::get(asset_id)
+	}
+
+	fn retire_credits(
+		sender: Self::Address,
+		project_id: Self::ProjectId,
+		group_id: Self::GroupId,
+		amount: Self::Amount,
+	) -> DispatchResult {
+		Self::retire_carbon_credits(sender, project_id, group_id, amount, Default::default())
 	}
 }

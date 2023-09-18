@@ -103,7 +103,11 @@ pub mod pallet {
 		type ForceOrigin: EnsureOrigin<Self::RuntimeOrigin>;
 
 		/// Verify if the asset can be listed on the dex
-		type AssetValidator: CarbonCreditsValidator<AssetId = AssetIdOf<Self>>;
+		type AssetValidator: CarbonCreditsValidator<
+			AssetId = AssetIdOf<Self>,
+			Address = Self::AccountId,
+			Amount = Self::AssetBalance,
+		>;
 
 		/// The minimum units of asset to create a sell order
 		#[pallet::constant]
@@ -774,13 +778,23 @@ pub mod pallet {
 							order_id,
 							sell_order_id: order.order_id,
 							units: order.units,
-							project_id,
-							group_id,
+							project_id: project_id.clone(),
+							group_id: group_id.clone(),
 							price_per_unit: order.price_per_unit,
 							fees_paid: order.total_fee,
 							seller: sell_order.owner,
-							buyer: order.buyer,
+							buyer: order.buyer.clone(),
 						});
+
+						// if the payment was processed by stripe, immediately retire
+						if chain_id == 0 {
+							T::AssetValidator::retire_credits(
+								order.buyer,
+								project_id,
+								group_id,
+								order.units,
+							)?;
+						}
 
 						// remove from storage if we reached the threshold and payment executed
 						return Ok(())
