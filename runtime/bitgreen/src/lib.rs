@@ -111,9 +111,7 @@ pub type Executive = frame_executive::Executive<
 	frame_system::ChainContext<Runtime>,
 	Runtime,
 	AllPalletsWithSystem,
-	// Migrations
-	()
-	//pallet_carbon_credits::migration::v2::MigrateToV2<Runtime>,
+	pallet_carbon_credits::migration::v3::MigrateToV3<Runtime>,
 >;
 
 pub type NegativeImbalance<T> = <pallet_balances::Pallet<T> as Currency<

@@ -214,16 +214,6 @@ pub mod pallet {
 	pub type SellerPayoutPreferences<T: Config> =
 		StorageMap<_, Blake2_128Concat, T::AccountId, SellerPayoutPreferenceOf<T>>;
 
-	// Seller payouts
-	#[pallet::storage]
-	#[pallet::getter(fn seller_payouts)]
-	pub type SellerPayouts<T: Config> = StorageMap<
-		_,
-		Blake2_128Concat,
-		T::AccountId,
-		BoundedVec<PayoutExecutedToSellerOf<T>, T::MaxPayoutsToStore>,
-	>;
-
 	/// storage to track the buy orders by user
 	#[pallet::storage]
 	#[pallet::getter(fn buy_order_by_user)]
@@ -369,6 +359,8 @@ pub mod pallet {
 		UserOpenOrderUnitsAllowedExceeded,
 		/// Limits for open orders not configured correctly
 		UserOpenOrderUnitsLimtNotFound,
+		/// Min validators cannot be zero
+		MinValidatorsCannotBeZero,
 	}
 
 	#[pallet::hooks]
@@ -416,14 +408,22 @@ pub mod pallet {
 						key
 					);
 
-					BuyOrdersByUser::<T>::try_mutate(
+					let res = BuyOrdersByUser::<T>::try_mutate(
 						buy_order.buyer.clone(),
 						|open_orders| -> DispatchResult {
-							let mut open_orders = open_orders.get_or_insert_with(Default::default);
+							let open_orders = open_orders.get_or_insert_with(Default::default);
 							open_orders.retain(|&x| x != (key, buy_order.units));
 							Ok(())
 						},
 					);
+
+					if res.is_err() {
+						log::warn!(
+							target: "runtime::dex",
+							"WARNING: BuyOrdersByUser updated failed with error for buy_order_id : {}",
+							key
+						);
+					}
 
 					// emit an event that expired order was removed
 					Self::deposit_event(Event::BuyOrderExpired {
@@ -759,8 +759,7 @@ pub mod pallet {
 						BuyOrdersByUser::<T>::try_mutate(
 							order.buyer.clone(),
 							|open_orders| -> DispatchResult {
-								let mut open_orders =
-									open_orders.get_or_insert_with(Default::default);
+								let open_orders = open_orders.get_or_insert_with(Default::default);
 								open_orders.retain(|&x| x != (order_id, order.units));
 								Ok(())
 							},
@@ -851,7 +850,7 @@ pub mod pallet {
 			T::ForceOrigin::ensure_origin(origin)?;
 			// remove the account_id from the list of authorized accounts if already exists
 			ValidatorAccounts::<T>::try_mutate(|account_list| -> DispatchResult {
-				if let Ok(index) = account_list.binary_search(&account_id) {
+				if let Some(index) = account_list.iter().position(|a| a == &account_id) {
 					account_list.swap_remove(index);
 					Self::deposit_event(Event::ValidatorAccountRemoved { account_id });
 				}
@@ -868,6 +867,7 @@ pub mod pallet {
 			min_validators: u32,
 		) -> DispatchResult {
 			T::ForceOrigin::ensure_origin(origin)?;
+			ensure!(min_validators > 0, Error::<T>::MinValidatorsCannotBeZero);
 			MinPaymentValidations::<T>::set(min_validators);
 			Ok(())
 		}
@@ -996,13 +996,6 @@ pub mod pallet {
 				*receivable = receivable
 					.checked_sub(&payout.amount)
 					.ok_or(Error::<T>::ReceivableLessThanPayment)?;
-				Ok(())
-			})?;
-
-			// add new payment to storage
-			SellerPayouts::<T>::try_mutate(seller.clone(), |payouts| -> DispatchResult {
-				let payouts = payouts.get_or_insert_with(Default::default);
-				payouts.try_push(payout.clone()).map_err(|_| Error::<T>::PaymentsListFull)?;
 				Ok(())
 			})?;
 

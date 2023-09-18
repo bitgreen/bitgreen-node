@@ -356,6 +356,8 @@ pub mod pallet {
 		GroupNotFound,
 		/// Can only update an approved project, use resubmit for rejected projects
 		CannotUpdateUnapprovedProject,
+		/// The project approval status has been processed
+		ApprovalAlreadyProcessed,
 	}
 
 	#[pallet::call]
@@ -479,7 +481,7 @@ pub mod pallet {
 			T::ForceOrigin::ensure_origin(origin)?;
 			// remove the account_id from the list of authorized accounts if already exists
 			AuthorizedAccounts::<T>::try_mutate(|account_list| -> DispatchResult {
-				if let Ok(index) = account_list.binary_search(&account_id) {
+				if let Some(index) = account_list.iter().position(|a| a == &account_id) {
 					account_list.swap_remove(index);
 					Self::deposit_event(Event::AuthorizedAccountRemoved { account_id });
 				}
