@@ -633,6 +633,10 @@ fn buy_order_handle_expiry_should_work() {
 #[test]
 fn force_set_min_validator_should_work() {
 	new_test_ext().execute_with(|| {
+		assert_noop!(
+			Dex::force_set_min_validations(RuntimeOrigin::root(), 0),
+			Error::<Test>::MinValidatorsCannotBeZero
+		);
 		assert_ok!(Dex::force_set_min_validations(RuntimeOrigin::root(), 5));
 		assert_eq!(crate::MinPaymentValidations::<Test>::get(), 5);
 	});

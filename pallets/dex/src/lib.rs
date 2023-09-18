@@ -359,6 +359,8 @@ pub mod pallet {
 		UserOpenOrderUnitsAllowedExceeded,
 		/// Limits for open orders not configured correctly
 		UserOpenOrderUnitsLimtNotFound,
+		/// Min validators cannot be zero
+		MinValidatorsCannotBeZero,
 	}
 
 	#[pallet::hooks]
@@ -858,6 +860,7 @@ pub mod pallet {
 			min_validators: u32,
 		) -> DispatchResult {
 			T::ForceOrigin::ensure_origin(origin)?;
+			ensure!(min_validators > 0, Error::<T>::MinValidatorsCannotBeZero);
 			MinPaymentValidations::<T>::set(min_validators);
 			Ok(())
 		}
