@@ -542,6 +542,10 @@ impl<T: Config> Pallet<T> {
 
 				let actual = cmp::min(available_to_retire, remaining);
 
+				if actual.is_zero() {
+					continue
+				}
+
 				batch.retired = batch.retired.checked_add(&actual).ok_or(Error::<T>::Overflow)?;
 
 				// create data of retired batch
