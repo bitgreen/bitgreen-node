@@ -214,16 +214,6 @@ pub mod pallet {
 	pub type SellerPayoutPreferences<T: Config> =
 		StorageMap<_, Blake2_128Concat, T::AccountId, SellerPayoutPreferenceOf<T>>;
 
-	// Seller payouts
-	#[pallet::storage]
-	#[pallet::getter(fn seller_payouts)]
-	pub type SellerPayouts<T: Config> = StorageMap<
-		_,
-		Blake2_128Concat,
-		T::AccountId,
-		BoundedVec<PayoutExecutedToSellerOf<T>, T::MaxPayoutsToStore>,
-	>;
-
 	/// storage to track the buy orders by user
 	#[pallet::storage]
 	#[pallet::getter(fn buy_order_by_user)]
@@ -996,13 +986,6 @@ pub mod pallet {
 				*receivable = receivable
 					.checked_sub(&payout.amount)
 					.ok_or(Error::<T>::ReceivableLessThanPayment)?;
-				Ok(())
-			})?;
-
-			// add new payment to storage
-			SellerPayouts::<T>::try_mutate(seller.clone(), |payouts| -> DispatchResult {
-				let payouts = payouts.get_or_insert_with(Default::default);
-				payouts.try_push(payout.clone()).map_err(|_| Error::<T>::PaymentsListFull)?;
 				Ok(())
 			})?;
 

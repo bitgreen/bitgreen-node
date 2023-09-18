@@ -740,9 +740,6 @@ fn record_payment_to_seller_should_work() {
 			payment.clone()
 		));
 
-		// Assert that the payment is recorded correctly in the SellerPayouts storage map
-		assert_eq!(crate::SellerPayouts::<Test>::get(seller).unwrap(), vec![payment]);
-
 		// Assert that the seller's receivables is updated to 0
 		assert_eq!(crate::SellerReceivables::<Test>::get(seller).unwrap(), 0);
 	});
