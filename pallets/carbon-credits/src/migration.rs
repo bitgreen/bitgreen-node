@@ -1,6 +1,5 @@
 use super::*;
 use codec::{Decode, Encode, MaxEncodedLen};
-use frame_support::BoundedVec;
 use scale_info::TypeInfo;
 
 pub mod v3 {

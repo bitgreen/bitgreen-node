@@ -408,14 +408,22 @@ pub mod pallet {
 						key
 					);
 
-					BuyOrdersByUser::<T>::try_mutate(
+					let res = BuyOrdersByUser::<T>::try_mutate(
 						buy_order.buyer.clone(),
 						|open_orders| -> DispatchResult {
-							let mut open_orders = open_orders.get_or_insert_with(Default::default);
+							let open_orders = open_orders.get_or_insert_with(Default::default);
 							open_orders.retain(|&x| x != (key, buy_order.units));
 							Ok(())
 						},
 					);
+
+					if res.is_err() {
+						log::warn!(
+							target: "runtime::dex",
+							"WARNING: BuyOrdersByUser updated failed with error for buy_order_id : {}",
+							key
+						);
+					}
 
 					// emit an event that expired order was removed
 					Self::deposit_event(Event::BuyOrderExpired {
@@ -751,8 +759,7 @@ pub mod pallet {
 						BuyOrdersByUser::<T>::try_mutate(
 							order.buyer.clone(),
 							|open_orders| -> DispatchResult {
-								let mut open_orders =
-									open_orders.get_or_insert_with(Default::default);
+								let open_orders = open_orders.get_or_insert_with(Default::default);
 								open_orders.retain(|&x| x != (order_id, order.units));
 								Ok(())
 							},
