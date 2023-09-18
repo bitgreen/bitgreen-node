@@ -2,6 +2,7 @@
 // Copyright (C) 2022 BitGreen.
 // This code is licensed under MIT license (see LICENSE.txt for details)
 use frame_support::{
+	pallet_prelude::DispatchResult,
 	parameter_types,
 	traits::{AsEnsureOriginWithArg, ConstU32, Contains, Everything, GenesisBuild, Nothing},
 	PalletId,
@@ -137,10 +138,21 @@ impl orml_tokens::Config for Test {
 pub struct DummyValidator;
 impl CarbonCreditsValidator for DummyValidator {
 	type ProjectId = u32;
+	type Amount = Balance;
+	type Address = AccountId;
 	type AssetId = u32;
 	type GroupId = u32;
 	fn get_project_details(_asset_id: &Self::AssetId) -> Option<(Self::ProjectId, Self::GroupId)> {
 		Some((0, 0))
+	}
+
+	fn retire_credits(
+		sender: Self::Address,
+		project_id: Self::ProjectId,
+		group_id: Self::GroupId,
+		amount: Self::Amount,
+	) -> DispatchResult {
+		Ok(())
 	}
 }
 

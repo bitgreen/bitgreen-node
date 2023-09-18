@@ -1,6 +1,7 @@
 use super::*;
 use frame_support::{pallet_prelude::Get, BoundedVec};
 pub type IssuanceYear = u16;
+use frame_support::pallet_prelude::DispatchResult;
 use sp_std::fmt::Debug;
 
 /// The possible values for Registry Names
@@ -167,6 +168,12 @@ pub trait CarbonCreditsValidator {
 	/// ProjectId type representing the project
 	type ProjectId: Clone + PartialEq + Debug;
 
+	/// Address type representing the group
+	type Address: Clone + PartialEq + Debug;
+
+	/// Amount type representing the group
+	type Amount: Clone + PartialEq + Debug;
+
 	/// GroupId type representing the group
 	type GroupId: Clone + PartialEq + Debug;
 
@@ -175,4 +182,12 @@ pub trait CarbonCreditsValidator {
 
 	/// Returns ProjectId and GroupId if the given AssetId represents a CarbonCredit Project
 	fn get_project_details(asset_id: &Self::AssetId) -> Option<(Self::ProjectId, Self::GroupId)>;
+
+	/// Retires credits with given details
+	fn retire_credits(
+		sender: Self::Address,
+		project_id: Self::ProjectId,
+		group_id: Self::GroupId,
+		amount: Self::Amount,
+	) -> DispatchResult;
 }
