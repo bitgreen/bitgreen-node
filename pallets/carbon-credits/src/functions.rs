@@ -21,8 +21,9 @@ use sp_std::{cmp, convert::TryInto, vec::Vec};
 
 use crate::{
 	AssetIdLookup, AuthorizedAccounts, BatchGroupOf, BatchRetireDataList, BatchRetireDataOf,
-	Config, Error, Event, NextAssetId, NextItemId, NextProjectId, Pallet, ProjectCreateParams,
-	ProjectDetail, Projects, RetiredCarbonCreditsData, RetiredCredits, ShortStringOf,
+	Config, Error, Event, NextAssetId, NextItemId, NextProjectId, Pallet, ProjectApprovalStatus,
+	ProjectCreateParams, ProjectDetail, Projects, RetiredCarbonCreditsData, RetiredCredits,
+	ShortStringOf,
 };
 
 impl<T: Config> Pallet<T> {
@@ -61,10 +62,15 @@ impl<T: Config> Pallet<T> {
 			// ensure the project exists
 			let project = project.as_mut().ok_or(Error::<T>::ProjectNotFound)?;
 
-			project.approved = is_approved;
+			ensure!(
+				project.approved == ProjectApprovalStatus::Pending,
+				Error::<T>::ApprovalAlreadyProcessed
+			);
 
 			// if approved, create assets
 			if is_approved {
+				project.approved = ProjectApprovalStatus::Approved;
+
 				let mut created_asset_ids: Vec<T::AssetId> = Default::default();
 
 				for (group_id, mut group) in project.batch_groups.iter_mut() {
@@ -99,6 +105,7 @@ impl<T: Config> Pallet<T> {
 					asset_ids: created_asset_ids,
 				});
 			} else {
+				project.approved = ProjectApprovalStatus::Rejected;
 				Self::deposit_event(Event::ProjectRejected { project_id });
 			}
 
@@ -195,7 +202,7 @@ impl<T: Config> Pallet<T> {
 				royalties: params.royalties,
 				created: now,
 				updated: None,
-				approved: false,
+				approved: ProjectApprovalStatus::Pending,
 			};
 
 			*project = Some(new_project);
@@ -216,7 +223,7 @@ impl<T: Config> Pallet<T> {
 			let project = project.as_mut().ok_or(Error::<T>::ProjectNotFound)?;
 
 			// approved projects cannot be modified
-			ensure!(!project.approved, Error::<T>::CannotModifyApprovedProject);
+			ensure!(!project.approved.is_approved(), Error::<T>::CannotModifyApprovedProject);
 
 			// only originator can resubmit
 			ensure!(project.originator == admin, Error::<T>::NotAuthorised);
@@ -279,7 +286,7 @@ impl<T: Config> Pallet<T> {
 				batch_groups: batch_group_map,
 				created: project.created,
 				updated: Some(now),
-				approved: false,
+				approved: ProjectApprovalStatus::Pending,
 			};
 
 			*project = new_project;
@@ -305,7 +312,7 @@ impl<T: Config> Pallet<T> {
 			let project = project.as_mut().ok_or(Error::<T>::ProjectNotFound)?;
 
 			// non approved project needs to be resubmitted
-			ensure!(project.approved, Error::<T>::CannotUpdateUnapprovedProject);
+			ensure!(project.approved.is_approved(), Error::<T>::CannotUpdateUnapprovedProject);
 
 			// only originator can resubmit
 			ensure!(project.originator == admin, Error::<T>::NotAuthorised);
@@ -347,7 +354,7 @@ impl<T: Config> Pallet<T> {
 			let project = project.as_mut().ok_or(Error::<T>::ProjectNotFound)?;
 
 			// non approved project needs to be resubmitted
-			ensure!(project.approved, Error::<T>::CannotUpdateUnapprovedProject);
+			ensure!(project.approved.is_approved(), Error::<T>::CannotUpdateUnapprovedProject);
 
 			// only originator can resubmit
 			ensure!(project.originator == admin, Error::<T>::NotAuthorised);
@@ -418,7 +425,7 @@ impl<T: Config> Pallet<T> {
 			let project = project.as_mut().ok_or(Error::<T>::ProjectNotFound)?;
 
 			// ensure the project is approved
-			ensure!(project.approved, Error::<T>::ProjectNotApproved);
+			ensure!(project.approved.is_approved(), Error::<T>::ProjectNotApproved);
 
 			// ensure the group exists
 			let mut group =
@@ -505,7 +512,7 @@ impl<T: Config> Pallet<T> {
 			let project = project.as_mut().ok_or(Error::<T>::ProjectNotFound)?;
 
 			// ensure the project is approved
-			ensure!(project.approved, Error::<T>::ProjectNotApproved);
+			ensure!(project.approved.is_approved(), Error::<T>::ProjectNotApproved);
 
 			// ensure the group exists
 			let mut group =

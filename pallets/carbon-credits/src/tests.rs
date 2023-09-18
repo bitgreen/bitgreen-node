@@ -298,7 +298,7 @@ fn create_works_for_single_batch() {
 		assert_eq!(stored_data.originator, originator_account);
 		assert_eq!(stored_data.name, creation_params.name);
 		assert_eq!(stored_data.registry_details, get_default_registry_details::<Test>());
-		assert!(!stored_data.approved);
+		assert!(!stored_data.approved.is_approved());
 
 		let group_data = stored_data.batch_groups.get(&0u32).unwrap();
 		assert_eq!(stored_data.sdg_details, get_default_sdg_details::<Test>());
@@ -332,7 +332,7 @@ fn create_works_for_multiple_batch() {
 		assert_eq!(stored_data.originator, originator_account);
 		assert_eq!(stored_data.name, creation_params.name);
 		assert_eq!(stored_data.registry_details, get_default_registry_details::<Test>());
-		assert!(!stored_data.approved);
+		assert!(!stored_data.approved.is_approved());
 
 		let group_data = stored_data.batch_groups.get(&0u32).unwrap();
 		assert_eq!(stored_data.sdg_details, get_default_sdg_details::<Test>());
@@ -479,7 +479,7 @@ fn resubmit_works() {
 		assert_eq!(stored_data.originator, originator_account);
 		assert_eq!(stored_data.name, creation_params.name);
 		assert_eq!(stored_data.registry_details, get_default_registry_details::<Test>());
-		assert!(!stored_data.approved);
+		assert!(!stored_data.approved.is_approved());
 
 		// the supply of both batches should be added correctly
 		let group_data = stored_data.batch_groups.get(&0u32).unwrap();
@@ -558,7 +558,7 @@ fn approve_project_works() {
 		let stored_data = Projects::<Test>::get(project_id).unwrap();
 
 		// sanity check
-		assert!(!stored_data.approved);
+		assert!(!stored_data.approved.is_approved());
 
 		// approve should work now
 		assert_ok!(CarbonCredits::approve_project(
@@ -569,7 +569,7 @@ fn approve_project_works() {
 
 		// ensure storage changed correctly
 		let stored_data = Projects::<Test>::get(project_id).unwrap();
-		assert!(stored_data.approved);
+		assert!(stored_data.approved.is_approved());
 		// the asset_id should be set correctly
 		let group_data = stored_data.batch_groups.get(&0u32).unwrap();
 		assert_eq!(group_data.asset_id, asset_id);
@@ -772,7 +772,7 @@ fn mint_without_list_to_marketplace_works_for_single_batch() {
 		assert_eq!(group_data.total_supply, 100_u32.into());
 		assert_eq!(group_data.minted, amount_to_mint);
 		assert_eq!(group_data.retired, 0_u32.into());
-		assert!(stored_data.approved);
+		assert!(stored_data.approved.is_approved());
 
 		// the batch should also be updated with minted count
 		let batch_detail = group_data.batches.first().unwrap();
@@ -865,7 +865,7 @@ fn mint_without_list_to_marketplace_works_for_multiple_batches() {
 		assert_eq!(group_data.total_supply, 200_u32.into());
 		assert_eq!(group_data.minted, amount_to_mint);
 		assert_eq!(group_data.retired, 0_u32.into());
-		assert!(stored_data.approved);
+		assert!(stored_data.approved.is_approved());
 
 		// the batch should also be updated with minted count
 		// we have a total supply of 200, with 100 in each batch
@@ -948,7 +948,7 @@ fn mint_without_list_to_marketplace_works_for_multiple_batches() {
 		assert_eq!(group_data.total_supply, 200_u32.into());
 		assert_eq!(group_data.minted, 200_u32.into());
 		assert_eq!(group_data.retired, 0_u32.into());
-		assert!(stored_data.approved);
+		assert!(stored_data.approved.is_approved());
 
 		// the batch should also be updated with minted count
 		// we have a total supply of 200, with 100 in each batch
@@ -1440,7 +1440,7 @@ fn force_approve_and_mint_credits_works() {
 		assert_eq!(group_data.total_supply, 100_u32.into());
 		assert_eq!(group_data.minted, amount_to_mint);
 		assert_eq!(group_data.retired, 0_u32.into());
-		assert!(stored_data.approved);
+		assert!(stored_data.approved.is_approved());
 	});
 }
 
@@ -1516,7 +1516,7 @@ fn update_works() {
 		assert_eq!(stored_data.originator, originator_account);
 		assert_eq!(stored_data.name, creation_params.name);
 		assert_eq!(stored_data.registry_details, get_default_registry_details::<Test>());
-		assert!(stored_data.approved);
+		assert!(stored_data.approved.is_approved());
 
 		// the batch group should not be updated
 		let group_data = stored_data.batch_groups.get(&0u32).unwrap();
@@ -1551,7 +1551,7 @@ fn add_batch_group_works() {
 		assert_eq!(stored_data.originator, originator_account);
 		assert_eq!(stored_data.name, creation_params.name);
 		assert_eq!(stored_data.registry_details, get_default_registry_details::<Test>());
-		assert!(!stored_data.approved);
+		assert!(!stored_data.approved.is_approved());
 
 		let group_data = stored_data.batch_groups.get(&0u32).unwrap();
 		assert_eq!(stored_data.sdg_details, get_default_sdg_details::<Test>());

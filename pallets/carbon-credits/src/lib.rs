@@ -356,6 +356,8 @@ pub mod pallet {
 		GroupNotFound,
 		/// Can only update an approved project, use resubmit for rejected projects
 		CannotUpdateUnapprovedProject,
+		/// The project approval status has been processed
+		ApprovalAlreadyProcessed,
 	}
 
 	#[pallet::call]

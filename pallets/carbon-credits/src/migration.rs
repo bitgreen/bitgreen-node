@@ -3,7 +3,7 @@ use codec::{Decode, Encode, MaxEncodedLen};
 use frame_support::BoundedVec;
 use scale_info::TypeInfo;
 
-pub mod v2 {
+pub mod v3 {
 	use super::*;
 	use crate::types::ProjectDetail;
 
@@ -12,26 +12,39 @@ pub mod v2 {
 		traits::{Get, OnRuntimeUpgrade},
 	};
 
-	pub struct MigrateToV2<T>(sp_std::marker::PhantomData<T>);
-	impl<T: Config> OnRuntimeUpgrade for MigrateToV2<T> {
+	pub struct MigrateToV3<T>(sp_std::marker::PhantomData<T>);
+	impl<T: Config> OnRuntimeUpgrade for MigrateToV3<T> {
 		fn on_runtime_upgrade() -> Weight {
-			log::info!("V2 MIGRATION : About to execute carbon-credits migration!");
+			log::info!("V3 MIGRATION : About to execute carbon-credits migration!");
 
 			// convert the project type to new format
-			RetiredCredits::<T>::translate::<OldRetiredCarbonCreditsData<T>, _>(
-				|_asset_id, _item_id, old| -> Option<RetiredCarbonCreditsData<T>> {
-					let converted_data = RetiredCarbonCreditsData {
-						account: old.account,
-						retire_data: old.retire_data,
-						timestamp: old.timestamp,
-						count: old.count,
-						reason: Default::default(), // new value
+			Projects::<T>::translate::<OldProjectDetail<T>, _>(
+				|_project_id, old| -> Option<ProjectDetail<T>> {
+					let converted_data = ProjectDetail {
+						originator: old.originator,
+						name: old.name,
+						description: old.description,
+						location: old.location,
+						images: old.images,
+						videos: old.videos,
+						documents: old.documents,
+						registry_details: old.registry_details,
+						sdg_details: old.sdg_details,
+						royalties: old.royalties,
+						batch_groups: old.batch_groups,
+						created: old.created,
+						updated: old.updated,
+						approved: match old.approved {
+							// modified field
+							true => ProjectApprovalStatus::Approved,
+							false => ProjectApprovalStatus::Rejected,
+						},
 					};
 					Some(converted_data)
 				},
 			);
 
-			log::info!("MIGRATION : Carbon credits migration complete!");
+			log::info!("V3 MIGRATION : Carbon credits migration complete!");
 
 			T::DbWeight::get().reads_writes(1, 1)
 		}
@@ -51,13 +64,35 @@ pub mod v2 {
 #[codec(mel_bound(T: pallet::Config))]
 #[derive(frame_support::DebugNoBound)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub struct OldRetiredCarbonCreditsData<T: pallet::Config> {
-	/// The AccountId that retired the credits
-	pub account: T::AccountId,
-	/// The details of the batches the tokens were retired from
-	pub retire_data: BatchRetireDataList<T>,
-	/// The 'BlockNumber' of retirement
-	pub timestamp: T::BlockNumber,
-	/// The total count of credits retired
-	pub count: T::Balance,
+pub struct OldProjectDetail<T: pallet::Config> {
+	/// The originator of the project
+	pub originator: T::AccountId,
+	/// Name of the project
+	pub name: ShortStringOf<T>,
+	/// Description of the project
+	pub description: LongStringOf<T>,
+	/// Location co-ordinates of thie project
+	pub location: LongStringOf<T>,
+	/// List of ipfs-hashes of images related to the project
+	pub images: IpfsLinkListsOf<T>,
+	/// List of ipfs-hashes of videos related to the project
+	pub videos: IpfsLinkListsOf<T>,
+	/// List of ipfs-hashes of documents related to the project
+	pub documents: IpfsLinkListsOf<T>,
+	/// Details of the project as represented in registry
+	pub registry_details: RegistryListOf<T>,
+	/// SDG details
+	pub sdg_details: SDGTypesListOf<T>,
+	/// The royalties to be paid when tokens are purchased
+	pub royalties: Option<RoyaltyRecipientsOf<T>>,
+	/// groups included in the project
+	pub batch_groups: BatchGroupMapOf<T>,
+	// origination details
+	/// Creation time of project
+	pub created: T::BlockNumber,
+	/// Last updation time of project
+	pub updated: Option<T::BlockNumber>,
+
+	/// approval status - a project can only mint tokens once approved
+	pub approved: bool,
 }
