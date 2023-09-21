@@ -187,7 +187,7 @@ impl ProjectApprovalStatus {
 	/// Check if the project is rejected.
 	///
 	/// Returns `true` if the project is rejected, `false` otherwise.
-	pub fn is_approved(self) -> bool {
+	pub fn is_rejected(self) -> bool {
 		use ProjectApprovalStatus::*;
 		match self {
 			Approved => false,
