@@ -355,8 +355,6 @@ pub mod pallet {
 		NoReceivables,
 		/// receivable amount is less than payment
 		ReceivableLessThanPayment,
-		/// Payments list is full
-		PaymentsListFull,
 		/// User has too many open orders
 		OpenOrderLimitExceeded,
 		/// User has too many units as unpaid open orders

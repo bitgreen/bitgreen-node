@@ -223,7 +223,7 @@ impl<T: Config> Pallet<T> {
 			let project = project.as_mut().ok_or(Error::<T>::ProjectNotFound)?;
 
 			// approved projects cannot be modified
-			ensure!(!project.approved.is_approved(), Error::<T>::CannotModifyApprovedProject);
+			ensure!(project.approved.is_rejected(), Error::<T>::CannotModifyApprovedProject);
 
 			// only originator can resubmit
 			ensure!(project.originator == admin, Error::<T>::NotAuthorised);
