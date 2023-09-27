@@ -126,7 +126,7 @@ pub struct ProjectDetail<T: pallet::Config> {
 	pub updated: Option<T::BlockNumber>,
 
 	/// approval status - a project can only mint tokens once approved
-	pub approved: bool,
+	pub approved: ProjectApprovalStatus,
 }
 
 /// Batch retire data used by pallet
@@ -153,5 +153,34 @@ pub struct RetiredCarbonCreditsData<T: pallet::Config> {
 	/// The total count of credits retired
 	pub count: T::Balance,
 	/// Retirement reason
-	pub reason: ShortStringOf<T>
+	pub reason: ShortStringOf<T>,
+}
+
+/// Enum representing the approval status of a project.
+#[derive(Copy, Clone, Encode, Decode, Eq, PartialEq, TypeInfo, Default, MaxEncodedLen, Debug)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub enum ProjectApprovalStatus {
+	/// The project is pending approval.
+	#[default]
+	Pending,
+
+	/// The project has been approved.
+	Approved,
+
+	/// The project has been rejected.
+	Rejected,
+}
+
+impl ProjectApprovalStatus {
+	/// Check if the project is approved.
+	///
+	/// Returns `true` if the project is approved, `false` otherwise.
+	pub fn is_approved(self) -> bool {
+		use ProjectApprovalStatus::*;
+		match self {
+			Approved => true,
+			Pending => false,
+			Rejected => false,
+		}
+	}
 }

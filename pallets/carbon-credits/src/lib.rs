@@ -56,7 +56,7 @@ pub mod migration;
 pub use functions::*;
 
 mod weights;
-use frame_support::traits::Contains;
+use frame_support::{pallet_prelude::DispatchResult, traits::Contains};
 pub use weights::WeightInfo;
 
 #[frame_support::pallet]
@@ -301,7 +301,7 @@ pub mod pallet {
 			/// Details of the retired token
 			retire_data: BatchRetireDataList<T>,
 			/// reason for retirement
-			reason: ShortStringOf<T>
+			reason: ShortStringOf<T>,
 		},
 		/// A project details has been updated
 		ProjectUpdated {
@@ -356,6 +356,8 @@ pub mod pallet {
 		GroupNotFound,
 		/// Can only update an approved project, use resubmit for rejected projects
 		CannotUpdateUnapprovedProject,
+		/// The project approval status has been processed
+		ApprovalAlreadyProcessed,
 	}
 
 	#[pallet::call]
@@ -436,7 +438,7 @@ pub mod pallet {
 			project_id: T::ProjectId,
 			group_id: T::GroupId,
 			amount: T::Balance,
-			reason: ShortStringOf<T>
+			reason: ShortStringOf<T>,
 		) -> DispatchResult {
 			let sender = ensure_signed(origin)?;
 			Self::check_kyc_approval(&sender)?;
@@ -479,7 +481,7 @@ pub mod pallet {
 			T::ForceOrigin::ensure_origin(origin)?;
 			// remove the account_id from the list of authorized accounts if already exists
 			AuthorizedAccounts::<T>::try_mutate(|account_list| -> DispatchResult {
-				if let Ok(index) = account_list.binary_search(&account_id) {
+				if let Some(index) = account_list.iter().position(|a| a == &account_id) {
 					account_list.swap_remove(index);
 					Self::deposit_event(Event::AuthorizedAccountRemoved { account_id });
 				}
@@ -623,12 +625,21 @@ pub mod pallet {
 /// Struct to verify if a given asset_id is representing a carbon credit project
 impl<T: Config> primitives::CarbonCreditsValidator for Pallet<T> {
 	type ProjectId = T::ProjectId;
-
+	type Address = T::AccountId;
 	type GroupId = T::GroupId;
-
 	type AssetId = T::AssetId;
+	type Amount = T::Balance;
 
 	fn get_project_details(asset_id: &Self::AssetId) -> Option<(Self::ProjectId, Self::GroupId)> {
 		AssetIdLookup::<T>::get(asset_id)
+	}
+
+	fn retire_credits(
+		sender: Self::Address,
+		project_id: Self::ProjectId,
+		group_id: Self::GroupId,
+		amount: Self::Amount,
+	) -> DispatchResult {
+		Self::retire_carbon_credits(sender, project_id, group_id, amount, Default::default())
 	}
 }

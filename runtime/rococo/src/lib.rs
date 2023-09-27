@@ -110,8 +110,7 @@ pub type Executive = frame_executive::Executive<
 	frame_system::ChainContext<Runtime>,
 	Runtime,
 	AllPalletsWithSystem,
-	// Migrations
-	pallet_carbon_credits::migration::v2::MigrateToV2<Runtime>,
+	pallet_carbon_credits::migration::v3::MigrateToV3<Runtime>,
 >;
 
 pub type NegativeImbalance<T> = <pallet_balances::Pallet<T> as Currency<
@@ -174,7 +173,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: create_runtime_str!("bitgreen-rococo"),
 	impl_name: create_runtime_str!("bitgreen-rococo"),
 	authoring_version: 1,
-	spec_version: 1203, // v1.2.3
+	spec_version: 1204, // v1.2.4
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 1,
@@ -577,7 +576,7 @@ impl pallet_uniques::Config for Runtime {
 	type CollectionId = u32;
 	type CreateOrigin = AsEnsureOriginWithArg<frame_system::EnsureSigned<AccountId>>;
 	type Currency = Balances;
-	type DepositPerByte = ConstU128<1>;
+	type DepositPerByte = DepositPerByte;
 	type RuntimeEvent = RuntimeEvent;
 	type ForceOrigin = frame_system::EnsureRoot<AccountId>;
 	type ItemDeposit = ConstU128<0>;
@@ -690,7 +689,6 @@ pub const CONTRACTS_DEBUG_OUTPUT: bool = true;
 
 parameter_types! {
 	pub const DepositPerItem: Balance = deposit(1, 0);
-	pub const DepositPerByte: Balance = deposit(0, 1);
 	// The lazy deletion runs inside on_initialize.
 	pub DeletionWeightLimit: Weight = AVERAGE_ON_INITIALIZE_RATIO *
 		RuntimeBlockWeights::get().max_block;
@@ -929,6 +927,20 @@ impl pallet_proxy::Config for Runtime {
 	type AnnouncementDepositFactor = ConstU128<{ deposit(0, 56) }>;
 }
 
+parameter_types! {
+	pub const MaxKeyLength : u32 = 1024;
+	pub const MaxValueLength : u32 = 64000;
+	pub const DepositPerByte : Balance = DOLLARS / 10;
+}
+
+impl pallet_general_storage::Config for Runtime {
+	type RuntimeEvent = RuntimeEvent;
+	type Currency = Balances;
+	type MaxKeyLength = MaxKeyLength;
+	type MaxValueLength = MaxValueLength;
+	type DepositPerByte = DepositPerByte;
+}
+
 // Create the runtime by composing the FRAME pallets that were previously configured.
 construct_runtime!(
 	pub enum Runtime where
@@ -978,6 +990,7 @@ construct_runtime!(
 		Multisig: pallet_multisig::{Pallet, Call, Storage, Event<T>} = 59,
 		Dex: pallet_dex::{Pallet, Call, Storage, Event<T>} = 60,
 		KYC: pallet_kyc::{Pallet, Call, Storage, Config<T>, Event<T>} = 66,
+		GeneralStorage: pallet_general_storage::{Pallet, Call, Storage, Event<T>} = 67,
 
 		// Utility pallets
 		Utility: pallet_utility::{Pallet, Call, Event} = 61,

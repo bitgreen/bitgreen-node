@@ -387,7 +387,7 @@ fn payment_is_processed_after_validator_threshold_reached() {
 			Dex::validate_buy_order(
 				RuntimeOrigin::signed(buyer),
 				buy_order_id,
-				0u32,
+				1u32,
 				vec![].try_into().unwrap()
 			),
 			Error::<Test>::NotAuthorised
@@ -397,7 +397,7 @@ fn payment_is_processed_after_validator_threshold_reached() {
 		assert_ok!(Dex::validate_buy_order(
 			RuntimeOrigin::signed(validator),
 			buy_order_id,
-			0u32,
+			1u32,
 			tx_proof.clone()
 		));
 
@@ -411,14 +411,14 @@ fn payment_is_processed_after_validator_threshold_reached() {
 		assert_eq!(buy_order_storage.total_amount, 21);
 
 		let payment_info = buy_order_storage.payment_info.unwrap();
-		assert_eq!(payment_info.chain_id, 0u32);
+		assert_eq!(payment_info.chain_id, 1u32);
 		assert_eq!(payment_info.tx_proof, tx_proof);
 		assert_eq!(payment_info.validators.len(), 1);
 		assert_eq!(payment_info.validators.first().unwrap(), &validator);
 
 		assert_eq!(
 			last_event(),
-			Event::BuyOrderPaymentValidated { order_id: 0, chain_id: 0u32, validator }.into()
+			Event::BuyOrderPaymentValidated { order_id: 0, chain_id: 1u32, validator }.into()
 		);
 
 		//	same validator cannot validate again
@@ -426,7 +426,7 @@ fn payment_is_processed_after_validator_threshold_reached() {
 			Dex::validate_buy_order(
 				RuntimeOrigin::signed(validator),
 				buy_order_id,
-				0u32,
+				1u32,
 				tx_proof.clone()
 			),
 			Error::<Test>::DuplicateValidation
@@ -441,7 +441,7 @@ fn payment_is_processed_after_validator_threshold_reached() {
 		assert_ok!(Dex::validate_buy_order(
 			RuntimeOrigin::signed(validator_two),
 			buy_order_id,
-			0u32,
+			1u32,
 			tx_proof
 		));
 
@@ -633,6 +633,10 @@ fn buy_order_handle_expiry_should_work() {
 #[test]
 fn force_set_min_validator_should_work() {
 	new_test_ext().execute_with(|| {
+		assert_noop!(
+			Dex::force_set_min_validations(RuntimeOrigin::root(), 0),
+			Error::<Test>::MinValidatorsCannotBeZero
+		);
 		assert_ok!(Dex::force_set_min_validations(RuntimeOrigin::root(), 5));
 		assert_eq!(crate::MinPaymentValidations::<Test>::get(), 5);
 	});
@@ -739,9 +743,6 @@ fn record_payment_to_seller_should_work() {
 			seller,
 			payment.clone()
 		));
-
-		// Assert that the payment is recorded correctly in the SellerPayouts storage map
-		assert_eq!(crate::SellerPayouts::<Test>::get(seller).unwrap(), vec![payment]);
 
 		// Assert that the seller's receivables is updated to 0
 		assert_eq!(crate::SellerReceivables::<Test>::get(seller).unwrap(), 0);
@@ -867,6 +868,143 @@ fn buy_order_limits_are_reset_correctly() {
 		// ensure the storage is updated correctly
 		let order_storage_by_user = BuyOrdersByUser::<Test>::get(buyer);
 		let expected_storage = vec![(0, 1)];
+		assert_eq!(order_storage_by_user.unwrap().into_inner(), expected_storage);
+	});
+}
+
+#[test]
+fn purchase_is_retired_if_payment_is_stripe() {
+	new_test_ext().execute_with(|| {
+		let asset_id = 0;
+		let seller = 1;
+		let buyer = 4;
+		let validator = 10;
+		let validator_two = 11;
+		let buy_order_id = 0;
+		let dex_account: u64 = PalletId(*b"bitg/dex").into_account_truncating();
+		let chain_id = 0u32;
+
+		assert_ok!(Assets::force_create(RuntimeOrigin::root(), asset_id, 1, true, 1));
+		assert_ok!(Assets::mint(RuntimeOrigin::signed(seller), asset_id, 1, 100));
+		assert_eq!(Assets::balance(asset_id, seller), 100);
+
+		// set fee values
+		assert_ok!(Dex::force_set_payment_fee(RuntimeOrigin::root(), Percent::from_percent(10)));
+		assert_ok!(Dex::force_set_purchase_fee(RuntimeOrigin::root(), 10u32.into()));
+
+		// configure limit to avoid failure
+		assert_ok!(Dex::force_set_open_order_allowed_limits(
+			RuntimeOrigin::root(),
+			UserLevel::KYCLevel1,
+			1000
+		));
+
+		// should be able to create a sell order
+		assert_ok!(Dex::create_sell_order(RuntimeOrigin::signed(seller), asset_id, 5, 10));
+
+		add_validator_account(validator);
+		add_validator_account(validator_two);
+
+		// create a new buy order
+		assert_ok!(Dex::create_buy_order(RuntimeOrigin::signed(buyer), 0, asset_id, 1, 11));
+
+		let tx_proof: BoundedVec<_, _> = vec![].try_into().unwrap();
+
+		// non validator cannot validate
+		assert_noop!(
+			Dex::validate_buy_order(
+				RuntimeOrigin::signed(buyer),
+				buy_order_id,
+				chain_id,
+				vec![].try_into().unwrap()
+			),
+			Error::<Test>::NotAuthorised
+		);
+
+		// validator can validate a payment order
+		assert_ok!(Dex::validate_buy_order(
+			RuntimeOrigin::signed(validator),
+			buy_order_id,
+			chain_id,
+			tx_proof.clone()
+		));
+
+		// buy order storage should be updated correctly
+		let buy_order_storage = BuyOrders::<Test>::get(0).unwrap();
+		assert_eq!(buy_order_storage.buyer, buyer);
+		assert_eq!(buy_order_storage.units, 1);
+		assert_eq!(buy_order_storage.price_per_unit, 10);
+		assert_eq!(buy_order_storage.asset_id, asset_id);
+		assert_eq!(buy_order_storage.total_fee, 11);
+		assert_eq!(buy_order_storage.total_amount, 21);
+
+		let payment_info = buy_order_storage.payment_info.unwrap();
+		assert_eq!(payment_info.chain_id, chain_id);
+		assert_eq!(payment_info.tx_proof, tx_proof);
+		assert_eq!(payment_info.validators.len(), 1);
+		assert_eq!(payment_info.validators.first().unwrap(), &validator);
+
+		assert_eq!(
+			last_event(),
+			Event::BuyOrderPaymentValidated { order_id: 0, chain_id, validator }.into()
+		);
+
+		//	same validator cannot validate again
+		assert_noop!(
+			Dex::validate_buy_order(
+				RuntimeOrigin::signed(validator),
+				buy_order_id,
+				chain_id,
+				tx_proof.clone()
+			),
+			Error::<Test>::DuplicateValidation
+		);
+
+		// ensure the storage is updated correctly
+		let order_storage_by_user = BuyOrdersByUser::<Test>::get(buyer);
+		let expected_storage = vec![(0, 1)];
+		assert_eq!(order_storage_by_user.unwrap().into_inner(), expected_storage);
+
+		//	next validator validates
+		assert_ok!(Dex::validate_buy_order(
+			RuntimeOrigin::signed(validator_two),
+			buy_order_id,
+			chain_id,
+			tx_proof
+		));
+
+		assert_eq!(
+			last_event(),
+			Event::BuyOrderFilled {
+				order_id: 0,
+				sell_order_id: 0,
+				buyer,
+				seller,
+				fees_paid: buy_order_storage.total_fee,
+				units: buy_order_storage.units,
+				group_id: 0,
+				price_per_unit: buy_order_storage.price_per_unit,
+				project_id: 0,
+			}
+			.into()
+		);
+
+		// seller receivable should be updated with the correct amount
+		let seller_receivables = SellerReceivables::<Test>::get(seller).unwrap();
+		assert_eq!(seller_receivables, 10);
+
+		// buy order storage should be cleared since payment is done
+		let buy_order_storage = BuyOrders::<Test>::get(0);
+		assert!(buy_order_storage.is_none());
+
+		// Asset balance should be set correctly
+		assert_eq!(Assets::balance(asset_id, seller), 95);
+		assert_eq!(Assets::balance(asset_id, buyer), 1);
+		assert_eq!(Assets::balance(asset_id, dex_account), 4);
+
+		// ensure the storage is updated correctly
+		let order_storage_by_user = BuyOrdersByUser::<Test>::get(buyer);
+		let expected_storage = vec![];
 		assert_eq!(order_storage_by_user.unwrap().into_inner(), expected_storage);
 	});
 }
