@@ -6,12 +6,6 @@ Integration tests for bitgreen pallets.
 
 1. Run `npm install`
 
-2. Start node/parachain locally and ensure its accepting connections at port 9944
+2. Modify the `SIGNER_SEED` and `BUYER_SEED` values
 
-```
-# start node
-cargo b -p bitg-node
-./target/debug/bitg-node --dev
-```
-
-3. Run `npm run` to begin various tests
+3. Run `node index.js` to create test data
