@@ -191,3 +191,33 @@ pub trait CarbonCreditsValidator {
 		amount: Self::Amount,
 	) -> DispatchResult;
 }
+
+/// Represents different types of projects related to environmental impact assessment.
+pub enum ProjectType {
+	/// Projects related to agriculture, forestry, and other land use.
+	AGRICULTURE_FORESTRY_AND_OTHER_LAND_USE,
+	/// Projects related to the chemical industry.
+	CHEMICAL_INDUSTRY,
+	/// Projects related to energy demand.
+	ENERGY_DEMAND,
+	/// Projects related to energy distribution.
+	ENERGY_DISTRIBUTION,
+	/// Projects related to energy industries.
+	ENERGY_INDUSTRIES,
+	/// Projects related to fugitive emissions from fuels.
+	FUGITIVE_EMISSIONS_FROM_FUELS,
+	/// Projects related to fugitive emissions from carbons.
+	FUGITIVE_EMISSIONS_FROM_CARBONS,
+	/// Projects related to livestock.
+	LIVESTOCK,
+	/// Projects related to manufacturing industries.
+	MANUFACTURING_INDUSTRIES,
+	/// Projects related to metal production.
+	METAL_PRODUCTION,
+	/// Projects related to mining and mineral production.
+	MINING_MINERAL_PRODUCTION,
+	/// Projects related to transport.
+	TRANSPORT,
+	/// Projects related to waste handling.
+	WASTE_HANDLING,
+}
