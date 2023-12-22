@@ -14,7 +14,7 @@ pub mod v3 {
 	pub struct MigrateToV3<T>(sp_std::marker::PhantomData<T>);
 	impl<T: Config> OnRuntimeUpgrade for MigrateToV3<T> {
 		fn on_runtime_upgrade() -> Weight {
-			log::info!("V3 MIGRATION : About to execute carbon-credits migration!");
+			log::info!("V4 MIGRATION : About to execute carbon-credits migration!");
 
 			// convert the project type to new format
 			Projects::<T>::translate::<OldProjectDetail<T>, _>(
@@ -33,17 +33,14 @@ pub mod v3 {
 						batch_groups: old.batch_groups,
 						created: old.created,
 						updated: old.updated,
-						approved: match old.approved {
-							// modified field
-							true => ProjectApprovalStatus::Approved,
-							false => ProjectApprovalStatus::Rejected,
-						},
+						approved: old.approved,
+						project_type: None,
 					};
 					Some(converted_data)
 				},
 			);
 
-			log::info!("V3 MIGRATION : Carbon credits migration complete!");
+			log::info!("V4 MIGRATION : Carbon credits migration complete!");
 
 			T::DbWeight::get().reads_writes(1, 1)
 		}
