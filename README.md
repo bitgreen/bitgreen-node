@@ -68,7 +68,7 @@ Since Bitgreen is a parachain, you can only run it alongside a relaychain, the f
 
 1. Install polkadot-launch  `npm i polkadot-launch -g`
 
-2. Clone the polkadot repo and build the relaychain, follow instructions in [cumulus repo](https://github.com/paritytech/cumulus#launch-the-relay-chain)
+2. Clone the polkadot repo and build the relaychain, follow instructions in [cumulus repo](https://github.com/paritytech/polkadot-sdk#launch-the-relay-chain)
 
 2. Ensure the relaychain build path matches the path insde `polkadot-launch/config.json`
 
@@ -77,7 +77,7 @@ Since Bitgreen is a parachain, you can only run it alongside a relaychain, the f
 
 # 5. Development
 
-Bitgreen is following the [Substrate code style](https://github.com/paritytech/substrate/blob/master/docs/STYLE_GUIDE.md).
+Bitgreen is following the [Substrate code style](https://github.com/paritytech/polkadot-sdk/blob/master/docs/STYLE_GUIDE.md).
 
 In addition, we incorporate several tools to improve code quality. These are integrated into our CI
 and are expected to pass before a PR is considered mergeable. They can also be run locally.

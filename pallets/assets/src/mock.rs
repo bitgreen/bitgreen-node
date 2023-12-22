@@ -168,7 +168,7 @@ pub(crate) fn new_test_ext() -> sp_io::TestExternalities {
 	config.assimilate_storage(&mut storage).unwrap();
 
 	let mut ext: sp_io::TestExternalities = storage.into();
-	// Clear thread local vars for https://github.com/paritytech/substrate/issues/10479.
+	// Clear thread local vars for https://github.com/paritytech/polkadot-sdk/issues/10479.
 	ext.execute_with(|| take_hooks());
 	ext.execute_with(|| System::set_block_number(1));
 	ext
