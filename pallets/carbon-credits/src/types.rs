@@ -88,6 +88,8 @@ pub struct ProjectCreateParams<T: pallet::Config> {
 	pub royalties: Option<RoyaltyRecipientsOf<T>>,
 	/// List of batch groups in the project
 	pub batch_groups: BatchGroupListOf<T>,
+	/// Type of carbon credit project
+	pub project_type: Option<ProjectType>,
 }
 
 /// Details of the project stored on-chain
@@ -119,6 +121,8 @@ pub struct ProjectDetail<T: pallet::Config> {
 	pub royalties: Option<RoyaltyRecipientsOf<T>>,
 	/// groups included in the project
 	pub batch_groups: BatchGroupMapOf<T>,
+	/// Type of carbon credit project
+	pub project_type: Option<ProjectType>,
 	// origination details
 	/// Creation time of project
 	pub created: T::BlockNumber,
