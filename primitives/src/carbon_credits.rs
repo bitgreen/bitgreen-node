@@ -193,8 +193,12 @@ pub trait CarbonCreditsValidator {
 }
 
 /// Represents different types of projects related to environmental impact assessment.
+#[allow(non_camel_case_types)]
+#[derive(Clone, Encode, Decode, Eq, PartialEq, TypeInfo, Default, Debug, MaxEncodedLen)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum ProjectType {
 	/// Projects related to agriculture, forestry, and other land use.
+	#[default]
 	AGRICULTURE_FORESTRY_AND_OTHER_LAND_USE,
 	/// Projects related to the chemical industry.
 	CHEMICAL_INDUSTRY,

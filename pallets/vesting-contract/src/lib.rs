@@ -101,15 +101,11 @@ pub mod pallet {
 	}
 
 	/// Pallet version of Contract Detail
-	pub type ContractDetailOf<T> =
-		ContractDetail<<T as frame_system::Config>::BlockNumber, BalanceOf<T>>;
+	pub type ContractDetailOf<T> = ContractDetail<BlockNumberFor<T>, BalanceOf<T>>;
 
 	/// Pallet version of BulkContractInput
-	pub type BulkContractInputOf<T> = BulkContractInput<
-		<T as frame_system::Config>::AccountId,
-		<T as frame_system::Config>::BlockNumber,
-		BalanceOf<T>,
-	>;
+	pub type BulkContractInputOf<T> =
+		BulkContractInput<<T as frame_system::Config>::AccountId, BlockNumberFor<T>, BalanceOf<T>>;
 
 	/// List of BulkContractInput
 	pub type BulkContractInputs<T> =
@@ -183,11 +179,15 @@ pub mod pallet {
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
 	pub enum Event<T: Config> {
 		/// A new contract has been added to storage
-		ContractAdded { recipient: T::AccountId, expiry: T::BlockNumber, amount: BalanceOf<T> },
+		ContractAdded { recipient: T::AccountId, expiry: BlockNumberFor<T>, amount: BalanceOf<T> },
 		/// Contract removed from storage
 		ContractRemoved { recipient: T::AccountId },
 		/// An existing contract has been completed/withdrawn
-		ContractWithdrawn { recipient: T::AccountId, expiry: T::BlockNumber, amount: BalanceOf<T> },
+		ContractWithdrawn {
+			recipient: T::AccountId,
+			expiry: BlockNumberFor<T>,
+			amount: BalanceOf<T>,
+		},
 		/// A new authorized account has been added to storage
 		AuthorizedAccountAdded { account_id: T::AccountId },
 		/// An authorized account has been removed from storage
@@ -229,7 +229,7 @@ pub mod pallet {
 		pub fn add_new_contract(
 			origin: OriginFor<T>,
 			recipient: T::AccountId,
-			expiry: T::BlockNumber,
+			expiry: BlockNumberFor<T>,
 			amount: BalanceOf<T>,
 		) -> DispatchResultWithPostInfo {
 			// ensure caller is allowed to add new recipient

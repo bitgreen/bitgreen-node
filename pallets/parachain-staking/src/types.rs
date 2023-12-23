@@ -1,6 +1,9 @@
 use super::*;
 use codec::{Decode, Encode, MaxEncodedLen};
-use frame_support::{pallet_prelude::Get, BoundedVec, RuntimeDebug};
+use frame_support::{pallet_prelude::Get, BoundedVec};
+use frame_system::pallet_prelude::BlockNumberFor;
+use sp_runtime::RuntimeDebug;
+
 #[cfg(feature = "std")]
 use serde::{Deserialize, Serialize};
 
@@ -105,12 +108,11 @@ pub type CandidateInfoOf<T> = CandidateInfo<
 	<T as Config>::MaxDelegators,
 >;
 
-pub type UnbondedDelegationInfoOf<T> =
-	UnbondedDelegationInfo<BalanceOf<T>, <T as frame_system::Config>::BlockNumber>;
+pub type UnbondedDelegationInfoOf<T> = UnbondedDelegationInfo<BalanceOf<T>, BlockNumberFor<T>>;
 
 pub type UnbondedCandidateInfoOf<T> = UnbondedCandidateInfo<
 	BalanceOf<T>,
 	DelegationInfoOf<T>,
 	<T as Config>::MaxDelegators,
-	<T as frame_system::Config>::BlockNumber,
+	BlockNumberFor<T>,
 >;

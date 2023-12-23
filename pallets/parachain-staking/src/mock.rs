@@ -5,7 +5,7 @@
 use crate::types::CandidateInfo;
 use frame_support::{
 	ord_parameter_types, parameter_types,
-	traits::{FindAuthor, GenesisBuild, ValidatorRegistration},
+	traits::{BuildGenesisConfig, FindAuthor, ValidatorRegistration},
 	PalletId,
 };
 use frame_system as system;

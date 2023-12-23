@@ -26,7 +26,7 @@
 #![allow(clippy::type_complexity, clippy::too_many_arguments)]
 use codec::{Decode, Encode, MaxEncodedLen};
 
-use frame_support::RuntimeDebug;
+use sp_runtime::RuntimeDebug;
 
 pub use pallet::*;
 use scale_info::TypeInfo;
@@ -48,7 +48,6 @@ mod types;
 pub mod pallet {
 	use crate::{types::*, WeightInfo};
 	use frame_support::{
-		dispatch::fmt::Debug,
 		pallet_prelude::*,
 		traits::{fungibles::Transfer, Contains},
 		transactional, PalletId,
@@ -60,6 +59,7 @@ pub mod pallet {
 		traits::{AccountIdConversion, AtLeast32BitUnsigned, CheckedAdd, CheckedSub, One, Zero},
 		Percent, Saturating,
 	};
+	use sp_std::fmt::Debug;
 
 	#[pallet::pallet]
 	#[pallet::generate_store(pub(super) trait Store)]
@@ -154,7 +154,7 @@ pub mod pallet {
 		type KYCProvider: Contains<Self::AccountId>;
 
 		/// The expiry time for buy order
-		type BuyOrderExpiryTime: Get<Self::BlockNumber>;
+		type BuyOrderExpiryTime: Get<BlockNumberFor<Self>>;
 	}
 
 	// orders information
@@ -368,7 +368,7 @@ pub mod pallet {
 	#[pallet::hooks]
 	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
 		// Look for expired buy orders and remove from storage
-		fn on_idle(block: T::BlockNumber, remaining_weight: Weight) -> Weight {
+		fn on_idle(block: BlockNumberFor<T>, remaining_weight: Weight) -> Weight {
 			let mut remaining_weight = remaining_weight;
 			for (key, buy_order) in BuyOrders::<T>::iter() {
 				remaining_weight = remaining_weight.saturating_sub(T::DbWeight::get().reads(1));

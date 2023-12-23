@@ -203,6 +203,7 @@ impl<T: Config> Pallet<T> {
 				created: now,
 				updated: None,
 				approved: ProjectApprovalStatus::Pending,
+				project_type: params.project_type,
 			};
 
 			*project = Some(new_project);
@@ -287,6 +288,7 @@ impl<T: Config> Pallet<T> {
 				created: project.created,
 				updated: Some(now),
 				approved: ProjectApprovalStatus::Pending,
+				project_type: params.project_type,
 			};
 
 			*project = new_project;
@@ -333,6 +335,7 @@ impl<T: Config> Pallet<T> {
 				created: project.created,
 				updated: Some(now),
 				approved: project.approved,
+				project_type: params.project_type,
 			};
 
 			*project = new_project;

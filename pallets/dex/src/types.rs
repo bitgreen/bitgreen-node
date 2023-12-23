@@ -33,7 +33,7 @@ pub type BuyOrderInfoOf<T> = BuyOrderInfo<
 	AssetIdOf<T>,
 	AssetBalanceOf<T>,
 	CurrencyBalanceOf<T>,
-	<T as frame_system::Config>::BlockNumber,
+	BlockNumberFor<T>,
 	<T as Config>::MaxTxHashLen,
 	<T as Config>::MaxValidators,
 >;

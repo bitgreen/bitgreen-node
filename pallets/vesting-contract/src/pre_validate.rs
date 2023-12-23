@@ -5,7 +5,6 @@
 #![allow(clippy::all)]
 use codec::{Decode, Encode};
 use frame_support::{
-	dispatch::fmt::Debug,
 	pallet_prelude::{
 		InvalidTransaction, TransactionValidity, TransactionValidityError, ValidTransaction,
 	},
@@ -13,6 +12,7 @@ use frame_support::{
 };
 use scale_info::TypeInfo;
 use sp_runtime::traits::{DispatchInfoOf, SignedExtension};
+use sp_std::fmt::Debug;
 
 use super::*;
 use crate::{Call, Config};

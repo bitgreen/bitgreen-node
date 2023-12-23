@@ -66,7 +66,6 @@ pub mod types;
 pub mod pallet {
 	use frame_support::{
 		dispatch::{DispatchClass, DispatchResultWithPostInfo},
-		inherent::Vec,
 		pallet_prelude::*,
 		sp_runtime::traits::{AccountIdConversion, CheckedSub, Saturating, Zero},
 		traits::{Currency, EnsureOrigin, ReservableCurrency, ValidatorRegistration},
@@ -79,7 +78,7 @@ pub mod pallet {
 		FixedPointNumber, Percent,
 	};
 	use sp_staking::SessionIndex;
-	use sp_std::fmt::Debug;
+	use sp_std::{fmt::Debug, vec::Vec};
 
 	use crate::types::{
 		CandidateInfoOf, DelegationInfoOf, UnbondedCandidateInfoOf, UnbondedDelegationInfoOf,
@@ -140,7 +139,7 @@ pub mod pallet {
 		type MinDelegationAmount: Get<BalanceOf<Self>>;
 
 		// Will be kicked if block is not produced in threshold.
-		type KickThreshold: Get<Self::BlockNumber>;
+		type KickThreshold: Get<BlockNumberFor<Self>>;
 
 		/// A stable ID for a validator.
 		type ValidatorId: Member + Parameter;
@@ -154,7 +153,7 @@ pub mod pallet {
 		type ValidatorRegistration: ValidatorRegistration<Self::ValidatorId>;
 
 		// Delay before unbonded stake can be withdrawn
-		type UnbondingDelay: Get<Self::BlockNumber>;
+		type UnbondingDelay: Get<BlockNumberFor<Self>>;
 
 		/// The weight information of this pallet.
 		type WeightInfo: WeightInfo;
@@ -192,7 +191,7 @@ pub mod pallet {
 	#[pallet::storage]
 	#[pallet::getter(fn last_authored_block)]
 	pub type LastAuthoredBlock<T: Config> =
-		StorageMap<_, Twox64Concat, T::AccountId, T::BlockNumber, ValueQuery>;
+		StorageMap<_, Twox64Concat, T::AccountId, BlockNumberFor<T>, ValueQuery>;
 
 	/// Desired number of candidates.
 	///
@@ -234,7 +233,7 @@ pub mod pallet {
 	}
 
 	#[pallet::genesis_build]
-	impl<T: Config> GenesisBuild<T> for GenesisConfig<T> {
+	impl<T: Config> BuildGenesisConfig for GenesisConfig<T> {
 		fn build(&self) {
 			let duplicate_invulnerables =
 				self.invulnerables.iter().collect::<std::collections::BTreeSet<_>>();
@@ -926,7 +925,7 @@ pub mod pallet {
 	/// Keep track of number of authored blocks per authority, uncles are counted as well since
 	/// they're a valid proof of being online.
 	impl<T: Config + pallet_authorship::Config>
-		pallet_authorship::EventHandler<T::AccountId, T::BlockNumber> for Pallet<T>
+		pallet_authorship::EventHandler<T::AccountId, BlockNumberFor<T>> for Pallet<T>
 	{
 		fn note_author(author: T::AccountId) {
 			let pot = Self::account_id();
@@ -1023,10 +1022,6 @@ pub mod pallet {
 				T::WeightInfo::note_author(),
 				DispatchClass::Mandatory,
 			);
-		}
-
-		fn note_uncle(_author: T::AccountId, _age: T::BlockNumber) {
-			// we dont care
 		}
 	}
 

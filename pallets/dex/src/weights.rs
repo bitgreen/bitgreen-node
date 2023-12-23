@@ -47,7 +47,7 @@ impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
 	// Storage: Dex Orders (r:0 w:1)
 	fn create_sell_order() -> Weight {
 		// Minimum execution time:  nanoseconds.
-		Weight::from_ref_time(74_000_000)
+		Weight::from_parts(74_000_000, 0)
 			.saturating_add(T::DbWeight::get().reads(5))
 			.saturating_add(T::DbWeight::get().writes(6))
 	}
@@ -57,7 +57,7 @@ impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
 	// Storage: System Account (r:1 w:1)
 	fn cancel_sell_order() -> Weight {
 		// Minimum execution time:  nanoseconds.
-		Weight::from_ref_time(56_000_000)
+		Weight::from_parts(56_000_000, 0)
 			.saturating_add(T::DbWeight::get().reads(5))
 			.saturating_add(T::DbWeight::get().writes(5))
 	}
@@ -68,20 +68,20 @@ impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
 	// Storage: Assets Account (r:2 w:2)
 	fn buy_order() -> Weight {
 		// Minimum execution time:  nanoseconds.
-		Weight::from_ref_time(49_000_000)
+		Weight::from_parts(49_000_000, 0)
 			.saturating_add(T::DbWeight::get().reads(6))
 			.saturating_add(T::DbWeight::get().writes(4))
 	}
 	// Storage: Dex PaymentFees (r:0 w:1)
 	fn force_set_payment_fee() -> Weight {
 		// Minimum execution time:  nanoseconds.
-		Weight::from_ref_time(7_000_000)
+		Weight::from_parts(7_000_000, 0)
 			.saturating_add(T::DbWeight::get().writes(1))
 	}
 	// Storage: Dex PurchaseFees (r:0 w:1)
 	fn force_set_purchase_fee() -> Weight {
 		// Minimum execution time:  nanoseconds.
-		Weight::from_ref_time(7_000_000)
+		Weight::from_parts(7_000_000, 0)
 			.saturating_add(T::DbWeight::get().writes(1))
 	}
 }
@@ -95,7 +95,7 @@ impl WeightInfo for () {
 	// Storage: Dex Orders (r:0 w:1)
 	fn create_sell_order() -> Weight {
 		// Minimum execution time:  nanoseconds.
-		Weight::from_ref_time(74_000_000)
+		Weight::from_parts(74_000_000, 0)
 			.saturating_add(RocksDbWeight::get().reads(5))
 			.saturating_add(RocksDbWeight::get().writes(6))
 	}
@@ -105,7 +105,7 @@ impl WeightInfo for () {
 	// Storage: System Account (r:1 w:1)
 	fn cancel_sell_order() -> Weight {
 		// Minimum execution time:  nanoseconds.
-		Weight::from_ref_time(56_000_000)
+		Weight::from_parts(56_000_000, 0)
 			.saturating_add(RocksDbWeight::get().reads(5))
 			.saturating_add(RocksDbWeight::get().writes(5))
 	}
@@ -116,20 +116,20 @@ impl WeightInfo for () {
 	// Storage: Assets Account (r:2 w:2)
 	fn buy_order() -> Weight {
 		// Minimum execution time:  nanoseconds.
-		Weight::from_ref_time(49_000_000)
+		Weight::from_parts(49_000_000, 0)
 			.saturating_add(RocksDbWeight::get().reads(6))
 			.saturating_add(RocksDbWeight::get().writes(4))
 	}
 	// Storage: Dex PaymentFees (r:0 w:1)
 	fn force_set_payment_fee() -> Weight {
 		// Minimum execution time:  nanoseconds.
-		Weight::from_ref_time(7_000_000)
+		Weight::from_parts(7_000_000, 0)
 			.saturating_add(RocksDbWeight::get().writes(1))
 	}
 	// Storage: Dex PurchaseFees (r:0 w:1)
 	fn force_set_purchase_fee() -> Weight {
 		// Minimum execution time:  nanoseconds.
-		Weight::from_ref_time(7_000_000)
+		Weight::from_parts(7_000_000, 0)
 			.saturating_add(RocksDbWeight::get().writes(1))
 	}
 }

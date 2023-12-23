@@ -5,7 +5,7 @@
 use codec::{Decode, Encode, MaxEncodedLen};
 use frame_support::{
 	bounded_vec, parameter_types,
-	traits::{AsEnsureOriginWithArg, ConstU128, ConstU32, Everything, GenesisBuild},
+	traits::{AsEnsureOriginWithArg, BuildGenesisConfig, ConstU128, ConstU32, Everything},
 	PalletId,
 };
 use frame_system as system;

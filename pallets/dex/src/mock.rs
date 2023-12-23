@@ -4,7 +4,7 @@
 use frame_support::{
 	pallet_prelude::DispatchResult,
 	parameter_types,
-	traits::{AsEnsureOriginWithArg, ConstU32, Contains, Everything, GenesisBuild, Nothing},
+	traits::{AsEnsureOriginWithArg, BuildGenesisConfig, ConstU32, Contains, Everything, Nothing},
 	PalletId,
 };
 use frame_system as system;

@@ -5,7 +5,7 @@
 
 use frame_support::{
 	assert_noop, assert_ok,
-	traits::{Currency, GenesisBuild, OnInitialize},
+	traits::{BuildGenesisConfig, Currency, OnInitialize},
 };
 use pallet_balances::Error as BalancesError;
 use sp_runtime::traits::BadOrigin;

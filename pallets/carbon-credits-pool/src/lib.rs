@@ -431,7 +431,7 @@ pub mod pallet {
 
 		/// Force modify pool storage
 		#[transactional]
-		#[pallet::weight(Weight::from_ref_time(10_000_u64) + T::DbWeight::get().writes(1))]
+		#[pallet::weight(Weight::from_parts(10_000_u64, 0) + T::DbWeight::get().writes(1))]
 		pub fn force_set_pool_storage(
 			origin: OriginFor<T>,
 			pool_id: T::PoolId,
