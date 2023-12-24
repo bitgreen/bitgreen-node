@@ -23,12 +23,11 @@ use frame_support::{
 	parameter_types,
 	traits::{AsEnsureOriginWithArg, ConstU128, Contains, Currency, Nothing, PrivilegeCmp},
 	weights::{
-		ConstantMultiplier, Weight, WeightToFeeCoefficient,
-		WeightToFeeCoefficients, WeightToFeePolynomial,
+		ConstantMultiplier, Weight, WeightToFeeCoefficient, WeightToFeeCoefficients,
+		WeightToFeePolynomial,
 	},
 	PalletId,
 };
-use sp_runtime::traits::ConstBool;
 use frame_system::{
 	limits::{BlockLength, BlockWeights},
 	EnsureRoot, EnsureSigned,
@@ -45,7 +44,7 @@ pub use primitives::{
 		AVERAGE_ON_INITIALIZE_RATIO, DAYS, HOURS, MAXIMUM_BLOCK_WEIGHT, NORMAL_DISPATCH_RATIO,
 		SLOT_DURATION,
 	},
-	AccountId, Address, Amount, Balance, BlockNumber, Hash, Header, Index, Signature, AssetId
+	AccountId, Address, Amount, AssetId, Balance, BlockNumber, Hash, Header, Index, Signature,
 };
 use scale_info::TypeInfo;
 use smallvec::smallvec;
@@ -56,7 +55,7 @@ use sp_core::{crypto::KeyTypeId, OpaqueMetadata};
 pub use sp_runtime::BuildStorage;
 use sp_runtime::{
 	create_runtime_str, generic, impl_opaque_keys,
-	traits::{AccountIdLookup, BlakeTwo256, Block as BlockT, One},
+	traits::{AccountIdLookup, BlakeTwo256, Block as BlockT, ConstBool, One},
 	transaction_validity::{TransactionSource, TransactionValidity},
 	ApplyExtrinsicResult, Percent,
 };
@@ -683,7 +682,7 @@ impl pallet_identity::Config for Runtime {
 	type WeightInfo = ();
 }
 
-/// TODO : Disabled since randomness flip was marked as insecure 
+/// TODO : Disabled since randomness flip was marked as insecure
 
 // // Prints debug output of the `contracts` pallet to stdout if the node is
 // // started with `-lruntime::contracts=debug`.

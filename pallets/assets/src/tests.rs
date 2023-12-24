@@ -51,8 +51,8 @@ fn transfer_should_never_burn() {
 		assert_eq!(Assets::balance(0, 1), 100);
 
 		while System::inc_consumers(&2).is_ok() {}
-		let _ = System::dec_consumers(&2);
-		let _ = System::dec_consumers(&2);
+		System::dec_consumers(&2);
+		System::dec_consumers(&2);
 		// Exactly one consumer ref remaining.
 		assert_eq!(System::consumers(&2), 1);
 
@@ -128,7 +128,7 @@ fn minting_insufficient_asset_with_deposit_should_work_when_consumers_exhausted(
 		assert_noop!(Assets::mint(RuntimeOrigin::signed(1), 2, 1, 100), TokenError::CannotCreate);
 
 		assert_ok!(Assets::touch(RuntimeOrigin::signed(1), 2));
-		assert_eq!(Balances::reserved_balance(&1), 10);
+		assert_eq!(Balances::reserved_balance(1), 10);
 
 		assert_ok!(Assets::mint(RuntimeOrigin::signed(1), 2, 1, 100));
 	});
@@ -142,7 +142,7 @@ fn minting_insufficient_assets_with_deposit_without_consumer_should_work() {
 		Balances::make_free_balance_be(&1, 100);
 		assert_ok!(Assets::touch(RuntimeOrigin::signed(1), 0));
 		assert_ok!(Assets::mint(RuntimeOrigin::signed(1), 0, 1, 100));
-		assert_eq!(Balances::reserved_balance(&1), 10);
+		assert_eq!(Balances::reserved_balance(1), 10);
 		assert_eq!(System::consumers(&1), 1);
 	});
 }
@@ -155,7 +155,7 @@ fn refunding_asset_deposit_with_burn_should_work() {
 		assert_ok!(Assets::touch(RuntimeOrigin::signed(1), 0));
 		assert_ok!(Assets::mint(RuntimeOrigin::signed(1), 0, 1, 100));
 		assert_ok!(Assets::refund(RuntimeOrigin::signed(1), 0, true));
-		assert_eq!(Balances::reserved_balance(&1), 0);
+		assert_eq!(Balances::reserved_balance(1), 0);
 		assert_eq!(Assets::balance(1, 0), 0);
 	});
 }
@@ -183,10 +183,10 @@ fn refunding_asset_deposit_without_burn_should_work() {
 		assert_ok!(Assets::transfer(RuntimeOrigin::signed(1), 0, 2, 100));
 		assert_eq!(Assets::balance(0, 2), 100);
 		assert_eq!(Assets::balance(0, 1), 0);
-		assert_eq!(Balances::reserved_balance(&1), 10);
+		assert_eq!(Balances::reserved_balance(1), 10);
 		assert_eq!(asset_account_counts(0), (2, 0));
 		assert_ok!(Assets::refund(RuntimeOrigin::signed(1), 0, false));
-		assert_eq!(Balances::reserved_balance(&1), 0);
+		assert_eq!(Balances::reserved_balance(1), 0);
 		assert_eq!(Assets::balance(1, 0), 0);
 		assert_eq!(asset_account_counts(0), (1, 0));
 	});
@@ -232,10 +232,10 @@ fn refunding_with_deposit_from_should_fail() {
 		Balances::make_free_balance_be(&1, 100);
 		// create asset account `2` with deposit from `1`
 		assert_ok!(Assets::touch_other(RuntimeOrigin::signed(1), 0, 2));
-		assert_eq!(Balances::reserved_balance(&1), 10);
+		assert_eq!(Balances::reserved_balance(1), 10);
 		// fails to refund
 		assert_noop!(Assets::refund(RuntimeOrigin::signed(2), 0, true), Error::<Test>::NoDeposit);
-		assert!(Account::<Test>::contains_key(0, &2));
+		assert!(Account::<Test>::contains_key(0, 2));
 	});
 }
 
@@ -262,7 +262,7 @@ fn refunding_frozen_with_consumer_ref_works() {
 		assert_ok!(Assets::freeze_asset(RuntimeOrigin::signed(1), 0));
 		// refund works
 		assert_ok!(Assets::refund(RuntimeOrigin::signed(2), 0, true));
-		assert!(!Account::<Test>::contains_key(0, &2));
+		assert!(!Account::<Test>::contains_key(0, 2));
 		assert_eq!(System::consumers(&2), 0);
 		assert_eq!(asset_account_counts(0), (1, 0));
 	});
@@ -281,8 +281,8 @@ fn refunding_frozen_with_deposit_works() {
 		assert_ok!(Assets::touch(RuntimeOrigin::signed(2), 0));
 		// reserve deposit holds one consumer ref
 		assert_eq!(System::consumers(&2), 1);
-		assert_eq!(Balances::reserved_balance(&2), 10);
-		assert!(Account::<Test>::contains_key(0, &2));
+		assert_eq!(Balances::reserved_balance(2), 10);
+		assert!(Account::<Test>::contains_key(0, 2));
 		// transfer some assets to `2`
 		assert_ok!(Assets::transfer(RuntimeOrigin::signed(1), 0, 2, 50));
 		assert_eq!(System::consumers(&2), 1);
@@ -294,8 +294,8 @@ fn refunding_frozen_with_deposit_works() {
 		assert_ok!(Assets::freeze_asset(RuntimeOrigin::signed(1), 0));
 		// success
 		assert_ok!(Assets::refund(RuntimeOrigin::signed(2), 0, true));
-		assert!(!Account::<Test>::contains_key(0, &2));
-		assert_eq!(Balances::reserved_balance(&2), 0);
+		assert!(!Account::<Test>::contains_key(0, 2));
+		assert_eq!(Balances::reserved_balance(2), 0);
 		assert_eq!(System::consumers(&2), 0);
 		assert_eq!(asset_account_counts(0), (1, 0));
 	});
@@ -315,14 +315,14 @@ fn approval_lifecycle_works() {
 		Balances::make_free_balance_be(&1, 2);
 		assert_ok!(Assets::approve_transfer(RuntimeOrigin::signed(1), 0, 2, 50));
 		assert_eq!(Asset::<Test>::get(0).unwrap().approvals, 1);
-		assert_eq!(Balances::reserved_balance(&1), 1);
+		assert_eq!(Balances::reserved_balance(1), 1);
 		assert_ok!(Assets::transfer_approved(RuntimeOrigin::signed(2), 0, 1, 3, 40));
 		assert_eq!(Asset::<Test>::get(0).unwrap().approvals, 1);
 		assert_ok!(Assets::cancel_approval(RuntimeOrigin::signed(1), 0, 2));
 		assert_eq!(Asset::<Test>::get(0).unwrap().approvals, 0);
 		assert_eq!(Assets::balance(0, 1), 60);
 		assert_eq!(Assets::balance(0, 3), 40);
-		assert_eq!(Balances::reserved_balance(&1), 0);
+		assert_eq!(Balances::reserved_balance(1), 0);
 		assert_eq!(asset_ids(), vec![0, 999]);
 	});
 }
@@ -341,14 +341,14 @@ fn transfer_approved_all_funds() {
 		Balances::make_free_balance_be(&1, 2);
 		assert_ok!(Assets::approve_transfer(RuntimeOrigin::signed(1), 0, 2, 50));
 		assert_eq!(Asset::<Test>::get(0).unwrap().approvals, 1);
-		assert_eq!(Balances::reserved_balance(&1), 1);
+		assert_eq!(Balances::reserved_balance(1), 1);
 
 		// transfer the full amount, which should trigger auto-cleanup
 		assert_ok!(Assets::transfer_approved(RuntimeOrigin::signed(2), 0, 1, 3, 50));
 		assert_eq!(Asset::<Test>::get(0).unwrap().approvals, 0);
 		assert_eq!(Assets::balance(0, 1), 50);
 		assert_eq!(Assets::balance(0, 3), 50);
-		assert_eq!(Balances::reserved_balance(&1), 0);
+		assert_eq!(Balances::reserved_balance(1), 0);
 	});
 }
 
@@ -362,14 +362,14 @@ fn approval_deposits_work() {
 
 		Balances::make_free_balance_be(&1, 2);
 		assert_ok!(Assets::approve_transfer(RuntimeOrigin::signed(1), 0, 2, 50));
-		assert_eq!(Balances::reserved_balance(&1), 1);
+		assert_eq!(Balances::reserved_balance(1), 1);
 
 		assert_ok!(Assets::transfer_approved(RuntimeOrigin::signed(2), 0, 1, 3, 50));
-		assert_eq!(Balances::reserved_balance(&1), 0);
+		assert_eq!(Balances::reserved_balance(1), 0);
 
 		assert_ok!(Assets::approve_transfer(RuntimeOrigin::signed(1), 0, 2, 50));
 		assert_ok!(Assets::cancel_approval(RuntimeOrigin::signed(1), 0, 2));
-		assert_eq!(Balances::reserved_balance(&1), 0);
+		assert_eq!(Balances::reserved_balance(1), 0);
 	});
 }
 
@@ -464,11 +464,11 @@ fn lifecycle_should_work() {
 	new_test_ext().execute_with(|| {
 		Balances::make_free_balance_be(&1, 100);
 		assert_ok!(Assets::create(RuntimeOrigin::signed(1), 0, 1, 1));
-		assert_eq!(Balances::reserved_balance(&1), 1);
+		assert_eq!(Balances::reserved_balance(1), 1);
 		assert!(Asset::<Test>::contains_key(0));
 
 		assert_ok!(Assets::set_metadata(RuntimeOrigin::signed(1), 0, vec![0], vec![0], 12));
-		assert_eq!(Balances::reserved_balance(&1), 4);
+		assert_eq!(Balances::reserved_balance(1), 4);
 		assert!(Metadata::<Test>::contains_key(0));
 
 		Balances::make_free_balance_be(&10, 100);
@@ -483,18 +483,18 @@ fn lifecycle_should_work() {
 		assert_ok!(Assets::destroy_approvals(RuntimeOrigin::signed(1), 0));
 		assert_ok!(Assets::finish_destroy(RuntimeOrigin::signed(1), 0));
 
-		assert_eq!(Balances::reserved_balance(&1), 0);
+		assert_eq!(Balances::reserved_balance(1), 0);
 
 		assert!(!Asset::<Test>::contains_key(0));
 		assert!(!Metadata::<Test>::contains_key(0));
 		assert_eq!(Account::<Test>::iter_prefix(0).count(), 0);
 
 		assert_ok!(Assets::create(RuntimeOrigin::signed(1), 0, 1, 1));
-		assert_eq!(Balances::reserved_balance(&1), 1);
+		assert_eq!(Balances::reserved_balance(1), 1);
 		assert!(Asset::<Test>::contains_key(0));
 
 		assert_ok!(Assets::set_metadata(RuntimeOrigin::signed(1), 0, vec![0], vec![0], 12));
-		assert_eq!(Balances::reserved_balance(&1), 4);
+		assert_eq!(Balances::reserved_balance(1), 4);
 		assert!(Metadata::<Test>::contains_key(0));
 
 		assert_ok!(Assets::mint(RuntimeOrigin::signed(1), 0, 10, 100));
@@ -507,7 +507,7 @@ fn lifecycle_should_work() {
 		assert_ok!(Assets::destroy_approvals(RuntimeOrigin::signed(1), 0));
 		assert_ok!(Assets::finish_destroy(RuntimeOrigin::signed(1), 0));
 
-		assert_eq!(Balances::reserved_balance(&1), 0);
+		assert_eq!(Balances::reserved_balance(1), 0);
 
 		assert!(!Asset::<Test>::contains_key(0));
 		assert!(!Metadata::<Test>::contains_key(0));
@@ -524,7 +524,7 @@ fn destroy_should_refund_approvals() {
 		assert_ok!(Assets::approve_transfer(RuntimeOrigin::signed(1), 0, 2, 50));
 		assert_ok!(Assets::approve_transfer(RuntimeOrigin::signed(1), 0, 3, 50));
 		assert_ok!(Assets::approve_transfer(RuntimeOrigin::signed(1), 0, 4, 50));
-		assert_eq!(Balances::reserved_balance(&1), 3);
+		assert_eq!(Balances::reserved_balance(1), 3);
 		assert_eq!(asset_ids(), vec![0, 999]);
 
 		assert_ok!(Assets::freeze_asset(RuntimeOrigin::signed(1), 0));
@@ -534,7 +534,7 @@ fn destroy_should_refund_approvals() {
 		assert_ok!(Assets::destroy_approvals(RuntimeOrigin::signed(1), 0));
 		assert_ok!(Assets::finish_destroy(RuntimeOrigin::signed(1), 0));
 
-		assert_eq!(Balances::reserved_balance(&1), 0);
+		assert_eq!(Balances::reserved_balance(1), 0);
 		assert_eq!(asset_ids(), vec![999]);
 
 		// all approvals are removed
@@ -835,11 +835,11 @@ fn transfer_owner_should_work() {
 		assert_ok!(Assets::create(RuntimeOrigin::signed(1), 0, 1, 1));
 		assert_eq!(asset_ids(), vec![0, 999]);
 
-		assert_eq!(Balances::reserved_balance(&1), 1);
+		assert_eq!(Balances::reserved_balance(1), 1);
 
 		assert_ok!(Assets::transfer_ownership(RuntimeOrigin::signed(1), 0, 2));
-		assert_eq!(Balances::reserved_balance(&2), 1);
-		assert_eq!(Balances::reserved_balance(&1), 0);
+		assert_eq!(Balances::reserved_balance(2), 1);
+		assert_eq!(Balances::reserved_balance(1), 0);
 
 		assert_noop!(
 			Assets::transfer_ownership(RuntimeOrigin::signed(1), 0, 1),
@@ -855,8 +855,8 @@ fn transfer_owner_should_work() {
 			12
 		));
 		assert_ok!(Assets::transfer_ownership(RuntimeOrigin::signed(2), 0, 1));
-		assert_eq!(Balances::reserved_balance(&1), 22);
-		assert_eq!(Balances::reserved_balance(&2), 0);
+		assert_eq!(Balances::reserved_balance(1), 22);
+		assert_eq!(Balances::reserved_balance(2), 0);
 	});
 }
 
@@ -929,20 +929,20 @@ fn touch_other_works() {
 		assert_ok!(Assets::mint(RuntimeOrigin::signed(1), 0, 1, 100));
 		assert_eq!(Assets::balance(0, 1), 100);
 		// account `3` does not exist
-		assert!(!Account::<Test>::contains_key(0, &3));
+		assert!(!Account::<Test>::contains_key(0, 3));
 		// creation of asset account `3` by account `4` fails
 		assert_noop!(
 			Assets::touch_other(RuntimeOrigin::signed(4), 0, 3),
 			Error::<Test>::NoPermission
 		);
 		// creation of asset account `3` by admin `1` works
-		assert!(!Account::<Test>::contains_key(0, &3));
+		assert!(!Account::<Test>::contains_key(0, 3));
 		assert_ok!(Assets::touch_other(RuntimeOrigin::signed(1), 0, 3));
-		assert!(Account::<Test>::contains_key(0, &3));
+		assert!(Account::<Test>::contains_key(0, 3));
 		// creation of asset account `4` by freezer `2` works
-		assert!(!Account::<Test>::contains_key(0, &4));
+		assert!(!Account::<Test>::contains_key(0, 4));
 		assert_ok!(Assets::touch_other(RuntimeOrigin::signed(2), 0, 4));
-		assert!(Account::<Test>::contains_key(0, &4));
+		assert!(Account::<Test>::contains_key(0, 4));
 	});
 }
 
@@ -954,10 +954,10 @@ fn touch_other_and_freeze_works() {
 		assert_ok!(Assets::mint(RuntimeOrigin::signed(1), 0, 1, 100));
 		assert_eq!(Assets::balance(0, 1), 100);
 		// account `2` does not exist
-		assert!(!Account::<Test>::contains_key(0, &2));
+		assert!(!Account::<Test>::contains_key(0, 2));
 		// create account `2` with touch_other
 		assert_ok!(Assets::touch_other(RuntimeOrigin::signed(1), 0, 2));
-		assert!(Account::<Test>::contains_key(0, &2));
+		assert!(Account::<Test>::contains_key(0, 2));
 		// now it can be frozen
 		assert_ok!(Assets::freeze(RuntimeOrigin::signed(1), 0, 2));
 		// can transfer to `2` even though its frozen
@@ -982,23 +982,23 @@ fn account_with_deposit_not_destroyed() {
 		assert_eq!(Assets::balance(0, 2), 0);
 		// case 1; account `2` not destroyed with a holder's deposit
 		assert_ok!(Assets::touch(RuntimeOrigin::signed(2), 0));
-		assert_eq!(Balances::reserved_balance(&2), 10);
-		assert!(Account::<Test>::contains_key(0, &2));
+		assert_eq!(Balances::reserved_balance(2), 10);
+		assert!(Account::<Test>::contains_key(0, 2));
 		assert_ok!(Assets::transfer(RuntimeOrigin::signed(1), 0, 2, 50));
 		assert_ok!(Assets::transfer(RuntimeOrigin::signed(2), 0, 1, 50));
 		assert_eq!(Assets::balance(0, 2), 0);
-		assert!(Account::<Test>::contains_key(0, &2));
+		assert!(Account::<Test>::contains_key(0, 2));
 
 		// destroy account `2`
 		assert_ok!(Assets::refund(RuntimeOrigin::signed(2), 0, false));
-		assert!(!Account::<Test>::contains_key(0, &2));
+		assert!(!Account::<Test>::contains_key(0, 2));
 
 		// case 2; account `2` not destroyed with a deposit from `1`
 		assert_ok!(Assets::touch_other(RuntimeOrigin::signed(1), 0, 2));
-		assert_eq!(Balances::reserved_balance(&1), 10);
+		assert_eq!(Balances::reserved_balance(1), 10);
 		assert_ok!(Assets::transfer(RuntimeOrigin::signed(1), 0, 2, 50));
 		assert_ok!(Assets::transfer(RuntimeOrigin::signed(2), 0, 1, 50));
-		assert!(Account::<Test>::contains_key(0, &2));
+		assert!(Account::<Test>::contains_key(0, 2));
 	});
 }
 
@@ -1013,11 +1013,11 @@ fn refund_other_should_fails() {
 		Balances::make_free_balance_be(&3, 0);
 		assert_ok!(Assets::force_create(RuntimeOrigin::root(), 0, 1, true, 1));
 		assert_ok!(Assets::set_team(RuntimeOrigin::signed(1), 0, 1, 1, 2));
-		assert!(!Account::<Test>::contains_key(0, &3));
+		assert!(!Account::<Test>::contains_key(0, 3));
 
 		// create asset account `3` with a deposit from freezer `2`
 		assert_ok!(Assets::touch_other(RuntimeOrigin::signed(2), 0, 3));
-		assert_eq!(Balances::reserved_balance(&2), 10);
+		assert_eq!(Balances::reserved_balance(2), 10);
 
 		// fail case; non-existing asset account `10`
 		assert_noop!(
@@ -1080,25 +1080,25 @@ fn refund_other_works() {
 		Balances::make_free_balance_be(&2, 100);
 		assert_ok!(Assets::force_create(RuntimeOrigin::root(), 0, 1, true, 1));
 		assert_ok!(Assets::set_team(RuntimeOrigin::signed(1), 0, 1, 1, 2));
-		assert!(!Account::<Test>::contains_key(0, &3));
+		assert!(!Account::<Test>::contains_key(0, 3));
 		assert_eq!(asset_account_counts(0), (0, 0));
 
 		// success case; freezer is depositor
 		assert_ok!(Assets::touch_other(RuntimeOrigin::signed(2), 0, 3));
-		assert_eq!(Balances::reserved_balance(&2), 10);
+		assert_eq!(Balances::reserved_balance(2), 10);
 		assert_eq!(asset_account_counts(0), (1, 0));
 		assert_ok!(Assets::refund_other(RuntimeOrigin::signed(2), 0, 3));
-		assert_eq!(Balances::reserved_balance(&2), 0);
-		assert!(!Account::<Test>::contains_key(0, &3));
+		assert_eq!(Balances::reserved_balance(2), 0);
+		assert!(!Account::<Test>::contains_key(0, 3));
 		assert_eq!(asset_account_counts(0), (0, 0));
 
 		// success case; admin is depositor
 		assert_ok!(Assets::touch_other(RuntimeOrigin::signed(1), 0, 3));
-		assert_eq!(Balances::reserved_balance(&1), 10);
+		assert_eq!(Balances::reserved_balance(1), 10);
 		assert_eq!(asset_account_counts(0), (1, 0));
 		assert_ok!(Assets::refund_other(RuntimeOrigin::signed(1), 0, 3));
-		assert_eq!(Balances::reserved_balance(&1), 0);
-		assert!(!Account::<Test>::contains_key(0, &3));
+		assert_eq!(Balances::reserved_balance(1), 0);
+		assert!(!Account::<Test>::contains_key(0, 3));
 		assert_eq!(asset_account_counts(0), (0, 0));
 	})
 }
@@ -1215,7 +1215,7 @@ fn set_metadata_should_work() {
 			vec![0u8; 10],
 			12
 		));
-		assert_eq!(Balances::free_balance(&1), 9);
+		assert_eq!(Balances::free_balance(1), 9);
 
 		// Update deposit
 		assert_ok!(Assets::set_metadata(
@@ -1225,7 +1225,7 @@ fn set_metadata_should_work() {
 			vec![0u8; 5],
 			12
 		));
-		assert_eq!(Balances::free_balance(&1), 14);
+		assert_eq!(Balances::free_balance(1), 14);
 		assert_ok!(Assets::set_metadata(
 			RuntimeOrigin::signed(1),
 			0,
@@ -1233,7 +1233,7 @@ fn set_metadata_should_work() {
 			vec![0u8; 15],
 			12
 		));
-		assert_eq!(Balances::free_balance(&1), 4);
+		assert_eq!(Balances::free_balance(1), 4);
 
 		// Cannot over-reserve
 		assert_noop!(
@@ -1728,8 +1728,8 @@ fn multiple_transfer_alls_work_ok() {
 		assert_ok!(Balances::transfer_all(RuntimeOrigin::signed(1), 1337, false));
 		assert_ok!(Balances::transfer_all(RuntimeOrigin::signed(1), 1337, false));
 
-		assert_eq!(Balances::free_balance(&1), 0);
-		assert_eq!(Balances::free_balance(&1337), 100);
+		assert_eq!(Balances::free_balance(1), 0);
+		assert_eq!(Balances::free_balance(1337), 100);
 	});
 }
 
@@ -1754,24 +1754,24 @@ fn asset_destroy_refund_existence_deposit() {
 		let account3 = 3; // account with admin's deposit
 		Balances::make_free_balance_be(&account2, 100);
 
-		assert_eq!(Balances::reserved_balance(&account2), 0);
-		assert_eq!(Balances::reserved_balance(&account3), 0);
-		assert_eq!(Balances::reserved_balance(&admin), 0);
+		assert_eq!(Balances::reserved_balance(account2), 0);
+		assert_eq!(Balances::reserved_balance(account3), 0);
+		assert_eq!(Balances::reserved_balance(admin), 0);
 
 		assert_ok!(Assets::touch(RuntimeOrigin::signed(account2), 0));
 		assert_ok!(Assets::touch_other(admin_origin.clone(), 0, account3));
 
-		assert_eq!(Balances::reserved_balance(&account2), 10);
-		assert_eq!(Balances::reserved_balance(&account3), 0);
-		assert_eq!(Balances::reserved_balance(&admin), 10);
+		assert_eq!(Balances::reserved_balance(account2), 10);
+		assert_eq!(Balances::reserved_balance(account3), 0);
+		assert_eq!(Balances::reserved_balance(admin), 10);
 
 		assert_ok!(Assets::start_destroy(admin_origin.clone(), 0));
 		assert_ok!(Assets::destroy_accounts(admin_origin.clone(), 0));
 		assert_ok!(Assets::destroy_approvals(admin_origin.clone(), 0));
 		assert_ok!(Assets::finish_destroy(admin_origin.clone(), 0));
 
-		assert_eq!(Balances::reserved_balance(&account2), 0);
-		assert_eq!(Balances::reserved_balance(&account3), 0);
-		assert_eq!(Balances::reserved_balance(&admin), 0);
+		assert_eq!(Balances::reserved_balance(account2), 0);
+		assert_eq!(Balances::reserved_balance(account3), 0);
+		assert_eq!(Balances::reserved_balance(admin), 0);
 	});
 }

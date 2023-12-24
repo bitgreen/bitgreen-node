@@ -118,7 +118,9 @@ pub type AccountId = <<Signature as Verify>::Signer as IdentifyAccount>::Account
 	PartialOrd,
 	Ord,
 	MaxEncodedLen,
-	TypeInfo, Serialize, Deserialize
+	TypeInfo,
+	Serialize,
+	Deserialize,
 )]
 #[allow(clippy::unnecessary_cast)]
 pub enum CurrencyId {
