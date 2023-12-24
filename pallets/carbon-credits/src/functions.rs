@@ -10,6 +10,7 @@ use frame_support::{
 		tokens::{
 			fungibles::{metadata::Mutate as MetadataMutate, Create, Mutate},
 			nonfungibles::{Create as NFTCreate, Mutate as NFTMutate},
+			Fortitude::Polite, Precision::Exact,
 		},
 		Contains, Get,
 	},
@@ -522,7 +523,7 @@ impl<T: Config> Pallet<T> {
 				project.batch_groups.get_mut(&group_id).ok_or(Error::<T>::GroupNotFound)?;
 
 			// attempt to burn the tokens from the caller
-			T::AssetHandler::burn_from(group.asset_id, &from, amount)?;
+			T::AssetHandler::burn_from(group.asset_id, &from, amount, Exact, Polite)?;
 
 			// reduce the supply of the CarbonCredits
 			group.retired =
