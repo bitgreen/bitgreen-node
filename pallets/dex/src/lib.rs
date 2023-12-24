@@ -49,7 +49,7 @@ pub mod pallet {
 	use crate::{types::*, WeightInfo};
 	use frame_support::{
 		pallet_prelude::*,
-		traits::{fungibles::Transfer, Contains},
+		traits::{fungibles::Mutate, tokens::Preservation::Protect, Contains},
 		transactional, PalletId,
 	};
 	use frame_system::pallet_prelude::{OriginFor, *};
@@ -94,7 +94,7 @@ pub mod pallet {
 			+ From<u128>;
 
 		// Asset manager config
-		type Asset: Transfer<Self::AccountId, Balance = Self::AssetBalance>;
+		type Asset: Mutate<Self::AccountId, Balance = Self::AssetBalance>;
 
 		// Token handler config - this is what the pallet accepts as payment
 		type Currency: MultiCurrency<Self::AccountId, Balance = Self::CurrencyBalance>;
@@ -469,7 +469,7 @@ pub mod pallet {
 			ensure!(price_per_unit >= T::MinPricePerUnit::get(), Error::<T>::BelowMinimumPrice);
 
 			// transfer assets from seller to pallet
-			T::Asset::transfer(asset_id, &seller, &Self::account_id(), units, false)?;
+			T::Asset::transfer(asset_id.clone(), &seller, &Self::account_id(), units, Protect)?;
 
 			let order_id = Self::order_count();
 			let next_order_id =
@@ -479,7 +479,12 @@ pub mod pallet {
 			// order values
 			Orders::<T>::insert(
 				order_id,
-				OrderInfo { owner: seller.clone(), units, price_per_unit, asset_id },
+				OrderInfo {
+					owner: seller.clone(),
+					units,
+					price_per_unit,
+					asset_id: asset_id.clone(),
+				},
 			);
 
 			Self::deposit_event(Event::SellOrderCreated {
@@ -512,7 +517,7 @@ pub mod pallet {
 				&Self::account_id(),
 				&order.owner,
 				order.units,
-				false,
+				Protect,
 			)?;
 
 			Self::deposit_event(Event::SellOrderCancelled { order_id, seller });
@@ -733,11 +738,11 @@ pub mod pallet {
 
 						// transfer the asset to the buyer
 						T::Asset::transfer(
-							order.asset_id,
+							order.asset_id.clone(),
 							&Self::account_id(),
 							&order.buyer,
 							order.units,
-							false,
+							Protect,
 						)?;
 
 						// add amount record to the seller

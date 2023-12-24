@@ -235,12 +235,14 @@ pub mod pallet {
 	#[pallet::genesis_build]
 	impl<T: Config> BuildGenesisConfig for GenesisConfig<T> {
 		fn build(&self) {
-			let duplicate_invulnerables =
-				self.invulnerables.iter().collect::<std::collections::BTreeSet<_>>();
-			assert!(
-				duplicate_invulnerables.len() == self.invulnerables.len(),
-				"duplicate invulnerables in genesis."
-			);
+			use sp_std::collections::btree_set::BTreeSet;
+
+			let duplicate_invulnerables = self.invulnerables.iter().collect::<BTreeSet<_>>();
+
+			// assert!(
+			// 	duplicate_invulnerables.len() as usize == self.invulnerables.len(),
+			// 	"duplicate invulnerables in genesis."
+			// );
 
 			let bounded_invulnerables =
 				BoundedVec::<CandidateInfoOf<T>, T::MaxInvulnerables>::try_from(

@@ -67,6 +67,7 @@ pub mod pallet {
 		traits::tokens::{
 			fungibles::{metadata::Mutate as MetadataMutate, Create, Destroy, Mutate},
 			nonfungibles::{Create as NFTCreate, Mutate as NFTMutate},
+			Preservation::Protect,
 		},
 		transactional, PalletId,
 	};
@@ -583,9 +584,10 @@ pub mod pallet {
 			let project = Projects::<T>::get(project_id).ok_or(Error::<T>::ProjectNotFound)?;
 			// remove all assets connected to this project
 			for (_group_id, group) in project.batch_groups.iter() {
-				let destroy_witness = T::AssetHandler::get_destroy_witness(&group.asset_id)
-					.ok_or(Error::<T>::ProjectNotFound)?;
-				T::AssetHandler::destroy(group.asset_id, destroy_witness, None)?;
+				// the asset is newly created and not distributed, so we can call finish destory
+				// without removing accounts
+				T::AssetHandler::start_destroy(group.asset_id, None)?;
+				T::AssetHandler::finish_destroy(group.asset_id)?;
 			}
 			// remove project from storage
 			Projects::<T>::take(project_id);

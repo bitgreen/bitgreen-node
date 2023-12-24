@@ -10,7 +10,8 @@ use frame_support::{
 		tokens::{
 			fungibles::{metadata::Mutate as MetadataMutate, Create, Mutate},
 			nonfungibles::{Create as NFTCreate, Mutate as NFTMutate},
-			Fortitude::Polite, Precision::Exact,
+			Fortitude::Polite,
+			Precision::Exact,
 		},
 		Contains, Get,
 	},

@@ -51,7 +51,12 @@ pub mod pallet {
 	use frame_support::{
 		dispatch::DispatchResultWithPostInfo,
 		pallet_prelude::*,
-		traits::tokens::fungibles::{metadata::Mutate as MetadataMutate, Create, Mutate, Transfer},
+		traits::tokens::{
+			fungibles::{metadata::Mutate as MetadataMutate, Create, Mutate},
+			Fortitude::Polite,
+			Precision::Exact,
+			Preservation::Protect,
+		},
 		transactional, PalletId,
 	};
 	use frame_system::pallet_prelude::*;
@@ -81,8 +86,7 @@ pub mod pallet {
 		// Asset manager config
 		type AssetHandler: Create<Self::AccountId, AssetId = Self::AssetId, Balance = Self::Balance>
 			+ Mutate<Self::AccountId>
-			+ MetadataMutate<Self::AccountId>
-			+ Transfer<Self::AccountId>;
+			+ MetadataMutate<Self::AccountId>;
 
 		/// The origin which may forcibly perform privileged calls
 		type ForceOrigin: EnsureOrigin<Self::RuntimeOrigin>;
@@ -286,7 +290,7 @@ pub mod pallet {
 					&who,
 					&Self::account_id(),
 					amount,
-					false,
+					Protect,
 				)?;
 
 				// add the project to the credits pool
@@ -359,7 +363,13 @@ pub mod pallet {
 				let pool = pool.as_mut().ok_or(Error::<T>::InvalidPoolId)?;
 
 				// Burn the amount of pool tokens from caller
-				<T as pallet::Config>::AssetHandler::burn_from(pool_id.into(), &who, amount)?;
+				<T as pallet::Config>::AssetHandler::burn_from(
+					pool_id.into(),
+					&who,
+					amount,
+					Exact,
+					Polite,
+				)?;
 
 				let mut remaining = amount;
 
@@ -393,7 +403,7 @@ pub mod pallet {
 							&Self::account_id(),
 							&who,
 							actual,
-							false,
+							Protect,
 						)?;
 						// Retire the transferred tokens
 						pallet_carbon_credits::Pallet::<T>::retire_carbon_credits(
