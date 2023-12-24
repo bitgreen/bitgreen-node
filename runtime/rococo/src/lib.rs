@@ -23,11 +23,12 @@ use frame_support::{
 	parameter_types,
 	traits::{AsEnsureOriginWithArg, ConstU128, Contains, Currency, Nothing, PrivilegeCmp},
 	weights::{
-		constants::WEIGHT_PER_SECOND, ConstantMultiplier, Weight, WeightToFeeCoefficient,
+		ConstantMultiplier, Weight, WeightToFeeCoefficient,
 		WeightToFeeCoefficients, WeightToFeePolynomial,
 	},
 	PalletId,
 };
+use sp_runtime::traits::ConstBool;
 use frame_system::{
 	limits::{BlockLength, BlockWeights},
 	EnsureRoot, EnsureSigned,
@@ -44,7 +45,7 @@ pub use primitives::{
 		AVERAGE_ON_INITIALIZE_RATIO, DAYS, HOURS, MAXIMUM_BLOCK_WEIGHT, NORMAL_DISPATCH_RATIO,
 		SLOT_DURATION,
 	},
-	AccountId, Address, Amount, Balance, BlockNumber, Hash, Header, Index, Signature,
+	AccountId, Address, Amount, Balance, BlockNumber, Hash, Header, Index, Signature, AssetId
 };
 use scale_info::TypeInfo;
 use smallvec::smallvec;
@@ -82,6 +83,9 @@ pub type SignedBlock = generic::SignedBlock<Block>;
 
 /// BlockId type as expected by this runtime.
 pub type BlockId = generic::BlockId<Block>;
+
+/// Index of a transaction in the chain.
+pub type Nonce = u32;
 
 /// The SignedExtension to the basic transaction logic.
 pub type SignedExtra = (
@@ -228,8 +232,6 @@ impl frame_system::Config for Runtime {
 	type BlockHashCount = BlockHashCount;
 	/// The maximum length of a block (in bytes).
 	type BlockLength = RuntimeBlockLength;
-	/// The index type for blocks.
-	type BlockNumber = BlockNumber;
 	/// Block & extrinsics weights: base values and limits.
 	type BlockWeights = RuntimeBlockWeights;
 	/// The aggregated dispatch type that is available for extrinsics.
@@ -238,14 +240,14 @@ impl frame_system::Config for Runtime {
 	type DbWeight = RocksDbWeight;
 	/// The ubiquitous event type.
 	type RuntimeEvent = RuntimeEvent;
+	/// The index type for storing how many extrinsics an account has signed.
+	type Nonce = Nonce;
+	/// The block type.
+	type Block = Block;
 	/// The type for hashing blocks and tries.
 	type Hash = Hash;
 	/// The hashing algorithm used.
 	type Hashing = BlakeTwo256;
-	/// The header type.
-	type Header = generic::Header<BlockNumber, BlakeTwo256>;
-	/// The index type for storing how many extrinsics an account has signed.
-	type Index = Index;
 	/// The lookup mechanism to get account ID from whatever is passed in dispatchers.
 	type Lookup = AccountIdLookup<AccountId, ()>;
 	type MaxConsumers = frame_support::traits::ConstU32<16>;
@@ -285,29 +287,29 @@ parameter_types! {
 
 impl pallet_authorship::Config for Runtime {
 	type EventHandler = (ParachainStaking,);
-	type FilterUncle = ();
 	type FindAuthor = pallet_session::FindAccountFromAuthorIndex<Self, Aura>;
-	type UncleGenerations = UncleGenerations;
 }
 
 parameter_types! {
 	pub const ExistentialDeposit: Balance = EXISTENTIAL_DEPOSIT;
-	pub const MaxLocks: u32 = 50;
-	pub const MaxReserves: u32 = 50;
 }
 
 impl pallet_balances::Config for Runtime {
-	type AccountStore = System;
+	type MaxLocks = ConstU32<50>;
 	/// The type for recording an account's balance.
 	type Balance = Balance;
-	type DustRemoval = ();
 	/// The ubiquitous event type.
 	type RuntimeEvent = RuntimeEvent;
+	type DustRemoval = ();
 	type ExistentialDeposit = ExistentialDeposit;
-	type MaxLocks = MaxLocks;
-	type MaxReserves = MaxReserves;
-	type ReserveIdentifier = [u8; 8];
+	type AccountStore = System;
 	type WeightInfo = pallet_balances::weights::SubstrateWeight<Runtime>;
+	type MaxReserves = ConstU32<50>;
+	type ReserveIdentifier = [u8; 8];
+	type RuntimeHoldReason = RuntimeHoldReason;
+	type FreezeIdentifier = ();
+	type MaxHolds = ConstU32<0>;
+	type MaxFreezes = ConstU32<0>;
 }
 
 parameter_types! {
@@ -327,8 +329,8 @@ impl pallet_transaction_payment::Config for Runtime {
 }
 
 parameter_types! {
-	pub const ReservedXcmpWeight: Weight = WEIGHT_PER_SECOND.saturating_div(4);
-	pub const ReservedDmpWeight: Weight = WEIGHT_PER_SECOND.saturating_div(4);
+	pub const ReservedXcmpWeight: Weight = MAXIMUM_BLOCK_WEIGHT.saturating_div(4);
+	pub const ReservedDmpWeight: Weight = MAXIMUM_BLOCK_WEIGHT.saturating_div(4);
 }
 
 impl cumulus_pallet_parachain_system::Config for Runtime {
@@ -348,14 +350,15 @@ impl parachain_info::Config for Runtime {}
 impl cumulus_pallet_aura_ext::Config for Runtime {}
 
 impl cumulus_pallet_xcmp_queue::Config for Runtime {
+	type RuntimeEvent = RuntimeEvent;
+	type XcmExecutor = XcmExecutor<XcmConfig>;
 	type ChannelInfo = ParachainSystem;
+	type VersionWrapper = ();
+	type ExecuteOverweightOrigin = EnsureRoot<AccountId>;
 	type ControllerOrigin = EnsureRoot<AccountId>;
 	type ControllerOriginConverter = XcmOriginToTransactDispatchOrigin;
-	type RuntimeEvent = RuntimeEvent;
-	type ExecuteOverweightOrigin = EnsureRoot<AccountId>;
-	type VersionWrapper = ();
 	type WeightInfo = ();
-	type XcmExecutor = XcmExecutor<XcmConfig>;
+	type PriceForSiblingDelivery = ();
 }
 
 impl cumulus_pallet_dmp_queue::Config for Runtime {
@@ -387,7 +390,8 @@ impl pallet_session::Config for Runtime {
 impl pallet_aura::Config for Runtime {
 	type AuthorityId = AuraId;
 	type DisabledValidators = ();
-	type MaxAuthorities = MaxAuthorities;
+	type MaxAuthorities = ConstU32<100_000>;
+	type AllowMultipleBlocksPerSlot = ConstBool<false>;
 }
 
 parameter_types! {
@@ -396,8 +400,7 @@ parameter_types! {
 	pub const MinCandidates: u32 = 5;
 	pub const SessionLength: BlockNumber = 6 * HOURS;
 	pub const MaxInvulnerables: u32 = 100;
-	#[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
-	#[derive(Clone, TypeInfo, Debug, PartialOrd, Ord, Eq, PartialEq)]
+	#[derive(Clone, TypeInfo, Debug, PartialOrd, Ord, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
 	pub const MaxDelegators : u32 = 20;
 	pub const MinDelegationAmount : u32 = 100;
 	pub const ExecutiveBody: BodyId = BodyId::Executive;
@@ -447,8 +450,8 @@ impl orml_tokens::Config for Runtime {
 	type DustRemovalWhitelist = DustRemovalWhitelist;
 	type RuntimeEvent = RuntimeEvent;
 	type ExistentialDeposits = ExistentialDeposits;
-	type MaxLocks = MaxLocks;
-	type MaxReserves = MaxLocks;
+	type MaxLocks = ConstU32<50>;
+	type MaxReserves = ConstU32<50>;
 	type ReserveIdentifier = [u8; 8];
 	type CurrencyHooks = ();
 	type WeightInfo = ();
@@ -456,39 +459,35 @@ impl orml_tokens::Config for Runtime {
 
 // Asset pallet
 parameter_types! {
-	pub const ASSETDEPOSIT: Balance = DOLLARS;
-	pub const ASSETACCOUNTDEPOSIT: Balance = DOLLARS;
-	pub const STRINGLIMIT: u32 = 8192;	// max metadata size in bytes
-	pub const METADATADEPOSITBASE: Balance= DOLLARS;
-	pub const METADATADEPOSITPERBYTE: Balance =CENTS;
-	pub const APPROVALDEPOSIT: Balance = DOLLARS;
-}
-
-pub struct TestFreezer;
-impl pallet_assets::FrozenBalance<u32, AccountId, u128> for TestFreezer {
-	fn frozen_balance(_asset: u32, _who: &AccountId) -> Option<u128> {
-		None
-	}
-
-	fn died(_asset: u32, _who: &AccountId) {}
+	pub const AssetDeposit: Balance = DOLLARS;
+	pub const AssetAccountDeposit: Balance = DOLLARS;
+	pub const AssetsStringLimit: u32 = 8192;	// max metadata size in bytes
+	pub const MetadataDepositBase: Balance = DOLLARS;
+	pub const MetadataDepositPerByte: Balance = CENTS;
+	pub const ApprovalDeposit: Balance = DOLLARS;
 }
 
 impl pallet_assets::Config for Runtime {
-	type ApprovalDeposit = APPROVALDEPOSIT;
-	type AssetAccountDeposit = ASSETACCOUNTDEPOSIT;
-	type AssetDeposit = ASSETDEPOSIT;
-	type CreateOrigin = AsEnsureOriginWithArg<EnsureSigned<AccountId>>;
-	type AssetId = u32;
-	type Balance = u128;
-	type Currency = Balances;
 	type RuntimeEvent = RuntimeEvent;
-	type Extra = ();
+	type Balance = Balance;
+	type AssetId = AssetId;
+	type AssetIdParameter = codec::Compact<AssetId>;
+	type Currency = Balances;
+	type CreateOrigin = AsEnsureOriginWithArg<EnsureSigned<AccountId>>;
 	type ForceOrigin = EnsureRoot<AccountId>;
-	type Freezer = TestFreezer;
-	type MetadataDepositBase = METADATADEPOSITBASE;
-	type MetadataDepositPerByte = METADATADEPOSITPERBYTE;
-	type StringLimit = STRINGLIMIT;
-	type WeightInfo = ();
+	type AssetDeposit = AssetDeposit;
+	type MetadataDepositBase = MetadataDepositBase;
+	type MetadataDepositPerByte = MetadataDepositPerByte;
+	type ApprovalDeposit = ApprovalDeposit;
+	type StringLimit = AssetsStringLimit;
+	type Freezer = ();
+	type Extra = ();
+	type WeightInfo = pallet_assets::weights::SubstrateWeight<Runtime>;
+	type CallbackHandle = ();
+	type AssetAccountDeposit = AssetAccountDeposit;
+	type RemoveItemsLimit = frame_support::traits::ConstU32<1000>;
+	#[cfg(feature = "runtime-benchmarks")]
+	type BenchmarkHelper = ();
 }
 
 parameter_types! {
@@ -635,6 +634,7 @@ parameter_types! {
 impl pallet_sudo::Config for Runtime {
 	type RuntimeCall = RuntimeCall;
 	type RuntimeEvent = RuntimeEvent;
+	type WeightInfo = ();
 }
 
 impl pallet_transaction_pause::Config for Runtime {
@@ -683,52 +683,54 @@ impl pallet_identity::Config for Runtime {
 	type WeightInfo = ();
 }
 
-// Prints debug output of the `contracts` pallet to stdout if the node is
-// started with `-lruntime::contracts=debug`.
-pub const CONTRACTS_DEBUG_OUTPUT: bool = true;
+/// TODO : Disabled since randomness flip was marked as insecure 
 
-parameter_types! {
-	pub const DepositPerItem: Balance = deposit(1, 0);
-	// The lazy deletion runs inside on_initialize.
-	pub DeletionWeightLimit: Weight = AVERAGE_ON_INITIALIZE_RATIO *
-		RuntimeBlockWeights::get().max_block;
-	// The weight needed for decoding the queue should be less or equal than a fifth
-	// of the overall weight dedicated to the lazy deletion.
-	pub DeletionQueueDepth: u32 = ((DeletionWeightLimit::get().ref_time() / (
-			<Runtime as Config>::WeightInfo::on_initialize_per_queue_item(1).ref_time() -
-			<Runtime as Config>::WeightInfo::on_initialize_per_queue_item(0).ref_time()
-		)) / 5) as u32;
-	pub MySchedule: Schedule<Runtime> = Default::default();
-}
+// // Prints debug output of the `contracts` pallet to stdout if the node is
+// // started with `-lruntime::contracts=debug`.
+// pub const CONTRACTS_DEBUG_OUTPUT: bool = true;
 
-impl pallet_contracts::Config for Runtime {
-	type Time = Timestamp;
-	type Randomness = RandomnessCollectiveFlip;
-	type Currency = Balances;
-	type RuntimeEvent = RuntimeEvent;
-	type RuntimeCall = RuntimeCall;
-	/// The safest default is to allow no calls at all.
-	///
-	/// Runtimes should whitelist dispatchables that are allowed to be called from contracts
-	/// and make sure they are stable. Dispatchables exposed to contracts are not allowed to
-	/// change because that would break already deployed contracts. The `Call` structure itself
-	/// is not allowed to change the indices of existing pallets, too.
-	type CallFilter = Nothing;
-	type DepositPerItem = DepositPerItem;
-	type DepositPerByte = DepositPerByte;
-	type WeightPrice = pallet_transaction_payment::Pallet<Self>;
-	type WeightInfo = SubstrateWeight<Self>;
-	type ChainExtension = ();
-	type DeletionQueueDepth = DeletionQueueDepth;
-	type DeletionWeightLimit = DeletionWeightLimit;
-	type Schedule = MySchedule;
-	type CallStack = [Frame<Self>; 31];
-	type AddressGenerator = DefaultAddressGenerator;
-	type MaxCodeLen = ConstU32<{ 128 * 1024 }>;
-	type MaxStorageKeyLen = ConstU32<128>;
-}
+// parameter_types! {
+// 	pub const DepositPerItem: Balance = deposit(1, 0);
+// 	// The lazy deletion runs inside on_initialize.
+// 	pub DeletionWeightLimit: Weight = AVERAGE_ON_INITIALIZE_RATIO *
+// 		RuntimeBlockWeights::get().max_block;
+// 	// The weight needed for decoding the queue should be less or equal than a fifth
+// 	// of the overall weight dedicated to the lazy deletion.
+// 	pub DeletionQueueDepth: u32 = ((DeletionWeightLimit::get().ref_time() / (
+// 			<Runtime as Config>::WeightInfo::on_initialize_per_queue_item(1).ref_time() -
+// 			<Runtime as Config>::WeightInfo::on_initialize_per_queue_item(0).ref_time()
+// 		)) / 5) as u32;
+// 	pub MySchedule: Schedule<Runtime> = Default::default();
+// }
 
-impl pallet_randomness_collective_flip::Config for Runtime {}
+// impl pallet_contracts::Config for Runtime {
+// 	type Time = Timestamp;
+// 	type Randomness = RandomnessCollectiveFlip;
+// 	type Currency = Balances;
+// 	type RuntimeEvent = RuntimeEvent;
+// 	type RuntimeCall = RuntimeCall;
+// 	/// The safest default is to allow no calls at all.
+// 	///
+// 	/// Runtimes should whitelist dispatchables that are allowed to be called from contracts
+// 	/// and make sure they are stable. Dispatchables exposed to contracts are not allowed to
+// 	/// change because that would break already deployed contracts. The `Call` structure itself
+// 	/// is not allowed to change the indices of existing pallets, too.
+// 	type CallFilter = Nothing;
+// 	type DepositPerItem = DepositPerItem;
+// 	type DepositPerByte = DepositPerByte;
+// 	type WeightPrice = pallet_transaction_payment::Pallet<Self>;
+// 	type WeightInfo = SubstrateWeight<Self>;
+// 	type ChainExtension = ();
+// 	type DeletionQueueDepth = DeletionQueueDepth;
+// 	type DeletionWeightLimit = DeletionWeightLimit;
+// 	type Schedule = MySchedule;
+// 	type CallStack = [Frame<Self>; 31];
+// 	type AddressGenerator = DefaultAddressGenerator;
+// 	type MaxCodeLen = ConstU32<{ 128 * 1024 }>;
+// 	type MaxStorageKeyLen = ConstU32<128>;
+// }
+
+// impl pallet_randomness_collective_flip::Config for Runtime {}
 
 parameter_types! {
 	// One storage item; key size is 32; value is size 4+4+16+32 bytes = 56 bytes.
@@ -949,29 +951,29 @@ construct_runtime!(
 		UncheckedExtrinsic = UncheckedExtrinsic,
 	{
 		// System support stuff.
-		System: frame_system::{Pallet, Call, Config, Storage, Event<T>} = 0,
+		System: frame_system::{Pallet, Call, Config<T>, Storage, Event<T>} = 0,
 		ParachainSystem: cumulus_pallet_parachain_system::{
-			Pallet, Call, Config, Storage, Inherent, Event<T>, ValidateUnsigned,
+			Pallet, Call, Config<T>, Storage, Inherent, Event<T>, ValidateUnsigned,
 		} = 1,
-		RandomnessCollectiveFlip: pallet_randomness_collective_flip::{Pallet, Storage} = 2,
+		//RandomnessCollectiveFlip: pallet_randomness_collective_flip::{Pallet, Storage} = 2,
 		Timestamp: pallet_timestamp::{Pallet, Call, Storage, Inherent} = 3,
-		ParachainInfo: parachain_info::{Pallet, Storage, Config} = 4,
+		ParachainInfo: parachain_info::{Pallet, Storage, Config<T>} = 4,
 
 		// Monetary stuff.
 		Balances: pallet_balances::{Pallet, Call, Storage, Config<T>, Event<T>} = 10,
 		TransactionPayment: pallet_transaction_payment::{Pallet, Storage, Event<T>} = 11,
 
 		// Collator support. The order of these 4 are important and shall not change.
-		Authorship: pallet_authorship::{Pallet, Call, Storage} = 20,
+		Authorship: pallet_authorship::{Pallet, Storage} = 20,
 		ParachainStaking: pallet_parachain_staking::{Pallet, Call, Storage, Event<T>, Config<T>} = 21,
 		Session: pallet_session::{Pallet, Call, Storage, Event, Config<T>} = 22,
 		Aura: pallet_aura::{Pallet, Storage, Config<T>} = 23,
-		AuraExt: cumulus_pallet_aura_ext::{Pallet, Storage, Config} = 24,
-		Treasury: pallet_treasury::{Pallet, Call, Storage, Config, Event<T>} = 25,
+		AuraExt: cumulus_pallet_aura_ext::{Pallet, Storage, Config<T>} = 24,
+		Treasury: pallet_treasury::{Pallet, Call, Storage, Config<T>, Event<T>} = 25,
 
 		// XCM helpers.
 		XcmpQueue: cumulus_pallet_xcmp_queue::{Pallet, Call, Storage, Event<T>} = 30,
-		PolkadotXcm: pallet_xcm::{Pallet, Call, Event<T>, Origin, Config} = 31,
+		PolkadotXcm: pallet_xcm::{Pallet, Call, Event<T>, Origin, Config<T>} = 31,
 		CumulusXcm: cumulus_pallet_xcm::{Pallet, Event<T>, Origin} = 32,
 		DmpQueue: cumulus_pallet_dmp_queue::{Pallet, Call, Storage, Event<T>} = 33,
 
@@ -986,7 +988,7 @@ construct_runtime!(
 		CarbonCreditsPools: pallet_carbon_credits_pool::{Pallet, Call, Storage, Event<T>} = 55,
 		TransactionPause: pallet_transaction_pause::{Pallet, Call, Storage, Event<T>} = 56,
 		VestingContract: pallet_vesting_contract::{Pallet, Call, Storage, Event<T>} = 57,
-		Contracts: pallet_contracts::{Pallet, Call, Storage, Event<T>} = 58,
+		//Contracts: pallet_contracts::{Pallet, Call, Storage, Event<T>} = 58,
 		Multisig: pallet_multisig::{Pallet, Call, Storage, Event<T>} = 59,
 		Dex: pallet_dex::{Pallet, Call, Storage, Event<T>} = 60,
 		KYC: pallet_kyc::{Pallet, Call, Storage, Config<T>, Event<T>} = 66,
@@ -1048,6 +1050,13 @@ impl_runtime_apis! {
 	impl sp_api::Metadata<Block> for Runtime {
 		fn metadata() -> OpaqueMetadata {
 			OpaqueMetadata::new(Runtime::metadata().into())
+		}
+		fn metadata_at_version(version: u32) -> Option<OpaqueMetadata> {
+			Runtime::metadata_at_version(version)
+		}
+
+		fn metadata_versions() -> sp_std::vec::Vec<u32> {
+			Runtime::metadata_versions()
 		}
 	}
 
@@ -1118,6 +1127,12 @@ impl_runtime_apis! {
 			len: u32,
 		) -> pallet_transaction_payment::FeeDetails<Balance> {
 			TransactionPayment::query_fee_details(uxt, len)
+		}
+		fn query_weight_to_fee(weight: Weight) -> Balance {
+			TransactionPayment::weight_to_fee(weight)
+		}
+		fn query_length_to_fee(length: u32) -> Balance {
+			TransactionPayment::length_to_fee(length)
 		}
 	}
 

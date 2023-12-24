@@ -19,9 +19,10 @@ hex = { version = "0.4", default-features = false }
 hex-literal = { version = "0.3.4", optional = true }
 libsecp256k1 = { version = "0.7", default-features = false, optional = true }
 scale-info = { version = "2.2.0", default-features = false, features = ["derive"] }
-serde = { version = "1.0.136", optional = true, default-features = false }
+serde = { version = "1.0.188", default-features = false, features = ["derive", "alloc"] }
 serde_json = { version = "1.0.68", default-features = false, features = ["alloc"] }
 smallvec = "1.4.0"
+log = { version = "0.4.17", default-features = false }
 
 # Substrate
 codec = { package = "parity-scale-codec", version = "3.0.0", default-features = false, features = ["derive", "max-encoded-len"] }
@@ -65,11 +66,12 @@ pallet-proxy = { git = "https://github.com/paritytech/polkadot-sdk", default-fea
 pallet-identity = { git = "https://github.com/paritytech/polkadot-sdk", default-features = false, branch = "release-polkadot-v1.1.0" }
 
 # Polkadot
-pallet-xcm = { git = "https://github.com/paritytech/polkadot", default-features = false, branch = "release-v0.9.33" }
-polkadot-runtime-common = { git = "https://github.com/paritytech/polkadot", default-features = false, branch = "release-v0.9.33" }
-xcm = { git = "https://github.com/paritytech/polkadot", default-features = false, branch = "release-v0.9.33" }
-xcm-builder = { git = "https://github.com/paritytech/polkadot", default-features = false, branch = "release-v0.9.33" }
-xcm-executor = { git = "https://github.com/paritytech/polkadot", default-features = false, branch = "release-v0.9.33" }
+pallet-xcm = { git = "https://github.com/paritytech/polkadot-sdk", default-features = false, branch = "release-polkadot-v1.1.0" }
+polkadot-runtime-common = { git = "https://github.com/paritytech/polkadot-sdk", default-features = false, branch = "release-polkadot-v1.1.0" }
+xcm = { package = "staging-xcm", git = "https://github.com/paritytech/polkadot-sdk", default-features = false, branch = "release-polkadot-v1.1.0" }
+xcm-builder = { package = "staging-xcm-builder", git = "https://github.com/paritytech/polkadot-sdk", default-features = false, branch = "release-polkadot-v1.1.0" }
+xcm-executor = { package = "staging-xcm-executor", git = "https://github.com/paritytech/polkadot-sdk", default-features = false, branch = "release-polkadot-v1.1.0" }
+polkadot-parachain-primitives = { git = "https://github.com/paritytech/polkadot-sdk", default-features = false, branch = "release-polkadot-v1.1.0" }
 
 # Cumulus
 cumulus-pallet-aura-ext = { git = "https://github.com/paritytech/polkadot-sdk", default-features = false, branch = "release-polkadot-v1.1.0" }
@@ -107,7 +109,7 @@ default = [
 ]
 std = [
   "codec/std",
-  "serde",
+  "serde/std",
   "hex/std",
   "serde_json/std",
   "scale-info/std",

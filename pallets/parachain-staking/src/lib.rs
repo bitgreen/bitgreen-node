@@ -221,7 +221,6 @@ pub mod pallet {
 		pub desired_candidates: u32,
 	}
 
-	#[cfg(feature = "std")]
 	impl<T: Config> Default for GenesisConfig<T> {
 		fn default() -> Self {
 			Self {

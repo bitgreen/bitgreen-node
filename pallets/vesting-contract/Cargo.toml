@@ -27,7 +27,7 @@ pallet-timestamp = { git = "https://github.com/paritytech/polkadot-sdk", branch 
 sp-core = { git = "https://github.com/paritytech/polkadot-sdk", branch = "release-polkadot-v1.1.0", default-features = false }
 
 [dev-dependencies]
-serde = { version = "1.0.136" }
+serde = { version = "1.0.188", features = ["derive"] }
 sp-io = { git = "https://github.com/paritytech/polkadot-sdk", branch = "release-polkadot-v1.1.0", default-features = false }
 
 [features]
