@@ -1,11 +1,7 @@
 use super::*;
-use codec::{Decode, Encode, MaxEncodedLen};
-use frame_system::pallet_prelude::BlockNumberFor;
-use scale_info::TypeInfo;
 
 pub mod v3 {
 	use super::*;
-	use crate::types::ProjectDetail;
 
 	use frame_support::{
 		pallet_prelude::Weight,

@@ -8,7 +8,6 @@
 use frame_support::{
 	pallet_prelude::*,
 	traits::{CallMetadata, Contains, GetCallMetadata, PalletInfoAccess},
-	transactional,
 };
 use frame_system::pallet_prelude::*;
 use sp_runtime::DispatchResult;
@@ -70,8 +69,8 @@ pub mod module {
 
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
+		#[pallet::call_index(0)]
 		#[pallet::weight(T::WeightInfo::pause_transaction())]
-		#[transactional]
 		pub fn pause_transaction(
 			origin: OriginFor<T>,
 			pallet_name: Vec<u8>,
@@ -102,8 +101,8 @@ pub mod module {
 			Ok(())
 		}
 
+		#[pallet::call_index(1)]
 		#[pallet::weight(T::WeightInfo::unpause_transaction())]
-		#[transactional]
 		pub fn unpause_transaction(
 			origin: OriginFor<T>,
 			pallet_name: Vec<u8>,

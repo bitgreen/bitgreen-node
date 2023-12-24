@@ -75,7 +75,7 @@ impl<T: Config> Pallet<T> {
 
 				let mut created_asset_ids: Vec<T::AssetId> = Default::default();
 
-				for (group_id, mut group) in project.batch_groups.iter_mut() {
+				for (group_id, group) in project.batch_groups.iter_mut() {
 					let asset_id = Self::next_asset_id();
 					let next_asset_id =
 						asset_id.checked_add(&1u32.into()).ok_or(Error::<T>::Overflow)?;
@@ -433,8 +433,7 @@ impl<T: Config> Pallet<T> {
 			ensure!(project.approved.is_approved(), Error::<T>::ProjectNotApproved);
 
 			// ensure the group exists
-			let mut group =
-				project.batch_groups.get_mut(&group_id).ok_or(Error::<T>::GroupNotFound)?;
+			let group = project.batch_groups.get_mut(&group_id).ok_or(Error::<T>::GroupNotFound)?;
 
 			// ensure the amount_to_mint does not exceed limit
 			let projected_total_supply =
@@ -520,8 +519,7 @@ impl<T: Config> Pallet<T> {
 			ensure!(project.approved.is_approved(), Error::<T>::ProjectNotApproved);
 
 			// ensure the group exists
-			let mut group =
-				project.batch_groups.get_mut(&group_id).ok_or(Error::<T>::GroupNotFound)?;
+			let group = project.batch_groups.get_mut(&group_id).ok_or(Error::<T>::GroupNotFound)?;
 
 			// attempt to burn the tokens from the caller
 			T::AssetHandler::burn_from(group.asset_id, &from, amount, Exact, Polite)?;

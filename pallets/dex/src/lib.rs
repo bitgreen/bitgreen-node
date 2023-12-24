@@ -50,7 +50,7 @@ pub mod pallet {
 	use frame_support::{
 		pallet_prelude::*,
 		traits::{fungibles::Mutate, tokens::Preservation::Protect, Contains},
-		transactional, PalletId,
+		PalletId,
 	};
 	use frame_system::pallet_prelude::{OriginFor, *};
 	use orml_traits::MultiCurrency;
@@ -62,7 +62,7 @@ pub mod pallet {
 	use sp_std::fmt::Debug;
 
 	#[pallet::pallet]
-	#[pallet::generate_store(pub(super) trait Store)]
+
 	pub struct Pallet<T>(_);
 
 	/// Configure the pallet by specifying the parameters and types on which it depends.
@@ -450,7 +450,7 @@ pub mod pallet {
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
 		/// Create a new sell order for given `asset_id`
-		#[transactional]
+		#[pallet::call_index(0)]
 		#[pallet::weight(T::WeightInfo::create_sell_order())]
 		pub fn create_sell_order(
 			origin: OriginFor<T>,
@@ -501,7 +501,7 @@ pub mod pallet {
 		}
 
 		/// Cancel an existing sell order with `order_id`
-		#[transactional]
+		#[pallet::call_index(1)]
 		#[pallet::weight(T::WeightInfo::cancel_sell_order())]
 		pub fn cancel_sell_order(origin: OriginFor<T>, order_id: OrderId) -> DispatchResult {
 			let seller = ensure_signed(origin.clone())?;
@@ -526,7 +526,7 @@ pub mod pallet {
 
 		/// Buy `units` of `asset_id` from the given `order_id`
 		/// This will be called by one of the approved validators when an order is created
-		#[transactional]
+		#[pallet::call_index(2)]
 		#[pallet::weight(T::WeightInfo::buy_order())]
 		pub fn create_buy_order(
 			origin: OriginFor<T>,
@@ -660,7 +660,7 @@ pub mod pallet {
 
 		/// Force set PaymentFees value
 		/// Can only be called by ForceOrigin
-		#[transactional]
+		#[pallet::call_index(3)]
 		#[pallet::weight(T::WeightInfo::force_set_payment_fee())]
 		pub fn force_set_payment_fee(origin: OriginFor<T>, payment_fee: Percent) -> DispatchResult {
 			T::ForceOrigin::ensure_origin(origin)?;
@@ -674,7 +674,7 @@ pub mod pallet {
 
 		/// Force set PurchaseFee value
 		/// Can only be called by ForceOrigin
-		#[transactional]
+		#[pallet::call_index(4)]
 		#[pallet::weight(T::WeightInfo::force_set_purchase_fee())]
 		pub fn force_set_purchase_fee(
 			origin: OriginFor<T>,
@@ -691,7 +691,7 @@ pub mod pallet {
 
 		/// Buy `units` of `asset_id` from the given `order_id`
 		/// This will be called by one of the approved validators when an order is created
-		#[transactional]
+		#[pallet::call_index(5)]
 		#[pallet::weight(T::WeightInfo::buy_order())]
 		pub fn validate_buy_order(
 			origin: OriginFor<T>,
@@ -833,7 +833,7 @@ pub mod pallet {
 
 		/// Add a new account to the list of authorised Accounts
 		/// The caller must be from a permitted origin
-		#[transactional]
+		#[pallet::call_index(6)]
 		#[pallet::weight(T::WeightInfo::force_set_purchase_fee())]
 		pub fn force_add_validator_account(
 			origin: OriginFor<T>,
@@ -858,7 +858,7 @@ pub mod pallet {
 		}
 
 		/// Remove an account from the list of authorised accounts
-		#[transactional]
+		#[pallet::call_index(7)]
 		#[pallet::weight(T::WeightInfo::force_set_purchase_fee())]
 		pub fn force_remove_validator_account(
 			origin: OriginFor<T>,
@@ -877,7 +877,7 @@ pub mod pallet {
 		}
 
 		/// Set the minimum validators required to validator a payment
-		#[transactional]
+		#[pallet::call_index(8)]
 		#[pallet::weight(T::WeightInfo::force_set_purchase_fee())]
 		pub fn force_set_min_validations(
 			origin: OriginFor<T>,
@@ -911,7 +911,7 @@ pub mod pallet {
 		/// `SellerPayoutAuthority` storage item.
 		///
 		/// Emits an `Event::SellerPayoutAuthoritySet` event on success.
-		#[transactional]
+		#[pallet::call_index(9)]
 		#[pallet::weight(T::WeightInfo::force_set_purchase_fee())]
 		pub fn force_set_seller_payout_authority(
 			origin: OriginFor<T>,
@@ -945,7 +945,7 @@ pub mod pallet {
 		/// preference for the `seller` will be removed from the storage.
 		///
 		/// Emits an `Event::SellerPayoutPreferenceSet` event on success.
-		#[transactional]
+		#[pallet::call_index(10)]
 		#[pallet::weight(T::WeightInfo::force_set_purchase_fee())]
 		pub fn set_seller_payout_preference(
 			origin: OriginFor<T>,
@@ -993,7 +993,7 @@ pub mod pallet {
 		///   storage map.
 		///
 		/// Emits an `Event::SellerPayoutExecuted` event on success.
-		#[transactional]
+		#[pallet::call_index(11)]
 		#[pallet::weight(T::WeightInfo::force_set_purchase_fee())]
 		pub fn record_payment_to_seller(
 			origin: OriginFor<T>,
@@ -1020,7 +1020,7 @@ pub mod pallet {
 			Ok(())
 		}
 
-		#[transactional]
+		#[pallet::call_index(12)]
 		#[pallet::weight(T::WeightInfo::force_set_purchase_fee())]
 		pub fn force_set_open_order_allowed_limits(
 			origin: OriginFor<T>,
@@ -1034,7 +1034,7 @@ pub mod pallet {
 		}
 
 		/// Set the minimum validators required to validator a payment
-		#[transactional]
+		#[pallet::call_index(13)]
 		#[pallet::weight(T::WeightInfo::force_set_purchase_fee())]
 		pub fn force_clear_buy_orders_per_user(
 			origin: OriginFor<T>,

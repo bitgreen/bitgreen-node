@@ -57,7 +57,7 @@ pub mod pallet {
 			Precision::Exact,
 			Preservation::Protect,
 		},
-		transactional, PalletId,
+		PalletId,
 	};
 	use frame_system::pallet_prelude::*;
 	use sp_runtime::traits::{AccountIdConversion, CheckedAdd, CheckedSub, Zero};
@@ -108,7 +108,7 @@ pub mod pallet {
 	}
 
 	#[pallet::pallet]
-	#[pallet::generate_store(pub(super) trait Store)]
+
 	pub struct Pallet<T>(_);
 
 	#[pallet::storage]
@@ -164,7 +164,7 @@ pub mod pallet {
 		/// config : Config values for new pool
 		/// max_limit : Limit of maximum project-ids the pool can support, default to
 		/// T::MaxProjectIdLIst asset_symbol : Symbol for asset created for the pool
-		#[transactional]
+		#[pallet::call_index(0)]
 		#[pallet::weight(<T as pallet::Config>::WeightInfo::create())]
 		pub fn create(
 			origin: OriginFor<T>,
@@ -232,7 +232,7 @@ pub mod pallet {
 		/// pool_id : Id of the pool to deposit into
 		/// project_id : The project_id of the CarbonCredits being deposited
 		/// amount: The amount of CarbonCredits to deposit
-		#[transactional]
+		#[pallet::call_index(1)]
 		#[pallet::weight(<T as pallet::Config>::WeightInfo::deposit())]
 		pub fn deposit(
 			origin: OriginFor<T>,
@@ -348,7 +348,7 @@ pub mod pallet {
 		/// Params:
 		/// pool_id : Id of the pooltokens to retire
 		/// amount: The amount of CarbonCredits to deposit
-		#[transactional]
+		#[pallet::call_index(2)]
 		#[pallet::weight(<T as pallet::Config>::WeightInfo::retire())]
 		pub fn retire(
 			origin: OriginFor<T>,
@@ -440,7 +440,7 @@ pub mod pallet {
 		}
 
 		/// Force modify pool storage
-		#[transactional]
+		#[pallet::call_index(3)]
 		#[pallet::weight(Weight::from_parts(10_000_u64, 0) + T::DbWeight::get().writes(1))]
 		pub fn force_set_pool_storage(
 			origin: OriginFor<T>,

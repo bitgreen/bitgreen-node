@@ -227,12 +227,12 @@ impl<T: Config<I>, I: 'static> Pallet<T, I> {
 				frozen.checked_add(&details.min_balance).ok_or(ArithmeticError::Overflow)?;
 			account.balance.saturating_sub(required)
 		} else if keep_alive {
-  				// We want to keep the account around.
-  				account.balance.saturating_sub(details.min_balance)
-  			} else {
-  				// Don't care if the account dies
-  				account.balance
-  			};
+			// We want to keep the account around.
+			account.balance.saturating_sub(details.min_balance)
+		} else {
+			// Don't care if the account dies
+			account.balance
+		};
 		Ok(amount.min(details.supply))
 	}
 
@@ -754,31 +754,31 @@ impl<T: Config<I>, I: 'static> Pallet<T, I> {
 		let mut dead_accounts: Vec<T::AccountId> = vec![];
 		let mut remaining_accounts = 0;
 		Asset::<T, I>::try_mutate_exists(&id, |maybe_details| -> Result<(), DispatchError> {
-				let details = maybe_details.as_mut().ok_or(Error::<T, I>::Unknown)?;
-				// Should only destroy accounts while the asset is in a destroying state
-				ensure!(details.status == AssetStatus::Destroying, Error::<T, I>::IncorrectStatus);
-				for (i, (who, mut v)) in Account::<T, I>::iter_prefix(&id).enumerate() {
-					// unreserve the existence deposit if any
-					if let Some((depositor, deposit)) = v.reason.take_deposit_from() {
-						T::Currency::unreserve(&depositor, deposit);
-					} else if let Some(deposit) = v.reason.take_deposit() {
-						T::Currency::unreserve(&who, deposit);
-					}
-					if let Remove = Self::dead_account(&who, details, &v.reason, false) {
-						Account::<T, I>::remove(&id, &who);
-						dead_accounts.push(who);
-					} else {
-						// deposit may have been released, need to update `Account`
-						Account::<T, I>::insert(&id, &who, v);
-						defensive!("destroy did not result in dead account?!");
-					}
-					if i + 1 >= (max_items as usize) {
-						break
-					}
+			let details = maybe_details.as_mut().ok_or(Error::<T, I>::Unknown)?;
+			// Should only destroy accounts while the asset is in a destroying state
+			ensure!(details.status == AssetStatus::Destroying, Error::<T, I>::IncorrectStatus);
+			for (i, (who, mut v)) in Account::<T, I>::iter_prefix(&id).enumerate() {
+				// unreserve the existence deposit if any
+				if let Some((depositor, deposit)) = v.reason.take_deposit_from() {
+					T::Currency::unreserve(&depositor, deposit);
+				} else if let Some(deposit) = v.reason.take_deposit() {
+					T::Currency::unreserve(&who, deposit);
 				}
-				remaining_accounts = details.accounts;
-				Ok(())
-			})?;
+				if let Remove = Self::dead_account(&who, details, &v.reason, false) {
+					Account::<T, I>::remove(&id, &who);
+					dead_accounts.push(who);
+				} else {
+					// deposit may have been released, need to update `Account`
+					Account::<T, I>::insert(&id, &who, v);
+					defensive!("destroy did not result in dead account?!");
+				}
+				if i + 1 >= (max_items as usize) {
+					break
+				}
+			}
+			remaining_accounts = details.accounts;
+			Ok(())
+		})?;
 
 		for who in &dead_accounts {
 			T::Freezer::died(id.clone(), who);
