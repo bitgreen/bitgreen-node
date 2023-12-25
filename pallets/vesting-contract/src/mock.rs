@@ -3,16 +3,14 @@
 // This code is licensed under MIT license (see LICENSE.txt for details)
 //
 use crate as vesting_contract;
-use frame_support::{parameter_types, traits::Everything, PalletId};
-use frame_system as system;
-use sp_core::{ConstU32, ConstU64, H256};
+use frame_support::{parameter_types, PalletId};
+
+use sp_core::{ConstU16, ConstU32, ConstU64, H256};
 use sp_runtime::{
-	testing::Header,
 	traits::{BlakeTwo256, IdentityLookup},
 	BuildStorage,
 };
 use sp_std::convert::{TryFrom, TryInto};
-type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
 type Block = frame_system::mocking::MockBlock<Test>;
 
 // Configure a mock runtime to test the pallet.
@@ -95,7 +93,7 @@ impl vesting_contract::Config for Test {
 
 // Build genesis storage according to the mock runtime.
 pub fn new_test_ext() -> sp_io::TestExternalities {
-	let t = system::GenesisConfig::default().build_storage().unwrap();
+	let t = frame_system::GenesisConfig::<Test>::default().build_storage().unwrap();
 	let mut ext: sp_io::TestExternalities = t.into();
 	// set to block 1 to test events
 	ext.execute_with(|| System::set_block_number(1));

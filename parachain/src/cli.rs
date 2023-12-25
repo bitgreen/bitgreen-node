@@ -1,3 +1,4 @@
+#![allow(clippy::all)]
 use std::path::PathBuf;
 
 /// Sub-commands supported by the collator.

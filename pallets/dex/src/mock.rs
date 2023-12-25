@@ -4,16 +4,15 @@
 use frame_support::{
 	pallet_prelude::DispatchResult,
 	parameter_types,
-	traits::{AsEnsureOriginWithArg, BuildGenesisConfig, ConstU32, Contains, Everything, Nothing},
+	traits::{AsEnsureOriginWithArg, ConstU16, ConstU32, Contains, Nothing},
 	PalletId,
 };
-use frame_system as system;
-use frame_system::EnsureRoot;
+
+use frame_system::{EnsureRoot, EnsureSigned};
 use orml_traits::parameter_type_with_key;
 use primitives::{Amount, Balance, CarbonCreditsValidator, CurrencyId};
-use sp_core::{ConstU64, H256};
+use sp_core::{ConstU128, ConstU64, H256};
 use sp_runtime::{
-	testing::Header,
 	traits::{BlakeTwo256, IdentityLookup},
 	BuildStorage, Percent,
 };
@@ -23,7 +22,6 @@ pub type AccountId = u64;
 pub const USDT: CurrencyId = CurrencyId::USDT;
 
 use crate as pallet_dex;
-type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
 type Block = frame_system::mocking::MockBlock<Test>;
 
 // Configure a mock runtime to test the pallet.
@@ -90,14 +88,6 @@ impl pallet_balances::Config for Test {
 	type MaxFreezes = ConstU32<0>;
 }
 
-parameter_types! {
-	pub const AssetDepositBase: u64 = 0;
-	pub const AssetDepositPerZombie: u64 = 0;
-	pub const StringLimit: u32 = 50;
-	pub const MetadataDepositBase: u64 = 0;
-	pub const MetadataDepositPerByte: u64 = 0;
-}
-
 impl pallet_assets::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
 	type Balance = u128;
@@ -107,11 +97,11 @@ impl pallet_assets::Config for Test {
 	type Currency = Balances;
 	type CreateOrigin = AsEnsureOriginWithArg<EnsureSigned<Self::AccountId>>;
 	type ForceOrigin = frame_system::EnsureRoot<Self::AccountId>;
-	type AssetDeposit = ConstU64<1>;
-	type AssetAccountDeposit = ConstU64<10>;
-	type MetadataDepositBase = ConstU64<1>;
-	type MetadataDepositPerByte = ConstU64<1>;
-	type ApprovalDeposit = ConstU64<1>;
+	type AssetDeposit = ConstU128<0>;
+	type AssetAccountDeposit = ConstU128<0>;
+	type MetadataDepositBase = ConstU128<0>;
+	type MetadataDepositPerByte = ConstU128<0>;
+	type ApprovalDeposit = ConstU128<0>;
 	type StringLimit = ConstU32<50>;
 	type Freezer = ();
 	type Extra = ();
@@ -151,10 +141,10 @@ impl CarbonCreditsValidator for DummyValidator {
 	}
 
 	fn retire_credits(
-		sender: Self::Address,
-		project_id: Self::ProjectId,
-		group_id: Self::GroupId,
-		amount: Self::Amount,
+		_sender: Self::Address,
+		_project_id: Self::ProjectId,
+		_group_id: Self::GroupId,
+		_amount: Self::Amount,
 	) -> DispatchResult {
 		Ok(())
 	}

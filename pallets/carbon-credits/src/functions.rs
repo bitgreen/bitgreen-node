@@ -225,11 +225,11 @@ impl<T: Config> Pallet<T> {
 		Projects::<T>::try_mutate(project_id, |project| -> DispatchResult {
 			let project = project.as_mut().ok_or(Error::<T>::ProjectNotFound)?;
 
-			// approved projects cannot be modified
-			ensure!(project.approved.is_rejected(), Error::<T>::CannotModifyApprovedProject);
-
 			// only originator can resubmit
 			ensure!(project.originator == admin, Error::<T>::NotAuthorised);
+
+			// approved projects cannot be modified
+			ensure!(!project.approved.is_approved(), Error::<T>::CannotModifyApprovedProject);
 
 			let mut batch_group_map: BoundedBTreeMap<_, _, _> = Default::default();
 			let mut group_id: T::GroupId = 0u32.into();

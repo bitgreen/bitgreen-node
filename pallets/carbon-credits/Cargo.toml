@@ -13,7 +13,6 @@ targets = ['x86_64-unknown-linux-gnu']
 
 [dependencies]
 log = { version = "0.4.17", default-features = false }
-bs58 = { default-features = false, version = '0.4.0', features = ['alloc'] }
 codec = { package = "parity-scale-codec", version = "3.0.0", default-features = false, features = ["derive"] }
 frame-support = { git = "https://github.com/paritytech/polkadot-sdk", branch = "release-polkadot-v1.1.0", default-features = false }
 frame-system = { git = "https://github.com/paritytech/polkadot-sdk", branch = "release-polkadot-v1.1.0", default-features = false }
@@ -40,17 +39,19 @@ sp-io = { git = "https://github.com/paritytech/polkadot-sdk", branch = "release-
 [features]
 default = ['std']
 std = [
+  'log/std',
   'codec/std',
   'frame-support/std',
   'frame-system/std',
   'sp-std/std',
-  'bs58/std',
   'scale-info/std',
   'pallet-assets/std',
   'pallet-balances/std',
   'sp-runtime/std',
   'pallet-uniques/std',
   'pallet-membership/std',
+  'pallet-timestamp/std',
+  'sp-core/std'
 ]
 runtime-benchmarks = [
   "frame-benchmarking/runtime-benchmarks",

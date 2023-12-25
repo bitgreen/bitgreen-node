@@ -91,7 +91,7 @@ fn create_sell_order_should_fail_if_caller_does_not_have_asset_balance() {
 		// should not be able to create a sell order since the amount is greater than seller balance
 		assert_noop!(
 			Dex::create_sell_order(RuntimeOrigin::signed(seller), asset_id, 101, 1),
-			pallet_assets::Error::<Test>::BalanceLow
+			sp_runtime::ArithmeticError::Underflow
 		);
 	});
 }

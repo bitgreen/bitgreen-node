@@ -21,7 +21,7 @@ use frame_support::{
 	dispatch::DispatchClass,
 	pallet_prelude::ConstU32,
 	parameter_types,
-	traits::{AsEnsureOriginWithArg, ConstU128, Contains, Currency, Nothing, PrivilegeCmp},
+	traits::{AsEnsureOriginWithArg, ConstU128, Contains, Currency, PrivilegeCmp},
 	weights::{
 		ConstantMultiplier, Weight, WeightToFeeCoefficient, WeightToFeeCoefficients,
 		WeightToFeePolynomial,
@@ -33,10 +33,7 @@ use frame_system::{
 	EnsureRoot, EnsureSigned,
 };
 use orml_traits::parameter_type_with_key;
-use pallet_contracts::{
-	weights::{SubstrateWeight, WeightInfo},
-	Config, DefaultAddressGenerator, Frame, Schedule,
-};
+use pallet_contracts::weights::WeightInfo;
 use polkadot_runtime_common::{BlockHashCount, SlowAdjustingFeeUpdate};
 pub use primitives::{
 	currency::*,
@@ -760,7 +757,7 @@ parameter_types! {
 	#[derive(Clone, scale_info::TypeInfo, Debug, PartialEq)]
 	pub const MaxTxHashLen : u32 = 100;
 	#[derive(Clone, scale_info::TypeInfo)]
-	pub const BuyOrderExpiryTime : u32 = 1 * HOURS;
+	pub const BuyOrderExpiryTime : u32 = HOURS;
 	#[derive(Clone, scale_info::TypeInfo, Debug, PartialEq)]
 	pub const MaxAddressLen : u32 = 100;
 	#[derive(Clone, scale_info::TypeInfo, Debug, PartialEq)]

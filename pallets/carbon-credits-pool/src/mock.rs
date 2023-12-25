@@ -21,7 +21,6 @@ use sp_std::convert::{TryFrom, TryInto};
 
 use crate as pallet_carbon_credits_pool;
 
-type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
 type Block = frame_system::mocking::MockBlock<Test>;
 
 // Configure a mock runtime to test the pallet.
@@ -91,14 +90,6 @@ impl pallet_balances::Config for Test {
 	type MaxFreezes = ConstU32<0>;
 }
 
-parameter_types! {
-	pub const AssetDepositBase: u64 = 0;
-	pub const AssetDepositPerZombie: u64 = 0;
-	pub const StringLimit: u32 = 50;
-	pub const MetadataDepositBase: u64 = 0;
-	pub const MetadataDepositPerByte: u64 = 0;
-}
-
 impl pallet_assets::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
 	type Balance = u128;
@@ -108,11 +99,11 @@ impl pallet_assets::Config for Test {
 	type Currency = Balances;
 	type CreateOrigin = AsEnsureOriginWithArg<EnsureSigned<Self::AccountId>>;
 	type ForceOrigin = frame_system::EnsureRoot<Self::AccountId>;
-	type AssetDeposit = ConstU64<1>;
-	type AssetAccountDeposit = ConstU64<10>;
-	type MetadataDepositBase = ConstU64<1>;
-	type MetadataDepositPerByte = ConstU64<1>;
-	type ApprovalDeposit = ConstU64<1>;
+	type AssetDeposit = ConstU128<0>;
+	type AssetAccountDeposit = ConstU128<0>;
+	type MetadataDepositBase = ConstU128<0>;
+	type MetadataDepositPerByte = ConstU128<0>;
+	type ApprovalDeposit = ConstU128<0>;
 	type StringLimit = ConstU32<50>;
 	type Freezer = ();
 	type Extra = ();

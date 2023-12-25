@@ -24,7 +24,7 @@ const TOKENS_TRANSFER: &<Runtime as frame_system::Config>::RuntimeCall =
 
 #[test]
 fn pause_transaction_work() {
-	ExtBuilder::default().build().execute_with(|| {
+	ExtBuilder.build().execute_with(|| {
 		System::set_block_number(1);
 
 		assert_noop!(
@@ -82,7 +82,7 @@ fn pause_transaction_work() {
 
 #[test]
 fn unpause_transaction_work() {
-	ExtBuilder::default().build().execute_with(|| {
+	ExtBuilder.build().execute_with(|| {
 		System::set_block_number(1);
 
 		assert_ok!(TransactionPause::pause_transaction(
@@ -124,7 +124,7 @@ fn unpause_transaction_work() {
 
 #[test]
 fn paused_transaction_filter_work() {
-	ExtBuilder::default().build().execute_with(|| {
+	ExtBuilder.build().execute_with(|| {
 		assert!(!PausedTransactionFilter::<Runtime>::contains(BALANCE_TRANSFER));
 		assert!(!PausedTransactionFilter::<Runtime>::contains(TOKENS_TRANSFER));
 		assert_ok!(TransactionPause::pause_transaction(

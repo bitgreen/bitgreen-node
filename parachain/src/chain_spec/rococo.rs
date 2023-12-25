@@ -1,10 +1,10 @@
 //! BitgreenRococo chain spec
 use super::*;
-use bitgreen_rococo_runtime::{AccountId, AuraId, Signature, EXISTENTIAL_DEPOSIT};
+use bitgreen_rococo_runtime::{AccountId, AuraId, EXISTENTIAL_DEPOSIT};
 use hex_literal::hex;
 
 pub type RococoChainSpec =
-	sc_service::GenericChainSpec<bitgreen_rococo_runtime::GenesisConfig, Extensions>;
+	sc_service::GenericChainSpec<bitgreen_rococo_runtime::RuntimeGenesisConfig, Extensions>;
 
 /// Generate the session keys from individual elements.
 ///
@@ -106,8 +106,8 @@ fn rococo_genesis(
 	invulnerables: Vec<(AccountId, AuraId)>,
 	endowed_accounts: Vec<AccountId>,
 	id: ParaId,
-) -> bitgreen_rococo_runtime::GenesisConfig {
-	bitgreen_rococo_runtime::GenesisConfig {
+) -> bitgreen_rococo_runtime::RuntimeGenesisConfig {
+	bitgreen_rococo_runtime::RuntimeGenesisConfig {
 		system: bitgreen_rococo_runtime::SystemConfig {
 			code: bitgreen_rococo_runtime::WASM_BINARY
 				.expect("WASM binary was not build, please build it!")

@@ -236,7 +236,7 @@ pub mod pallet {
 		fn build(&self) {
 			use sp_std::collections::btree_set::BTreeSet;
 
-			let duplicate_invulnerables = self.invulnerables.iter().collect::<BTreeSet<_>>();
+			let _duplicate_invulnerables = self.invulnerables.iter().collect::<BTreeSet<_>>();
 
 			// assert!(
 			// 	duplicate_invulnerables.len() as usize == self.invulnerables.len(),

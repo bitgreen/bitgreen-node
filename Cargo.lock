@@ -6265,7 +6265,6 @@ name = "pallet-carbon-credits"
 version = "0.0.1"
 dependencies = [
  "bitgreen-primitives",
- "bs58 0.4.0",
  "frame-benchmarking",
  "frame-support",
  "frame-system",

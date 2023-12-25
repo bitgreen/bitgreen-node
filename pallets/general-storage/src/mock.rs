@@ -1,13 +1,11 @@
 use crate as pallet_general_storage;
 use frame_support::{parameter_types, traits::ConstU16};
-use frame_system as system;
+
 use sp_core::{ConstU32, H256};
 use sp_runtime::{
-	testing::Header,
 	traits::{BlakeTwo256, IdentityLookup},
 	BuildStorage,
 };
-type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
 type Block = frame_system::mocking::MockBlock<Test>;
 use sp_core::ConstU64;
 
@@ -83,7 +81,7 @@ impl pallet_general_storage::Config for Test {
 
 // Build genesis storage according to the mock runtime.
 pub fn new_test_ext() -> sp_io::TestExternalities {
-	let mut t = frame_system::GenesisConfig::<Test>::default().build_storage().unwrap();
+	let t = frame_system::GenesisConfig::<Test>::default().build_storage().unwrap();
 
 	let mut ext: sp_io::TestExternalities = t.into();
 	// need to set block number to 1 to test events

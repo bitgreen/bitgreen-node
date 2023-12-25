@@ -9,7 +9,8 @@ use sp_runtime::traits::{IdentifyAccount, Verify};
 mod rococo;
 pub use rococo::*;
 
-pub type ChainSpec = sc_service::GenericChainSpec<bitgreen_runtime::GenesisConfig, Extensions>;
+pub type ChainSpec =
+	sc_service::GenericChainSpec<bitgreen_runtime::RuntimeGenesisConfig, Extensions>;
 
 /// The default XCM version to set in genesis config.
 const SAFE_XCM_VERSION: u32 = xcm::prelude::XCM_VERSION;
@@ -197,8 +198,8 @@ fn testnet_genesis(
 	invulnerables: Vec<(AccountId, AuraId)>,
 	endowed_accounts: Vec<AccountId>,
 	id: ParaId,
-) -> bitgreen_runtime::GenesisConfig {
-	bitgreen_runtime::GenesisConfig {
+) -> bitgreen_runtime::RuntimeGenesisConfig {
+	bitgreen_runtime::RuntimeGenesisConfig {
 		system: bitgreen_runtime::SystemConfig {
 			code: bitgreen_runtime::WASM_BINARY
 				.expect("WASM binary was not build, please build it!")

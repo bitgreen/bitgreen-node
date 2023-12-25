@@ -7,20 +7,19 @@ use crate as collator_selection;
 use crate::types::CandidateInfo;
 use frame_support::{
 	ord_parameter_types, parameter_types,
-	traits::{BuildGenesisConfig, FindAuthor, ValidatorRegistration},
+	traits::{FindAuthor, ValidatorRegistration},
 	PalletId,
 };
-use frame_system as system;
+
 use frame_system::EnsureRoot;
 use scale_info::TypeInfo;
-use sp_core::{ConstU32, ConstU64, H256};
+use sp_core::{ConstBool, ConstU16, ConstU32, ConstU64, H256};
 use sp_runtime::{
-	testing::{Header, UintAuthorityId},
+	testing::UintAuthorityId,
 	traits::{BlakeTwo256, IdentityLookup, OpaqueKeys},
 	BuildStorage, RuntimeAppPublic,
 };
 
-type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
 type Block = frame_system::mocking::MockBlock<Test>;
 
 // Configure a mock runtime to test the pallet.
@@ -33,7 +32,7 @@ frame_support::construct_runtime!(
 		Aura: pallet_aura::{Pallet, Storage, Config<T>},
 		Balances: pallet_balances::{Pallet, Call, Storage, Config<T>, Event<T>},
 		CollatorSelection: collator_selection::{Pallet, Call, Storage, Event<T>},
-		Authorship: pallet_authorship::{Pallet, Call, Storage, Inherent},
+		Authorship: pallet_authorship::{Pallet, Storage},
 	}
 );
 
@@ -101,9 +100,7 @@ impl FindAuthor<u64> for Author4 {
 
 impl pallet_authorship::Config for Test {
 	type EventHandler = CollatorSelection;
-	type FilterUncle = ();
 	type FindAuthor = Author4;
-	type UncleGenerations = ();
 }
 
 parameter_types! {
@@ -121,6 +118,7 @@ impl pallet_aura::Config for Test {
 	type AuthorityId = sp_consensus_aura::sr25519::AuthorityId;
 	type DisabledValidators = ();
 	type MaxAuthorities = MaxAuthorities;
+	type AllowMultipleBlocksPerSlot = ConstBool<false>;
 }
 
 sp_runtime::impl_opaque_keys! {
@@ -222,8 +220,8 @@ impl Config for Test {
 
 pub fn new_test_ext() -> sp_io::TestExternalities {
 	sp_tracing::try_init_simple();
-	let mut t = frame_system::GenesisConfig::default().build_storage().unwrap();
-	let invulnerables = vec![1, 2];
+	let mut t = frame_system::GenesisConfig::<Test>::default().build_storage().unwrap();
+	let invulnerables = [1, 2];
 
 	let balances = vec![(1, 100), (2, 100), (3, 100), (4, 100), (5, 100), (100, 100)];
 	let keys = balances

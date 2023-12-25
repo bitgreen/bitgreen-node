@@ -2,6 +2,10 @@
 // Copyright (C) 2022 BitGreen.
 // This code is licensed under MIT license (see LICENSE.txt for details)
 //! Tests for CarbonCredits pallet
+use crate::{
+	mock::*, BatchGroupListOf, BatchGroupOf, BatchOf, Config, Error, NextItemId,
+	ProjectCreateParams, Projects, RegistryListOf, RetiredCredits, SDGTypesListOf,
+};
 use frame_support::{
 	assert_noop, assert_ok,
 	traits::tokens::fungibles::{metadata::Inspect as MetadataInspect, Inspect},
@@ -9,13 +13,8 @@ use frame_support::{
 };
 use frame_system::RawOrigin;
 use primitives::{Batch, RegistryDetails, RegistryName, Royalty, SDGDetails, SdgType};
-use sp_runtime::{traits::AccountIdConversion, Percent};
+use sp_runtime::{traits::AccountIdConversion, Percent, TokenError::FundsUnavailable};
 use sp_std::convert::TryInto;
-
-use crate::{
-	mock::*, BatchGroupListOf, BatchGroupOf, BatchOf, Config, Error, NextItemId,
-	ProjectCreateParams, Projects, RegistryListOf, RetiredCredits, SDGTypesListOf,
-};
 
 pub type CarbonCreditsEvent = crate::Event<Test>;
 
@@ -201,6 +200,7 @@ where
 		sdg_details: get_default_sdg_details::<T>(),
 		royalties: Some(vec![royalty].try_into().unwrap()),
 		batch_groups: get_default_batch_group::<T>(),
+		project_type: None,
 	};
 
 	creation_params
@@ -1002,7 +1002,7 @@ fn test_retire_non_minted_project_should_fail() {
 				100u128,
 				Default::default()
 			),
-			pallet_assets::Error::<Test>::NoAccount
+			FundsUnavailable
 		);
 	});
 }
@@ -1040,7 +1040,7 @@ fn test_retire_for_single_batch() {
 				amount_to_mint,
 				Default::default()
 			),
-			pallet_assets::Error::<Test>::NoAccount
+			FundsUnavailable
 		);
 
 		// cannot retire more than holdings
@@ -1052,7 +1052,7 @@ fn test_retire_for_single_batch() {
 				amount_to_mint + 1,
 				Default::default()
 			),
-			pallet_assets::Error::<Test>::BalanceLow
+			FundsUnavailable
 		);
 
 		// should work when amount less than holding
@@ -1235,7 +1235,7 @@ fn retire_for_multiple_batch() {
 				amount_to_mint + 1,
 				Default::default()
 			),
-			pallet_assets::Error::<Test>::BalanceLow
+			FundsUnavailable
 		);
 
 		// should work when amount less than holding

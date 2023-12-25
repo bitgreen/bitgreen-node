@@ -8,15 +8,14 @@
 #![cfg(test)]
 use super::*;
 use frame_support::{
-	construct_runtime, ord_parameter_types,
-	traits::{ConstU128, ConstU32, ConstU64, Everything, Nothing},
+	construct_runtime, ord_parameter_types, parameter_types,
+	traits::{ConstU32, ConstU64, Nothing},
 };
 use frame_system::EnsureSignedBy;
 use orml_traits::parameter_type_with_key;
 use primitives::{Amount, Balance, CurrencyId};
 use sp_core::{ConstU16, H256};
 use sp_runtime::{
-	testing::Header,
 	traits::{BlakeTwo256, IdentityLookup},
 	BuildStorage,
 };
@@ -45,13 +44,17 @@ impl frame_system::Config for Runtime {
 	type BlockHashCount = ConstU64<250>;
 	type Version = ();
 	type PalletInfo = PalletInfo;
-	type AccountData = pallet_balances::AccountData<u128>;
+	type AccountData = pallet_balances::AccountData<u64>;
 	type OnNewAccount = ();
 	type OnKilledAccount = ();
 	type SystemWeightInfo = ();
 	type SS58Prefix = ConstU16<42>;
 	type OnSetCode = ();
 	type MaxConsumers = frame_support::traits::ConstU32<16>;
+}
+
+parameter_types! {
+	pub const ExistentialDeposit: u64 = 1;
 }
 
 impl pallet_balances::Config for Runtime {
@@ -100,7 +103,6 @@ impl Config for Runtime {
 	type WeightInfo = ();
 }
 
-type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Runtime>;
 type Block = frame_system::mocking::MockBlock<Runtime>;
 
 construct_runtime!(
@@ -123,7 +125,7 @@ impl Default for ExtBuilder {
 
 impl ExtBuilder {
 	pub fn build(self) -> sp_io::TestExternalities {
-		let t = frame_system::GenesisConfig::default().build_storage::<Runtime>().unwrap();
+		let t = frame_system::GenesisConfig::<Runtime>::default().build_storage().unwrap();
 
 		t.into()
 	}

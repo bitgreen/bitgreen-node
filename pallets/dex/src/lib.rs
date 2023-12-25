@@ -49,7 +49,7 @@ pub mod pallet {
 	use crate::{types::*, WeightInfo};
 	use frame_support::{
 		pallet_prelude::*,
-		traits::{fungibles::Mutate, tokens::Preservation::Protect, Contains},
+		traits::{fungibles::Mutate, tokens::Preservation::Expendable, Contains},
 		PalletId,
 	};
 	use frame_system::pallet_prelude::{OriginFor, *};
@@ -469,7 +469,7 @@ pub mod pallet {
 			ensure!(price_per_unit >= T::MinPricePerUnit::get(), Error::<T>::BelowMinimumPrice);
 
 			// transfer assets from seller to pallet
-			T::Asset::transfer(asset_id.clone(), &seller, &Self::account_id(), units, Protect)?;
+			T::Asset::transfer(asset_id.clone(), &seller, &Self::account_id(), units, Expendable)?;
 
 			let order_id = Self::order_count();
 			let next_order_id =
@@ -517,7 +517,7 @@ pub mod pallet {
 				&Self::account_id(),
 				&order.owner,
 				order.units,
-				Protect,
+				Expendable,
 			)?;
 
 			Self::deposit_event(Event::SellOrderCancelled { order_id, seller });
@@ -742,7 +742,7 @@ pub mod pallet {
 							&Self::account_id(),
 							&order.buyer,
 							order.units,
-							Protect,
+							Expendable,
 						)?;
 
 						// add amount record to the seller
