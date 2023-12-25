@@ -144,6 +144,7 @@ impl CarbonCreditsValidator for DummyValidator {
 		_project_id: Self::ProjectId,
 		_group_id: Self::GroupId,
 		_amount: Self::Amount,
+		_retirement_reason: Option<Vec<u8>>,
 	) -> DispatchResult {
 		Ok(())
 	}

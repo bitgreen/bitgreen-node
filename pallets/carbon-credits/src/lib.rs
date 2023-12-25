@@ -237,7 +237,7 @@ pub mod pallet {
 	#[pallet::storage]
 	#[pallet::getter(fn retired_carbon_credits)]
 	/// The retired CarbonCredits record
-	pub(super) type RetiredCredits<T: Config> = StorageDoubleMap<
+	pub type RetiredCredits<T: Config> = StorageDoubleMap<
 		_,
 		Blake2_128Concat,
 		T::AssetId,
@@ -358,6 +358,8 @@ pub mod pallet {
 		CannotUpdateUnapprovedProject,
 		/// The project approval status has been processed
 		ApprovalAlreadyProcessed,
+		/// Retirement reason out of bounds
+		RetirementReasonOutOfBounds,
 	}
 
 	#[pallet::call]
@@ -438,7 +440,7 @@ pub mod pallet {
 			project_id: T::ProjectId,
 			group_id: T::GroupId,
 			amount: T::Balance,
-			reason: ShortStringOf<T>,
+			reason: Option<Vec<u8>>,
 		) -> DispatchResult {
 			let sender = ensure_signed(origin)?;
 			Self::check_kyc_approval(&sender)?;
@@ -640,7 +642,8 @@ impl<T: Config> primitives::CarbonCreditsValidator for Pallet<T> {
 		project_id: Self::ProjectId,
 		group_id: Self::GroupId,
 		amount: Self::Amount,
+		reason: Option<sp_std::vec::Vec<u8>>,
 	) -> DispatchResult {
-		Self::retire_carbon_credits(sender, project_id, group_id, amount, Default::default())
+		Self::retire_carbon_credits(sender, project_id, group_id, amount, reason)
 	}
 }

@@ -25,7 +25,6 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 #![allow(clippy::type_complexity, clippy::too_many_arguments)]
 use codec::{Decode, Encode, MaxEncodedLen};
-
 use sp_runtime::RuntimeDebug;
 
 pub use pallet::*;
@@ -698,6 +697,7 @@ pub mod pallet {
 			order_id: BuyOrderId,
 			chain_id: u32,
 			tx_proof: BoundedVec<u8, T::MaxTxHashLen>,
+			retirement_reason: Option<sp_std::vec::Vec<u8>>,
 		) -> DispatchResult {
 			let sender = ensure_signed(origin)?;
 			Self::check_validator_account(&sender)?;
@@ -796,6 +796,7 @@ pub mod pallet {
 								project_id,
 								group_id,
 								order.units,
+								retirement_reason,
 							)?;
 						}
 

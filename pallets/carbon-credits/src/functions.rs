@@ -503,7 +503,7 @@ impl<T: Config> Pallet<T> {
 		project_id: T::ProjectId,
 		group_id: T::GroupId,
 		amount: T::Balance,
-		reason: ShortStringOf<T>,
+		reason: Option<Vec<u8>>,
 	) -> DispatchResult {
 		let now = frame_system::Pallet::<T>::block_number();
 
@@ -606,13 +606,22 @@ impl<T: Config> Pallet<T> {
 				item_id.checked_add(&One::one()).ok_or(Error::<T>::Overflow)?;
 			NextItemId::<T>::insert::<T::AssetId, T::ItemId>(group.asset_id, next_item_id);
 
+			let ret_reason: ShortStringOf<T> = if reason.is_none() {
+				Default::default()
+			} else {
+				reason
+					.expect("Checked above!")
+					.try_into()
+					.map_err(|_| Error::<T>::RetirementReasonOutOfBounds)?
+			};
+
 			// form the retire CarbonCredits data
 			let retired_carbon_credit_data = RetiredCarbonCreditsData::<T> {
 				account: from.clone(),
 				retire_data: batch_retire_data_list.clone(),
 				timestamp: now,
 				count: amount,
-				reason: reason.clone(),
+				reason: ret_reason.clone(),
 			};
 
 			//Store the details of retired batches in storage
@@ -626,7 +635,7 @@ impl<T: Config> Pallet<T> {
 				account: from,
 				amount,
 				retire_data: batch_retire_data_list,
-				reason,
+				reason: ret_reason,
 			});
 
 			Ok(())
