@@ -6622,6 +6622,7 @@ dependencies = [
 name = "pallet-kyc"
 version = "0.0.1"
 dependencies = [
+ "bitgreen-primitives",
  "frame-benchmarking",
  "frame-support",
  "frame-system",

@@ -33,7 +33,7 @@ use frame_system::{
 	EnsureRoot, EnsureSigned,
 };
 use orml_traits::parameter_type_with_key;
-use pallet_contracts::weights::WeightInfo;
+//use pallet_contracts::weights::WeightInfo;
 use polkadot_runtime_common::{BlockHashCount, SlowAdjustingFeeUpdate};
 pub use primitives::{
 	currency::*,
@@ -495,9 +495,6 @@ impl pallet_kyc::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type Currency = Balances;
 	type PalletId = KYCPalletId;
-	type MaxMembers = ConstU32<100_000>;
-	type MembershipChanged = ();
-	type MembershipInitialized = ();
 	type MaxAuthorizedAccountCount = ConstU32<100>;
 	type WeightInfo = ();
 }
@@ -525,7 +522,7 @@ impl pallet_carbon_credits::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type ForceOrigin = EnsureRoot<AccountId>;
 	type ItemId = u32;
-	type KYCProvider = KYC;
+	type KYCProvider = KYCPallet;
 	type MarketplaceEscrow = MarketplaceEscrowAccount;
 	type MaxAuthorizedAccountCount = MaxAuthorizedAccountCount;
 	type MaxDocumentCount = MaxDocumentCount;
@@ -679,7 +676,7 @@ impl pallet_identity::Config for Runtime {
 	type WeightInfo = ();
 }
 
-/// TODO : Disabled since randomness flip was marked as insecure
+// TODO : Disabled since randomness flip was marked as insecure
 
 // // Prints debug output of the `contracts` pallet to stdout if the node is
 // // started with `-lruntime::contracts=debug`.
@@ -777,7 +774,7 @@ impl pallet_dex::Config for Runtime {
 	type PalletId = DexPalletId;
 	type AssetValidator = CarbonCredits;
 	type MinPricePerUnit = MinPricePerUnit;
-	type KYCProvider = KYC;
+	type KYCProvider = KYCPallet;
 	type MinUnitsToCreateSellOrder = MinUnitsToCreateSellOrder;
 	type ForceOrigin = EnsureRoot<AccountId>;
 	type MaxValidators = MaxValidators;
@@ -941,10 +938,7 @@ impl pallet_general_storage::Config for Runtime {
 
 // Create the runtime by composing the FRAME pallets that were previously configured.
 construct_runtime!(
-	pub enum Runtime where
-		Block = Block,
-		NodeBlock = opaque::Block,
-		UncheckedExtrinsic = UncheckedExtrinsic,
+	pub enum Runtime
 	{
 		// System support stuff.
 		System: frame_system::{Pallet, Call, Config<T>, Storage, Event<T>} = 0,
@@ -987,7 +981,7 @@ construct_runtime!(
 		//Contracts: pallet_contracts::{Pallet, Call, Storage, Event<T>} = 58,
 		Multisig: pallet_multisig::{Pallet, Call, Storage, Event<T>} = 59,
 		Dex: pallet_dex::{Pallet, Call, Storage, Event<T>} = 60,
-		KYC: pallet_kyc::{Pallet, Call, Storage, Config<T>, Event<T>} = 66,
+		KYCPallet: pallet_kyc::{Pallet, Call, Storage, Config<T>, Event<T>} = 68,
 		GeneralStorage: pallet_general_storage::{Pallet, Call, Storage, Event<T>} = 67,
 
 		// Utility pallets

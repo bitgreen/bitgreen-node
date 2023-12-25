@@ -252,7 +252,7 @@ fn testnet_genesis(
 			safe_xcm_version: Some(SAFE_XCM_VERSION),
 			..Default::default()
 		},
-		kyc: bitgreen_runtime::KYCConfig {
+		kyc_pallet: bitgreen_runtime::KYCPalletConfig {
 			members: [].to_vec().try_into().unwrap(),
 			phantom: Default::default(),
 		},

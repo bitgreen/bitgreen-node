@@ -3,6 +3,7 @@ use frame_support::{traits::fungibles::Inspect, BoundedVec};
 use frame_system::pallet_prelude::BlockNumberFor;
 use orml_traits::MultiCurrency;
 use primitives::CarbonCreditsValidator;
+pub use primitives::UserLevel;
 use sp_runtime::traits::Get;
 
 pub type CurrencyBalanceOf<T> =
@@ -132,11 +133,3 @@ pub struct PayoutExecutedToSeller<
 pub type OrderId = u128;
 
 pub type BuyOrderId = u128;
-
-#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, Default, MaxEncodedLen, TypeInfo)]
-pub enum UserLevel {
-	#[default]
-	KYCLevel1,
-	KYCLevel2,
-	Whitelist,
-}
