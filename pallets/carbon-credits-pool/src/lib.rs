@@ -411,7 +411,7 @@ pub mod pallet {
 							project_id,
 							group_id,
 							actual,
-							Default::default(),
+							None,
 						)?;
 
 						// Update value in storage
