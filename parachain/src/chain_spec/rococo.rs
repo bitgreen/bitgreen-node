@@ -160,7 +160,7 @@ fn rococo_genesis(
 			safe_xcm_version: Some(SAFE_XCM_VERSION),
 			..Default::default()
 		},
-		kyc: bitgreen_rococo_runtime::KYCConfig {
+		kyc_pallet: bitgreen_rococo_runtime::KYCPalletConfig {
 			members: [].to_vec().try_into().unwrap(),
 			phantom: Default::default(),
 		},

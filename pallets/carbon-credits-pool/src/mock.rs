@@ -5,15 +5,13 @@
 use codec::{Decode, Encode, MaxEncodedLen};
 use frame_support::{
 	parameter_types,
-	traits::{AsEnsureOriginWithArg, BuildGenesisConfig, ConstU128, ConstU32, Everything},
-	BoundedVec, PalletId,
+	traits::{AsEnsureOriginWithArg, ConstU128, ConstU32},
+	PalletId,
 };
-use frame_system as system;
 use frame_system::{EnsureRoot, EnsureSigned};
 use scale_info::TypeInfo;
 use sp_core::{ConstU16, ConstU64, H256};
 use sp_runtime::{
-	testing::Header,
 	traits::{AccountIdConversion, BlakeTwo256, IdentityLookup},
 	BuildStorage,
 };

@@ -54,7 +54,6 @@ impl frame_system::Config for Test {
 	type Hashing = BlakeTwo256;
 	type AccountId = u64;
 	type Lookup = IdentityLookup<Self::AccountId>;
-
 	type RuntimeEvent = RuntimeEvent;
 	type BlockHashCount = ConstU64<250>;
 	type Version = ();
@@ -145,6 +144,7 @@ impl CarbonCreditsValidator for DummyValidator {
 		_project_id: Self::ProjectId,
 		_group_id: Self::GroupId,
 		_amount: Self::Amount,
+		_retirement_reason: Option<Vec<u8>>,
 	) -> DispatchResult {
 		Ok(())
 	}

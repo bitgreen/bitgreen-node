@@ -141,3 +141,28 @@ impl TryFrom<u8> for CurrencyId {
 		}
 	}
 }
+
+#[derive(
+	Clone,
+	Encode,
+	Decode,
+	Eq,
+	PartialEq,
+	RuntimeDebug,
+	Default,
+	MaxEncodedLen,
+	TypeInfo,
+	Serialize,
+	Deserialize,
+)]
+pub enum UserLevel {
+	#[default]
+	// Default KYC level
+	KYCLevel1,
+	// KYC approved via provider
+	KYCLevel2,
+	// KYC approved for bank-wire
+	KYCLevel3,
+	// KYC approved as accredited investor
+	KYCLevel4,
+}

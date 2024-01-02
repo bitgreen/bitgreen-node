@@ -2,7 +2,7 @@ use super::*;
 use frame_support::{pallet_prelude::Get, BoundedVec};
 pub type IssuanceYear = u16;
 use frame_support::pallet_prelude::DispatchResult;
-use sp_std::fmt::Debug;
+use sp_std::{fmt::Debug, vec::Vec};
 
 /// The possible values for Registry Names
 #[derive(Clone, Encode, Decode, Eq, PartialEq, Debug, TypeInfo, MaxEncodedLen)]
@@ -189,6 +189,7 @@ pub trait CarbonCreditsValidator {
 		project_id: Self::ProjectId,
 		group_id: Self::GroupId,
 		amount: Self::Amount,
+		retirement_reason: Option<Vec<u8>>,
 	) -> DispatchResult;
 }
 
