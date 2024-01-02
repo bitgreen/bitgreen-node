@@ -3,6 +3,7 @@
 // This code is licensed under MIT license (see LICENSE.txt for details)
 //
 use crate::*;
+use frame_system::pallet_prelude::BlockNumberFor;
 
 impl<T: Config> Pallet<T> {
 	/// The account ID of the CarbonCredits pallet
@@ -22,7 +23,7 @@ impl<T: Config> Pallet<T> {
 
 	pub fn do_add_new_contract(
 		recipient: T::AccountId,
-		expiry: T::BlockNumber,
+		expiry: BlockNumberFor<T>,
 		amount: BalanceOf<T>,
 	) -> DispatchResult {
 		// ensure the expiry is in the future

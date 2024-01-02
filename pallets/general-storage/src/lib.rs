@@ -21,7 +21,7 @@ pub mod pallet {
 	use frame_system::pallet_prelude::*;
 
 	#[pallet::pallet]
-	#[pallet::generate_store(pub(super) trait Store)]
+
 	pub struct Pallet<T>(_);
 
 	/// Configure the pallet by specifying the parameters and types on which it depends.
@@ -85,6 +85,7 @@ pub mod pallet {
 	impl<T: Config> Pallet<T> {
 		/// An example dispatchable that takes a singles value as a parameter, writes the value to
 		/// storage and emits an event. This function must be dispatched by a signed extrinsic.
+		#[pallet::call_index(0)]
 		#[pallet::weight(10_000 + T::DbWeight::get().writes(1).ref_time())]
 		pub fn store_data(
 			origin: OriginFor<T>,
@@ -111,6 +112,7 @@ pub mod pallet {
 		}
 
 		/// An example dispatchable that may throw a custom error.
+		#[pallet::call_index(1)]
 		#[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1).ref_time())]
 		pub fn clear_data(origin: OriginFor<T>, key: KeyOf<T>) -> DispatchResult {
 			let who = ensure_signed(origin)?;

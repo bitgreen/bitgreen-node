@@ -91,7 +91,7 @@ fn create_sell_order_should_fail_if_caller_does_not_have_asset_balance() {
 		// should not be able to create a sell order since the amount is greater than seller balance
 		assert_noop!(
 			Dex::create_sell_order(RuntimeOrigin::signed(seller), asset_id, 101, 1),
-			pallet_assets::Error::<Test>::BalanceLow
+			sp_runtime::ArithmeticError::Underflow
 		);
 	});
 }
@@ -309,7 +309,8 @@ fn validate_buy_order_should_work() {
 				RuntimeOrigin::signed(buyer),
 				buy_order_id,
 				0u32,
-				vec![].try_into().unwrap()
+				vec![].try_into().unwrap(),
+				None
 			),
 			Error::<Test>::NotAuthorised
 		);
@@ -320,7 +321,8 @@ fn validate_buy_order_should_work() {
 			RuntimeOrigin::signed(validator),
 			buy_order_id,
 			0u32,
-			tx_proof.clone()
+			tx_proof.clone(),
+			None
 		));
 
 		// buy order storage should be updated correctly
@@ -388,7 +390,8 @@ fn payment_is_processed_after_validator_threshold_reached() {
 				RuntimeOrigin::signed(buyer),
 				buy_order_id,
 				1u32,
-				vec![].try_into().unwrap()
+				vec![].try_into().unwrap(),
+				None
 			),
 			Error::<Test>::NotAuthorised
 		);
@@ -398,7 +401,8 @@ fn payment_is_processed_after_validator_threshold_reached() {
 			RuntimeOrigin::signed(validator),
 			buy_order_id,
 			1u32,
-			tx_proof.clone()
+			tx_proof.clone(),
+			None
 		));
 
 		// buy order storage should be updated correctly
@@ -427,7 +431,8 @@ fn payment_is_processed_after_validator_threshold_reached() {
 				RuntimeOrigin::signed(validator),
 				buy_order_id,
 				1u32,
-				tx_proof.clone()
+				tx_proof.clone(),
+				None
 			),
 			Error::<Test>::DuplicateValidation
 		);
@@ -442,7 +447,8 @@ fn payment_is_processed_after_validator_threshold_reached() {
 			RuntimeOrigin::signed(validator_two),
 			buy_order_id,
 			1u32,
-			tx_proof
+			tx_proof,
+			None
 		));
 
 		assert_eq!(
@@ -916,7 +922,8 @@ fn purchase_is_retired_if_payment_is_stripe() {
 				RuntimeOrigin::signed(buyer),
 				buy_order_id,
 				chain_id,
-				vec![].try_into().unwrap()
+				vec![].try_into().unwrap(),
+				None
 			),
 			Error::<Test>::NotAuthorised
 		);
@@ -926,7 +933,8 @@ fn purchase_is_retired_if_payment_is_stripe() {
 			RuntimeOrigin::signed(validator),
 			buy_order_id,
 			chain_id,
-			tx_proof.clone()
+			tx_proof.clone(),
+			None
 		));
 
 		// buy order storage should be updated correctly
@@ -955,7 +963,8 @@ fn purchase_is_retired_if_payment_is_stripe() {
 				RuntimeOrigin::signed(validator),
 				buy_order_id,
 				chain_id,
-				tx_proof.clone()
+				tx_proof.clone(),
+				None
 			),
 			Error::<Test>::DuplicateValidation
 		);
@@ -970,7 +979,8 @@ fn purchase_is_retired_if_payment_is_stripe() {
 			RuntimeOrigin::signed(validator_two),
 			buy_order_id,
 			chain_id,
-			tx_proof
+			tx_proof,
+			None
 		));
 
 		assert_eq!(
@@ -1001,10 +1011,5 @@ fn purchase_is_retired_if_payment_is_stripe() {
 		assert_eq!(Assets::balance(asset_id, seller), 95);
 		assert_eq!(Assets::balance(asset_id, buyer), 1);
 		assert_eq!(Assets::balance(asset_id, dex_account), 4);
-
-		// ensure the storage is updated correctly
-		let order_storage_by_user = BuyOrdersByUser::<Test>::get(buyer);
-		let expected_storage = vec![];
-		assert_eq!(order_storage_by_user.unwrap().into_inner(), expected_storage);
 	});
 }

@@ -51,8 +51,13 @@ pub mod pallet {
 	use frame_support::{
 		dispatch::DispatchResultWithPostInfo,
 		pallet_prelude::*,
-		traits::tokens::fungibles::{metadata::Mutate as MetadataMutate, Create, Mutate, Transfer},
-		transactional, PalletId,
+		traits::tokens::{
+			fungibles::{metadata::Mutate as MetadataMutate, Create, Mutate},
+			Fortitude::Polite,
+			Precision::Exact,
+			Preservation::Protect,
+		},
+		PalletId,
 	};
 	use frame_system::pallet_prelude::*;
 	use sp_runtime::traits::{AccountIdConversion, CheckedAdd, CheckedSub, Zero};
@@ -81,8 +86,7 @@ pub mod pallet {
 		// Asset manager config
 		type AssetHandler: Create<Self::AccountId, AssetId = Self::AssetId, Balance = Self::Balance>
 			+ Mutate<Self::AccountId>
-			+ MetadataMutate<Self::AccountId>
-			+ Transfer<Self::AccountId>;
+			+ MetadataMutate<Self::AccountId>;
 
 		/// The origin which may forcibly perform privileged calls
 		type ForceOrigin: EnsureOrigin<Self::RuntimeOrigin>;
@@ -104,7 +108,7 @@ pub mod pallet {
 	}
 
 	#[pallet::pallet]
-	#[pallet::generate_store(pub(super) trait Store)]
+
 	pub struct Pallet<T>(_);
 
 	#[pallet::storage]
@@ -160,7 +164,7 @@ pub mod pallet {
 		/// config : Config values for new pool
 		/// max_limit : Limit of maximum project-ids the pool can support, default to
 		/// T::MaxProjectIdLIst asset_symbol : Symbol for asset created for the pool
-		#[transactional]
+		#[pallet::call_index(0)]
 		#[pallet::weight(<T as pallet::Config>::WeightInfo::create())]
 		pub fn create(
 			origin: OriginFor<T>,
@@ -228,7 +232,7 @@ pub mod pallet {
 		/// pool_id : Id of the pool to deposit into
 		/// project_id : The project_id of the CarbonCredits being deposited
 		/// amount: The amount of CarbonCredits to deposit
-		#[transactional]
+		#[pallet::call_index(1)]
 		#[pallet::weight(<T as pallet::Config>::WeightInfo::deposit())]
 		pub fn deposit(
 			origin: OriginFor<T>,
@@ -286,7 +290,7 @@ pub mod pallet {
 					&who,
 					&Self::account_id(),
 					amount,
-					false,
+					Protect,
 				)?;
 
 				// add the project to the credits pool
@@ -344,7 +348,7 @@ pub mod pallet {
 		/// Params:
 		/// pool_id : Id of the pooltokens to retire
 		/// amount: The amount of CarbonCredits to deposit
-		#[transactional]
+		#[pallet::call_index(2)]
 		#[pallet::weight(<T as pallet::Config>::WeightInfo::retire())]
 		pub fn retire(
 			origin: OriginFor<T>,
@@ -359,7 +363,13 @@ pub mod pallet {
 				let pool = pool.as_mut().ok_or(Error::<T>::InvalidPoolId)?;
 
 				// Burn the amount of pool tokens from caller
-				<T as pallet::Config>::AssetHandler::burn_from(pool_id.into(), &who, amount)?;
+				<T as pallet::Config>::AssetHandler::burn_from(
+					pool_id.into(),
+					&who,
+					amount,
+					Exact,
+					Polite,
+				)?;
 
 				let mut remaining = amount;
 
@@ -393,7 +403,7 @@ pub mod pallet {
 							&Self::account_id(),
 							&who,
 							actual,
-							false,
+							Protect,
 						)?;
 						// Retire the transferred tokens
 						pallet_carbon_credits::Pallet::<T>::retire_carbon_credits(
@@ -401,7 +411,7 @@ pub mod pallet {
 							project_id,
 							group_id,
 							actual,
-							Default::default(),
+							None,
 						)?;
 
 						// Update value in storage
@@ -430,8 +440,8 @@ pub mod pallet {
 		}
 
 		/// Force modify pool storage
-		#[transactional]
-		#[pallet::weight(Weight::from_ref_time(10_000_u64) + T::DbWeight::get().writes(1))]
+		#[pallet::call_index(3)]
+		#[pallet::weight(Weight::from_parts(10_000_u64, 0) + T::DbWeight::get().writes(1))]
 		pub fn force_set_pool_storage(
 			origin: OriginFor<T>,
 			pool_id: T::PoolId,

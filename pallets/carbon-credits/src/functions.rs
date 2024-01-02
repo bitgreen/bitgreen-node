@@ -10,6 +10,8 @@ use frame_support::{
 		tokens::{
 			fungibles::{metadata::Mutate as MetadataMutate, Create, Mutate},
 			nonfungibles::{Create as NFTCreate, Mutate as NFTMutate},
+			Fortitude::Polite,
+			Precision::Exact,
 		},
 		Contains, Get,
 	},
@@ -73,7 +75,7 @@ impl<T: Config> Pallet<T> {
 
 				let mut created_asset_ids: Vec<T::AssetId> = Default::default();
 
-				for (group_id, mut group) in project.batch_groups.iter_mut() {
+				for (group_id, group) in project.batch_groups.iter_mut() {
 					let asset_id = Self::next_asset_id();
 					let next_asset_id =
 						asset_id.checked_add(&1u32.into()).ok_or(Error::<T>::Overflow)?;
@@ -203,6 +205,7 @@ impl<T: Config> Pallet<T> {
 				created: now,
 				updated: None,
 				approved: ProjectApprovalStatus::Pending,
+				project_type: params.project_type,
 			};
 
 			*project = Some(new_project);
@@ -222,11 +225,11 @@ impl<T: Config> Pallet<T> {
 		Projects::<T>::try_mutate(project_id, |project| -> DispatchResult {
 			let project = project.as_mut().ok_or(Error::<T>::ProjectNotFound)?;
 
-			// approved projects cannot be modified
-			ensure!(project.approved.is_rejected(), Error::<T>::CannotModifyApprovedProject);
-
 			// only originator can resubmit
 			ensure!(project.originator == admin, Error::<T>::NotAuthorised);
+
+			// approved projects cannot be modified
+			ensure!(!project.approved.is_approved(), Error::<T>::CannotModifyApprovedProject);
 
 			let mut batch_group_map: BoundedBTreeMap<_, _, _> = Default::default();
 			let mut group_id: T::GroupId = 0u32.into();
@@ -287,6 +290,7 @@ impl<T: Config> Pallet<T> {
 				created: project.created,
 				updated: Some(now),
 				approved: ProjectApprovalStatus::Pending,
+				project_type: params.project_type,
 			};
 
 			*project = new_project;
@@ -333,6 +337,7 @@ impl<T: Config> Pallet<T> {
 				created: project.created,
 				updated: Some(now),
 				approved: project.approved,
+				project_type: params.project_type,
 			};
 
 			*project = new_project;
@@ -428,8 +433,7 @@ impl<T: Config> Pallet<T> {
 			ensure!(project.approved.is_approved(), Error::<T>::ProjectNotApproved);
 
 			// ensure the group exists
-			let mut group =
-				project.batch_groups.get_mut(&group_id).ok_or(Error::<T>::GroupNotFound)?;
+			let group = project.batch_groups.get_mut(&group_id).ok_or(Error::<T>::GroupNotFound)?;
 
 			// ensure the amount_to_mint does not exceed limit
 			let projected_total_supply =
@@ -499,7 +503,7 @@ impl<T: Config> Pallet<T> {
 		project_id: T::ProjectId,
 		group_id: T::GroupId,
 		amount: T::Balance,
-		reason: ShortStringOf<T>,
+		reason: Option<Vec<u8>>,
 	) -> DispatchResult {
 		let now = frame_system::Pallet::<T>::block_number();
 
@@ -515,11 +519,10 @@ impl<T: Config> Pallet<T> {
 			ensure!(project.approved.is_approved(), Error::<T>::ProjectNotApproved);
 
 			// ensure the group exists
-			let mut group =
-				project.batch_groups.get_mut(&group_id).ok_or(Error::<T>::GroupNotFound)?;
+			let group = project.batch_groups.get_mut(&group_id).ok_or(Error::<T>::GroupNotFound)?;
 
 			// attempt to burn the tokens from the caller
-			T::AssetHandler::burn_from(group.asset_id, &from, amount)?;
+			T::AssetHandler::burn_from(group.asset_id, &from, amount, Exact, Polite)?;
 
 			// reduce the supply of the CarbonCredits
 			group.retired =
@@ -603,13 +606,22 @@ impl<T: Config> Pallet<T> {
 				item_id.checked_add(&One::one()).ok_or(Error::<T>::Overflow)?;
 			NextItemId::<T>::insert::<T::AssetId, T::ItemId>(group.asset_id, next_item_id);
 
+			let ret_reason: ShortStringOf<T> = if reason.is_none() {
+				Default::default()
+			} else {
+				reason
+					.expect("Checked above!")
+					.try_into()
+					.map_err(|_| Error::<T>::RetirementReasonOutOfBounds)?
+			};
+
 			// form the retire CarbonCredits data
 			let retired_carbon_credit_data = RetiredCarbonCreditsData::<T> {
 				account: from.clone(),
 				retire_data: batch_retire_data_list.clone(),
 				timestamp: now,
 				count: amount,
-				reason: reason.clone(),
+				reason: ret_reason.clone(),
 			};
 
 			//Store the details of retired batches in storage
@@ -623,7 +635,7 @@ impl<T: Config> Pallet<T> {
 				account: from,
 				amount,
 				retire_data: batch_retire_data_list,
-				reason,
+				reason: ret_reason,
 			});
 
 			Ok(())

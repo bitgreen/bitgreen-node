@@ -1,8 +1,9 @@
 use super::*;
 use codec::{Decode, Encode, MaxEncodedLen};
-use frame_support::{pallet_prelude::Get, BoundedVec, RuntimeDebug};
-#[cfg(feature = "std")]
+use frame_support::{pallet_prelude::Get, BoundedVec};
+use frame_system::pallet_prelude::BlockNumberFor;
 use serde::{Deserialize, Serialize};
+use sp_runtime::RuntimeDebug;
 
 /// Basic information about a collation candidate.
 #[derive(
@@ -16,8 +17,9 @@ use serde::{Deserialize, Serialize};
 	MaxEncodedLen,
 	Ord,
 	PartialOrd,
+	Serialize,
+	Deserialize,
 )]
-#[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 pub struct CandidateInfo<AccountId, Balance, DelegationInfo, MaxDelegators: Get<u32>> {
 	/// Account identifier.
 	pub who: AccountId,
@@ -41,8 +43,9 @@ pub struct CandidateInfo<AccountId, Balance, DelegationInfo, MaxDelegators: Get<
 	MaxEncodedLen,
 	PartialOrd,
 	Ord,
+	Serialize,
+	Deserialize,
 )]
-#[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 pub struct DelegationInfo<AccountId, Balance> {
 	/// Account identifier.
 	pub who: AccountId,
@@ -62,8 +65,9 @@ pub struct DelegationInfo<AccountId, Balance> {
 	MaxEncodedLen,
 	PartialOrd,
 	Ord,
+	Serialize,
+	Deserialize,
 )]
-#[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 pub struct UnbondedDelegationInfo<Balance, BlockNumber> {
 	/// Reserved deposit.
 	pub deposit: Balance,
@@ -83,8 +87,9 @@ pub struct UnbondedDelegationInfo<Balance, BlockNumber> {
 	MaxEncodedLen,
 	Ord,
 	PartialOrd,
+	Serialize,
+	Deserialize,
 )]
-#[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 pub struct UnbondedCandidateInfo<Balance, DelegationInfo, MaxDelegators: Get<u32>, BlockNumber> {
 	/// Reserved deposit from candidate
 	pub deposit: Balance,
@@ -105,12 +110,11 @@ pub type CandidateInfoOf<T> = CandidateInfo<
 	<T as Config>::MaxDelegators,
 >;
 
-pub type UnbondedDelegationInfoOf<T> =
-	UnbondedDelegationInfo<BalanceOf<T>, <T as frame_system::Config>::BlockNumber>;
+pub type UnbondedDelegationInfoOf<T> = UnbondedDelegationInfo<BalanceOf<T>, BlockNumberFor<T>>;
 
 pub type UnbondedCandidateInfoOf<T> = UnbondedCandidateInfo<
 	BalanceOf<T>,
 	DelegationInfoOf<T>,
 	<T as Config>::MaxDelegators,
-	<T as frame_system::Config>::BlockNumber,
+	BlockNumberFor<T>,
 >;

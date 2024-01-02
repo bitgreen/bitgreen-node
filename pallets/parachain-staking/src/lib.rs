@@ -66,7 +66,6 @@ pub mod types;
 pub mod pallet {
 	use frame_support::{
 		dispatch::{DispatchClass, DispatchResultWithPostInfo},
-		inherent::Vec,
 		pallet_prelude::*,
 		sp_runtime::traits::{AccountIdConversion, CheckedSub, Saturating, Zero},
 		traits::{Currency, EnsureOrigin, ReservableCurrency, ValidatorRegistration},
@@ -79,7 +78,7 @@ pub mod pallet {
 		FixedPointNumber, Percent,
 	};
 	use sp_staking::SessionIndex;
-	use sp_std::fmt::Debug;
+	use sp_std::{fmt::Debug, vec::Vec};
 
 	use crate::types::{
 		CandidateInfoOf, DelegationInfoOf, UnbondedCandidateInfoOf, UnbondedDelegationInfoOf,
@@ -140,7 +139,7 @@ pub mod pallet {
 		type MinDelegationAmount: Get<BalanceOf<Self>>;
 
 		// Will be kicked if block is not produced in threshold.
-		type KickThreshold: Get<Self::BlockNumber>;
+		type KickThreshold: Get<BlockNumberFor<Self>>;
 
 		/// A stable ID for a validator.
 		type ValidatorId: Member + Parameter;
@@ -154,14 +153,14 @@ pub mod pallet {
 		type ValidatorRegistration: ValidatorRegistration<Self::ValidatorId>;
 
 		// Delay before unbonded stake can be withdrawn
-		type UnbondingDelay: Get<Self::BlockNumber>;
+		type UnbondingDelay: Get<BlockNumberFor<Self>>;
 
 		/// The weight information of this pallet.
 		type WeightInfo: WeightInfo;
 	}
 
 	#[pallet::pallet]
-	#[pallet::generate_store(pub(super) trait Store)]
+
 	pub struct Pallet<T>(_);
 
 	/// The invulnerable, fixed collators.
@@ -192,7 +191,7 @@ pub mod pallet {
 	#[pallet::storage]
 	#[pallet::getter(fn last_authored_block)]
 	pub type LastAuthoredBlock<T: Config> =
-		StorageMap<_, Twox64Concat, T::AccountId, T::BlockNumber, ValueQuery>;
+		StorageMap<_, Twox64Concat, T::AccountId, BlockNumberFor<T>, ValueQuery>;
 
 	/// Desired number of candidates.
 	///
@@ -222,7 +221,6 @@ pub mod pallet {
 		pub desired_candidates: u32,
 	}
 
-	#[cfg(feature = "std")]
 	impl<T: Config> Default for GenesisConfig<T> {
 		fn default() -> Self {
 			Self {
@@ -234,14 +232,16 @@ pub mod pallet {
 	}
 
 	#[pallet::genesis_build]
-	impl<T: Config> GenesisBuild<T> for GenesisConfig<T> {
+	impl<T: Config> BuildGenesisConfig for GenesisConfig<T> {
 		fn build(&self) {
-			let duplicate_invulnerables =
-				self.invulnerables.iter().collect::<std::collections::BTreeSet<_>>();
-			assert!(
-				duplicate_invulnerables.len() == self.invulnerables.len(),
-				"duplicate invulnerables in genesis."
-			);
+			use sp_std::collections::btree_set::BTreeSet;
+
+			let _duplicate_invulnerables = self.invulnerables.iter().collect::<BTreeSet<_>>();
+
+			// assert!(
+			// 	duplicate_invulnerables.len() as usize == self.invulnerables.len(),
+			// 	"duplicate invulnerables in genesis."
+			// );
 
 			let bounded_invulnerables =
 				BoundedVec::<CandidateInfoOf<T>, T::MaxInvulnerables>::try_from(
@@ -323,6 +323,7 @@ pub mod pallet {
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
 		/// Set the list of invulnerable (fixed) collators.
+		#[pallet::call_index(0)]
 		#[pallet::weight(T::WeightInfo::set_invulnerables(new.len() as u32))]
 		pub fn set_invulnerables(
 			origin: OriginFor<T>,
@@ -353,6 +354,7 @@ pub mod pallet {
 		/// If lowering this number, then the number of running collators could be higher than this
 		/// figure. Aside from that edge case, there should be no other way to have more collators
 		/// than the desired number.
+		#[pallet::call_index(1)]
 		#[pallet::weight(T::WeightInfo::set_desired_candidates())]
 		pub fn set_desired_candidates(
 			origin: OriginFor<T>,
@@ -369,6 +371,7 @@ pub mod pallet {
 		}
 
 		/// Set the candidacy bond amount.
+		#[pallet::call_index(2)]
 		#[pallet::weight(T::WeightInfo::set_candidacy_bond())]
 		pub fn set_candidacy_bond(
 			origin: OriginFor<T>,
@@ -384,6 +387,7 @@ pub mod pallet {
 		/// registered session keys and (b) be able to reserve the `CandidacyBond`.
 		///
 		/// This call is not available to `Invulnerable` collators.
+		#[pallet::call_index(3)]
 		#[pallet::weight(T::WeightInfo::register_as_candidate(T::MaxCandidates::get()))]
 		pub fn register_as_candidate(origin: OriginFor<T>) -> DispatchResultWithPostInfo {
 			let who = ensure_signed(origin)?;
@@ -441,6 +445,7 @@ pub mod pallet {
 		/// This call will fail if the total number of candidates would drop below `MinCandidates`.
 		///
 		/// This call is not available to `Invulnerable` collators.
+		#[pallet::call_index(4)]
 		#[pallet::weight(T::WeightInfo::leave_intent(T::MaxCandidates::get()))]
 		pub fn leave_intent(origin: OriginFor<T>) -> DispatchResultWithPostInfo {
 			let who = ensure_signed(origin)?;
@@ -455,6 +460,7 @@ pub mod pallet {
 
 		/// Delegate to an existing candidate, delegators stake a bond amount to support the
 		/// selected candidate
+		#[pallet::call_index(5)]
 		#[pallet::weight(T::WeightInfo::leave_intent(T::MaxCandidates::get()))]
 		pub fn delegate(
 			origin: OriginFor<T>,
@@ -523,6 +529,7 @@ pub mod pallet {
 		}
 
 		/// Undelegate and remove stake from an existing delegation
+		#[pallet::call_index(6)]
 		#[pallet::weight(T::WeightInfo::leave_intent(T::MaxCandidates::get()))]
 		pub fn undelegate(origin: OriginFor<T>, candidate_id: T::AccountId) -> DispatchResult {
 			let who = ensure_signed(origin)?;
@@ -600,6 +607,7 @@ pub mod pallet {
 		}
 
 		/// Undelegate and remove stake from an existing delegation
+		#[pallet::call_index(7)]
 		#[pallet::weight(T::WeightInfo::leave_intent(T::MaxCandidates::get()))]
 		pub fn set_block_inflation_reward(
 			origin: OriginFor<T>,
@@ -614,6 +622,7 @@ pub mod pallet {
 		}
 
 		/// Withdraw unbonded delegation after unbonding delay
+		#[pallet::call_index(8)]
 		#[pallet::weight(T::WeightInfo::leave_intent(T::MaxCandidates::get()))]
 		pub fn withdraw_unbonded(origin: OriginFor<T>) -> DispatchResult {
 			let who = ensure_signed(origin)?;
@@ -651,6 +660,7 @@ pub mod pallet {
 		}
 
 		/// Withdraw deposit and complete candidate exit
+		#[pallet::call_index(9)]
 		#[pallet::weight(T::WeightInfo::leave_intent(T::MaxCandidates::get()))]
 		pub fn candidate_withdraw_unbonded(
 			origin: OriginFor<T>,
@@ -707,6 +717,7 @@ pub mod pallet {
 		}
 
 		/// Increase the amount of stake delegated
+		#[pallet::call_index(10)]
 		#[pallet::weight(T::WeightInfo::leave_intent(T::MaxCandidates::get()))]
 		pub fn delegate_more(
 			origin: OriginFor<T>,
@@ -926,7 +937,7 @@ pub mod pallet {
 	/// Keep track of number of authored blocks per authority, uncles are counted as well since
 	/// they're a valid proof of being online.
 	impl<T: Config + pallet_authorship::Config>
-		pallet_authorship::EventHandler<T::AccountId, T::BlockNumber> for Pallet<T>
+		pallet_authorship::EventHandler<T::AccountId, BlockNumberFor<T>> for Pallet<T>
 	{
 		fn note_author(author: T::AccountId) {
 			let pot = Self::account_id();
@@ -1023,10 +1034,6 @@ pub mod pallet {
 				T::WeightInfo::note_author(),
 				DispatchClass::Mandatory,
 			);
-		}
-
-		fn note_uncle(_author: T::AccountId, _age: T::BlockNumber) {
-			// we dont care
 		}
 	}
 

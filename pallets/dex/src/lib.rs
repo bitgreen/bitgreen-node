@@ -25,8 +25,7 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 #![allow(clippy::type_complexity, clippy::too_many_arguments)]
 use codec::{Decode, Encode, MaxEncodedLen};
-
-use frame_support::RuntimeDebug;
+use sp_runtime::RuntimeDebug;
 
 pub use pallet::*;
 use scale_info::TypeInfo;
@@ -48,10 +47,9 @@ mod types;
 pub mod pallet {
 	use crate::{types::*, WeightInfo};
 	use frame_support::{
-		dispatch::fmt::Debug,
 		pallet_prelude::*,
-		traits::{fungibles::Transfer, Contains},
-		transactional, PalletId,
+		traits::{fungibles::Mutate, tokens::Preservation::Expendable, Contains},
+		PalletId,
 	};
 	use frame_system::pallet_prelude::{OriginFor, *};
 	use orml_traits::MultiCurrency;
@@ -60,9 +58,10 @@ pub mod pallet {
 		traits::{AccountIdConversion, AtLeast32BitUnsigned, CheckedAdd, CheckedSub, One, Zero},
 		Percent, Saturating,
 	};
+	use sp_std::fmt::Debug;
 
 	#[pallet::pallet]
-	#[pallet::generate_store(pub(super) trait Store)]
+
 	pub struct Pallet<T>(_);
 
 	/// Configure the pallet by specifying the parameters and types on which it depends.
@@ -94,7 +93,7 @@ pub mod pallet {
 			+ From<u128>;
 
 		// Asset manager config
-		type Asset: Transfer<Self::AccountId, Balance = Self::AssetBalance>;
+		type Asset: Mutate<Self::AccountId, Balance = Self::AssetBalance>;
 
 		// Token handler config - this is what the pallet accepts as payment
 		type Currency: MultiCurrency<Self::AccountId, Balance = Self::CurrencyBalance>;
@@ -154,7 +153,7 @@ pub mod pallet {
 		type KYCProvider: Contains<Self::AccountId>;
 
 		/// The expiry time for buy order
-		type BuyOrderExpiryTime: Get<Self::BlockNumber>;
+		type BuyOrderExpiryTime: Get<BlockNumberFor<Self>>;
 	}
 
 	// orders information
@@ -368,7 +367,7 @@ pub mod pallet {
 	#[pallet::hooks]
 	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
 		// Look for expired buy orders and remove from storage
-		fn on_idle(block: T::BlockNumber, remaining_weight: Weight) -> Weight {
+		fn on_idle(block: BlockNumberFor<T>, remaining_weight: Weight) -> Weight {
 			let mut remaining_weight = remaining_weight;
 			for (key, buy_order) in BuyOrders::<T>::iter() {
 				remaining_weight = remaining_weight.saturating_sub(T::DbWeight::get().reads(1));
@@ -450,7 +449,7 @@ pub mod pallet {
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
 		/// Create a new sell order for given `asset_id`
-		#[transactional]
+		#[pallet::call_index(0)]
 		#[pallet::weight(T::WeightInfo::create_sell_order())]
 		pub fn create_sell_order(
 			origin: OriginFor<T>,
@@ -469,7 +468,7 @@ pub mod pallet {
 			ensure!(price_per_unit >= T::MinPricePerUnit::get(), Error::<T>::BelowMinimumPrice);
 
 			// transfer assets from seller to pallet
-			T::Asset::transfer(asset_id, &seller, &Self::account_id(), units, false)?;
+			T::Asset::transfer(asset_id.clone(), &seller, &Self::account_id(), units, Expendable)?;
 
 			let order_id = Self::order_count();
 			let next_order_id =
@@ -479,7 +478,12 @@ pub mod pallet {
 			// order values
 			Orders::<T>::insert(
 				order_id,
-				OrderInfo { owner: seller.clone(), units, price_per_unit, asset_id },
+				OrderInfo {
+					owner: seller.clone(),
+					units,
+					price_per_unit,
+					asset_id: asset_id.clone(),
+				},
 			);
 
 			Self::deposit_event(Event::SellOrderCreated {
@@ -496,7 +500,7 @@ pub mod pallet {
 		}
 
 		/// Cancel an existing sell order with `order_id`
-		#[transactional]
+		#[pallet::call_index(1)]
 		#[pallet::weight(T::WeightInfo::cancel_sell_order())]
 		pub fn cancel_sell_order(origin: OriginFor<T>, order_id: OrderId) -> DispatchResult {
 			let seller = ensure_signed(origin.clone())?;
@@ -512,7 +516,7 @@ pub mod pallet {
 				&Self::account_id(),
 				&order.owner,
 				order.units,
-				false,
+				Expendable,
 			)?;
 
 			Self::deposit_event(Event::SellOrderCancelled { order_id, seller });
@@ -521,7 +525,7 @@ pub mod pallet {
 
 		/// Buy `units` of `asset_id` from the given `order_id`
 		/// This will be called by one of the approved validators when an order is created
-		#[transactional]
+		#[pallet::call_index(2)]
 		#[pallet::weight(T::WeightInfo::buy_order())]
 		pub fn create_buy_order(
 			origin: OriginFor<T>,
@@ -655,7 +659,7 @@ pub mod pallet {
 
 		/// Force set PaymentFees value
 		/// Can only be called by ForceOrigin
-		#[transactional]
+		#[pallet::call_index(3)]
 		#[pallet::weight(T::WeightInfo::force_set_payment_fee())]
 		pub fn force_set_payment_fee(origin: OriginFor<T>, payment_fee: Percent) -> DispatchResult {
 			T::ForceOrigin::ensure_origin(origin)?;
@@ -669,7 +673,7 @@ pub mod pallet {
 
 		/// Force set PurchaseFee value
 		/// Can only be called by ForceOrigin
-		#[transactional]
+		#[pallet::call_index(4)]
 		#[pallet::weight(T::WeightInfo::force_set_purchase_fee())]
 		pub fn force_set_purchase_fee(
 			origin: OriginFor<T>,
@@ -686,13 +690,14 @@ pub mod pallet {
 
 		/// Buy `units` of `asset_id` from the given `order_id`
 		/// This will be called by one of the approved validators when an order is created
-		#[transactional]
+		#[pallet::call_index(5)]
 		#[pallet::weight(T::WeightInfo::buy_order())]
 		pub fn validate_buy_order(
 			origin: OriginFor<T>,
 			order_id: BuyOrderId,
 			chain_id: u32,
 			tx_proof: BoundedVec<u8, T::MaxTxHashLen>,
+			retirement_reason: Option<sp_std::vec::Vec<u8>>,
 		) -> DispatchResult {
 			let sender = ensure_signed(origin)?;
 			Self::check_validator_account(&sender)?;
@@ -733,11 +738,11 @@ pub mod pallet {
 
 						// transfer the asset to the buyer
 						T::Asset::transfer(
-							order.asset_id,
+							order.asset_id.clone(),
 							&Self::account_id(),
 							&order.buyer,
 							order.units,
-							false,
+							Expendable,
 						)?;
 
 						// add amount record to the seller
@@ -791,6 +796,7 @@ pub mod pallet {
 								project_id,
 								group_id,
 								order.units,
+								retirement_reason,
 							)?;
 						}
 
@@ -828,7 +834,7 @@ pub mod pallet {
 
 		/// Add a new account to the list of authorised Accounts
 		/// The caller must be from a permitted origin
-		#[transactional]
+		#[pallet::call_index(6)]
 		#[pallet::weight(T::WeightInfo::force_set_purchase_fee())]
 		pub fn force_add_validator_account(
 			origin: OriginFor<T>,
@@ -853,7 +859,7 @@ pub mod pallet {
 		}
 
 		/// Remove an account from the list of authorised accounts
-		#[transactional]
+		#[pallet::call_index(7)]
 		#[pallet::weight(T::WeightInfo::force_set_purchase_fee())]
 		pub fn force_remove_validator_account(
 			origin: OriginFor<T>,
@@ -872,7 +878,7 @@ pub mod pallet {
 		}
 
 		/// Set the minimum validators required to validator a payment
-		#[transactional]
+		#[pallet::call_index(8)]
 		#[pallet::weight(T::WeightInfo::force_set_purchase_fee())]
 		pub fn force_set_min_validations(
 			origin: OriginFor<T>,
@@ -906,7 +912,7 @@ pub mod pallet {
 		/// `SellerPayoutAuthority` storage item.
 		///
 		/// Emits an `Event::SellerPayoutAuthoritySet` event on success.
-		#[transactional]
+		#[pallet::call_index(9)]
 		#[pallet::weight(T::WeightInfo::force_set_purchase_fee())]
 		pub fn force_set_seller_payout_authority(
 			origin: OriginFor<T>,
@@ -940,7 +946,7 @@ pub mod pallet {
 		/// preference for the `seller` will be removed from the storage.
 		///
 		/// Emits an `Event::SellerPayoutPreferenceSet` event on success.
-		#[transactional]
+		#[pallet::call_index(10)]
 		#[pallet::weight(T::WeightInfo::force_set_purchase_fee())]
 		pub fn set_seller_payout_preference(
 			origin: OriginFor<T>,
@@ -988,7 +994,7 @@ pub mod pallet {
 		///   storage map.
 		///
 		/// Emits an `Event::SellerPayoutExecuted` event on success.
-		#[transactional]
+		#[pallet::call_index(11)]
 		#[pallet::weight(T::WeightInfo::force_set_purchase_fee())]
 		pub fn record_payment_to_seller(
 			origin: OriginFor<T>,
@@ -1015,7 +1021,7 @@ pub mod pallet {
 			Ok(())
 		}
 
-		#[transactional]
+		#[pallet::call_index(12)]
 		#[pallet::weight(T::WeightInfo::force_set_purchase_fee())]
 		pub fn force_set_open_order_allowed_limits(
 			origin: OriginFor<T>,
@@ -1029,7 +1035,7 @@ pub mod pallet {
 		}
 
 		/// Set the minimum validators required to validator a payment
-		#[transactional]
+		#[pallet::call_index(13)]
 		#[pallet::weight(T::WeightInfo::force_set_purchase_fee())]
 		pub fn force_clear_buy_orders_per_user(
 			origin: OriginFor<T>,

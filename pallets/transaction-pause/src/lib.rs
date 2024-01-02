@@ -6,10 +6,8 @@
 #![allow(clippy::unused_unit)]
 
 use frame_support::{
-	dispatch::{CallMetadata, GetCallMetadata},
 	pallet_prelude::*,
-	traits::{Contains, PalletInfoAccess},
-	transactional,
+	traits::{CallMetadata, Contains, GetCallMetadata, PalletInfoAccess},
 };
 use frame_system::pallet_prelude::*;
 use sp_runtime::DispatchResult;
@@ -67,12 +65,12 @@ pub mod module {
 	pub struct Pallet<T>(_);
 
 	#[pallet::hooks]
-	impl<T: Config> Hooks<T::BlockNumber> for Pallet<T> {}
+	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {}
 
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
+		#[pallet::call_index(0)]
 		#[pallet::weight(T::WeightInfo::pause_transaction())]
-		#[transactional]
 		pub fn pause_transaction(
 			origin: OriginFor<T>,
 			pallet_name: Vec<u8>,
@@ -103,8 +101,8 @@ pub mod module {
 			Ok(())
 		}
 
+		#[pallet::call_index(1)]
 		#[pallet::weight(T::WeightInfo::unpause_transaction())]
-		#[transactional]
 		pub fn unpause_transaction(
 			origin: OriginFor<T>,
 			pallet_name: Vec<u8>,

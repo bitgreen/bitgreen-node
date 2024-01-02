@@ -1,10 +1,17 @@
 //! BitgreenRococo chain spec
+use super::*;
+use bitgreen_rococo_runtime::{AccountId, AuraId, EXISTENTIAL_DEPOSIT};
 use hex_literal::hex;
 
-use super::*;
-
 pub type RococoChainSpec =
-	sc_service::GenericChainSpec<bitgreen_rococo_runtime::GenesisConfig, Extensions>;
+	sc_service::GenericChainSpec<bitgreen_rococo_runtime::RuntimeGenesisConfig, Extensions>;
+
+/// Generate the session keys from individual elements.
+///
+/// The input must be a tuple of individual keys (a single arg for now since we have just one key).
+pub fn template_session_keys(keys: AuraId) -> bitgreen_rococo_runtime::SessionKeys {
+	bitgreen_rococo_runtime::SessionKeys { aura: keys }
+}
 
 // same as rococo config but for local testing
 pub fn rococo_config_local() -> RococoChainSpec {
@@ -99,12 +106,13 @@ fn rococo_genesis(
 	invulnerables: Vec<(AccountId, AuraId)>,
 	endowed_accounts: Vec<AccountId>,
 	id: ParaId,
-) -> bitgreen_rococo_runtime::GenesisConfig {
-	bitgreen_rococo_runtime::GenesisConfig {
+) -> bitgreen_rococo_runtime::RuntimeGenesisConfig {
+	bitgreen_rococo_runtime::RuntimeGenesisConfig {
 		system: bitgreen_rococo_runtime::SystemConfig {
 			code: bitgreen_rococo_runtime::WASM_BINARY
 				.expect("WASM binary was not build, please build it!")
 				.to_vec(),
+			..Default::default()
 		},
 		balances: bitgreen_rococo_runtime::BalancesConfig {
 			balances: endowed_accounts
@@ -113,7 +121,10 @@ fn rococo_genesis(
 				.map(|k| (k, 1_000_000_000 * 1000000000000000000))
 				.collect(),
 		},
-		parachain_info: bitgreen_rococo_runtime::ParachainInfoConfig { parachain_id: id },
+		parachain_info: bitgreen_rococo_runtime::ParachainInfoConfig {
+			parachain_id: id,
+			..Default::default()
+		},
 		parachain_staking: bitgreen_rococo_runtime::ParachainStakingConfig {
 			invulnerables: invulnerables
 				.iter()
@@ -147,8 +158,9 @@ fn rococo_genesis(
 		parachain_system: Default::default(),
 		polkadot_xcm: bitgreen_rococo_runtime::PolkadotXcmConfig {
 			safe_xcm_version: Some(SAFE_XCM_VERSION),
+			..Default::default()
 		},
-		kyc: bitgreen_rococo_runtime::KYCConfig {
+		kyc_pallet: bitgreen_rococo_runtime::KYCPalletConfig {
 			members: [].to_vec().try_into().unwrap(),
 			phantom: Default::default(),
 		},

@@ -2,42 +2,37 @@
 // Copyright (C) 2022 BitGreen.
 // This code is licensed under MIT license (see LICENSE.txt for details)
 //
+use super::*;
+use crate as collator_selection;
 use crate::types::CandidateInfo;
 use frame_support::{
 	ord_parameter_types, parameter_types,
-	traits::{FindAuthor, GenesisBuild, ValidatorRegistration},
+	traits::{FindAuthor, ValidatorRegistration},
 	PalletId,
 };
-use frame_system as system;
+
 use frame_system::EnsureRoot;
 use scale_info::TypeInfo;
-use sp_core::H256;
+use sp_core::{ConstBool, ConstU16, ConstU32, ConstU64, H256};
 use sp_runtime::{
-	testing::{Header, UintAuthorityId},
+	testing::UintAuthorityId,
 	traits::{BlakeTwo256, IdentityLookup, OpaqueKeys},
-	RuntimeAppPublic,
+	BuildStorage, RuntimeAppPublic,
 };
 
-use super::*;
-use crate as collator_selection;
-
-type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
 type Block = frame_system::mocking::MockBlock<Test>;
 
 // Configure a mock runtime to test the pallet.
 frame_support::construct_runtime!(
-	pub enum Test where
-		Block = Block,
-		NodeBlock = Block,
-		UncheckedExtrinsic = UncheckedExtrinsic,
+	pub enum Test
 	{
-		System: frame_system::{Pallet, Call, Config, Storage, Event<T>},
+		System: frame_system::{Pallet, Call, Config<T>, Storage, Event<T>},
 		Timestamp: pallet_timestamp::{Pallet, Call, Storage, Inherent},
 		Session: pallet_session::{Pallet, Call, Storage, Event, Config<T>},
 		Aura: pallet_aura::{Pallet, Storage, Config<T>},
 		Balances: pallet_balances::{Pallet, Call, Storage, Config<T>, Event<T>},
 		CollatorSelection: collator_selection::{Pallet, Call, Storage, Event<T>},
-		Authorship: pallet_authorship::{Pallet, Call, Storage, Inherent},
+		Authorship: pallet_authorship::{Pallet, Storage},
 	}
 );
 
@@ -46,31 +41,30 @@ parameter_types! {
 	pub const SS58Prefix: u8 = 42;
 }
 
-impl system::Config for Test {
-	type AccountData = pallet_balances::AccountData<u64>;
-	type AccountId = u64;
+impl frame_system::Config for Test {
 	type BaseCallFilter = frame_support::traits::Everything;
-	type BlockHashCount = BlockHashCount;
-	type BlockLength = ();
-	type BlockNumber = u64;
 	type BlockWeights = ();
-	type RuntimeCall = RuntimeCall;
+	type BlockLength = ();
 	type DbWeight = ();
-	type RuntimeEvent = RuntimeEvent;
+	type RuntimeOrigin = RuntimeOrigin;
+	type RuntimeCall = RuntimeCall;
+	type Nonce = u64;
+	type Block = Block;
 	type Hash = H256;
 	type Hashing = BlakeTwo256;
-	type Header = Header;
-	type Index = u64;
+	type AccountId = u64;
 	type Lookup = IdentityLookup<Self::AccountId>;
-	type MaxConsumers = frame_support::traits::ConstU32<16>;
-	type OnKilledAccount = ();
-	type OnNewAccount = ();
-	type OnSetCode = ();
-	type RuntimeOrigin = RuntimeOrigin;
-	type PalletInfo = PalletInfo;
-	type SS58Prefix = SS58Prefix;
-	type SystemWeightInfo = ();
+	type RuntimeEvent = RuntimeEvent;
+	type BlockHashCount = ConstU64<250>;
 	type Version = ();
+	type PalletInfo = PalletInfo;
+	type AccountData = pallet_balances::AccountData<u128>;
+	type OnNewAccount = ();
+	type OnKilledAccount = ();
+	type SystemWeightInfo = ();
+	type SS58Prefix = ConstU16<42>;
+	type OnSetCode = ();
+	type MaxConsumers = frame_support::traits::ConstU32<16>;
 }
 
 parameter_types! {
@@ -80,7 +74,7 @@ parameter_types! {
 
 impl pallet_balances::Config for Test {
 	type AccountStore = System;
-	type Balance = u64;
+	type Balance = u128;
 	type DustRemoval = ();
 	type RuntimeEvent = RuntimeEvent;
 	type ExistentialDeposit = ExistentialDeposit;
@@ -88,6 +82,10 @@ impl pallet_balances::Config for Test {
 	type MaxReserves = MaxReserves;
 	type ReserveIdentifier = [u8; 8];
 	type WeightInfo = ();
+	type RuntimeHoldReason = RuntimeHoldReason;
+	type FreezeIdentifier = ();
+	type MaxHolds = ConstU32<0>;
+	type MaxFreezes = ConstU32<0>;
 }
 
 pub struct Author4;
@@ -102,9 +100,7 @@ impl FindAuthor<u64> for Author4 {
 
 impl pallet_authorship::Config for Test {
 	type EventHandler = CollatorSelection;
-	type FilterUncle = ();
 	type FindAuthor = Author4;
-	type UncleGenerations = ();
 }
 
 parameter_types! {
@@ -122,6 +118,7 @@ impl pallet_aura::Config for Test {
 	type AuthorityId = sp_consensus_aura::sr25519::AuthorityId;
 	type DisabledValidators = ();
 	type MaxAuthorities = MaxAuthorities;
+	type AllowMultipleBlocksPerSlot = ConstBool<false>;
 }
 
 sp_runtime::impl_opaque_keys! {
@@ -223,8 +220,8 @@ impl Config for Test {
 
 pub fn new_test_ext() -> sp_io::TestExternalities {
 	sp_tracing::try_init_simple();
-	let mut t = frame_system::GenesisConfig::default().build_storage::<Test>().unwrap();
-	let invulnerables = vec![1, 2];
+	let mut t = frame_system::GenesisConfig::<Test>::default().build_storage().unwrap();
+	let invulnerables = [1, 2];
 
 	let balances = vec![(1, 100), (2, 100), (3, 100), (4, 100), (5, 100), (100, 100)];
 	let keys = balances

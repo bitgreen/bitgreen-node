@@ -202,6 +202,7 @@ benchmarks! {
 			created: 1_u32.into(),
 			updated: None,
 			approved: false,
+			project_type: None
 		};
 	}: _(RawOrigin::Root, project_id, new_project)
 	verify {

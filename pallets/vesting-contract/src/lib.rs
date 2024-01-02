@@ -69,7 +69,7 @@ pub mod pallet {
 		dispatch::DispatchResultWithPostInfo,
 		pallet_prelude::*,
 		traits::{Currency, ReservableCurrency},
-		transactional, PalletId,
+		PalletId,
 	};
 	use frame_system::pallet_prelude::*;
 	use sp_std::convert::TryInto;
@@ -101,15 +101,11 @@ pub mod pallet {
 	}
 
 	/// Pallet version of Contract Detail
-	pub type ContractDetailOf<T> =
-		ContractDetail<<T as frame_system::Config>::BlockNumber, BalanceOf<T>>;
+	pub type ContractDetailOf<T> = ContractDetail<BlockNumberFor<T>, BalanceOf<T>>;
 
 	/// Pallet version of BulkContractInput
-	pub type BulkContractInputOf<T> = BulkContractInput<
-		<T as frame_system::Config>::AccountId,
-		<T as frame_system::Config>::BlockNumber,
-		BalanceOf<T>,
-	>;
+	pub type BulkContractInputOf<T> =
+		BulkContractInput<<T as frame_system::Config>::AccountId, BlockNumberFor<T>, BalanceOf<T>>;
 
 	/// List of BulkContractInput
 	pub type BulkContractInputs<T> =
@@ -156,7 +152,7 @@ pub mod pallet {
 	}
 
 	#[pallet::pallet]
-	#[pallet::generate_store(pub(super) trait Store)]
+
 	pub struct Pallet<T>(_);
 
 	#[pallet::storage]
@@ -183,11 +179,15 @@ pub mod pallet {
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
 	pub enum Event<T: Config> {
 		/// A new contract has been added to storage
-		ContractAdded { recipient: T::AccountId, expiry: T::BlockNumber, amount: BalanceOf<T> },
+		ContractAdded { recipient: T::AccountId, expiry: BlockNumberFor<T>, amount: BalanceOf<T> },
 		/// Contract removed from storage
 		ContractRemoved { recipient: T::AccountId },
 		/// An existing contract has been completed/withdrawn
-		ContractWithdrawn { recipient: T::AccountId, expiry: T::BlockNumber, amount: BalanceOf<T> },
+		ContractWithdrawn {
+			recipient: T::AccountId,
+			expiry: BlockNumberFor<T>,
+			amount: BalanceOf<T>,
+		},
 		/// A new authorized account has been added to storage
 		AuthorizedAccountAdded { account_id: T::AccountId },
 		/// An authorized account has been removed from storage
@@ -224,12 +224,12 @@ pub mod pallet {
 		/// - the recipient does not already have a contract
 		/// - The expiry block is in the future
 		/// - If the pallet has balance to payout this contract
-		#[transactional]
+		#[pallet::call_index(0)]
 		#[pallet::weight(T::WeightInfo::add_new_contract())]
 		pub fn add_new_contract(
 			origin: OriginFor<T>,
 			recipient: T::AccountId,
-			expiry: T::BlockNumber,
+			expiry: BlockNumberFor<T>,
 			amount: BalanceOf<T>,
 		) -> DispatchResultWithPostInfo {
 			// ensure caller is allowed to add new recipient
@@ -240,7 +240,7 @@ pub mod pallet {
 		}
 
 		/// Remove a contract from storage
-		#[transactional]
+		#[pallet::call_index(1)]
 		#[pallet::weight(T::WeightInfo::remove_contract())]
 		pub fn remove_contract(
 			origin: OriginFor<T>,
@@ -255,8 +255,8 @@ pub mod pallet {
 
 		/// Same as add_contract but take multiple accounts as input
 		/// If any of the contracts fail to be processed all inputs are rejected
+		#[pallet::call_index(2)]
 		#[pallet::weight(T::WeightInfo::bulk_add_new_contracts(recipients.len() as u32))]
-		#[transactional]
 		pub fn bulk_add_new_contracts(
 			origin: OriginFor<T>,
 			recipients: BulkContractInputs<T>,
@@ -272,8 +272,8 @@ pub mod pallet {
 
 		/// Same as remove_contract but take multiple accounts as input
 		/// If any of the contracts fail to be processed all inputs are rejected
+		#[pallet::call_index(3)]
 		#[pallet::weight(T::WeightInfo::bulk_add_new_contracts(recipients.len() as u32))]
-		#[transactional]
 		pub fn bulk_remove_contracts(
 			origin: OriginFor<T>,
 			recipients: BulkContractRemove<T>,
@@ -294,12 +294,12 @@ pub mod pallet {
 		///
 		/// Unsigned Validation:
 		/// A call to withdraw vested is deemed valid if the sender has an existing contract
+		#[pallet::call_index(4)]
 		#[pallet::weight((
 			T::WeightInfo::withdraw_vested(),
 			DispatchClass::Normal,
 			Pays::No
 		))]
-		#[transactional]
 		pub fn withdraw_vested(origin: OriginFor<T>) -> DispatchResultWithPostInfo {
 			// ensure caller is allowed to remove recipients
 			let who = ensure_signed(origin)?;
@@ -308,8 +308,8 @@ pub mod pallet {
 		}
 
 		/// Call withdraw_vested for any account with a valid contract
+		#[pallet::call_index(5)]
 		#[pallet::weight(T::WeightInfo::force_withdraw_vested())]
-		#[transactional]
 		pub fn force_withdraw_vested(
 			origin: OriginFor<T>,
 			recipient: T::AccountId,
@@ -323,7 +323,7 @@ pub mod pallet {
 
 		/// Add a new account to the list of authorised Accounts
 		/// The caller must be from a permitted origin
-		#[transactional]
+		#[pallet::call_index(6)]
 		#[pallet::weight(T::WeightInfo::force_withdraw_vested())]
 		pub fn force_add_authorized_account(
 			origin: OriginFor<T>,
@@ -348,7 +348,7 @@ pub mod pallet {
 		}
 
 		/// Remove an account from the list of authorised accounts
-		#[transactional]
+		#[pallet::call_index(7)]
 		#[pallet::weight(T::WeightInfo::force_withdraw_vested())]
 		pub fn force_remove_authorized_account(
 			origin: OriginFor<T>,

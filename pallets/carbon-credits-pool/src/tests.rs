@@ -144,6 +144,7 @@ where
 		sdg_details: get_default_sdg_details::<T>(),
 		royalties: Some(vec![royalty].try_into().unwrap()),
 		batch_groups: get_default_batch_group::<T>(),
+		project_type: None,
 	};
 
 	creation_params
@@ -430,7 +431,7 @@ fn retire_works() {
 				pool_id,
 				10_000
 			),
-			pallet_assets::Error::<Test>::BalanceLow
+			sp_runtime::TokenError::FundsUnavailable
 		);
 
 		assert_noop!(

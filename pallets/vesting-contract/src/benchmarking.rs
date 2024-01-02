@@ -40,7 +40,7 @@ benchmarks! {
 	add_new_contract {
 		let account_id : T::AccountId = account("account_id", 0, 0);
 		let vesting_amount : BalanceOf<T> = 1_000_000_000_u128.into();
-		let expiry_block : T::BlockNumber  = 10_u32.into();
+		let expiry_block : BlockNumberFor<T>  = 10_u32.into();
 		load_initial_pallet_balance::<T>();
 	}: _(RawOrigin::Root, account_id.clone(), expiry_block, vesting_amount)
 	verify {
@@ -50,7 +50,7 @@ benchmarks! {
 	remove_contract {
 		let account_id : T::AccountId = account("account_id", 0, 0);
 		let vesting_amount : BalanceOf<T> = 1_000_000_000_u128.into();
-		let expiry_block : T::BlockNumber  = 10_u32.into();
+		let expiry_block : BlockNumberFor<T>  = 10_u32.into();
 		load_initial_pallet_balance::<T>();
 		VestingContract::<T>::add_new_contract(RawOrigin::Root.into(), account_id.clone(), expiry_block, vesting_amount).unwrap();
 	}: _(RawOrigin::Root, account_id.clone())
@@ -64,7 +64,7 @@ benchmarks! {
 		for index in 0..1 {
 			let account_id : T::AccountId = account("account_id", 0, index);
 			let vesting_amount : BalanceOf<T> = 1_000_000_000_u128.into();
-			let expiry_block : T::BlockNumber  = 10_u32.into();
+			let expiry_block : BlockNumberFor<T>  = 10_u32.into();
 			input_list.try_push(BulkContractInputOf::<T> {
 				recipient : account_id.clone(),
 				amount : vesting_amount.clone(),
@@ -84,7 +84,7 @@ benchmarks! {
 		for index in 0..1 {
 			let account_id : T::AccountId = account("account_id", 0, index);
 			let vesting_amount : BalanceOf<T> = 1_000_000_000_u128.into();
-			let expiry_block : T::BlockNumber  = 10_u32.into();
+			let expiry_block : BlockNumberFor<T>  = 10_u32.into();
 			input_list.try_push(BulkContractInputOf::<T> {
 				recipient : account_id.clone(),
 				amount : vesting_amount.clone(),
@@ -107,7 +107,7 @@ benchmarks! {
 	withdraw_vested {
 		let account_id : T::AccountId = account("account_id", 0, 0);
 		let vesting_amount : BalanceOf<T> = 1_000_000_000_u128.into();
-		let expiry_block : T::BlockNumber  = 10_u32.into();
+		let expiry_block : BlockNumberFor<T>  = 10_u32.into();
 		load_initial_pallet_balance::<T>();
 		VestingContract::<T>::add_new_contract(RawOrigin::Root.into(), account_id.clone(), expiry_block, vesting_amount).unwrap();
 		frame_system::Pallet::<T>::set_block_number(expiry_block + 1u32.into());
@@ -119,7 +119,7 @@ benchmarks! {
 	force_withdraw_vested {
 		let account_id : T::AccountId = account("account_id", 0, 0);
 		let vesting_amount : BalanceOf<T> = 1_000_000_000_u128.into();
-		let expiry_block : T::BlockNumber  = 10_u32.into();
+		let expiry_block : BlockNumberFor<T>  = 10_u32.into();
 		load_initial_pallet_balance::<T>();
 		VestingContract::<T>::add_new_contract(RawOrigin::Root.into(), account_id.clone(), expiry_block, vesting_amount).unwrap();
 		frame_system::Pallet::<T>::set_block_number(expiry_block + 1u32.into());

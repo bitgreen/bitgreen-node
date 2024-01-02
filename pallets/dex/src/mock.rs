@@ -4,18 +4,17 @@
 use frame_support::{
 	pallet_prelude::DispatchResult,
 	parameter_types,
-	traits::{AsEnsureOriginWithArg, ConstU32, Contains, Everything, GenesisBuild, Nothing},
+	traits::{AsEnsureOriginWithArg, ConstU16, ConstU32, Contains, Nothing},
 	PalletId,
 };
-use frame_system as system;
-use frame_system::EnsureRoot;
+
+use frame_system::{EnsureRoot, EnsureSigned};
 use orml_traits::parameter_type_with_key;
 use primitives::{Amount, Balance, CarbonCreditsValidator, CurrencyId};
-use sp_core::H256;
+use sp_core::{ConstU128, ConstU64, H256};
 use sp_runtime::{
-	testing::Header,
 	traits::{BlakeTwo256, IdentityLookup},
-	Percent,
+	BuildStorage, Percent,
 };
 use sp_std::convert::{TryFrom, TryInto};
 
@@ -23,17 +22,13 @@ pub type AccountId = u64;
 pub const USDT: CurrencyId = CurrencyId::USDT;
 
 use crate as pallet_dex;
-type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
 type Block = frame_system::mocking::MockBlock<Test>;
 
 // Configure a mock runtime to test the pallet.
 frame_support::construct_runtime!(
-	pub enum Test where
-		Block = Block,
-		NodeBlock = Block,
-		UncheckedExtrinsic = UncheckedExtrinsic,
+	pub enum Test
 	{
-		System: frame_system::{Pallet, Call, Config, Storage, Event<T>},
+		System: frame_system::{Pallet, Call, Config<T>, Storage, Event<T>},
 		Balances: pallet_balances::{Pallet, Call, Storage, Config<T>, Event<T>},
 		Assets: pallet_assets::{Pallet, Call, Storage, Event<T>},
 		Tokens: orml_tokens::{Pallet, Call, Storage, Event<T>},
@@ -46,31 +41,30 @@ parameter_types! {
 	pub const SS58Prefix: u8 = 42;
 }
 
-impl system::Config for Test {
-	type AccountData = pallet_balances::AccountData<u128>;
-	type AccountId = u64;
-	type BaseCallFilter = Everything;
-	type BlockHashCount = BlockHashCount;
-	type BlockLength = ();
-	type BlockNumber = u64;
+impl frame_system::Config for Test {
+	type BaseCallFilter = frame_support::traits::Everything;
 	type BlockWeights = ();
-	type RuntimeCall = RuntimeCall;
+	type BlockLength = ();
 	type DbWeight = ();
-	type RuntimeEvent = RuntimeEvent;
+	type RuntimeOrigin = RuntimeOrigin;
+	type RuntimeCall = RuntimeCall;
+	type Nonce = u64;
+	type Block = Block;
 	type Hash = H256;
 	type Hashing = BlakeTwo256;
-	type Header = Header;
-	type Index = u64;
+	type AccountId = u64;
 	type Lookup = IdentityLookup<Self::AccountId>;
-	type MaxConsumers = frame_support::traits::ConstU32<16>;
-	type OnKilledAccount = ();
-	type OnNewAccount = ();
-	type OnSetCode = ();
-	type RuntimeOrigin = RuntimeOrigin;
-	type PalletInfo = PalletInfo;
-	type SS58Prefix = SS58Prefix;
-	type SystemWeightInfo = ();
+	type RuntimeEvent = RuntimeEvent;
+	type BlockHashCount = ConstU64<250>;
 	type Version = ();
+	type PalletInfo = PalletInfo;
+	type AccountData = pallet_balances::AccountData<u128>;
+	type OnNewAccount = ();
+	type OnKilledAccount = ();
+	type SystemWeightInfo = ();
+	type SS58Prefix = ConstU16<42>;
+	type OnSetCode = ();
+	type MaxConsumers = frame_support::traits::ConstU32<16>;
 }
 
 parameter_types! {
@@ -87,31 +81,30 @@ impl pallet_balances::Config for Test {
 	type MaxReserves = ();
 	type ReserveIdentifier = [u8; 8];
 	type WeightInfo = ();
-}
-
-parameter_types! {
-	pub const AssetDepositBase: u64 = 0;
-	pub const AssetDepositPerZombie: u64 = 0;
-	pub const StringLimit: u32 = 50;
-	pub const MetadataDepositBase: u64 = 0;
-	pub const MetadataDepositPerByte: u64 = 0;
+	type RuntimeHoldReason = RuntimeHoldReason;
+	type FreezeIdentifier = ();
+	type MaxHolds = ConstU32<0>;
+	type MaxFreezes = ConstU32<0>;
 }
 
 impl pallet_assets::Config for Test {
-	type CreateOrigin = AsEnsureOriginWithArg<frame_system::EnsureSigned<u64>>;
-	type ApprovalDeposit = AssetDepositBase;
-	type AssetAccountDeposit = AssetDepositBase;
-	type AssetDeposit = AssetDepositBase;
-	type AssetId = u32;
-	type Balance = u128;
-	type Currency = Balances;
 	type RuntimeEvent = RuntimeEvent;
-	type Extra = ();
-	type ForceOrigin = frame_system::EnsureRoot<u64>;
-	type Freezer = ();
-	type MetadataDepositBase = MetadataDepositBase;
-	type MetadataDepositPerByte = MetadataDepositPerByte;
+	type Balance = u128;
+	type RemoveItemsLimit = ConstU32<1000>;
+	type AssetId = u32;
+	type AssetIdParameter = u32;
+	type Currency = Balances;
+	type CreateOrigin = AsEnsureOriginWithArg<EnsureSigned<Self::AccountId>>;
+	type ForceOrigin = frame_system::EnsureRoot<Self::AccountId>;
+	type AssetDeposit = ConstU128<0>;
+	type AssetAccountDeposit = ConstU128<0>;
+	type MetadataDepositBase = ConstU128<0>;
+	type MetadataDepositPerByte = ConstU128<0>;
+	type ApprovalDeposit = ConstU128<0>;
 	type StringLimit = ConstU32<50>;
+	type Freezer = ();
+	type Extra = ();
+	type CallbackHandle = ();
 	type WeightInfo = ();
 }
 
@@ -147,10 +140,11 @@ impl CarbonCreditsValidator for DummyValidator {
 	}
 
 	fn retire_credits(
-		sender: Self::Address,
-		project_id: Self::ProjectId,
-		group_id: Self::GroupId,
-		amount: Self::Amount,
+		_sender: Self::Address,
+		_project_id: Self::ProjectId,
+		_group_id: Self::GroupId,
+		_amount: Self::Amount,
+		_retirement_reason: Option<Vec<u8>>,
 	) -> DispatchResult {
 		Ok(())
 	}
@@ -216,7 +210,7 @@ impl pallet_dex::Config for Test {
 
 // Build genesis storage according to the mock runtime.
 pub fn new_test_ext() -> sp_io::TestExternalities {
-	let mut t = system::GenesisConfig::default().build_storage::<Test>().unwrap();
+	let mut t = frame_system::GenesisConfig::<Test>::default().build_storage().unwrap();
 
 	orml_tokens::GenesisConfig::<Test> { balances: vec![(4, USDT, 100), (10, USDT, 10000)] }
 		.assimilate_storage(&mut t)
