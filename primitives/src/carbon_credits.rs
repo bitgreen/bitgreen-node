@@ -2,7 +2,7 @@ use super::*;
 use frame_support::{pallet_prelude::Get, BoundedVec};
 pub type IssuanceYear = u16;
 use frame_support::pallet_prelude::DispatchResult;
-use sp_std::fmt::Debug;
+use sp_std::{fmt::Debug, vec::Vec};
 
 /// The possible values for Registry Names
 #[derive(Clone, Encode, Decode, Eq, PartialEq, Debug, TypeInfo, MaxEncodedLen)]
@@ -189,5 +189,40 @@ pub trait CarbonCreditsValidator {
 		project_id: Self::ProjectId,
 		group_id: Self::GroupId,
 		amount: Self::Amount,
+		retirement_reason: Option<Vec<u8>>,
 	) -> DispatchResult;
+}
+
+/// Represents different types of projects related to environmental impact assessment.
+#[allow(non_camel_case_types)]
+#[derive(Clone, Encode, Decode, Eq, PartialEq, TypeInfo, Default, Debug, MaxEncodedLen)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub enum ProjectType {
+	/// Projects related to agriculture, forestry, and other land use.
+	#[default]
+	AGRICULTURE_FORESTRY_AND_OTHER_LAND_USE,
+	/// Projects related to the chemical industry.
+	CHEMICAL_INDUSTRY,
+	/// Projects related to energy demand.
+	ENERGY_DEMAND,
+	/// Projects related to energy distribution.
+	ENERGY_DISTRIBUTION,
+	/// Projects related to energy industries.
+	ENERGY_INDUSTRIES,
+	/// Projects related to fugitive emissions from fuels.
+	FUGITIVE_EMISSIONS_FROM_FUELS,
+	/// Projects related to fugitive emissions from carbons.
+	FUGITIVE_EMISSIONS_FROM_CARBONS,
+	/// Projects related to livestock.
+	LIVESTOCK,
+	/// Projects related to manufacturing industries.
+	MANUFACTURING_INDUSTRIES,
+	/// Projects related to metal production.
+	METAL_PRODUCTION,
+	/// Projects related to mining and mineral production.
+	MINING_MINERAL_PRODUCTION,
+	/// Projects related to transport.
+	TRANSPORT,
+	/// Projects related to waste handling.
+	WASTE_HANDLING,
 }

@@ -68,7 +68,7 @@ pub mod pallet {
 			fungibles::{metadata::Mutate as MetadataMutate, Create, Destroy, Mutate},
 			nonfungibles::{Create as NFTCreate, Mutate as NFTMutate},
 		},
-		transactional, PalletId,
+		PalletId,
 	};
 	use frame_system::pallet_prelude::*;
 	use sp_runtime::traits::{AtLeast32BitUnsigned, CheckedAdd, One};
@@ -198,7 +198,7 @@ pub mod pallet {
 	}
 
 	#[pallet::pallet]
-	#[pallet::generate_store(pub(super) trait Store)]
+
 	pub struct Pallet<T>(_);
 
 	#[pallet::storage]
@@ -237,7 +237,7 @@ pub mod pallet {
 	#[pallet::storage]
 	#[pallet::getter(fn retired_carbon_credits)]
 	/// The retired CarbonCredits record
-	pub(super) type RetiredCredits<T: Config> = StorageDoubleMap<
+	pub type RetiredCredits<T: Config> = StorageDoubleMap<
 		_,
 		Blake2_128Concat,
 		T::AssetId,
@@ -358,13 +358,15 @@ pub mod pallet {
 		CannotUpdateUnapprovedProject,
 		/// The project approval status has been processed
 		ApprovalAlreadyProcessed,
+		/// Retirement reason out of bounds
+		RetirementReasonOutOfBounds,
 	}
 
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
 		/// Register a new project onchain
 		/// This new project can mint tokens after approval from an authorised account
-		#[transactional]
+		#[pallet::call_index(0)]
 		#[pallet::weight(T::WeightInfo::create())]
 		pub fn create(origin: OriginFor<T>, params: ProjectCreateParams<T>) -> DispatchResult {
 			let sender = ensure_signed(origin)?;
@@ -377,7 +379,7 @@ pub mod pallet {
 
 		/// Resubmit a approval rejected project data onchain
 		/// An approved project data cannot be resubmitted
-		#[transactional]
+		#[pallet::call_index(1)]
 		#[pallet::weight(T::WeightInfo::create())]
 		pub fn resubmit(
 			origin: OriginFor<T>,
@@ -390,7 +392,7 @@ pub mod pallet {
 		}
 
 		/// Set the project status to approve/reject
-		#[transactional]
+		#[pallet::call_index(2)]
 		#[pallet::weight(T::WeightInfo::approve_project())]
 		pub fn approve_project(
 			origin: OriginFor<T>,
@@ -406,7 +408,7 @@ pub mod pallet {
 		/// The tokens are always minted in the ascending order of credits, for example, if the
 		/// `amount_to_mint` is 150 and the project has 100 tokens of 2019 and 2020 year. Then we
 		/// mint 100 from 2019 and 50 from 2020.
-		#[transactional]
+		#[pallet::call_index(3)]
 		#[pallet::weight(T::WeightInfo::mint())]
 		pub fn mint(
 			origin: OriginFor<T>,
@@ -431,14 +433,14 @@ pub mod pallet {
 		/// The tokens are always retired in the ascending order of credits, for example, if the
 		/// `amount` is 150 and the project has 100 tokens of 2019 and 2020 year. Then we retire
 		/// 100 from 2019 and 50 from 2020.
-		#[transactional]
+		#[pallet::call_index(4)]
 		#[pallet::weight(T::WeightInfo::retire())]
 		pub fn retire(
 			origin: OriginFor<T>,
 			project_id: T::ProjectId,
 			group_id: T::GroupId,
 			amount: T::Balance,
-			reason: ShortStringOf<T>,
+			reason: Option<Vec<u8>>,
 		) -> DispatchResult {
 			let sender = ensure_signed(origin)?;
 			Self::check_kyc_approval(&sender)?;
@@ -447,7 +449,7 @@ pub mod pallet {
 
 		/// Add a new account to the list of authorised Accounts
 		/// The caller must be from a permitted origin
-		#[transactional]
+		#[pallet::call_index(5)]
 		#[pallet::weight(T::WeightInfo::force_add_authorized_account())]
 		pub fn force_add_authorized_account(
 			origin: OriginFor<T>,
@@ -472,7 +474,7 @@ pub mod pallet {
 		}
 
 		/// Remove an account from the list of authorised accounts
-		#[transactional]
+		#[pallet::call_index(6)]
 		#[pallet::weight(T::WeightInfo::force_remove_authorized_account())]
 		pub fn force_remove_authorized_account(
 			origin: OriginFor<T>,
@@ -492,7 +494,7 @@ pub mod pallet {
 
 		/// Force modify a project storage
 		/// Can only be called by ForceOrigin
-		#[transactional]
+		#[pallet::call_index(7)]
 		#[pallet::weight(T::WeightInfo::force_set_project_storage())]
 		pub fn force_set_project_storage(
 			origin: OriginFor<T>,
@@ -506,7 +508,7 @@ pub mod pallet {
 
 		/// Force modify NextItemId storage
 		/// Can only be called by ForceOrigin
-		#[transactional]
+		#[pallet::call_index(8)]
 		#[pallet::weight(T::WeightInfo::force_set_next_item_id())]
 		pub fn force_set_next_item_id(
 			origin: OriginFor<T>,
@@ -520,7 +522,7 @@ pub mod pallet {
 
 		/// Force modify NextAssetId storage
 		/// Can only be called by ForceOrigin
-		#[transactional]
+		#[pallet::call_index(9)]
 		#[pallet::weight(T::WeightInfo::force_set_next_item_id())]
 		pub fn force_set_next_asset_id(
 			origin: OriginFor<T>,
@@ -533,7 +535,7 @@ pub mod pallet {
 
 		/// Force modify retired CarbonCredits storage
 		/// Can only be called by ForceOrigin
-		#[transactional]
+		#[pallet::call_index(10)]
 		#[pallet::weight(T::WeightInfo::force_set_retired_carbon_credit())]
 		pub fn force_set_retired_carbon_credit(
 			origin: OriginFor<T>,
@@ -548,7 +550,7 @@ pub mod pallet {
 
 		/// Single function to approve project and mint credits
 		/// Can only be called by ForceOrigin
-		#[transactional]
+		#[pallet::call_index(11)]
 		#[pallet::weight(T::WeightInfo::mint())]
 		pub fn force_approve_and_mint_credits(
 			origin: OriginFor<T>,
@@ -573,7 +575,7 @@ pub mod pallet {
 
 		/// Force remove an project asset from storage, can be used by ForceOrigin to remove
 		/// unapproved projects Can only be called by ForceOrigin
-		#[transactional]
+		#[pallet::call_index(12)]
 		#[pallet::weight(T::WeightInfo::force_set_project_storage())]
 		pub fn force_remove_project(
 			origin: OriginFor<T>,
@@ -583,9 +585,10 @@ pub mod pallet {
 			let project = Projects::<T>::get(project_id).ok_or(Error::<T>::ProjectNotFound)?;
 			// remove all assets connected to this project
 			for (_group_id, group) in project.batch_groups.iter() {
-				let destroy_witness = T::AssetHandler::get_destroy_witness(&group.asset_id)
-					.ok_or(Error::<T>::ProjectNotFound)?;
-				T::AssetHandler::destroy(group.asset_id, destroy_witness, None)?;
+				// the asset is newly created and not distributed, so we can call finish destory
+				// without removing accounts
+				T::AssetHandler::start_destroy(group.asset_id, None)?;
+				T::AssetHandler::finish_destroy(group.asset_id)?;
 			}
 			// remove project from storage
 			Projects::<T>::take(project_id);
@@ -594,7 +597,7 @@ pub mod pallet {
 
 		/// Modify the details of an approved project
 		/// Can only be called by the ProjectOwner
-		#[transactional]
+		#[pallet::call_index(13)]
 		#[pallet::weight(T::WeightInfo::create())]
 		pub fn update_project_details(
 			origin: OriginFor<T>,
@@ -608,7 +611,7 @@ pub mod pallet {
 
 		/// Add a new batch group to the project
 		/// Can only be called by the ProjectOwner
-		#[transactional]
+		#[pallet::call_index(14)]
 		#[pallet::weight(T::WeightInfo::create())]
 		pub fn add_batch_group(
 			origin: OriginFor<T>,
@@ -639,7 +642,8 @@ impl<T: Config> primitives::CarbonCreditsValidator for Pallet<T> {
 		project_id: Self::ProjectId,
 		group_id: Self::GroupId,
 		amount: Self::Amount,
+		reason: Option<sp_std::vec::Vec<u8>>,
 	) -> DispatchResult {
-		Self::retire_carbon_credits(sender, project_id, group_id, amount, Default::default())
+		Self::retire_carbon_credits(sender, project_id, group_id, amount, reason)
 	}
 }

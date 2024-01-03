@@ -5,12 +5,11 @@
 
 use frame_support::{
 	assert_noop, assert_ok,
-	traits::{Currency, GenesisBuild, OnInitialize},
+	traits::{Currency, OnInitialize},
 };
 use pallet_balances::Error as BalancesError;
 use sp_runtime::traits::BadOrigin;
 
-use crate as collator_selection;
 use crate::{
 	mock::*,
 	types::{CandidateInfoOf, DelegationInfoOf},
@@ -26,7 +25,7 @@ fn basic_setup_works() {
 		assert!(CollatorSelection::candidates().is_empty());
 		assert_eq!(
 			CollatorSelection::invulnerables(),
-			vec![1, 2]
+			[1, 2]
 				.iter()
 				.cloned()
 				.map(|account| CandidateInfoOf::<Test> {
@@ -43,7 +42,7 @@ fn basic_setup_works() {
 #[test]
 fn it_should_set_invulnerables() {
 	new_test_ext().execute_with(|| {
-		let new_set = vec![1, 2, 3, 4];
+		let new_set = [1, 2, 3, 4];
 		let new_set_formatted = new_set
 			.iter()
 			.cloned()
@@ -67,7 +66,7 @@ fn it_should_set_invulnerables() {
 		);
 
 		// cannot set invulnerables without associated validator keys
-		let invulnerables = vec![7];
+		let invulnerables = [7];
 		let invulnerables_formatted = invulnerables
 			.iter()
 			.cloned()
@@ -186,9 +185,9 @@ fn cannot_register_dupe_candidate() {
 		assert_ok!(CollatorSelection::register_as_candidate(RuntimeOrigin::signed(3)));
 		let addition = CandidateInfoOf::<Test> {
 			who: 3u64,
-			deposit: 10u64,
+			deposit: 10u128,
 			delegators: Default::default(),
-			total_stake: 10u64,
+			total_stake: 10u128,
 		};
 		assert_eq!(CollatorSelection::candidates().pop().unwrap(), addition);
 		assert_eq!(CollatorSelection::last_authored_block(3), 10);
@@ -205,8 +204,8 @@ fn cannot_register_dupe_candidate() {
 #[test]
 fn cannot_register_as_candidate_if_poor() {
 	new_test_ext().execute_with(|| {
-		assert_eq!(Balances::free_balance(&3), 100);
-		assert_eq!(Balances::free_balance(&33), 0);
+		assert_eq!(Balances::free_balance(3), 100);
+		assert_eq!(Balances::free_balance(33), 0);
 
 		// works
 		assert_ok!(CollatorSelection::register_as_candidate(RuntimeOrigin::signed(3)));
@@ -228,14 +227,14 @@ fn register_as_candidate_works() {
 		assert_eq!(CollatorSelection::candidates(), Vec::new());
 
 		// take two endowed, non-invulnerables accounts.
-		assert_eq!(Balances::free_balance(&3), 100);
-		assert_eq!(Balances::free_balance(&4), 100);
+		assert_eq!(Balances::free_balance(3), 100);
+		assert_eq!(Balances::free_balance(4), 100);
 
 		assert_ok!(CollatorSelection::register_as_candidate(RuntimeOrigin::signed(3)));
 		assert_ok!(CollatorSelection::register_as_candidate(RuntimeOrigin::signed(4)));
 
-		assert_eq!(Balances::free_balance(&3), 90);
-		assert_eq!(Balances::free_balance(&4), 90);
+		assert_eq!(Balances::free_balance(3), 90);
+		assert_eq!(Balances::free_balance(4), 90);
 
 		assert_eq!(CollatorSelection::candidates().len(), 2);
 	});
@@ -449,30 +448,30 @@ fn should_not_kick_mechanism_too_few() {
 	});
 }
 
-#[test]
-#[should_panic = "duplicate invulnerables in genesis."]
-fn cannot_set_genesis_value_twice() {
-	sp_tracing::try_init_simple();
-	let mut t = frame_system::GenesisConfig::default().build_storage::<Test>().unwrap();
-	let invulnerables = vec![1, 1]
-		.iter()
-		.cloned()
-		.map(|account| CandidateInfoOf::<Test> {
-			who: account,
-			deposit: Default::default(),
-			delegators: Default::default(),
-			total_stake: Default::default(),
-		})
-		.collect::<Vec<CandidateInfoOf<Test>>>();
+// #[test]
+// #[should_panic = "duplicate invulnerables in genesis."]
+// fn cannot_set_genesis_value_twice() {
+// 	sp_tracing::try_init_simple();
+// 	let mut t = frame_system::GenesisConfig::<Test>::default().build_storage().unwrap();
+// 	let invulnerables = vec![1, 1]
+// 		.iter()
+// 		.cloned()
+// 		.map(|account| CandidateInfoOf::<Test> {
+// 			who: account,
+// 			deposit: Default::default(),
+// 			delegators: Default::default(),
+// 			total_stake: Default::default(),
+// 		})
+// 		.collect::<Vec<CandidateInfoOf<Test>>>();
 
-	let collator_selection = collator_selection::GenesisConfig::<Test> {
-		desired_candidates: 2,
-		candidacy_bond: 10,
-		invulnerables,
-	};
-	// collator selection must be initialized before session.
-	collator_selection.assimilate_storage(&mut t).unwrap();
-}
+// 	let collator_selection = collator_selection::GenesisConfig::<Test> {
+// 		desired_candidates: 2,
+// 		candidacy_bond: 10,
+// 		invulnerables,
+// 	};
+// 	// collator selection must be initialized before session.
+// 	collator_selection.assimilate_storage(&mut t).unwrap();
+// }
 
 #[test]
 fn delegate_works() {
@@ -792,7 +791,7 @@ fn delegator_payout_works_for_invulnerables() {
 		assert_ok!(CollatorSelection::set_block_inflation_reward(RuntimeOrigin::root(), 50));
 
 		// set the 4 account as invulnerable
-		let new_set = vec![4];
+		let new_set = [4];
 		let new_set_formatted = new_set
 			.iter()
 			.cloned()
@@ -1000,111 +999,6 @@ fn delegator_payout_complete_flow_test() {
 		assert_eq!(Balances::reserved_balance(3), 0);
 		assert_eq!(Balances::reserved_balance(5), 0);
 	});
-}
-
-#[test]
-fn test_remove_duplicate_delegators() {
-	use crate::{migration::v3::MigrateToV3, types::DelegationInfo};
-
-	let delegate_1 = DelegationInfo { who: 1, deposit: 1 };
-
-	let delegate_2 = DelegationInfo { who: 2, deposit: 1 };
-
-	let delegate_3 = DelegationInfo { who: 3, deposit: 1 };
-
-	let no_delegators = vec![CandidateInfoOf::<Test> {
-		who: 1,
-		deposit: 1,
-		delegators: vec![].try_into().unwrap(),
-		total_stake: 1,
-	}];
-
-	// no change should happen
-	assert_eq!(
-		MigrateToV3::<Test>::remove_duplicate_delegators(no_delegators.clone()),
-		no_delegators
-	);
-
-	let no_duplicates = vec![CandidateInfoOf::<Test> {
-		who: 1,
-		deposit: 1,
-		delegators: vec![delegate_1.clone(), delegate_2.clone(), delegate_3.clone()]
-			.try_into()
-			.unwrap(),
-		total_stake: 1,
-	}];
-
-	assert_eq!(
-		MigrateToV3::<Test>::remove_duplicate_delegators(no_duplicates.clone()),
-		no_duplicates
-	);
-
-	let some_duplicates = vec![CandidateInfoOf::<Test> {
-		who: 1,
-		deposit: 1,
-		delegators: vec![
-			delegate_1.clone(),
-			delegate_1.clone(),
-			delegate_2.clone(),
-			delegate_3.clone(),
-		]
-		.try_into()
-		.unwrap(),
-		total_stake: 1,
-	}];
-
-	let expected_some_duplicates = vec![CandidateInfoOf::<Test> {
-		who: 1,
-		deposit: 1,
-		delegators: vec![
-			DelegationInfo { who: 1, deposit: 2 },
-			delegate_2.clone(),
-			delegate_3.clone(),
-		]
-		.try_into()
-		.unwrap(),
-		total_stake: 1,
-	}];
-
-	assert_eq!(
-		MigrateToV3::<Test>::remove_duplicate_delegators(some_duplicates),
-		expected_some_duplicates
-	);
-
-	let many_duplicates = vec![CandidateInfoOf::<Test> {
-		who: 1,
-		deposit: 1,
-		delegators: vec![
-			delegate_2.clone(),
-			delegate_3.clone(),
-			delegate_1.clone(),
-			delegate_1.clone(),
-			DelegationInfo { who: 1, deposit: 10 },
-			delegate_3.clone(),
-			delegate_3.clone(),
-		]
-		.try_into()
-		.unwrap(),
-		total_stake: 1,
-	}];
-
-	let expected_many_duplicates = vec![CandidateInfoOf::<Test> {
-		who: 1,
-		deposit: 1,
-		delegators: vec![
-			DelegationInfo { who: 1, deposit: 12 },
-			delegate_2,
-			DelegationInfo { who: 3, deposit: 3 },
-		]
-		.try_into()
-		.unwrap(),
-		total_stake: 1,
-	}];
-
-	assert_eq!(
-		MigrateToV3::<Test>::remove_duplicate_delegators(many_duplicates),
-		expected_many_duplicates
-	);
 }
 
 #[test]

@@ -3,7 +3,10 @@
 // This code is licensed under MIT license (see LICENSE.txt for details)
 use codec::{Decode, Encode, MaxEncodedLen};
 use frame_support::{pallet_prelude::*, BoundedBTreeMap};
-use primitives::{Batch, BatchGroup, BatchRetireData, RegistryDetails, Royalty, SDGDetails};
+use frame_system::pallet_prelude::BlockNumberFor;
+use primitives::{
+	Batch, BatchGroup, BatchRetireData, ProjectType, RegistryDetails, Royalty, SDGDetails,
+};
 
 use crate::pallet;
 
@@ -88,6 +91,8 @@ pub struct ProjectCreateParams<T: pallet::Config> {
 	pub royalties: Option<RoyaltyRecipientsOf<T>>,
 	/// List of batch groups in the project
 	pub batch_groups: BatchGroupListOf<T>,
+	/// Type of carbon credit project
+	pub project_type: Option<ProjectType>,
 }
 
 /// Details of the project stored on-chain
@@ -119,11 +124,13 @@ pub struct ProjectDetail<T: pallet::Config> {
 	pub royalties: Option<RoyaltyRecipientsOf<T>>,
 	/// groups included in the project
 	pub batch_groups: BatchGroupMapOf<T>,
+	/// Type of carbon credit project
+	pub project_type: Option<ProjectType>,
 	// origination details
 	/// Creation time of project
-	pub created: T::BlockNumber,
+	pub created: BlockNumberFor<T>,
 	/// Last updation time of project
-	pub updated: Option<T::BlockNumber>,
+	pub updated: Option<BlockNumberFor<T>>,
 
 	/// approval status - a project can only mint tokens once approved
 	pub approved: ProjectApprovalStatus,
@@ -149,7 +156,7 @@ pub struct RetiredCarbonCreditsData<T: pallet::Config> {
 	/// The details of the batches the tokens were retired from
 	pub retire_data: BatchRetireDataList<T>,
 	/// The 'BlockNumber' of retirement
-	pub timestamp: T::BlockNumber,
+	pub timestamp: BlockNumberFor<T>,
 	/// The total count of credits retired
 	pub count: T::Balance,
 	/// Retirement reason
@@ -181,6 +188,18 @@ impl ProjectApprovalStatus {
 			Approved => true,
 			Pending => false,
 			Rejected => false,
+		}
+	}
+
+	/// Check if the project is rejected.
+	///
+	/// Returns `true` if the project is rejected, `false` otherwise.
+	pub fn is_rejected(self) -> bool {
+		use ProjectApprovalStatus::*;
+		match self {
+			Approved => false,
+			Pending => false,
+			Rejected => true,
 		}
 	}
 }

@@ -1,8 +1,7 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 use codec::{Decode, Encode, MaxEncodedLen};
-use frame_support::weights::{constants::WEIGHT_PER_SECOND, Weight};
+use frame_support::weights::{constants::WEIGHT_REF_TIME_PER_SECOND, Weight};
 use scale_info::TypeInfo;
-#[cfg(feature = "std")]
 use serde::{Deserialize, Serialize};
 use sp_runtime::{
 	generic,
@@ -15,6 +14,8 @@ mod carbon_credits;
 pub use carbon_credits::*;
 
 pub const BBB_TOKEN: u32 = 1;
+
+pub type AssetId = u32;
 
 /// Amounts
 pub mod currency {
@@ -69,9 +70,10 @@ pub mod time {
 	pub const NORMAL_DISPATCH_RATIO: Perbill = Perbill::from_percent(75);
 
 	/// We allow for 0.5 of a second of compute with a 12 second average block time.
-	pub const MAXIMUM_BLOCK_WEIGHT: Weight = WEIGHT_PER_SECOND
-		.saturating_div(2)
-		.set_proof_size(cumulus_primitives_core::relay_chain::v2::MAX_POV_SIZE as u64);
+	pub const MAXIMUM_BLOCK_WEIGHT: Weight = Weight::from_parts(
+		WEIGHT_REF_TIME_PER_SECOND.saturating_div(2),
+		cumulus_primitives_core::relay_chain::MAX_POV_SIZE as u64,
+	);
 }
 
 /// An instant or duration in time.
@@ -117,8 +119,9 @@ pub type AccountId = <<Signature as Verify>::Signer as IdentifyAccount>::Account
 	Ord,
 	MaxEncodedLen,
 	TypeInfo,
+	Serialize,
+	Deserialize,
 )]
-#[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 #[allow(clippy::unnecessary_cast)]
 pub enum CurrencyId {
 	DOT = 0,
@@ -137,4 +140,29 @@ impl TryFrom<u8> for CurrencyId {
 			_ => Err(()),
 		}
 	}
+}
+
+#[derive(
+	Clone,
+	Encode,
+	Decode,
+	Eq,
+	PartialEq,
+	RuntimeDebug,
+	Default,
+	MaxEncodedLen,
+	TypeInfo,
+	Serialize,
+	Deserialize,
+)]
+pub enum UserLevel {
+	#[default]
+	// Default KYC level
+	KYCLevel1,
+	// KYC approved via provider
+	KYCLevel2,
+	// KYC approved for bank-wire
+	KYCLevel3,
+	// KYC approved as accredited investor
+	KYCLevel4,
 }
