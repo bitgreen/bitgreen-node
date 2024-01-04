@@ -1,0 +1,7 @@
+# npx @acala-network/chopsticks@latest --config=./scripts/chopsticks/testnet.yml
+endpoint: wss://testnet.bitgreen.org
+mock-signature-host: true
+
+import-storage:
+  Sudo:
+    Key: 5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY
