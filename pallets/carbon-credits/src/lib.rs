@@ -669,7 +669,9 @@ impl<T: Config> primitives::CarbonCreditsValidator for Pallet<T> {
 	type AssetId = T::AssetId;
 	type Amount = T::Balance;
 
-	fn get_project_details(asset_id: &Self::AssetId) -> Option<(Self::ProjectId, Self::GroupId, CarbonAssetType)> {
+	fn get_project_details(
+		asset_id: &Self::AssetId,
+	) -> Option<(Self::ProjectId, Self::GroupId, CarbonAssetType)> {
 		AssetIdLookup::<T>::get(asset_id)
 	}
 

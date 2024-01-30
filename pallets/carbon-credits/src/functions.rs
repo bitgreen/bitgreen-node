@@ -76,13 +76,6 @@ impl<T: Config> Pallet<T> {
 				let mut created_asset_ids: Vec<T::AssetId> = Default::default();
 
 				for (group_id, group) in project.batch_groups.iter_mut() {
-					// set the asset id
-					match group {
-						// do not mint for donations
-						BatchGroup::Donations(_) => continue,
-						_ => {},
-					};
-
 					let asset_id = Self::next_asset_id();
 					let next_asset_id =
 						asset_id.checked_add(&1u32.into()).ok_or(Error::<T>::Overflow)?;
@@ -123,7 +116,13 @@ impl<T: Config> Pallet<T> {
 								(project_id, group_id, CarbonAssetType::Shares),
 							);
 						},
-						_ => {},
+						BatchGroup::Donations(ref mut carbon_donations_group) => {
+							carbon_donations_group.asset_id = asset_id.into();
+							AssetIdLookup::<T>::insert(
+								asset_id,
+								(project_id, group_id, CarbonAssetType::Shares),
+							);
+						},
 					};
 
 					// add the assetId for event updation

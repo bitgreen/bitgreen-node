@@ -460,8 +460,9 @@ pub mod pallet {
 			let seller = ensure_signed(origin.clone())?;
 			Self::check_kyc_approval(&seller)?;
 			// ensure the asset_id can be listed
-			let (project_id, group_id, asset_type) = T::AssetValidator::get_project_details(&asset_id)
-				.ok_or(Error::<T>::AssetNotPermitted)?;
+			let (project_id, group_id, asset_type) =
+				T::AssetValidator::get_project_details(&asset_id)
+					.ok_or(Error::<T>::AssetNotPermitted)?;
 
 			// ensure minimums are satisfied
 			ensure!(units >= T::MinUnitsToCreateSellOrder::get(), Error::<T>::BelowMinimumUnits);
@@ -554,8 +555,9 @@ pub mod pallet {
 				ensure!(units <= order.units, Error::<T>::OrderUnitsOverflow);
 
 				// get the projectId and groupId for events
-				let (project_id, group_id, asset_type) = T::AssetValidator::get_project_details(&asset_id)
-					.ok_or(Error::<T>::AssetNotPermitted)?;
+				let (project_id, group_id, asset_type) =
+					T::AssetValidator::get_project_details(&asset_id)
+						.ok_or(Error::<T>::AssetNotPermitted)?;
 
 				// reduce the buy_order units from total volume
 				order.units =

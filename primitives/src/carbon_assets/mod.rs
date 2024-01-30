@@ -185,7 +185,9 @@ pub trait CarbonCreditsValidator {
 	type AssetId: Clone + PartialEq + Debug;
 
 	/// Returns ProjectId and GroupId if the given AssetId represents a CarbonCredit Project
-	fn get_project_details(asset_id: &Self::AssetId) -> Option<(Self::ProjectId, Self::GroupId, CarbonAssetType)>;
+	fn get_project_details(
+		asset_id: &Self::AssetId,
+	) -> Option<(Self::ProjectId, Self::GroupId, CarbonAssetType)>;
 
 	/// Retires credits with given details
 	fn retire_credits(
