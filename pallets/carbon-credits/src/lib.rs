@@ -54,13 +54,14 @@ pub use types::*;
 mod functions;
 pub mod migration;
 pub use functions::*;
-
+use primitives::CarbonAssetType;
 mod weights;
 use frame_support::{pallet_prelude::DispatchResult, traits::Contains};
 pub use weights::WeightInfo;
 
 #[frame_support::pallet]
 pub mod pallet {
+	use super::*;
 	use codec::HasCompact;
 	use frame_support::{
 		pallet_prelude::*,
@@ -71,10 +72,9 @@ pub mod pallet {
 		PalletId,
 	};
 	use frame_system::pallet_prelude::*;
+	use primitives::CarbonAssetType;
 	use sp_runtime::traits::{AtLeast32BitUnsigned, CheckedAdd, One};
 	use sp_std::{convert::TryInto, vec::Vec};
-
-	use super::*;
 
 	/// The parameters the CarbonCredits pallet depends on
 	#[pallet::config]
@@ -232,7 +232,7 @@ pub mod pallet {
 	#[pallet::getter(fn asset_id_lookup)]
 	/// AssetId details for project/group
 	pub(super) type AssetIdLookup<T: Config> =
-		StorageMap<_, Blake2_128Concat, T::AssetId, (T::ProjectId, T::GroupId)>;
+		StorageMap<_, Blake2_128Concat, T::AssetId, (T::ProjectId, T::GroupId, CarbonAssetType)>;
 
 	#[pallet::storage]
 	#[pallet::getter(fn retired_carbon_credits)]
@@ -277,6 +277,39 @@ pub mod pallet {
 		},
 		// An amount of Carbon Credits was minted
 		CarbonCreditMinted {
+			/// The ProjectId of the minted CarbonCredits
+			project_id: T::ProjectId,
+			/// The GroupId of the minted CarbonCredits
+			group_id: T::GroupId,
+			/// The AccountId that received the minted CarbonCredits
+			recipient: T::AccountId,
+			/// The amount of CarbonCredits units minted
+			amount: T::Balance,
+		},
+		// An amount of Carbon Forwards was minted
+		CarbonForwardsMinted {
+			/// The ProjectId of the minted CarbonCredits
+			project_id: T::ProjectId,
+			/// The GroupId of the minted CarbonCredits
+			group_id: T::GroupId,
+			/// The AccountId that received the minted CarbonCredits
+			recipient: T::AccountId,
+			/// The amount of CarbonCredits units minted
+			amount: T::Balance,
+		},
+		// An amount of Carbon Shares was minted
+		CarbonSharesMinted {
+			/// The ProjectId of the minted CarbonCredits
+			project_id: T::ProjectId,
+			/// The GroupId of the minted CarbonCredits
+			group_id: T::GroupId,
+			/// The AccountId that received the minted CarbonCredits
+			recipient: T::AccountId,
+			/// The amount of CarbonCredits units minted
+			amount: T::Balance,
+		},
+		// An amount of Carbon Donations was minted
+		CarbonDonationsMinted {
 			/// The ProjectId of the minted CarbonCredits
 			project_id: T::ProjectId,
 			/// The GroupId of the minted CarbonCredits
@@ -360,6 +393,8 @@ pub mod pallet {
 		ApprovalAlreadyProcessed,
 		/// Retirement reason out of bounds
 		RetirementReasonOutOfBounds,
+		/// Carbon asset type mismatch
+		CarbonAssetTypeMismatch,
 	}
 
 	#[pallet::call]
@@ -583,13 +618,14 @@ pub mod pallet {
 		) -> DispatchResult {
 			T::ForceOrigin::ensure_origin(origin)?;
 			let project = Projects::<T>::get(project_id).ok_or(Error::<T>::ProjectNotFound)?;
-			// remove all assets connected to this project
-			for (_group_id, group) in project.batch_groups.iter() {
-				// the asset is newly created and not distributed, so we can call finish destory
-				// without removing accounts
-				T::AssetHandler::start_destroy(group.asset_id, None)?;
-				T::AssetHandler::finish_destroy(group.asset_id)?;
-			}
+			// TODO : Handle removal of all assets
+			// // remove all assets connected to this project
+			// for (_group_id, group) in project.batch_groups.iter() {
+			// 	// the asset is newly created and not distributed, so we can call finish destory
+			// 	// without removing accounts
+			// 	T::AssetHandler::start_destroy(group.asset_id, None)?;
+			// 	T::AssetHandler::finish_destroy(group.asset_id)?;
+			// }
 			// remove project from storage
 			Projects::<T>::take(project_id);
 			Ok(())
@@ -633,7 +669,7 @@ impl<T: Config> primitives::CarbonCreditsValidator for Pallet<T> {
 	type AssetId = T::AssetId;
 	type Amount = T::Balance;
 
-	fn get_project_details(asset_id: &Self::AssetId) -> Option<(Self::ProjectId, Self::GroupId)> {
+	fn get_project_details(asset_id: &Self::AssetId) -> Option<(Self::ProjectId, Self::GroupId, CarbonAssetType)> {
 		AssetIdLookup::<T>::get(asset_id)
 	}
 

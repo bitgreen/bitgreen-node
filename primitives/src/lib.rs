@@ -10,8 +10,8 @@ use sp_runtime::{
 };
 use sp_std::convert::TryFrom;
 
-mod carbon_credits;
-pub use carbon_credits::*;
+mod carbon_assets;
+pub use carbon_assets::*;
 
 pub const BBB_TOKEN: u32 = 1;
 

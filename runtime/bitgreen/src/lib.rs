@@ -172,7 +172,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: create_runtime_str!("bitgreen-parachain"),
 	impl_name: create_runtime_str!("bitgreen-parachain"),
 	authoring_version: 1,
-	spec_version: 1300, // v1.3.0
+	spec_version: 1302, // v1.3.2
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 2,
@@ -537,29 +537,6 @@ impl pallet_carbon_credits::Config for Runtime {
 	type NFTHandler = Uniques;
 	type PalletId = CarbonCreditsPalletId;
 	type MaxCoordinatesLength = MaxCoordinatesLength;
-	type WeightInfo = ();
-}
-
-parameter_types! {
-	pub const CarbonCreditsPoolPalletId: PalletId = PalletId(*b"bit/vcup");
-	pub const MaxAssetSymbolLength : u32 = 10;
-	pub const MaxIssuanceYearCount : u32 = 20;
-	pub const MaxProjectIdList : u32 = 100;
-	pub const MaxRegistryListCount : u32 = 10;
-	pub const MinPoolId : u32 = 10000;
-}
-
-impl pallet_carbon_credits_pool::Config for Runtime {
-	type AssetHandler = Assets;
-	type RuntimeEvent = RuntimeEvent;
-	type ForceOrigin = EnsureRoot<AccountId>;
-	type MaxAssetSymbolLength = MaxAssetSymbolLength;
-	type MaxIssuanceYearCount = MaxIssuanceYearCount;
-	type MaxProjectIdList = MaxProjectIdList;
-	type MaxRegistryListCount = MaxRegistryListCount;
-	type MinPoolId = MinPoolId;
-	type PalletId = CarbonCreditsPoolPalletId;
-	type PoolId = u32;
 	type WeightInfo = ();
 }
 
@@ -978,7 +955,7 @@ construct_runtime!(
 		Assets: pallet_assets::{Pallet, Call, Storage, Event<T>} = 52,
 		Uniques: pallet_uniques::{Pallet, Call, Storage, Event<T>} = 53,
 		CarbonCredits: pallet_carbon_credits::{Pallet, Call, Storage, Event<T>} = 54,
-		CarbonCreditsPools: pallet_carbon_credits_pool::{Pallet, Call, Storage, Event<T>} = 55,
+		//CarbonCreditsPools: pallet_carbon_credits_pool::{Pallet, Call, Storage, Event<T>} = 55,
 		TransactionPause: pallet_transaction_pause::{Pallet, Call, Storage, Event<T>} = 56,
 		VestingContract: pallet_vesting_contract::{Pallet, Call, Storage, Event<T>} = 57,
 		//Contracts: pallet_contracts::{Pallet, Call, Storage, Event<T>} = 58,
