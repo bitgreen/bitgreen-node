@@ -27,6 +27,7 @@ use crate::{
 	ProjectCreateParams, ProjectDetail, Projects, RetiredCarbonCreditsData, RetiredCredits,
 	ShortStringOf,
 };
+use primitives::KYCHandler;
 
 impl<T: Config> Pallet<T> {
 	/// The account ID of the CarbonCredits pallet
@@ -41,10 +42,10 @@ impl<T: Config> Pallet<T> {
 
 	/// Checks if given account is kyc approved
 	pub fn check_kyc_approval(account_id: &T::AccountId) -> DispatchResult {
-		if !T::KYCProvider::contains(account_id) {
-			Err(Error::<T>::KYCAuthorisationFailed.into())
+		if let Some(kyc_level) = T::KYCProvider::get_kyc_level(account_id.clone()) {
+			return Ok(())
 		} else {
-			Ok(())
+			Err(Error::<T>::KYCAuthorisationFailed.into())
 		}
 	}
 
@@ -120,7 +121,7 @@ impl<T: Config> Pallet<T> {
 							carbon_donations_group.asset_id = asset_id.into();
 							AssetIdLookup::<T>::insert(
 								asset_id,
-								(project_id, group_id, CarbonAssetType::Shares),
+								(project_id, group_id, CarbonAssetType::Donations),
 							);
 						},
 					};
@@ -553,7 +554,14 @@ impl<T: Config> Pallet<T> {
 
 			let mut batch_group_map = project.batch_groups.clone();
 
-			let group_id: u32 = batch_group_map.len() as u32;
+			let group_id: T::GroupId = (batch_group_map.len() as u32).into();
+
+			let asset_id = Self::next_asset_id();
+			let next_asset_id = asset_id.checked_add(&1u32.into()).ok_or(Error::<T>::Overflow)?;
+			NextAssetId::<T>::put(next_asset_id);
+
+			// create the asset
+			T::AssetHandler::create(asset_id, Self::account_id(), true, 1_u32.into())?;
 
 			// ensure the groups are formed correctly and convert to BTreeMap
 			match batch_group {
@@ -590,6 +598,12 @@ impl<T: Config> Pallet<T> {
 						.batches
 						.sort_by(|x, y| x.issuance_year.cmp(&y.issuance_year));
 					carbon_batch_group.total_supply = group_total_supply;
+					carbon_batch_group.asset_id = asset_id;
+
+					AssetIdLookup::<T>::insert(
+						asset_id,
+						(project_id, group_id, CarbonAssetType::Credits),
+					);
 				},
 
 				BatchGroup::Forwards(ref mut carbon_forwards_group) => {
@@ -625,6 +639,12 @@ impl<T: Config> Pallet<T> {
 						.batches
 						.sort_by(|x, y| x.issuance_year.cmp(&y.issuance_year));
 					carbon_forwards_group.total_supply = group_total_supply;
+					carbon_forwards_group.asset_id = asset_id;
+
+					AssetIdLookup::<T>::insert(
+						asset_id,
+						(project_id, group_id, CarbonAssetType::Forwards),
+					);
 				},
 				BatchGroup::Shares(ref mut carbon_shares_group) => {
 					let mut group_total_supply: T::Balance = Zero::zero();
@@ -659,19 +679,32 @@ impl<T: Config> Pallet<T> {
 						.batches
 						.sort_by(|x, y| x.issuance_year.cmp(&y.issuance_year));
 					carbon_shares_group.total_supply = group_total_supply;
+					carbon_shares_group.asset_id = asset_id;
+
+					AssetIdLookup::<T>::insert(
+						asset_id,
+						(project_id, group_id, CarbonAssetType::Shares),
+					);
 				},
-				_ => Default::default(),
+				BatchGroup::Donations(ref mut carbon_donations_group) => {
+					carbon_donations_group.asset_id = asset_id.into();
+
+					AssetIdLookup::<T>::insert(
+						asset_id,
+						(project_id, group_id, CarbonAssetType::Shares),
+					);
+				},
 			}
 
 			// insert the group to BTreeMap
 			batch_group_map
-				.try_insert(group_id.into(), batch_group.clone())
+				.try_insert(group_id, batch_group.clone())
 				.map_err(|_| Error::<T>::TooManyGroups)?;
 
 			project.batch_groups = batch_group_map;
 
 			// emit event
-			Self::deposit_event(Event::BatchGroupAdded { project_id, group_id: group_id.into() });
+			Self::deposit_event(Event::BatchGroupAdded { project_id, group_id });
 
 			Ok(())
 		})

@@ -103,6 +103,7 @@ impl pallet_assets::Config for Test {
 	type StringLimit = ConstU32<50>;
 	type Freezer = ();
 	type Extra = ();
+	type VerifyCarbonAssetTransfer = CarbonCredits;
 	type CallbackHandle = ();
 	type WeightInfo = ();
 }

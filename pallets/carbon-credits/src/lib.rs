@@ -54,10 +54,11 @@ pub use types::*;
 mod functions;
 pub mod migration;
 pub use functions::*;
-use primitives::CarbonAssetType;
+use primitives::{CarbonAssetType, KYCHandler};
 mod weights;
 use frame_support::{pallet_prelude::DispatchResult, traits::Contains};
 pub use weights::WeightInfo;
+pub mod impls;
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -169,7 +170,7 @@ pub mod pallet {
 			+ NFTMutate<Self::AccountId>;
 
 		/// KYC provider config
-		type KYCProvider: Contains<Self::AccountId>;
+		type KYCProvider: KYCHandler<Self::AccountId>;
 
 		/// The origin which may forcibly set storage or add authorised accounts
 		type ForceOrigin: EnsureOrigin<Self::RuntimeOrigin>;
@@ -683,5 +684,12 @@ impl<T: Config> primitives::CarbonCreditsValidator for Pallet<T> {
 		reason: Option<sp_std::vec::Vec<u8>>,
 	) -> DispatchResult {
 		Self::retire_carbon_credits(sender, project_id, group_id, amount, reason)
+	}
+
+	fn get_project_owner(project_id: &Self::ProjectId) -> Option<Self::Address> {
+		if let Some(project) = Projects::<T>::get(project_id) {
+			return Some(project.originator)
+		}
+		return None
 	}
 }

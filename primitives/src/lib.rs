@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 use sp_runtime::{
 	generic,
 	traits::{BlakeTwo256, IdentifyAccount, Verify},
-	MultiAddress, MultiSignature, Perbill, Percent, RuntimeDebug,
+	DispatchResult, MultiAddress, MultiSignature, Perbill, Percent, RuntimeDebug,
 };
 use sp_std::convert::TryFrom;
 
@@ -165,4 +165,52 @@ pub enum UserLevel {
 	KYCLevel3,
 	// KYC approved as accredited investor
 	KYCLevel4,
+}
+
+/// Trait for verifying carbon asset transfers.
+pub trait VerifyCarbonAssetTransfer<AccountId, AssetId, Balance> {
+	/// Checks if a transfer of carbon assets is allowed.
+	///
+	/// # Arguments
+	///
+	/// * `sender` - The account ID of the sender.
+	/// * `recipient` - The account ID of the recipient.
+	/// * `amount` - The amount of carbon assets to be transferred.
+	///
+	/// # Returns
+	///
+	/// Returns `Ok(())` if the transfer is allowed, otherwise an error indicating the reason.
+	fn is_transfer_allowed(
+		sender: AccountId,
+		recipient: AccountId,
+		asset_id: AssetId,
+		amount: Balance,
+	) -> DispatchResult;
+}
+
+impl<AccountId, AssetId, Balance> VerifyCarbonAssetTransfer<AccountId, AssetId, Balance> for () {
+	/// Default implementation that always allows the transfer.
+	fn is_transfer_allowed(
+		sender: AccountId,
+		recipient: AccountId,
+		asset_id: AssetId,
+		amount: Balance,
+	) -> DispatchResult {
+		Ok(())
+	}
+}
+
+/// A trait for handling Know Your Customer (KYC) operations.
+pub trait KYCHandler<AccountId> {
+	/// Retrieves the KYC (Know Your Customer) level of an account.
+	///
+	/// # Arguments
+	///
+	/// * `account` - The account ID for which to retrieve the KYC level.
+	///
+	/// # Returns
+	///
+	/// Returns an `Option` containing the `UserLevel` representing the KYC level
+	/// of the specified account, or `None` if the account does not have a KYC level.
+	fn get_kyc_level(account: AccountId) -> Option<UserLevel>;
 }

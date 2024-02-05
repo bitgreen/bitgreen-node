@@ -151,6 +151,7 @@ pub enum CarbonAssetType {
 	Credits,
 	Forwards,
 	Shares,
+	Donations,
 }
 
 /// Representation of a group of carbon assets. Groups are collections of batches of carbon assets
@@ -197,6 +198,8 @@ pub trait CarbonCreditsValidator {
 		amount: Self::Amount,
 		retirement_reason: Option<Vec<u8>>,
 	) -> DispatchResult;
+
+	fn get_project_owner(asset_id: &Self::ProjectId) -> Option<Self::Address>;
 }
 
 /// Represents different types of projects related to environmental impact assessment.
