@@ -23,6 +23,7 @@ frame-support = { git = "https://github.com/paritytech/polkadot-sdk", branch = "
 frame-system = { git = "https://github.com/paritytech/polkadot-sdk", branch = "release-polkadot-v1.1.0", default-features = false }
 frame-benchmarking = { git = "https://github.com/paritytech/polkadot-sdk", branch = "release-polkadot-v1.1.0", default-features = false, optional = true }
 sp-core = { git = "https://github.com/paritytech/polkadot-sdk", branch = "release-polkadot-v1.1.0", default-features = false }
+primitives = { package = 'bitgreen-primitives', path = '../../primitives', default-features = false }
 
 [dev-dependencies]
 sp-std = { git = "https://github.com/paritytech/polkadot-sdk", branch = "release-polkadot-v1.1.0", default-features = false }

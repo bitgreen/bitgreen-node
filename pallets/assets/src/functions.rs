@@ -582,6 +582,12 @@ impl<T: Config<I>, I: 'static> Pallet<T, I> {
 		maybe_need_admin: Option<T::AccountId>,
 		f: TransferFlags,
 	) -> Result<T::Balance, DispatchError> {
+		T::VerifyCarbonAssetTransfer::is_transfer_allowed(
+			source.clone(),
+			dest.clone(),
+			id.clone(),
+			amount.clone(),
+		)?;
 		let (balance, died) =
 			Self::transfer_and_die(id.clone(), source, dest, amount, maybe_need_admin, f)?;
 		if let Some(Remove) = died {

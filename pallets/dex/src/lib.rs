@@ -25,10 +25,10 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 #![allow(clippy::type_complexity, clippy::too_many_arguments)]
 use codec::{Decode, Encode, MaxEncodedLen};
-use sp_runtime::RuntimeDebug;
-
 pub use pallet::*;
+use primitives::{CarbonAssetType, KYCHandler};
 use scale_info::TypeInfo;
+use sp_runtime::RuntimeDebug;
 
 #[cfg(test)]
 mod mock;
@@ -45,6 +45,7 @@ mod types;
 
 #[frame_support::pallet]
 pub mod pallet {
+	use super::*;
 	use crate::{types::*, WeightInfo};
 	use frame_support::{
 		pallet_prelude::*,
@@ -150,7 +151,7 @@ pub mod pallet {
 		type MaxOpenOrdersPerUser: Get<u32> + TypeInfo + Clone + Debug + PartialEq;
 
 		/// KYC provider config
-		type KYCProvider: Contains<Self::AccountId>;
+		type KYCProvider: KYCHandler<Self::AccountId>;
 
 		/// The expiry time for buy order
 		type BuyOrderExpiryTime: Get<BlockNumberFor<Self>>;
@@ -458,10 +459,20 @@ pub mod pallet {
 			price_per_unit: CurrencyBalanceOf<T>,
 		) -> DispatchResult {
 			let seller = ensure_signed(origin.clone())?;
-			Self::check_kyc_approval(&seller)?;
+
 			// ensure the asset_id can be listed
-			let (project_id, group_id) = T::AssetValidator::get_project_details(&asset_id)
-				.ok_or(Error::<T>::AssetNotPermitted)?;
+			let (project_id, group_id, asset_type) =
+				T::AssetValidator::get_project_details(&asset_id)
+					.ok_or(Error::<T>::AssetNotPermitted)?;
+
+			Self::check_kyc_approval(&seller, asset_type.clone())?;
+
+			if matches!(asset_type, CarbonAssetType::Shares) {
+				let project_originator = T::AssetValidator::get_project_owner(&project_id)
+					.ok_or(Error::<T>::AssetNotPermitted)?;
+
+				ensure!(seller == project_originator, Error::<T>::AssetNotPermitted);
+			}
 
 			// ensure minimums are satisfied
 			ensure!(units >= T::MinUnitsToCreateSellOrder::get(), Error::<T>::BelowMinimumUnits);
@@ -535,7 +546,6 @@ pub mod pallet {
 			max_fee: CurrencyBalanceOf<T>,
 		) -> DispatchResult {
 			let buyer = ensure_signed(origin)?;
-			Self::check_kyc_approval(&buyer)?;
 
 			if units.is_zero() {
 				return Ok(())
@@ -554,8 +564,11 @@ pub mod pallet {
 				ensure!(units <= order.units, Error::<T>::OrderUnitsOverflow);
 
 				// get the projectId and groupId for events
-				let (project_id, group_id) = T::AssetValidator::get_project_details(&asset_id)
-					.ok_or(Error::<T>::AssetNotPermitted)?;
+				let (project_id, group_id, asset_type) =
+					T::AssetValidator::get_project_details(&asset_id)
+						.ok_or(Error::<T>::AssetNotPermitted)?;
+
+				Self::check_kyc_approval(&buyer, asset_type)?;
 
 				// reduce the buy_order units from total volume
 				order.units =
@@ -773,7 +786,7 @@ pub mod pallet {
 						)?;
 
 						// get the projectId and groupId for events
-						let (project_id, group_id) =
+						let (project_id, group_id, asset_type) =
 							T::AssetValidator::get_project_details(&order.asset_id)
 								.ok_or(Error::<T>::AssetNotPermitted)?;
 
@@ -1065,11 +1078,22 @@ pub mod pallet {
 		}
 
 		/// Checks if given account is kyc approved
-		pub fn check_kyc_approval(account_id: &T::AccountId) -> DispatchResult {
-			if !T::KYCProvider::contains(account_id) {
-				Err(Error::<T>::KYCAuthorisationFailed.into())
+		pub fn check_kyc_approval(
+			account_id: &T::AccountId,
+			asset_type: CarbonAssetType,
+		) -> DispatchResult {
+			use primitives::CarbonAssetType::*;
+
+			if let Some(kyc_level) = T::KYCProvider::get_kyc_level(account_id.clone()) {
+				match asset_type {
+					Credits | Forwards | Donations => return Ok(()),
+					Shares => match kyc_level {
+						primitives::UserLevel::KYCLevel4 => return Ok(()),
+						_ => return Err(Error::<T>::KYCAuthorisationFailed.into()),
+					},
+				}
 			} else {
-				Ok(())
+				Err(Error::<T>::KYCAuthorisationFailed.into())
 			}
 		}
 	}

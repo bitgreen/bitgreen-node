@@ -4,6 +4,16 @@ pub type IssuanceYear = u16;
 use frame_support::pallet_prelude::DispatchResult;
 use sp_std::{fmt::Debug, vec::Vec};
 
+mod carbon_credits;
+mod carbon_forwards;
+mod carbon_shares;
+mod donations;
+
+pub use carbon_credits::*;
+pub use carbon_forwards::*;
+pub use carbon_shares::*;
+pub use donations::*;
+
 /// The possible values for Registry Names
 #[derive(Clone, Encode, Decode, Eq, PartialEq, Debug, TypeInfo, MaxEncodedLen)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
@@ -134,33 +144,28 @@ pub struct BatchRetireData<StringType, Balance> {
 	pub count: Balance,
 }
 
-/// Representation of a group of credits. Groups are collections of batches of credits
-#[derive(Clone, Encode, Decode, Eq, PartialEq, TypeInfo, Default, Debug, MaxEncodedLen)]
+/// The types of carbon assets
+#[derive(Clone, Encode, Decode, Eq, PartialEq, TypeInfo, Debug, MaxEncodedLen)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub struct BatchGroup<StringType, AssetId, Balance, Batch, MaxBatches: Get<u32>> {
-	/// Descriptive name for this batch of credits
-	pub name: StringType,
-	/// UUID for this batch group
-	pub uuid: StringType,
-	/// AssetId representing the asset for this group
-	pub asset_id: AssetId,
-	/// The total_supply of the credits - this represents the total supply of the
-	/// credits in all the batches of group.
-	pub total_supply: Balance,
-	/// The amount of tokens minted for this group
-	pub minted: Balance,
-	/// The amount of tokens minted for this group
-	pub retired: Balance,
-	/// The list of batches of credits
-	/// A group can represent Carbon credits from multiple batches
-	/// For example a project can have 100 tokens of 2019 vintage and 200 tokens of 2020 vintage.
-	/// In this case the project can package these two vintages to create a carbon credit token
-	/// that has a supply of 300 tokens. These vintages can be represented inside a batchgroup, in
-	/// this case, it is important to remember that the minting and retirement always gives
-	/// priority to the oldest vintage. Example : in the above case of 300 tokens, when the
-	/// originator mints 100 tokens, we first mint the oldest (2019) credits and only once the
-	/// supply is exhausted we move on the next vintage, same for retirement.
-	pub batches: BoundedVec<Batch, MaxBatches>,
+pub enum CarbonAssetType {
+	Credits,
+	Forwards,
+	Shares,
+	Donations,
+}
+
+/// Representation of a group of carbon assets. Groups are collections of batches of carbon assets
+#[derive(Clone, Encode, Decode, Eq, PartialEq, TypeInfo, Debug, MaxEncodedLen)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub enum BatchGroup<StringType, AssetId, Balance, Batch, MaxBatches: Get<u32>> {
+	// Carbon credits batch
+	Credits(CarbonCreditBatchGroup<StringType, AssetId, Balance, Batch, MaxBatches>),
+	// carbon forwards batch
+	Forwards(CarbonForwardsBatchGroup<StringType, AssetId, Balance, Batch, MaxBatches>),
+	// carbon shares batch
+	Shares(CarbonSharesBatchGroup<StringType, AssetId, Balance, Batch, MaxBatches>),
+	// Donations to project
+	Donations(DonationsBatchGroup<StringType, Balance>),
 }
 
 /// Trait to identify details of carbon credits
@@ -181,7 +186,9 @@ pub trait CarbonCreditsValidator {
 	type AssetId: Clone + PartialEq + Debug;
 
 	/// Returns ProjectId and GroupId if the given AssetId represents a CarbonCredit Project
-	fn get_project_details(asset_id: &Self::AssetId) -> Option<(Self::ProjectId, Self::GroupId)>;
+	fn get_project_details(
+		asset_id: &Self::AssetId,
+	) -> Option<(Self::ProjectId, Self::GroupId, CarbonAssetType)>;
 
 	/// Retires credits with given details
 	fn retire_credits(
@@ -191,6 +198,8 @@ pub trait CarbonCreditsValidator {
 		amount: Self::Amount,
 		retirement_reason: Option<Vec<u8>>,
 	) -> DispatchResult;
+
+	fn get_project_owner(asset_id: &Self::ProjectId) -> Option<Self::Address>;
 }
 
 /// Represents different types of projects related to environmental impact assessment.

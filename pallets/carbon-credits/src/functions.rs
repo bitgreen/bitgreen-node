@@ -17,7 +17,7 @@ use frame_support::{
 	},
 	BoundedBTreeMap,
 };
-use primitives::BatchRetireData;
+use primitives::{BatchGroup, BatchRetireData, CarbonAssetType};
 use sp_runtime::traits::{AccountIdConversion, CheckedAdd, CheckedSub, One, Zero};
 use sp_std::{cmp, convert::TryInto, vec::Vec};
 
@@ -27,6 +27,7 @@ use crate::{
 	ProjectCreateParams, ProjectDetail, Projects, RetiredCarbonCreditsData, RetiredCredits,
 	ShortStringOf,
 };
+use primitives::KYCHandler;
 
 impl<T: Config> Pallet<T> {
 	/// The account ID of the CarbonCredits pallet
@@ -41,10 +42,10 @@ impl<T: Config> Pallet<T> {
 
 	/// Checks if given account is kyc approved
 	pub fn check_kyc_approval(account_id: &T::AccountId) -> DispatchResult {
-		if !T::KYCProvider::contains(account_id) {
-			Err(Error::<T>::KYCAuthorisationFailed.into())
+		if let Some(kyc_level) = T::KYCProvider::get_kyc_level(account_id.clone()) {
+			return Ok(())
 		} else {
-			Ok(())
+			Err(Error::<T>::KYCAuthorisationFailed.into())
 		}
 	}
 
@@ -94,9 +95,36 @@ impl<T: Config> Pallet<T> {
 					)?;
 
 					// set the asset id
-					group.asset_id = asset_id;
-
-					AssetIdLookup::<T>::insert(group.asset_id, (project_id, group_id));
+					match group {
+						BatchGroup::Credits(ref mut carbon_batch_group) => {
+							carbon_batch_group.asset_id = asset_id;
+							AssetIdLookup::<T>::insert(
+								asset_id,
+								(project_id, group_id, CarbonAssetType::Credits),
+							);
+						},
+						BatchGroup::Forwards(ref mut carbon_forwards_group) => {
+							carbon_forwards_group.asset_id = asset_id;
+							AssetIdLookup::<T>::insert(
+								asset_id,
+								(project_id, group_id, CarbonAssetType::Forwards),
+							);
+						},
+						BatchGroup::Shares(ref mut carbon_shares_group) => {
+							carbon_shares_group.asset_id = asset_id;
+							AssetIdLookup::<T>::insert(
+								asset_id,
+								(project_id, group_id, CarbonAssetType::Shares),
+							);
+						},
+						BatchGroup::Donations(ref mut carbon_donations_group) => {
+							carbon_donations_group.asset_id = asset_id.into();
+							AssetIdLookup::<T>::insert(
+								asset_id,
+								(project_id, group_id, CarbonAssetType::Donations),
+							);
+						},
+					};
 
 					// add the assetId for event updation
 					created_asset_ids.push(asset_id);
@@ -122,7 +150,15 @@ impl<T: Config> Pallet<T> {
 		// the data is stored sorted in ascending order of issuance year, hence first() will always
 		// return oldest batch
 		if let Some(group) = project.batch_groups.get(&group_id) {
-			group.batches.first().map(|x| x.issuance_year)
+			match group {
+				BatchGroup::Credits(carbon_batch_group) =>
+					carbon_batch_group.batches.first().map(|x| x.issuance_year),
+				BatchGroup::Forwards(carbon_forwards_group) =>
+					carbon_forwards_group.batches.first().map(|x| x.issuance_year),
+				BatchGroup::Shares(carbon_shares_group) =>
+					carbon_shares_group.batches.first().map(|x| x.issuance_year),
+				_ => Default::default(),
+			}
 		} else {
 			None
 		}
@@ -150,37 +186,113 @@ impl<T: Config> Pallet<T> {
 
 			// ensure the groups are formed correctly and convert to BTreeMap
 			for mut group in params.batch_groups.into_iter() {
-				let mut group_total_supply: T::Balance = Zero::zero();
+				match group {
+					BatchGroup::Credits(ref mut carbon_batch_group) => {
+						let mut group_total_supply: T::Balance = Zero::zero();
+						for batch in carbon_batch_group.batches.iter() {
+							ensure!(
+								batch.total_supply > Zero::zero(),
+								Error::<T>::CannotCreateProjectWithoutCredits
+							);
 
-				for batch in group.batches.iter() {
-					ensure!(
-						batch.total_supply > Zero::zero(),
-						Error::<T>::CannotCreateProjectWithoutCredits
-					);
+							ensure!(
+								batch.minted == Zero::zero(),
+								Error::<T>::CannotCreateProjectWithoutCredits
+							);
 
-					ensure!(
-						batch.minted == Zero::zero(),
-						Error::<T>::CannotCreateProjectWithoutCredits
-					);
+							ensure!(
+								batch.retired == Zero::zero(),
+								Error::<T>::CannotCreateProjectWithoutCredits
+							);
 
-					ensure!(
-						batch.retired == Zero::zero(),
-						Error::<T>::CannotCreateProjectWithoutCredits
-					);
+							group_total_supply = group_total_supply
+								.checked_add(&batch.total_supply)
+								.ok_or(Error::<T>::Overflow)?;
+						}
 
-					group_total_supply = group_total_supply
-						.checked_add(&batch.total_supply)
-						.ok_or(Error::<T>::Overflow)?;
+						ensure!(
+							group_total_supply > Zero::zero(),
+							Error::<T>::CannotCreateProjectWithoutCredits
+						);
+
+						// sort batch data in ascending order of issuance year
+						carbon_batch_group
+							.batches
+							.sort_by(|x, y| x.issuance_year.cmp(&y.issuance_year));
+						carbon_batch_group.total_supply = group_total_supply;
+					},
+
+					BatchGroup::Forwards(ref mut carbon_forwards_group) => {
+						let mut group_total_supply: T::Balance = Zero::zero();
+						for batch in carbon_forwards_group.batches.iter() {
+							ensure!(
+								batch.total_supply > Zero::zero(),
+								Error::<T>::CannotCreateProjectWithoutCredits
+							);
+
+							ensure!(
+								batch.minted == Zero::zero(),
+								Error::<T>::CannotCreateProjectWithoutCredits
+							);
+
+							ensure!(
+								batch.retired == Zero::zero(),
+								Error::<T>::CannotCreateProjectWithoutCredits
+							);
+
+							group_total_supply = group_total_supply
+								.checked_add(&batch.total_supply)
+								.ok_or(Error::<T>::Overflow)?;
+						}
+
+						ensure!(
+							group_total_supply > Zero::zero(),
+							Error::<T>::CannotCreateProjectWithoutCredits
+						);
+
+						// sort batch data in ascending order of issuance year
+						carbon_forwards_group
+							.batches
+							.sort_by(|x, y| x.issuance_year.cmp(&y.issuance_year));
+						carbon_forwards_group.total_supply = group_total_supply;
+					},
+
+					BatchGroup::Shares(ref mut carbon_shares_group) => {
+						let mut group_total_supply: T::Balance = Zero::zero();
+						for batch in carbon_shares_group.batches.iter() {
+							ensure!(
+								batch.total_supply > Zero::zero(),
+								Error::<T>::CannotCreateProjectWithoutCredits
+							);
+
+							ensure!(
+								batch.minted == Zero::zero(),
+								Error::<T>::CannotCreateProjectWithoutCredits
+							);
+
+							ensure!(
+								batch.retired == Zero::zero(),
+								Error::<T>::CannotCreateProjectWithoutCredits
+							);
+
+							group_total_supply = group_total_supply
+								.checked_add(&batch.total_supply)
+								.ok_or(Error::<T>::Overflow)?;
+						}
+
+						ensure!(
+							group_total_supply > Zero::zero(),
+							Error::<T>::CannotCreateProjectWithoutCredits
+						);
+
+						// sort batch data in ascending order of issuance year
+						carbon_shares_group
+							.batches
+							.sort_by(|x, y| x.issuance_year.cmp(&y.issuance_year));
+						carbon_shares_group.total_supply = group_total_supply;
+					},
+					_ => Default::default(),
 				}
-
-				ensure!(
-					group_total_supply > Zero::zero(),
-					Error::<T>::CannotCreateProjectWithoutCredits
-				);
-
-				// sort batch data in ascending order of issuance year
-				group.batches.sort_by(|x, y| x.issuance_year.cmp(&y.issuance_year));
-				group.total_supply = group_total_supply;
 
 				// insert the group to BTreeMap
 				batch_group_map
@@ -236,36 +348,112 @@ impl<T: Config> Pallet<T> {
 
 			// ensure the groups are formed correctly and convert to BTreeMap
 			for mut group in params.batch_groups.into_iter() {
-				let mut group_total_supply: T::Balance = Zero::zero();
-				for batch in group.batches.iter() {
-					ensure!(
-						batch.total_supply > Zero::zero(),
-						Error::<T>::CannotCreateProjectWithoutCredits
-					);
+				match group {
+					BatchGroup::Credits(ref mut carbon_batch_group) => {
+						let mut group_total_supply: T::Balance = Zero::zero();
+						for batch in carbon_batch_group.batches.iter() {
+							ensure!(
+								batch.total_supply > Zero::zero(),
+								Error::<T>::CannotCreateProjectWithoutCredits
+							);
 
-					ensure!(
-						batch.minted == Zero::zero(),
-						Error::<T>::CannotCreateProjectWithoutCredits
-					);
+							ensure!(
+								batch.minted == Zero::zero(),
+								Error::<T>::CannotCreateProjectWithoutCredits
+							);
 
-					ensure!(
-						batch.retired == Zero::zero(),
-						Error::<T>::CannotCreateProjectWithoutCredits
-					);
+							ensure!(
+								batch.retired == Zero::zero(),
+								Error::<T>::CannotCreateProjectWithoutCredits
+							);
 
-					group_total_supply = group_total_supply
-						.checked_add(&batch.total_supply)
-						.ok_or(Error::<T>::Overflow)?;
+							group_total_supply = group_total_supply
+								.checked_add(&batch.total_supply)
+								.ok_or(Error::<T>::Overflow)?;
+						}
+
+						ensure!(
+							group_total_supply > Zero::zero(),
+							Error::<T>::CannotCreateProjectWithoutCredits
+						);
+
+						// sort batch data in ascending order of issuance year
+						carbon_batch_group
+							.batches
+							.sort_by(|x, y| x.issuance_year.cmp(&y.issuance_year));
+						carbon_batch_group.total_supply = group_total_supply;
+					},
+
+					BatchGroup::Forwards(ref mut carbon_forwards_group) => {
+						let mut group_total_supply: T::Balance = Zero::zero();
+						for batch in carbon_forwards_group.batches.iter() {
+							ensure!(
+								batch.total_supply > Zero::zero(),
+								Error::<T>::CannotCreateProjectWithoutCredits
+							);
+
+							ensure!(
+								batch.minted == Zero::zero(),
+								Error::<T>::CannotCreateProjectWithoutCredits
+							);
+
+							ensure!(
+								batch.retired == Zero::zero(),
+								Error::<T>::CannotCreateProjectWithoutCredits
+							);
+
+							group_total_supply = group_total_supply
+								.checked_add(&batch.total_supply)
+								.ok_or(Error::<T>::Overflow)?;
+						}
+
+						ensure!(
+							group_total_supply > Zero::zero(),
+							Error::<T>::CannotCreateProjectWithoutCredits
+						);
+
+						// sort batch data in ascending order of issuance year
+						carbon_forwards_group
+							.batches
+							.sort_by(|x, y| x.issuance_year.cmp(&y.issuance_year));
+						carbon_forwards_group.total_supply = group_total_supply;
+					},
+					BatchGroup::Shares(ref mut carbon_shares_group) => {
+						let mut group_total_supply: T::Balance = Zero::zero();
+						for batch in carbon_shares_group.batches.iter() {
+							ensure!(
+								batch.total_supply > Zero::zero(),
+								Error::<T>::CannotCreateProjectWithoutCredits
+							);
+
+							ensure!(
+								batch.minted == Zero::zero(),
+								Error::<T>::CannotCreateProjectWithoutCredits
+							);
+
+							ensure!(
+								batch.retired == Zero::zero(),
+								Error::<T>::CannotCreateProjectWithoutCredits
+							);
+
+							group_total_supply = group_total_supply
+								.checked_add(&batch.total_supply)
+								.ok_or(Error::<T>::Overflow)?;
+						}
+
+						ensure!(
+							group_total_supply > Zero::zero(),
+							Error::<T>::CannotCreateProjectWithoutCredits
+						);
+
+						// sort batch data in ascending order of issuance year
+						carbon_shares_group
+							.batches
+							.sort_by(|x, y| x.issuance_year.cmp(&y.issuance_year));
+						carbon_shares_group.total_supply = group_total_supply;
+					},
+					_ => Default::default(),
 				}
-
-				ensure!(
-					group_total_supply > Zero::zero(),
-					Error::<T>::CannotCreateProjectWithoutCredits
-				);
-
-				// sort batch data in ascending order of issuance year
-				group.batches.sort_by(|x, y| x.issuance_year.cmp(&y.issuance_year));
-				group.total_supply = group_total_supply;
 
 				// insert the group to BTreeMap
 				batch_group_map
@@ -366,49 +554,157 @@ impl<T: Config> Pallet<T> {
 
 			let mut batch_group_map = project.batch_groups.clone();
 
-			let group_id: u32 = batch_group_map.len() as u32;
+			let group_id: T::GroupId = (batch_group_map.len() as u32).into();
 
-			let mut group_total_supply: T::Balance = Zero::zero();
+			let asset_id = Self::next_asset_id();
+			let next_asset_id = asset_id.checked_add(&1u32.into()).ok_or(Error::<T>::Overflow)?;
+			NextAssetId::<T>::put(next_asset_id);
 
-			for batch in batch_group.batches.iter() {
-				ensure!(
-					batch.total_supply > Zero::zero(),
-					Error::<T>::CannotCreateProjectWithoutCredits
-				);
+			// create the asset
+			T::AssetHandler::create(asset_id, Self::account_id(), true, 1_u32.into())?;
 
-				ensure!(
-					batch.minted == Zero::zero(),
-					Error::<T>::CannotCreateProjectWithoutCredits
-				);
+			// ensure the groups are formed correctly and convert to BTreeMap
+			match batch_group {
+				BatchGroup::Credits(ref mut carbon_batch_group) => {
+					let mut group_total_supply: T::Balance = Zero::zero();
+					for batch in carbon_batch_group.batches.iter() {
+						ensure!(
+							batch.total_supply > Zero::zero(),
+							Error::<T>::CannotCreateProjectWithoutCredits
+						);
 
-				ensure!(
-					batch.retired == Zero::zero(),
-					Error::<T>::CannotCreateProjectWithoutCredits
-				);
+						ensure!(
+							batch.minted == Zero::zero(),
+							Error::<T>::CannotCreateProjectWithoutCredits
+						);
 
-				group_total_supply = group_total_supply
-					.checked_add(&batch.total_supply)
-					.ok_or(Error::<T>::Overflow)?;
+						ensure!(
+							batch.retired == Zero::zero(),
+							Error::<T>::CannotCreateProjectWithoutCredits
+						);
+
+						group_total_supply = group_total_supply
+							.checked_add(&batch.total_supply)
+							.ok_or(Error::<T>::Overflow)?;
+					}
+
+					ensure!(
+						group_total_supply > Zero::zero(),
+						Error::<T>::CannotCreateProjectWithoutCredits
+					);
+
+					// sort batch data in ascending order of issuance year
+					carbon_batch_group
+						.batches
+						.sort_by(|x, y| x.issuance_year.cmp(&y.issuance_year));
+					carbon_batch_group.total_supply = group_total_supply;
+					carbon_batch_group.asset_id = asset_id;
+
+					AssetIdLookup::<T>::insert(
+						asset_id,
+						(project_id, group_id, CarbonAssetType::Credits),
+					);
+				},
+
+				BatchGroup::Forwards(ref mut carbon_forwards_group) => {
+					let mut group_total_supply: T::Balance = Zero::zero();
+					for batch in carbon_forwards_group.batches.iter() {
+						ensure!(
+							batch.total_supply > Zero::zero(),
+							Error::<T>::CannotCreateProjectWithoutCredits
+						);
+
+						ensure!(
+							batch.minted == Zero::zero(),
+							Error::<T>::CannotCreateProjectWithoutCredits
+						);
+
+						ensure!(
+							batch.retired == Zero::zero(),
+							Error::<T>::CannotCreateProjectWithoutCredits
+						);
+
+						group_total_supply = group_total_supply
+							.checked_add(&batch.total_supply)
+							.ok_or(Error::<T>::Overflow)?;
+					}
+
+					ensure!(
+						group_total_supply > Zero::zero(),
+						Error::<T>::CannotCreateProjectWithoutCredits
+					);
+
+					// sort batch data in ascending order of issuance year
+					carbon_forwards_group
+						.batches
+						.sort_by(|x, y| x.issuance_year.cmp(&y.issuance_year));
+					carbon_forwards_group.total_supply = group_total_supply;
+					carbon_forwards_group.asset_id = asset_id;
+
+					AssetIdLookup::<T>::insert(
+						asset_id,
+						(project_id, group_id, CarbonAssetType::Forwards),
+					);
+				},
+				BatchGroup::Shares(ref mut carbon_shares_group) => {
+					let mut group_total_supply: T::Balance = Zero::zero();
+					for batch in carbon_shares_group.batches.iter() {
+						ensure!(
+							batch.total_supply > Zero::zero(),
+							Error::<T>::CannotCreateProjectWithoutCredits
+						);
+
+						ensure!(
+							batch.minted == Zero::zero(),
+							Error::<T>::CannotCreateProjectWithoutCredits
+						);
+
+						ensure!(
+							batch.retired == Zero::zero(),
+							Error::<T>::CannotCreateProjectWithoutCredits
+						);
+
+						group_total_supply = group_total_supply
+							.checked_add(&batch.total_supply)
+							.ok_or(Error::<T>::Overflow)?;
+					}
+
+					ensure!(
+						group_total_supply > Zero::zero(),
+						Error::<T>::CannotCreateProjectWithoutCredits
+					);
+
+					// sort batch data in ascending order of issuance year
+					carbon_shares_group
+						.batches
+						.sort_by(|x, y| x.issuance_year.cmp(&y.issuance_year));
+					carbon_shares_group.total_supply = group_total_supply;
+					carbon_shares_group.asset_id = asset_id;
+
+					AssetIdLookup::<T>::insert(
+						asset_id,
+						(project_id, group_id, CarbonAssetType::Shares),
+					);
+				},
+				BatchGroup::Donations(ref mut carbon_donations_group) => {
+					carbon_donations_group.asset_id = asset_id.into();
+
+					AssetIdLookup::<T>::insert(
+						asset_id,
+						(project_id, group_id, CarbonAssetType::Shares),
+					);
+				},
 			}
-
-			ensure!(
-				group_total_supply > Zero::zero(),
-				Error::<T>::CannotCreateProjectWithoutCredits
-			);
-
-			// sort batch data in ascending order of issuance year
-			batch_group.batches.sort_by(|x, y| x.issuance_year.cmp(&y.issuance_year));
-			batch_group.total_supply = group_total_supply;
 
 			// insert the group to BTreeMap
 			batch_group_map
-				.try_insert(group_id.into(), batch_group.clone())
+				.try_insert(group_id, batch_group.clone())
 				.map_err(|_| Error::<T>::TooManyGroups)?;
 
 			project.batch_groups = batch_group_map;
 
 			// emit event
-			Self::deposit_event(Event::BatchGroupAdded { project_id, group_id: group_id.into() });
+			Self::deposit_event(Event::BatchGroupAdded { project_id, group_id });
 
 			Ok(())
 		})
@@ -435,63 +731,232 @@ impl<T: Config> Pallet<T> {
 			// ensure the group exists
 			let group = project.batch_groups.get_mut(&group_id).ok_or(Error::<T>::GroupNotFound)?;
 
-			// ensure the amount_to_mint does not exceed limit
-			let projected_total_supply =
-				amount_to_mint.checked_add(&group.minted).ok_or(Error::<T>::Overflow)?;
+			match group {
+				BatchGroup::Credits(group) => {
+					// ensure the amount_to_mint does not exceed limit
+					let projected_total_supply =
+						amount_to_mint.checked_add(&group.minted).ok_or(Error::<T>::Overflow)?;
 
-			ensure!(
-				projected_total_supply <= group.total_supply,
-				Error::<T>::AmountGreaterThanSupply
-			);
+					ensure!(
+						projected_total_supply <= group.total_supply,
+						Error::<T>::AmountGreaterThanSupply
+					);
 
-			let recipient = match list_to_marketplace {
-				// TODO : Support marketplace escrow
-				true => project.originator.clone(),
-				false => project.originator.clone(),
-			};
+					let recipient = match list_to_marketplace {
+						// TODO : Support marketplace escrow
+						true => project.originator.clone(),
+						false => project.originator.clone(),
+					};
 
-			// Mint in the individual batches too
-			let mut batch_list: Vec<_> = group.batches.clone().into_iter().collect();
+					// Mint in the individual batches too
+					let mut batch_list: Vec<_> = group.batches.clone().into_iter().collect();
 
-			let mut remaining = amount_to_mint;
-			for batch in batch_list.iter_mut() {
-				// lets mint from the older batches as much as possible
-				let available_to_mint =
-					batch.total_supply.checked_sub(&batch.minted).ok_or(Error::<T>::Overflow)?;
+					let mut remaining = amount_to_mint;
+					for batch in batch_list.iter_mut() {
+						// lets mint from the older batches as much as possible
+						let available_to_mint = batch
+							.total_supply
+							.checked_sub(&batch.minted)
+							.ok_or(Error::<T>::Overflow)?;
 
-				let actual = cmp::min(available_to_mint, remaining);
+						let actual = cmp::min(available_to_mint, remaining);
 
-				batch.minted = batch.minted.checked_add(&actual).ok_or(Error::<T>::Overflow)?;
+						batch.minted =
+							batch.minted.checked_add(&actual).ok_or(Error::<T>::Overflow)?;
 
-				// this is safe since actual is <= remaining
-				remaining = remaining.checked_sub(&actual).ok_or(Error::<T>::Overflow)?;
-				if remaining <= Zero::zero() {
-					break
-				}
+						// this is safe since actual is <= remaining
+						remaining = remaining.checked_sub(&actual).ok_or(Error::<T>::Overflow)?;
+						if remaining <= Zero::zero() {
+							break
+						}
+					}
+
+					// this should not happen since total_supply = batches supply but
+					// lets be safe
+					ensure!(remaining == Zero::zero(), Error::<T>::AmountGreaterThanSupply);
+
+					group.batches = batch_list.try_into().map_err(|_| Error::<T>::Overflow)?;
+
+					// increase the minted count
+					group.minted =
+						group.minted.checked_add(&amount_to_mint).ok_or(Error::<T>::Overflow)?;
+
+					// another check to ensure accounting is correct
+					ensure!(
+						group.minted <= group.total_supply,
+						Error::<T>::AmountGreaterThanSupply
+					);
+
+					// mint the asset to the recipient
+					T::AssetHandler::mint_into(group.asset_id, &recipient, amount_to_mint)?;
+
+					// emit event
+					Self::deposit_event(Event::CarbonCreditMinted {
+						project_id,
+						group_id,
+						recipient,
+						amount: amount_to_mint,
+					});
+				},
+				BatchGroup::Forwards(group) => {
+					// ensure the amount_to_mint does not exceed limit
+					let projected_total_supply =
+						amount_to_mint.checked_add(&group.minted).ok_or(Error::<T>::Overflow)?;
+
+					ensure!(
+						projected_total_supply <= group.total_supply,
+						Error::<T>::AmountGreaterThanSupply
+					);
+
+					let recipient = project.originator.clone();
+
+					// Mint in the individual batches too
+					let mut batch_list: Vec<_> = group.batches.clone().into_iter().collect();
+
+					let mut remaining = amount_to_mint;
+					for batch in batch_list.iter_mut() {
+						// lets mint from the older batches as much as possible
+						let available_to_mint = batch
+							.total_supply
+							.checked_sub(&batch.minted)
+							.ok_or(Error::<T>::Overflow)?;
+
+						let actual = cmp::min(available_to_mint, remaining);
+
+						batch.minted =
+							batch.minted.checked_add(&actual).ok_or(Error::<T>::Overflow)?;
+
+						// this is safe since actual is <= remaining
+						remaining = remaining.checked_sub(&actual).ok_or(Error::<T>::Overflow)?;
+						if remaining <= Zero::zero() {
+							break
+						}
+					}
+
+					// this should not happen since total_supply = batches supply but
+					// lets be safe
+					ensure!(remaining == Zero::zero(), Error::<T>::AmountGreaterThanSupply);
+
+					group.batches = batch_list.try_into().map_err(|_| Error::<T>::Overflow)?;
+
+					// increase the minted count
+					group.minted =
+						group.minted.checked_add(&amount_to_mint).ok_or(Error::<T>::Overflow)?;
+
+					// another check to ensure accounting is correct
+					ensure!(
+						group.minted <= group.total_supply,
+						Error::<T>::AmountGreaterThanSupply
+					);
+
+					// mint the asset to the recipient
+					T::AssetHandler::mint_into(group.asset_id, &recipient, amount_to_mint)?;
+
+					// emit event
+					Self::deposit_event(Event::CarbonForwardsMinted {
+						project_id,
+						group_id,
+						recipient,
+						amount: amount_to_mint,
+					});
+				},
+				BatchGroup::Shares(group) => {
+					// ensure the amount_to_mint does not exceed limit
+					let projected_total_supply =
+						amount_to_mint.checked_add(&group.minted).ok_or(Error::<T>::Overflow)?;
+
+					ensure!(
+						projected_total_supply <= group.total_supply,
+						Error::<T>::AmountGreaterThanSupply
+					);
+
+					let recipient = project.originator.clone();
+
+					// Mint in the individual batches too
+					let mut batch_list: Vec<_> = group.batches.clone().into_iter().collect();
+
+					let mut remaining = amount_to_mint;
+					for batch in batch_list.iter_mut() {
+						// lets mint from the older batches as much as possible
+						let available_to_mint = batch
+							.total_supply
+							.checked_sub(&batch.minted)
+							.ok_or(Error::<T>::Overflow)?;
+
+						let actual = cmp::min(available_to_mint, remaining);
+
+						batch.minted =
+							batch.minted.checked_add(&actual).ok_or(Error::<T>::Overflow)?;
+
+						// this is safe since actual is <= remaining
+						remaining = remaining.checked_sub(&actual).ok_or(Error::<T>::Overflow)?;
+						if remaining <= Zero::zero() {
+							break
+						}
+					}
+
+					// this should not happen since total_supply = batches supply but
+					// lets be safe
+					ensure!(remaining == Zero::zero(), Error::<T>::AmountGreaterThanSupply);
+
+					group.batches = batch_list.try_into().map_err(|_| Error::<T>::Overflow)?;
+
+					// increase the minted count
+					group.minted =
+						group.minted.checked_add(&amount_to_mint).ok_or(Error::<T>::Overflow)?;
+
+					// another check to ensure accounting is correct
+					ensure!(
+						group.minted <= group.total_supply,
+						Error::<T>::AmountGreaterThanSupply
+					);
+
+					// mint the asset to the recipient
+					T::AssetHandler::mint_into(group.asset_id, &recipient, amount_to_mint)?;
+
+					// emit event
+					Self::deposit_event(Event::CarbonSharesMinted {
+						project_id,
+						group_id,
+						recipient,
+						amount: amount_to_mint,
+					});
+				},
+				BatchGroup::Donations(group) => {
+					// ensure the amount_to_mint does not exceed limit
+					let projected_total_supply =
+						amount_to_mint.checked_add(&group.minted).ok_or(Error::<T>::Overflow)?;
+
+					ensure!(
+						projected_total_supply <= group.total_supply,
+						Error::<T>::AmountGreaterThanSupply
+					);
+
+					let recipient = project.originator.clone();
+
+					// increase the minted count
+					group.minted =
+						group.minted.checked_add(&amount_to_mint).ok_or(Error::<T>::Overflow)?;
+
+					// another check to ensure accounting is correct
+					ensure!(
+						group.minted <= group.total_supply,
+						Error::<T>::AmountGreaterThanSupply
+					);
+
+					// mint the asset to the recipient
+					T::AssetHandler::mint_into(group.asset_id.into(), &recipient, amount_to_mint)?;
+
+					// emit event
+					Self::deposit_event(Event::CarbonDonationsMinted {
+						project_id,
+						group_id,
+						recipient,
+						amount: amount_to_mint,
+					});
+				},
+				_ => return Err(Error::<T>::CarbonAssetTypeMismatch.into()),
 			}
-
-			// this should not happen since total_supply = batches supply but
-			// lets be safe
-			ensure!(remaining == Zero::zero(), Error::<T>::AmountGreaterThanSupply);
-
-			group.batches = batch_list.try_into().map_err(|_| Error::<T>::Overflow)?;
-
-			// increase the minted count
-			group.minted = group.minted.checked_add(&amount_to_mint).ok_or(Error::<T>::Overflow)?;
-
-			// another check to ensure accounting is correct
-			ensure!(group.minted <= group.total_supply, Error::<T>::AmountGreaterThanSupply);
-
-			// mint the asset to the recipient
-			T::AssetHandler::mint_into(group.asset_id, &recipient, amount_to_mint)?;
-
-			// emit event
-			Self::deposit_event(Event::CarbonCreditMinted {
-				project_id,
-				group_id,
-				recipient,
-				amount: amount_to_mint,
-			});
 
 			Ok(())
 		})
@@ -521,122 +986,137 @@ impl<T: Config> Pallet<T> {
 			// ensure the group exists
 			let group = project.batch_groups.get_mut(&group_id).ok_or(Error::<T>::GroupNotFound)?;
 
-			// attempt to burn the tokens from the caller
-			T::AssetHandler::burn_from(group.asset_id, &from, amount, Exact, Polite)?;
+			match group {
+				BatchGroup::Credits(group) => {
+					// attempt to burn the tokens from the caller
+					T::AssetHandler::burn_from(group.asset_id, &from, amount, Exact, Polite)?;
 
-			// reduce the supply of the CarbonCredits
-			group.retired =
-				group.retired.checked_add(&amount).ok_or(Error::<T>::AmountGreaterThanSupply)?;
+					// reduce the supply of the CarbonCredits
+					group.retired = group
+						.retired
+						.checked_add(&amount)
+						.ok_or(Error::<T>::AmountGreaterThanSupply)?;
 
-			// another check to ensure accounting is correct
-			ensure!(group.retired <= group.minted, Error::<T>::AmountGreaterThanSupply);
+					// another check to ensure accounting is correct
+					ensure!(group.retired <= group.minted, Error::<T>::AmountGreaterThanSupply);
 
-			// Retire in the individual batches too
-			let mut batch_list: Vec<_> = group.batches.clone().into_iter().collect();
+					// Retire in the individual batches too
+					let mut batch_list: Vec<_> = group.batches.clone().into_iter().collect();
 
-			// list to store retirement data
-			let mut batch_retire_data_list: BatchRetireDataList<T> = Default::default();
-			let mut remaining = amount;
-			for batch in batch_list.iter_mut() {
-				// lets retire from the older batches as much as possible
-				// this is safe since we ensure minted >= retired
-				let available_to_retire =
-					batch.minted.checked_sub(&batch.retired).ok_or(Error::<T>::Overflow)?;
+					// list to store retirement data
+					let mut batch_retire_data_list: BatchRetireDataList<T> = Default::default();
+					let mut remaining = amount;
+					for batch in batch_list.iter_mut() {
+						// lets retire from the older batches as much as possible
+						// this is safe since we ensure minted >= retired
+						let available_to_retire =
+							batch.minted.checked_sub(&batch.retired).ok_or(Error::<T>::Overflow)?;
 
-				let actual = cmp::min(available_to_retire, remaining);
+						let actual = cmp::min(available_to_retire, remaining);
 
-				if actual.is_zero() {
-					continue
-				}
+						if actual.is_zero() {
+							continue
+						}
 
-				batch.retired = batch.retired.checked_add(&actual).ok_or(Error::<T>::Overflow)?;
+						batch.retired =
+							batch.retired.checked_add(&actual).ok_or(Error::<T>::Overflow)?;
 
-				// create data of retired batch
-				let batch_retire_data: BatchRetireDataOf<T> = BatchRetireData {
-					name: batch.name.clone(),
-					uuid: batch.uuid.clone(),
-					issuance_year: batch.issuance_year,
-					count: actual,
-				};
+						// create data of retired batch
+						let batch_retire_data: BatchRetireDataOf<T> = BatchRetireData {
+							name: batch.name.clone(),
+							uuid: batch.uuid.clone(),
+							issuance_year: batch.issuance_year,
+							count: actual,
+						};
 
-				// add to retired list
-				batch_retire_data_list
-					.try_push(batch_retire_data)
-					.map_err(|_| Error::<T>::Overflow)?;
+						// add to retired list
+						batch_retire_data_list
+							.try_push(batch_retire_data)
+							.map_err(|_| Error::<T>::Overflow)?;
 
-				// this is safe since actual is <= remaining
-				remaining = remaining.checked_sub(&actual).ok_or(Error::<T>::Overflow)?;
-				if remaining <= Zero::zero() {
-					break
-				}
-			}
+						// this is safe since actual is <= remaining
+						remaining = remaining.checked_sub(&actual).ok_or(Error::<T>::Overflow)?;
+						if remaining <= Zero::zero() {
+							break
+						}
+					}
 
-			// this should not happen since total_retired = batches supply but
-			// lets be safe
-			ensure!(remaining == Zero::zero(), Error::<T>::AmountGreaterThanSupply);
+					// this should not happen since total_retired = batches supply but
+					// lets be safe
+					ensure!(remaining == Zero::zero(), Error::<T>::AmountGreaterThanSupply);
 
-			// sanity checks to ensure accounting is correct
-			ensure!(group.minted <= group.total_supply, Error::<T>::AmountGreaterThanSupply);
-			ensure!(group.retired <= group.minted, Error::<T>::AmountGreaterThanSupply);
+					// sanity checks to ensure accounting is correct
+					ensure!(
+						group.minted <= group.total_supply,
+						Error::<T>::AmountGreaterThanSupply
+					);
+					ensure!(group.retired <= group.minted, Error::<T>::AmountGreaterThanSupply);
 
-			group.batches = batch_list.try_into().map_err(|_| Error::<T>::Overflow)?;
+					group.batches = batch_list.try_into().map_err(|_| Error::<T>::Overflow)?;
 
-			// Get the item-id of the NFT to mint
-			let maybe_item_id = NextItemId::<T>::get(group.asset_id);
+					// Get the item-id of the NFT to mint
+					let maybe_item_id = NextItemId::<T>::get(group.asset_id);
 
-			// handle the case of first retirement of proejct
-			let item_id = match maybe_item_id {
-				None => {
-					// If the item-id does not exist it implies this is the first retirement of
-					// project tokens create a collection and use default item-id
-					T::NFTHandler::create_collection(
-						&group.asset_id,
-						&Self::account_id(),
-						&Self::account_id(),
-					)?;
-					Default::default()
+					// handle the case of first retirement of proejct
+					let item_id = match maybe_item_id {
+						None => {
+							// If the item-id does not exist it implies this is the first retirement
+							// of project tokens create a collection and use default item-id
+							T::NFTHandler::create_collection(
+								&group.asset_id,
+								&Self::account_id(),
+								&Self::account_id(),
+							)?;
+							Default::default()
+						},
+						Some(x) => x,
+					};
+
+					// mint the NFT to caller
+					T::NFTHandler::mint_into(&group.asset_id, &item_id, &from)?;
+					// Increment the NextItemId storage
+					let next_item_id: T::ItemId =
+						item_id.checked_add(&One::one()).ok_or(Error::<T>::Overflow)?;
+					NextItemId::<T>::insert::<T::AssetId, T::ItemId>(group.asset_id, next_item_id);
+
+					let ret_reason: ShortStringOf<T> = if reason.is_none() {
+						Default::default()
+					} else {
+						reason
+							.expect("Checked above!")
+							.try_into()
+							.map_err(|_| Error::<T>::RetirementReasonOutOfBounds)?
+					};
+
+					// form the retire CarbonCredits data
+					let retired_carbon_credit_data = RetiredCarbonCreditsData::<T> {
+						account: from.clone(),
+						retire_data: batch_retire_data_list.clone(),
+						timestamp: now,
+						count: amount,
+						reason: ret_reason.clone(),
+					};
+
+					//Store the details of retired batches in storage
+					RetiredCredits::<T>::insert(
+						group.asset_id,
+						item_id,
+						retired_carbon_credit_data,
+					);
+
+					// emit event
+					Self::deposit_event(Event::CarbonCreditRetired {
+						project_id,
+						group_id,
+						asset_id: group.asset_id,
+						account: from,
+						amount,
+						retire_data: batch_retire_data_list,
+						reason: ret_reason,
+					});
 				},
-				Some(x) => x,
+				_ => return Err(Error::<T>::CarbonAssetTypeMismatch.into()),
 			};
-
-			// mint the NFT to caller
-			T::NFTHandler::mint_into(&group.asset_id, &item_id, &from)?;
-			// Increment the NextItemId storage
-			let next_item_id: T::ItemId =
-				item_id.checked_add(&One::one()).ok_or(Error::<T>::Overflow)?;
-			NextItemId::<T>::insert::<T::AssetId, T::ItemId>(group.asset_id, next_item_id);
-
-			let ret_reason: ShortStringOf<T> = if reason.is_none() {
-				Default::default()
-			} else {
-				reason
-					.expect("Checked above!")
-					.try_into()
-					.map_err(|_| Error::<T>::RetirementReasonOutOfBounds)?
-			};
-
-			// form the retire CarbonCredits data
-			let retired_carbon_credit_data = RetiredCarbonCreditsData::<T> {
-				account: from.clone(),
-				retire_data: batch_retire_data_list.clone(),
-				timestamp: now,
-				count: amount,
-				reason: ret_reason.clone(),
-			};
-
-			//Store the details of retired batches in storage
-			RetiredCredits::<T>::insert(group.asset_id, item_id, retired_carbon_credit_data);
-
-			// emit event
-			Self::deposit_event(Event::CarbonCreditRetired {
-				project_id,
-				group_id,
-				asset_id: group.asset_id,
-				account: from,
-				amount,
-				retire_data: batch_retire_data_list,
-				reason: ret_reason,
-			});
 
 			Ok(())
 		})
