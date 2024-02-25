@@ -78,6 +78,7 @@ pub struct BuyOrderInfo<
 	pub total_fee: TokenBalance,
 	pub total_amount: TokenBalance,
 	pub expiry_time: Time,
+	pub asset_type: CarbonAssetType,
 	pub payment_info: Option<PaymentInfo<AccountId, TxProofLen, MaxValidators>>,
 }
 
