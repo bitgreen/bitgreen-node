@@ -145,9 +145,10 @@ pub struct BatchRetireData<StringType, Balance> {
 }
 
 /// The types of carbon assets
-#[derive(Clone, Encode, Decode, Eq, PartialEq, TypeInfo, Debug, MaxEncodedLen)]
+#[derive(Clone, Encode, Decode, Eq, PartialEq, TypeInfo, Debug, MaxEncodedLen, Default)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum CarbonAssetType {
+	#[default]
 	Credits,
 	Forwards,
 	Shares,

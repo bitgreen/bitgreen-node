@@ -568,7 +568,7 @@ pub mod pallet {
 					T::AssetValidator::get_project_details(&asset_id)
 						.ok_or(Error::<T>::AssetNotPermitted)?;
 
-				Self::check_kyc_approval(&buyer, asset_type)?;
+				Self::check_kyc_approval(&buyer, asset_type.clone())?;
 
 				// reduce the buy_order units from total volume
 				order.units =
@@ -646,6 +646,7 @@ pub mod pallet {
 						asset_id,
 						total_fee: total_fee.into(),
 						total_amount: total_amount.into(),
+						asset_type,
 						expiry_time,
 						payment_info: None,
 					},

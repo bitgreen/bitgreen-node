@@ -172,7 +172,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: create_runtime_str!("bitgreen-parachain"),
 	impl_name: create_runtime_str!("bitgreen-parachain"),
 	authoring_version: 1,
-	spec_version: 1303, // v1.3.3
+	spec_version: 1304, // v1.3.4
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 2,
