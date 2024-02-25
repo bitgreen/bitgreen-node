@@ -150,6 +150,7 @@ impl Config for Test {
 	type CallbackHandle = AssetsCallbackHandle;
 	type Extra = ();
 	type RemoveItemsLimit = ConstU32<5>;
+	type VerifyCarbonAssetTransfer = ();
 	#[cfg(feature = "runtime-benchmarks")]
 	type BenchmarkHelper = ();
 }

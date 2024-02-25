@@ -105,6 +105,7 @@ impl pallet_assets::Config for Test {
 	type Freezer = ();
 	type Extra = ();
 	type CallbackHandle = ();
+	type VerifyCarbonAssetTransfer = ();
 	type WeightInfo = ();
 }
 
@@ -135,8 +136,10 @@ impl CarbonCreditsValidator for DummyValidator {
 	type Address = AccountId;
 	type AssetId = u32;
 	type GroupId = u32;
-	fn get_project_details(_asset_id: &Self::AssetId) -> Option<(Self::ProjectId, Self::GroupId)> {
-		Some((0, 0))
+	fn get_project_details(
+		_asset_id: &Self::AssetId,
+	) -> Option<(Self::ProjectId, Self::GroupId, primitives::CarbonAssetType)> {
+		Some((0, 0, primitives::CarbonAssetType::CarbonCredits))
 	}
 
 	fn retire_credits(

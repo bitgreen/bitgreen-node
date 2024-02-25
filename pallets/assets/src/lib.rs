@@ -177,6 +177,7 @@ use frame_support::{
 	},
 };
 use frame_system::Config as SystemConfig;
+use primitives::VerifyCarbonAssetTransfer;
 
 pub use pallet::*;
 pub use weights::WeightInfo;
@@ -319,6 +320,13 @@ pub mod pallet {
 
 		/// Weight information for extrinsics in this pallet.
 		type WeightInfo: WeightInfo;
+
+		/// Carbon asset transfer verifier
+		type VerifyCarbonAssetTransfer: VerifyCarbonAssetTransfer<
+			Self::AccountId,
+			Self::AssetId,
+			Self::Balance,
+		>;
 
 		/// Helper trait for benchmarks.
 		#[cfg(feature = "runtime-benchmarks")]

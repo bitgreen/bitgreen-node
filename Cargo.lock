@@ -970,7 +970,6 @@ dependencies = [
  "pallet-authorship",
  "pallet-balances",
  "pallet-carbon-credits",
- "pallet-carbon-credits-pool",
  "pallet-contracts",
  "pallet-contracts-primitives",
  "pallet-dex",
@@ -1054,7 +1053,6 @@ dependencies = [
  "pallet-authorship",
  "pallet-balances",
  "pallet-carbon-credits",
- "pallet-carbon-credits-pool",
  "pallet-contracts",
  "pallet-contracts-primitives",
  "pallet-dex",
@@ -6076,6 +6074,7 @@ dependencies = [
 name = "pallet-assets"
 version = "0.0.1"
 dependencies = [
+ "bitgreen-primitives",
  "frame-benchmarking",
  "frame-support",
  "frame-system",
@@ -6271,30 +6270,6 @@ dependencies = [
  "log",
  "pallet-assets",
  "pallet-balances",
- "pallet-membership",
- "pallet-timestamp",
- "pallet-uniques",
- "parity-scale-codec",
- "scale-info",
- "serde",
- "sp-core",
- "sp-io",
- "sp-runtime",
- "sp-std",
-]
-
-[[package]]
-name = "pallet-carbon-credits-pool"
-version = "0.0.1"
-dependencies = [
- "bitgreen-primitives",
- "bs58 0.4.0",
- "frame-benchmarking",
- "frame-support",
- "frame-system",
- "pallet-assets",
- "pallet-balances",
- "pallet-carbon-credits",
  "pallet-membership",
  "pallet-timestamp",
  "pallet-uniques",

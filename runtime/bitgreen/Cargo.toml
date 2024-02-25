@@ -94,7 +94,6 @@ orml-traits = { git = "https://github.com/open-web3-stack/open-runtime-module-li
 # Local Dependencies
 pallet-assets = { default-features = false, path = "../../pallets/assets" }
 pallet-carbon-credits = { default-features = false, version = '0.0.1', path = "../../pallets/carbon-credits" }
-pallet-carbon-credits-pool = { default-features = false, version = '0.0.1', path = "../../pallets/carbon-credits-pool" }
 pallet-parachain-staking = { default-features = false, version = '0.0.1', path = "../../pallets/parachain-staking" }
 pallet-transaction-pause = { default-features = false, version = '0.0.1', path = "../../pallets/transaction-pause" }
 pallet-vesting-contract = { default-features = false, version = '0.0.1', path = "../../pallets/vesting-contract" }
@@ -168,7 +167,6 @@ std = [
   "primitives/std",
   "pallet-assets/std",
   "pallet-carbon-credits/std",
-  "pallet-carbon-credits-pool/std",
   "pallet-transaction-pause/std",
   "pallet-vesting-contract/std",
   "pallet-parachain-staking/std",

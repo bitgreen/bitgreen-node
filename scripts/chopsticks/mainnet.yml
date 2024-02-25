@@ -1,0 +1,7 @@
+# npx @acala-network/chopsticks@latest --config=./scripts/chopsticks/mainnet.yml
+endpoint: wss://mainnet.bitgreen.org
+mock-signature-host: true
+
+import-storage:
+  Sudo:
+    Key: 5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY

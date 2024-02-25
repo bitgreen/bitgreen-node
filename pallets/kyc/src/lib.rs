@@ -325,3 +325,9 @@ impl<T: Config<I>, I: 'static> Contains<T::AccountId> for Pallet<T, I> {
 		Members::<T, I>::get(t).is_some()
 	}
 }
+
+impl<T: Config<I>, I: 'static> bitgreen_primitives::KYCHandler<T::AccountId> for Pallet<T, I> {
+	fn get_kyc_level(account: T::AccountId) -> Option<UserLevel> {
+		Members::<T, I>::get(account)
+	}
+}

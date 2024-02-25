@@ -8,7 +8,13 @@ split-debuginfo = "unpacked"
 members = [
   'parachain',
   'runtime/bitgreen',
-  'pallets/*',
+  'pallets/carbon-credits',
+  'pallets/assets',
+  'pallets/dex',
+  'pallets/general-storage',
+  'pallets/kyc',
+  'pallets/vesting-contract',
+  'pallets/transaction-pause',
   'primitives',
 ]
 exclude = ['rpc']
