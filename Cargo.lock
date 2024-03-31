@@ -849,7 +849,7 @@ checksum = "327762f6e5a765692301e5bb513e0d9fef63be86bbc14528052b1cd3e6f03e07"
 
 [[package]]
 name = "bitgreen-parachain"
-version = "0.0.1"
+version = "1.4.0"
 dependencies = [
  "bitgreen-primitives",
  "bitgreen-rococo-runtime",
@@ -938,7 +938,7 @@ dependencies = [
 
 [[package]]
 name = "bitgreen-rococo-runtime"
-version = "0.1.0"
+version = "1.4.0"
 dependencies = [
  "bitgreen-primitives",
  "cumulus-pallet-aura-ext",
@@ -1021,7 +1021,7 @@ dependencies = [
 
 [[package]]
 name = "bitgreen-runtime"
-version = "0.1.0"
+version = "1.4.0"
 dependencies = [
  "bitgreen-primitives",
  "cumulus-pallet-aura-ext",

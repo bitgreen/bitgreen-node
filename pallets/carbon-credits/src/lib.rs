@@ -396,6 +396,8 @@ pub mod pallet {
 		RetirementReasonOutOfBounds,
 		/// Carbon asset type mismatch
 		CarbonAssetTypeMismatch,
+		/// Not supported asset type
+		NotSupported,
 	}
 
 	#[pallet::call]

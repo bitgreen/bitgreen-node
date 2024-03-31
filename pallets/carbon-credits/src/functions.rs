@@ -257,41 +257,41 @@ impl<T: Config> Pallet<T> {
 						carbon_forwards_group.total_supply = group_total_supply;
 					},
 
-					BatchGroup::Shares(ref mut carbon_shares_group) => {
-						let mut group_total_supply: T::Balance = Zero::zero();
-						for batch in carbon_shares_group.batches.iter() {
-							ensure!(
-								batch.total_supply > Zero::zero(),
-								Error::<T>::CannotCreateProjectWithoutCredits
-							);
+					// BatchGroup::Shares(ref mut carbon_shares_group) => {
+					// 	let mut group_total_supply: T::Balance = Zero::zero();
+					// 	for batch in carbon_shares_group.batches.iter() {
+					// 		ensure!(
+					// 			batch.total_supply > Zero::zero(),
+					// 			Error::<T>::CannotCreateProjectWithoutCredits
+					// 		);
 
-							ensure!(
-								batch.minted == Zero::zero(),
-								Error::<T>::CannotCreateProjectWithoutCredits
-							);
+					// 		ensure!(
+					// 			batch.minted == Zero::zero(),
+					// 			Error::<T>::CannotCreateProjectWithoutCredits
+					// 		);
 
-							ensure!(
-								batch.retired == Zero::zero(),
-								Error::<T>::CannotCreateProjectWithoutCredits
-							);
+					// 		ensure!(
+					// 			batch.retired == Zero::zero(),
+					// 			Error::<T>::CannotCreateProjectWithoutCredits
+					// 		);
 
-							group_total_supply = group_total_supply
-								.checked_add(&batch.total_supply)
-								.ok_or(Error::<T>::Overflow)?;
-						}
+					// 		group_total_supply = group_total_supply
+					// 			.checked_add(&batch.total_supply)
+					// 			.ok_or(Error::<T>::Overflow)?;
+					// 	}
 
-						ensure!(
-							group_total_supply > Zero::zero(),
-							Error::<T>::CannotCreateProjectWithoutCredits
-						);
+					// 	ensure!(
+					// 		group_total_supply > Zero::zero(),
+					// 		Error::<T>::CannotCreateProjectWithoutCredits
+					// 	);
 
-						// sort batch data in ascending order of issuance year
-						carbon_shares_group
-							.batches
-							.sort_by(|x, y| x.issuance_year.cmp(&y.issuance_year));
-						carbon_shares_group.total_supply = group_total_supply;
-					},
-					_ => Default::default(),
+					// 	// sort batch data in ascending order of issuance year
+					// 	carbon_shares_group
+					// 		.batches
+					// 		.sort_by(|x, y| x.issuance_year.cmp(&y.issuance_year));
+					// 	carbon_shares_group.total_supply = group_total_supply;
+					// },
+					_ => return Err(Error::<T>::NotSupported.into()),
 				}
 
 				// insert the group to BTreeMap

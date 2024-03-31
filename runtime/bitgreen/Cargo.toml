@@ -1,6 +1,6 @@
 [package]
 name = 'bitgreen-runtime'
-version = '0.1.0'
+version = '1.4.0'
 authors = ['BitGreen <https://www.bitgreen.org>']
 edition = '2021'
 homepage = 'https://www.bitgreen.org'

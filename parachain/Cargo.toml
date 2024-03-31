@@ -1,6 +1,6 @@
 [package]
 name = 'bitgreen-parachain'
-version = '0.0.1'
+version = '1.4.0'
 authors = ['BitGreen <https://www.bitgreen.org>']
 build = 'build.rs'
 edition = '2021'

@@ -396,7 +396,7 @@ parameter_types! {
 	pub const SessionLength: BlockNumber = 6 * HOURS;
 	pub const MaxInvulnerables: u32 = 100;
 	#[derive(Clone, TypeInfo, Debug, PartialOrd, Ord, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
-	pub const MaxDelegators : u32 = 20;
+	pub const MaxDelegators : u32 = 50;
 	pub const MinDelegationAmount : u32 = 100;
 	pub const ExecutiveBody: BodyId = BodyId::Executive;
 	pub const UnbondingDelay : BlockNumber = 7 * DAYS;
