@@ -184,11 +184,11 @@ StandardOutput=file:/root/logs/parachain
 StandardError=file:/root/logs/parachain_err
 ExecStart=/var/lib/bitgreen-parachain \
   --chain <location-of-chainspec-file> \
-  --collator --force-authoring --base-path <location-of-basepath> --port 40333 \
+  --collator --base-path <location-of-basepath> --port 40333 \
   --node-key-file <location-of-nodekey-file> \
-  --rpc-cors all --ws-external \
-  --ws-port 9944 --rpc-port 9933 \
-  --name "YOUR-NODE-NAME" \
+  --rpc-cors all --rpc-external \
+  --rpc-port 9944 \
+  --name "YOUR-NODE-NAME" --telemetry-url "wss://telemetry.polkadot.io/submit/ 0" \
   --rpc-methods=safe -- --execution wasm --chain <location-of-relaychain-chainspec>
 
 [Install]
