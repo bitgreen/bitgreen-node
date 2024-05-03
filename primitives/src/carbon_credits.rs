@@ -198,21 +198,30 @@ pub trait CarbonCreditsValidator {
 #[derive(Clone, Encode, Decode, Eq, PartialEq, TypeInfo, Default, Debug, MaxEncodedLen)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum ProjectType {
-	/// Projects related to agriculture, forestry, and other land use.
-	#[default]
-	AGRICULTURE_FORESTRY_AND_OTHER_LAND_USE,
+	/// Projects related to agriculture.
+	AGRICULTURE,
+	/// Projects related to the blue carbon.
+	BLUE_CARBON,
 	/// Projects related to the chemical industry.
 	CHEMICAL_INDUSTRY,
+	/// Projects related to clean drinking water.
+	CLEAN_DRINKING_WATER,
 	/// Projects related to energy demand.
 	ENERGY_DEMAND,
 	/// Projects related to energy distribution.
 	ENERGY_DISTRIBUTION,
 	/// Projects related to energy industries.
 	ENERGY_INDUSTRIES,
+	/// Projects related to energy efficiency.
+	ENERGY_EFFICIENCY,
+	/// Projects related to forestry, and other land use.
+	FORESTRY,
 	/// Projects related to fugitive emissions from fuels.
 	FUGITIVE_EMISSIONS_FROM_FUELS,
 	/// Projects related to fugitive emissions from carbons.
 	FUGITIVE_EMISSIONS_FROM_CARBONS,
+	/// Projects related to industrial gases.
+	INDUSTRIAL_GASES,
 	/// Projects related to livestock.
 	LIVESTOCK,
 	/// Projects related to manufacturing industries.
@@ -221,8 +230,15 @@ pub enum ProjectType {
 	METAL_PRODUCTION,
 	/// Projects related to mining and mineral production.
 	MINING_MINERAL_PRODUCTION,
-	/// Projects related to transport.
-	TRANSPORT,
+	/// Projects related to renewable energy.
+	RENEWABLE_ENERGY,
+	/// Projects related to transportation.
+	TRANSPORTATION,
 	/// Projects related to waste handling.
 	WASTE_HANDLING,
+	/// Projects related to waste management.
+	WASTE_MANAGEMENT,
+	/// Other projects.
+	#[default]
+	OTHER
 }
