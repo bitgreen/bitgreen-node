@@ -506,7 +506,7 @@ parameter_types! {
   pub const MaxAuthorizedAccountCount : u32 = 10;
   pub const MaxDocumentCount : u32 = 10;
   pub const MaxIpfsReferenceLength : u32 = 1024;
-  pub const MaxLongStringLength : u32 = 3072;
+  pub const MaxLongStringLength : u32 = 10000;
   pub const MaxRoyaltyRecipients : u32 = 10;
   pub const MaxShortStringLength : u32 = 1024;
   pub const MinProjectId : u32 = 1000;
