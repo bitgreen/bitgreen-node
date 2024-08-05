@@ -363,6 +363,8 @@ pub mod pallet {
 		UserOpenOrderUnitsLimtNotFound,
 		/// Min validators cannot be zero
 		MinValidatorsCannotBeZero,
+		/// User kyc level cannot use bank wire
+		UserCannotUseBankWire
 	}
 
 	#[pallet::hooks]
@@ -544,6 +546,7 @@ pub mod pallet {
 			asset_id: AssetIdOf<T>,
 			units: AssetBalanceOf<T>,
 			max_fee: CurrencyBalanceOf<T>,
+			is_bank_wire: bool
 		) -> DispatchResult {
 			let buyer = ensure_signed(origin)?;
 
@@ -569,6 +572,11 @@ pub mod pallet {
 						.ok_or(Error::<T>::AssetNotPermitted)?;
 
 				Self::check_kyc_approval(&buyer, asset_type.clone())?;
+
+				// ensure the user can use bank wire
+				if is_bank_wire {
+					Self::check_allowed_to_use_bank_wire(&buyer)?;
+				}
 
 				// reduce the buy_order units from total volume
 				order.units =
@@ -604,9 +612,15 @@ pub mod pallet {
 				BuyOrderCount::<T>::put(next_buy_order_id);
 
 				let current_block_number = <frame_system::Pallet<T>>::block_number();
-				let expiry_time = current_block_number
+				let expiry_time = if is_bank_wire {
+					current_block_number
+					.checked_add(&T::BuyOrderExpiryTime::get().saturating_mul(8_u32.into()))
+					.ok_or(Error::<T>::OrderIdOverflow)?
+				} else {
+					current_block_number
 					.checked_add(&T::BuyOrderExpiryTime::get())
-					.ok_or(Error::<T>::OrderIdOverflow)?;
+					.ok_or(Error::<T>::OrderIdOverflow)?
+				};
 
 				// ensure the user does not have open buy orders more than limit
 				BuyOrdersByUser::<T>::try_mutate(
@@ -1095,6 +1109,24 @@ pub mod pallet {
 				}
 			} else {
 				Err(Error::<T>::KYCAuthorisationFailed.into())
+			}
+		}
+
+		/// Checks if given account is allowed to use bank wire
+		pub fn check_allowed_to_use_bank_wire(
+			account_id: &T::AccountId,
+		) -> DispatchResult {
+			use primitives::CarbonAssetType::*;
+
+			if let Some(kyc_level) = T::KYCProvider::get_kyc_level(account_id.clone()) {
+					match kyc_level {
+						primitives::UserLevel::KYCLevel3 => return Ok(()),
+						primitives::UserLevel::KYCLevel4 => return Ok(()),
+						_ => return Err(Error::<T>::UserCannotUseBankWire.into()),
+					}
+				}
+			else {
+				Err(Error::<T>::UserCannotUseBankWire.into())
 			}
 		}
 	}
