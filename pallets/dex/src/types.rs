@@ -118,6 +118,7 @@ pub struct PayoutExecutedToSeller<
 	/// We do not enforce this but the chainID is represented as follows:
 	/// 0 - Stripe
 	/// 1 - Eth
+	/// 2 - Bank Wire
 	/// 137 - Polygon
 	pub chain_id: u32,
 
