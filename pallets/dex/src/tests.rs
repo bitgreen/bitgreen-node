@@ -186,48 +186,48 @@ fn buy_order_should_work() {
 
 		// non existing order should fail
 		assert_noop!(
-			Dex::create_buy_order(RuntimeOrigin::signed(buyer), 10, 0, 1, 100),
+			Dex::create_buy_order(RuntimeOrigin::signed(buyer), 10, 0, 1, 100, false),
 			Error::<Test>::InvalidOrderId
 		);
 
 		// non kyc buyer should fail
 		assert_noop!(
-			Dex::create_buy_order(RuntimeOrigin::signed(20), 0, 10, 1, 100),
+			Dex::create_buy_order(RuntimeOrigin::signed(20), 0, 10, 1, 100, false),
 			Error::<Test>::KYCAuthorisationFailed
 		);
 
 		// non matching asset_id should fail
 		assert_noop!(
-			Dex::create_buy_order(RuntimeOrigin::signed(buyer), 0, 10, 1, 100),
+			Dex::create_buy_order(RuntimeOrigin::signed(buyer), 0, 10, 1, 100, false),
 			Error::<Test>::InvalidAssetId
 		);
 
 		// more than listed volume should fail
 		assert_noop!(
-			Dex::create_buy_order(RuntimeOrigin::signed(buyer), 0, asset_id, 1000, 100),
+			Dex::create_buy_order(RuntimeOrigin::signed(buyer), 0, asset_id, 1000, 100, false),
 			Error::<Test>::OrderUnitsOverflow
 		);
 
 		// should fail if the buyer and seller are same
 		assert_noop!(
-			Dex::create_buy_order(RuntimeOrigin::signed(seller), 0, asset_id, 1, 100),
+			Dex::create_buy_order(RuntimeOrigin::signed(seller), 0, asset_id, 1, 100, false),
 			Error::<Test>::SellerAndBuyerCannotBeSame
 		);
 
 		// should fail if the fee is zero
 		assert_noop!(
-			Dex::create_buy_order(RuntimeOrigin::signed(buyer), 0, asset_id, 1, 0),
+			Dex::create_buy_order(RuntimeOrigin::signed(buyer), 0, asset_id, 1, 0, false),
 			Error::<Test>::FeeExceedsUserLimit
 		);
 
 		// should fail if the fee is less than expected
 		assert_noop!(
-			Dex::create_buy_order(RuntimeOrigin::signed(buyer), 0, asset_id, 1, 0),
+			Dex::create_buy_order(RuntimeOrigin::signed(buyer), 0, asset_id, 1, 0, false),
 			Error::<Test>::FeeExceedsUserLimit
 		);
 
 		// use should be able to purchase
-		assert_ok!(Dex::create_buy_order(RuntimeOrigin::signed(buyer), 0, asset_id, 1, 11));
+		assert_ok!(Dex::create_buy_order(RuntimeOrigin::signed(buyer), 0, asset_id, 1, 11, false));
 
 		// sell order storage should be updated correctly
 		let sell_order_storage = Orders::<Test>::get(0).unwrap();
@@ -299,7 +299,7 @@ fn validate_buy_order_should_work() {
 		assert_ok!(Dex::create_sell_order(RuntimeOrigin::signed(seller), asset_id, 5, 10));
 
 		// create a new buy order
-		assert_ok!(Dex::create_buy_order(RuntimeOrigin::signed(buyer), 0, asset_id, 1, 11));
+		assert_ok!(Dex::create_buy_order(RuntimeOrigin::signed(buyer), 0, asset_id, 1, 11, false));
 
 		let tx_proof: BoundedVec<_, _> = vec![].try_into().unwrap();
 
@@ -380,7 +380,7 @@ fn payment_is_processed_after_validator_threshold_reached() {
 		add_validator_account(validator_two);
 
 		// create a new buy order
-		assert_ok!(Dex::create_buy_order(RuntimeOrigin::signed(buyer), 0, asset_id, 1, 11));
+		assert_ok!(Dex::create_buy_order(RuntimeOrigin::signed(buyer), 0, asset_id, 1, 11, false));
 
 		let tx_proof: BoundedVec<_, _> = vec![].try_into().unwrap();
 
@@ -602,7 +602,7 @@ fn buy_order_handle_expiry_should_work() {
 		add_validator_account(validator);
 
 		// use should be able to purchase
-		assert_ok!(Dex::create_buy_order(RuntimeOrigin::signed(buyer), 0, asset_id, 1, 11));
+		assert_ok!(Dex::create_buy_order(RuntimeOrigin::signed(buyer), 0, asset_id, 1, 11, false));
 
 		// sell order storage should be updated correctly
 		let sell_order_storage = Orders::<Test>::get(0).unwrap();
@@ -775,7 +775,7 @@ fn buy_order_limits_should_work() {
 
 		// should fail if the limits are not set
 		assert_noop!(
-			Dex::create_buy_order(RuntimeOrigin::signed(buyer), 0, asset_id, 1, 11),
+			Dex::create_buy_order(RuntimeOrigin::signed(buyer), 0, asset_id, 1, 11, false),
 			Error::<Test>::UserOpenOrderUnitsLimtNotFound
 		);
 
@@ -788,26 +788,26 @@ fn buy_order_limits_should_work() {
 
 		// use should not be able to purchase above limit
 		assert_noop!(
-			Dex::create_buy_order(RuntimeOrigin::signed(buyer), 0, asset_id, 11, 110),
+			Dex::create_buy_order(RuntimeOrigin::signed(buyer), 0, asset_id, 11, 110, false),
 			Error::<Test>::UserOpenOrderUnitsAllowedExceeded
 		);
 
 		// use should be able to purchase below limit
-		assert_ok!(Dex::create_buy_order(RuntimeOrigin::signed(buyer), 0, asset_id, 1, 11));
+		assert_ok!(Dex::create_buy_order(RuntimeOrigin::signed(buyer), 0, asset_id, 1, 11, false));
 
 		// use should not be able exceed purchase limit with another order
 		assert_noop!(
-			Dex::create_buy_order(RuntimeOrigin::signed(buyer), 0, asset_id, 10, 110),
+			Dex::create_buy_order(RuntimeOrigin::signed(buyer), 0, asset_id, 10, 110, false),
 			Error::<Test>::UserOpenOrderUnitsAllowedExceeded
 		);
 
 		// use should be able to create another order if its below limit
-		assert_ok!(Dex::create_buy_order(RuntimeOrigin::signed(buyer), 0, asset_id, 5, 110),);
+		assert_ok!(Dex::create_buy_order(RuntimeOrigin::signed(buyer), 0, asset_id, 5, 110, false),);
 
 		// use should not be able to create another order if its above number of total open orders
 		// allowed
 		assert_noop!(
-			Dex::create_buy_order(RuntimeOrigin::signed(buyer), 0, asset_id, 1, 110),
+			Dex::create_buy_order(RuntimeOrigin::signed(buyer), 0, asset_id, 1, 110, false),
 			Error::<Test>::OpenOrderLimitExceeded
 		);
 
@@ -838,7 +838,7 @@ fn buy_order_limits_are_reset_correctly() {
 
 		// should fail if the limits are not set
 		assert_noop!(
-			Dex::create_buy_order(RuntimeOrigin::signed(buyer), 0, asset_id, 1, 11),
+			Dex::create_buy_order(RuntimeOrigin::signed(buyer), 0, asset_id, 1, 11, false),
 			Error::<Test>::UserOpenOrderUnitsLimtNotFound
 		);
 
@@ -850,10 +850,10 @@ fn buy_order_limits_are_reset_correctly() {
 		));
 
 		// use should be able to purchase below limit
-		assert_ok!(Dex::create_buy_order(RuntimeOrigin::signed(buyer), 0, asset_id, 1, 11));
+		assert_ok!(Dex::create_buy_order(RuntimeOrigin::signed(buyer), 0, asset_id, 1, 11, false));
 
 		// use should be able to create another order if its below limit
-		assert_ok!(Dex::create_buy_order(RuntimeOrigin::signed(buyer), 0, asset_id, 5, 110),);
+		assert_ok!(Dex::create_buy_order(RuntimeOrigin::signed(buyer), 0, asset_id, 5, 110, false),);
 
 		// ensure the storage is updated correctly
 		let order_storage_by_user = BuyOrdersByUser::<Test>::get(buyer);
@@ -912,7 +912,7 @@ fn purchase_is_retired_if_payment_is_stripe() {
 		add_validator_account(validator_two);
 
 		// create a new buy order
-		assert_ok!(Dex::create_buy_order(RuntimeOrigin::signed(buyer), 0, asset_id, 1, 11));
+		assert_ok!(Dex::create_buy_order(RuntimeOrigin::signed(buyer), 0, asset_id, 1, 11, false));
 
 		let tx_proof: BoundedVec<_, _> = vec![].try_into().unwrap();
 
@@ -1013,3 +1013,123 @@ fn purchase_is_retired_if_payment_is_stripe() {
 		assert_eq!(Assets::balance(asset_id, dex_account), 4);
 	});
 }
+
+#[test]
+fn set_bank_wire_in_process_should_work() {
+	new_test_ext().execute_with(|| {
+		let asset_id = 0;
+		let seller = 1;
+		let buyer = 4;
+		let validator = 10;
+		let buy_order_id = 0;
+
+		assert_ok!(Assets::force_create(RuntimeOrigin::root(), asset_id, 1, true, 1));
+		assert_ok!(Assets::mint(RuntimeOrigin::signed(seller), asset_id, 1, 100));
+		assert_eq!(Assets::balance(asset_id, seller), 100);
+
+		// set fee values
+		assert_ok!(Dex::force_set_payment_fee(RuntimeOrigin::root(), Percent::from_percent(10)));
+		assert_ok!(Dex::force_set_purchase_fee(RuntimeOrigin::root(), 10u32.into()));
+
+		// configure limit to avoid failure
+		assert_ok!(Dex::force_set_open_order_allowed_limits(
+			RuntimeOrigin::root(),
+			UserLevel::KYCLevel1,
+			1000
+		));
+
+		// should be able to create a sell order
+		assert_ok!(Dex::create_sell_order(RuntimeOrigin::signed(seller), asset_id, 5, 10));
+
+		// create a new buy order
+		assert_ok!(Dex::create_buy_order(RuntimeOrigin::signed(buyer), 0, asset_id, 1, 11, false));
+
+		let tx_proof: BoundedVec<_, _> = vec![].try_into().unwrap();
+
+		// non validator cannot validate
+		assert_noop!(
+			Dex::validate_buy_order(
+				RuntimeOrigin::signed(buyer),
+				buy_order_id,
+				0u32,
+				vec![].try_into().unwrap(),
+				None
+			),
+			Error::<Test>::NotAuthorised
+		);
+
+		// validator can validate a payment order
+		add_validator_account(validator);
+		// Test: Set the bank wire in process
+		assert_ok!(Dex::set_bank_wire_in_process(RuntimeOrigin::signed(validator), buy_order_id));
+
+		// Fetch the updated buy order from storage
+		let updated_buy_order = BuyOrders::<Test>::get(buy_order_id).unwrap();
+
+		// Calculate the expected expiry time
+		let expected_expiry_time = updated_buy_order.expiry_time.checked_add(4 * 8).unwrap();
+
+		// Assert that the expiry time has been correctly extended
+		assert_eq!(updated_buy_order.expiry_time, expected_expiry_time);
+	});
+}
+
+// #[test]
+// fn set_bank_wire_in_process_should_work() {
+// 	new_test_ext().execute_with(|| {
+// 		let asset_id = 0;
+// 		let seller = 1;
+// 		let buyer = 4;
+// 		let validator = 10;
+// 		let buy_order_id = 0;
+
+// 		// Setup: Create asset, mint to seller, and create buy order
+// 		assert_ok!(Assets::force_create(RuntimeOrigin::root(), asset_id, 1, true, 1));
+// 		assert_ok!(Assets::mint(RuntimeOrigin::signed(seller), asset_id, 1, 100));
+// 		assert_eq!(Assets::balance(asset_id, seller), 100);
+
+// 		// Set required fees and limits
+// 		assert_ok!(Dex::force_set_payment_fee(RuntimeOrigin::root(), Percent::from_percent(10)));
+// 		assert_ok!(Dex::force_set_purchase_fee(RuntimeOrigin::root(), 10u32.into()));
+// 		assert_ok!(Dex::force_set_open_order_allowed_limits(
+// 			RuntimeOrigin::root(),
+// 			UserLevel::KYCLevel1,
+// 			1000
+// 		));
+
+// 		// Seller creates a sell order, and buyer creates a buy order
+// 		assert_ok!(Dex::create_sell_order(RuntimeOrigin::signed(seller), asset_id, 5, 10));
+// 		assert_ok!(Dex::create_buy_order(RuntimeOrigin::signed(buyer), 0, asset_id, 1, 11));
+
+// 		// Add validator and validate the buy order
+// 		add_validator_account(validator);
+// 		assert_ok!(Dex::validate_buy_order(
+// 			RuntimeOrigin::signed(validator),
+// 			buy_order_id,
+// 			0u32,
+// 			vec![].try_into().unwrap(),
+// 			None
+// 		));
+
+// 		// Test: Set the bank wire in process
+// 		assert_ok!(Dex::set_bank_wire_in_process(RuntimeOrigin::signed(validator), buy_order_id));
+
+// 		// Fetch the updated buy order from storage
+// 		let updated_buy_order = BuyOrders::<Test>::get(buy_order_id).unwrap();
+
+// 		// Calculate the expected expiry time
+// 		let expected_expiry_time = updated_buy_order
+// 			.expiry_time
+// 			.checked_add(&Test::BuyOrderExpiryTime::get().saturating_mul(8_u32.into()))
+// 			.unwrap();
+
+// 		// Assert that the expiry time has been correctly extended
+// 		assert_eq!(updated_buy_order.expiry_time, expected_expiry_time);
+
+// 		// Assert that the event was emitted correctly
+// 		assert_eq!(
+// 			last_event(),
+// 			Event::BankWireInProcessSet { order_id: buy_order_id }.into()
+// 		);
+// 	});
+// }

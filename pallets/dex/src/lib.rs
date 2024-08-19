@@ -248,7 +248,10 @@ pub mod pallet {
 			owner: T::AccountId,
 		},
 		/// A sell order was cancelled
-		SellOrderCancelled { order_id: OrderId, seller: T::AccountId },
+		SellOrderCancelled {
+			order_id: OrderId,
+			seller: T::AccountId,
+		},
 		/// A buy order was processed successfully
 		BuyOrderCreated {
 			order_id: OrderId,
@@ -263,11 +266,19 @@ pub mod pallet {
 			buyer: T::AccountId,
 		},
 		/// A new ValidatorAccount has been added
-		ValidatorAccountAdded { account_id: T::AccountId },
+		ValidatorAccountAdded {
+			account_id: T::AccountId,
+		},
 		/// An ValidatorAccount has been removed
-		ValidatorAccountRemoved { account_id: T::AccountId },
+		ValidatorAccountRemoved {
+			account_id: T::AccountId,
+		},
 		/// A buy order payment was validated
-		BuyOrderPaymentValidated { order_id: BuyOrderId, chain_id: u32, validator: T::AccountId },
+		BuyOrderPaymentValidated {
+			order_id: BuyOrderId,
+			chain_id: u32,
+			validator: T::AccountId,
+		},
 		/// A buy order was completed successfully
 		BuyOrderFilled {
 			order_id: BuyOrderId,
@@ -286,9 +297,14 @@ pub mod pallet {
 			preference: Option<SellerPayoutPreferenceOf<T>>,
 		},
 		/// Authority to validate seller payout has been set
-		SellerPayoutAuthoritySet { authority: T::AccountId },
+		SellerPayoutAuthoritySet {
+			authority: T::AccountId,
+		},
 		/// A seller was paid
-		SellerPayoutExecuted { seller: T::AccountId, payout: PayoutExecutedToSellerOf<T> },
+		SellerPayoutExecuted {
+			seller: T::AccountId,
+			payout: PayoutExecutedToSellerOf<T>,
+		},
 		/// A buy order was expired and removed
 		BuyOrderExpired {
 			order_id: BuyOrderId,
@@ -297,9 +313,17 @@ pub mod pallet {
 			buyer: T::AccountId,
 		},
 		/// User open order units limit set
-		UserOpenOrderUnitsLimitUpdated { level: UserLevel, limit: AssetBalanceOf<T> },
+		UserOpenOrderUnitsLimitUpdated {
+			level: UserLevel,
+			limit: AssetBalanceOf<T>,
+		},
 		/// BuyOrdersByUser storage was cleard
-		BuyOrdersByUserCleared { user: T::AccountId },
+		BuyOrdersByUserCleared {
+			user: T::AccountId,
+		},
+		BankWireInProcessSet {
+			order_id: BuyOrderId,
+		},
 	}
 
 	// Errors inform users that something went wrong.
@@ -364,7 +388,7 @@ pub mod pallet {
 		/// Min validators cannot be zero
 		MinValidatorsCannotBeZero,
 		/// User kyc level cannot use bank wire
-		UserCannotUseBankWire
+		UserCannotUseBankWire,
 	}
 
 	#[pallet::hooks]
@@ -546,7 +570,7 @@ pub mod pallet {
 			asset_id: AssetIdOf<T>,
 			units: AssetBalanceOf<T>,
 			max_fee: CurrencyBalanceOf<T>,
-			is_bank_wire: bool
+			is_bank_wire: bool,
 		) -> DispatchResult {
 			let buyer = ensure_signed(origin)?;
 
@@ -614,12 +638,12 @@ pub mod pallet {
 				let current_block_number = <frame_system::Pallet<T>>::block_number();
 				let expiry_time = if is_bank_wire {
 					current_block_number
-					.checked_add(&T::BuyOrderExpiryTime::get().saturating_mul(8_u32.into()))
-					.ok_or(Error::<T>::OrderIdOverflow)?
+						.checked_add(&T::BuyOrderExpiryTime::get().saturating_mul(2_u32.into()))
+						.ok_or(Error::<T>::OrderIdOverflow)?
 				} else {
 					current_block_number
-					.checked_add(&T::BuyOrderExpiryTime::get())
-					.ok_or(Error::<T>::OrderIdOverflow)?
+						.checked_add(&T::BuyOrderExpiryTime::get())
+						.ok_or(Error::<T>::OrderIdOverflow)?
 				};
 
 				// ensure the user does not have open buy orders more than limit
@@ -1074,6 +1098,56 @@ pub mod pallet {
 			Self::deposit_event(Event::BuyOrdersByUserCleared { user });
 			Ok(())
 		}
+
+		/// This action will extend the expiration time of the order to
+		/// allow for the additional time typically required for bank wire transfers to complete.
+		///
+		/// # Arguments
+		///
+		/// * `origin` - The account initiating the request. The caller must be a valid validator
+		///   account.
+		/// * `order_id` - The unique identifier of the buy order for which the payment status is
+		///   being set to "pending".
+		///
+		/// # Effects
+		///
+		/// * This function fetches the buy order associated with the given `order_id`.
+		/// * If the order exists, it extends the order's expiry time by a duration determined by
+		///   the `BuyOrderExpiryTime` constant multiplied by 8.
+		/// * This is useful in scenarios where a bank wire transfer is the chosen payment method,
+		///   as these transfers generally require more time to process.
+		///
+		/// # Errors
+		///
+		/// This function will return an error in the following scenarios:
+		///
+		/// * If the `origin` is not a valid, signed account.
+		/// * If the account initiating the call is not a validator.
+		/// * If the provided `order_id` does not correspond to an existing buy order.
+		/// * If extending the expiry time results in an overflow of the `expiry_time` field.
+		#[pallet::call_index(14)]
+		#[pallet::weight(T::WeightInfo::force_set_purchase_fee())]
+		pub fn set_bank_wire_in_process(
+			origin: OriginFor<T>,
+			order_id: BuyOrderId,
+		) -> DispatchResult {
+			let sender = ensure_signed(origin)?;
+			Self::check_validator_account(&sender)?;
+
+			// fetch the buy order
+			BuyOrders::<T>::try_mutate(order_id, |maybe_order| -> DispatchResult {
+				let mut order = maybe_order.take().ok_or(Error::<T>::InvalidOrderId)?;
+
+				order.expiry_time = order
+					.expiry_time
+					.checked_add(&T::BuyOrderExpiryTime::get().saturating_mul(8_u32.into()))
+					.ok_or(Error::<T>::OrderIdOverflow)?;
+
+				Self::deposit_event(Event::BankWireInProcessSet { order_id });
+
+				Ok(())
+			})
+		}
 	}
 
 	impl<T: Config> Pallet<T> {
@@ -1113,19 +1187,16 @@ pub mod pallet {
 		}
 
 		/// Checks if given account is allowed to use bank wire
-		pub fn check_allowed_to_use_bank_wire(
-			account_id: &T::AccountId,
-		) -> DispatchResult {
+		pub fn check_allowed_to_use_bank_wire(account_id: &T::AccountId) -> DispatchResult {
 			use primitives::CarbonAssetType::*;
 
 			if let Some(kyc_level) = T::KYCProvider::get_kyc_level(account_id.clone()) {
-					match kyc_level {
-						primitives::UserLevel::KYCLevel3 => return Ok(()),
-						primitives::UserLevel::KYCLevel4 => return Ok(()),
-						_ => return Err(Error::<T>::UserCannotUseBankWire.into()),
-					}
+				match kyc_level {
+					primitives::UserLevel::KYCLevel3 => return Ok(()),
+					primitives::UserLevel::KYCLevel4 => return Ok(()),
+					_ => return Err(Error::<T>::UserCannotUseBankWire.into()),
 				}
-			else {
+			} else {
 				Err(Error::<T>::UserCannotUseBankWire.into())
 			}
 		}
