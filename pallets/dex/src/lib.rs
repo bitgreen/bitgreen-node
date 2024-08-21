@@ -324,6 +324,11 @@ pub mod pallet {
 		BankWireInProcessSet {
 			order_id: BuyOrderId,
 		},
+		/// A buy order was cancelled
+		BuyOrderCancelled {
+			order_id: BuyOrderId,
+			sell_order_id: OrderId,
+		},
 	}
 
 	// Errors inform users that something went wrong.
@@ -1147,6 +1152,43 @@ pub mod pallet {
 
 				Ok(())
 			})
+		}
+
+		#[pallet::call_index(15)]
+		#[pallet::weight(T::WeightInfo::force_set_purchase_fee())]
+		pub fn cancel_buy_order(origin: OriginFor<T>, order_id: BuyOrderId) -> DispatchResult {
+			let sender = ensure_signed(origin)?;
+			Self::check_validator_account(&sender)?;
+
+			let buy_order = BuyOrders::<T>::take(order_id).ok_or(Error::<T>::InvalidOrderId)?;
+
+			// add the credits to the sell order
+			Orders::<T>::try_mutate(buy_order.order_id, |maybe_order| -> DispatchResult {
+				let order = maybe_order.as_mut().ok_or(Error::<T>::InvalidOrderId)?;
+				order.units = order
+					.units
+					.checked_add(&buy_order.units)
+					.ok_or(Error::<T>::OrderUnitsOverflow)?;
+				Ok(())
+			})?;
+
+			// remove buy orders by user record
+			BuyOrdersByUser::<T>::try_mutate(
+				buy_order.buyer.clone(),
+				|open_orders| -> DispatchResult {
+					let open_orders = open_orders.get_or_insert_with(Default::default);
+					open_orders.retain(|&x| x != (order_id, buy_order.units));
+					Ok(())
+				},
+			)?;
+
+			// emit an event that expired order was removed
+			Self::deposit_event(Event::BuyOrderCancelled {
+				order_id,
+				sell_order_id: buy_order.order_id,
+			});
+
+			Ok(())
 		}
 	}
 
